@@ -1,0 +1,12 @@
+# App launcher icons for LunaTrack.
+# Regenerate after changing the source art:  dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/icon/icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  # Adaptive icon (Android 8+): plum background + cream crescent foreground.
+  adaptive_icon_background: "#872A4E"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  # Monochrome layer for Android 13 themed icons.
+  adaptive_icon_monochrome: "assets/icon/icon_foreground.png"

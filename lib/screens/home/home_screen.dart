@@ -1,0 +1,328 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import '../../common/date_utils.dart';
+import '../../common/insights_text.dart';
+import '../../models/enums.dart';
+import '../../models/prediction.dart';
+import '../../providers/settings_provider.dart';
+import '../../services/prediction_service.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/ad_banner.dart';
+import '../../widgets/disclaimer_banner.dart';
+import '../log/day_log_screen.dart';
+
+/// The "today" dashboard: where am I in my cycle, when is my next period, and
+/// my estimated fertile window — all with supportive, non-alarmist framing.
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final prediction = context.watch<PredictionResult>();
+    final today = dateOnly(DateTime.now());
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('LunaTrack')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => DayLogScreen(date: today)),
+        ),
+        icon: const Icon(Icons.add),
+        label: const Text('Log today'),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: prediction.hasPrediction
+                ? _PredictionBody(prediction: prediction, today: today)
+                : const _EmptyState(),
+          ),
+          const SafeArea(top: false, child: AdBanner()),
+        ],
+      ),
+    );
+  }
+}
+
+class _PredictionBody extends StatelessWidget {
+  const _PredictionBody({required this.prediction, required this.today});
+  final PredictionResult prediction;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    // Trying to conceive? Lead with the fertile window; otherwise the next
+    // period is the headline. Same data, mode-appropriate emphasis.
+    final conceive = context.watch<SettingsProvider>().mode == TrackingMode.conceive;
+    final fertile = _FertileCard(prediction: prediction, today: today);
+    final nextPeriod = _NextPeriodCard(prediction: prediction, today: today);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      children: [
+        _PhaseCard(prediction: prediction),
+        const SizedBox(height: 12),
+        if (conceive) fertile else nextPeriod,
+        const SizedBox(height: 12),
+        if (conceive) nextPeriod else fertile,
+        const SizedBox(height: 16),
+        const DisclaimerBanner(),
+      ],
+    );
+  }
+}
+
+class _PhaseCard extends StatelessWidget {
+  const _PhaseCard({required this.prediction});
+  final PredictionResult prediction;
+
+  @override
+  Widget build(BuildContext context) {
+    final phases = Theme.of(context).extension<PhaseColors>()!;
+    final accent = phases.forPhase(prediction.currentPhase);
+    final text = Theme.of(context).textTheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Container(width: 6, height: 64, color: accent),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (prediction.cycleDay != null)
+                    Text('Day ${prediction.cycleDay}',
+                        style: text.headlineMedium),
+                  Text(prediction.currentPhase.label,
+                      style: text.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(prediction.currentPhase.description,
+                      style: text.bodyMedium),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NextPeriodCard extends StatelessWidget {
+  const _NextPeriodCard({required this.prediction, required this.today});
+  final PredictionResult prediction;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    final next = prediction.nextPeriodStart!;
+    final windowEnd = prediction.nextPeriodWindowEnd!;
+    final days = daysBetween(today, next);
+    final window = daysBetween(next, windowEnd);
+
+    String headline;
+    if (windowEnd.isBefore(today)) {
+      headline = 'Your period may be late';
+    } else if (days <= 0) {
+      headline = 'Your period may start today';
+    } else if (days == 1) {
+      headline = 'Period expected tomorrow';
+    } else {
+      headline = 'Period in $days days';
+    }
+
+    return _InfoCard(
+      icon: Icons.water_drop_outlined,
+      title: headline,
+      subtitle: 'Around ${DateFormat.MMMMd().format(next)} · ± $window days',
+      trailing: _ConfidenceChip(confidence: prediction.confidence),
+    );
+  }
+}
+
+class _FertileCard extends StatelessWidget {
+  const _FertileCard({required this.prediction, required this.today});
+  final PredictionResult prediction;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    // Roll a passed fertile window forward one cycle so it stays "upcoming".
+    var start = prediction.fertileWindowStart!;
+    var end = prediction.fertileWindowEnd!;
+    if (end.isBefore(today)) {
+      final c = prediction.averageCycleLength;
+      start = start.add(Duration(days: c));
+      end = end.add(Duration(days: c));
+    }
+    final inWindow = !today.isBefore(start) && !today.isAfter(end);
+    final range =
+        '${DateFormat.MMMd().format(start)} – ${DateFormat.MMMd().format(end)}';
+
+    // Qualitative, confidence-gated fertility level for TODAY (never a number).
+    // Uses the raw current-cycle window, so it self-suppresses once today is
+    // past it — the displayed range may be the next cycle's, but the band is now.
+    final band = PredictionService.fertilityBand(
+      today: today,
+      ovulation: prediction.ovulationDay,
+      fertileWindowStart: prediction.fertileWindowStart,
+      fertileWindowEnd: prediction.fertileWindowEnd,
+      confidence: prediction.confidence,
+    );
+
+    return _InfoCard(
+      icon: Icons.eco_outlined,
+      title: inWindow ? 'Fertile window (now)' : 'Estimated fertile window',
+      subtitle: '$range · awareness only, not contraception',
+      footer: band == FertilityBand.none ? null : _BandLabel(band: band),
+    );
+  }
+}
+
+/// A small qualitative fertility indicator — a coloured dot + words, never a
+/// percentage. Shown only inside the fertile window at medium+ confidence.
+class _BandLabel extends StatelessWidget {
+  const _BandLabel({required this.band});
+  final FertilityBand band;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final label = switch (band) {
+      FertilityBand.peak => 'Most fertile today (estimated)',
+      FertilityBand.higher => 'Higher chance today (estimated)',
+      FertilityBand.lower => 'Lower chance today (estimated)',
+      FertilityBand.none => '',
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration:
+                BoxDecoration(color: scheme.primary, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(label,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+    this.footer,
+  });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? trailing;
+  final Widget? footer;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(icon, color: scheme.primary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: Theme.of(context).textTheme.bodySmall),
+                  ?footer,
+                ],
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfidenceChip extends StatelessWidget {
+  const _ConfidenceChip({required this.confidence});
+  final PredictionConfidence confidence;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: confidence.hint,
+      child: Chip(
+        label: Text(confidence.label,
+            style: Theme.of(context).textTheme.labelSmall),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final today = dateOnly(DateTime.now());
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.spa_outlined,
+                size: 64, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 16),
+            Text('Welcome to LunaTrack',
+                style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 8),
+            Text(
+              'Log the days of your period and LunaTrack will start predicting '
+              'your next one — all stored privately on this device.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => DayLogScreen(date: today)),
+              ),
+              icon: const Icon(Icons.add),
+              label: const Text('Log today'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
