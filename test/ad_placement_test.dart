@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:menstrul_track/data/daily_log_repository.dart';
 import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/db/database.dart';
+import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/models/prediction.dart';
 import 'package:menstrul_track/providers/log_provider.dart';
 import 'package:menstrul_track/providers/premium_provider.dart';
@@ -35,7 +36,11 @@ void main() {
           create: (_) => PremiumProvider(SettingsRepository(db)),
         ),
       ],
-      child: MaterialApp(home: child),
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: child,
+      ),
     );
   }
 
@@ -68,7 +73,12 @@ void main() {
           value: PredictionService.predict(const []),
         ),
       ],
-      child: MaterialApp(theme: AppTheme.light(), home: child),
+      child: MaterialApp(
+        theme: AppTheme.light(),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: child,
+      ),
     );
   }
 

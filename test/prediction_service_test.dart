@@ -73,6 +73,43 @@ void main() {
     });
   });
 
+  group('capConfidenceToLow (perimenopause mode)', () {
+    // A history that WOULD be high confidence, so the cap is observable.
+    final cycles = _regularCycles(firstStart, count: 7);
+    final lastStart = cycles.last.start;
+
+    test('caps a high-confidence prediction down to low', () {
+      final normal = PredictionService.predict(cycles, asOf: lastStart);
+      expect(normal.confidence, PredictionConfidence.high); // sanity
+
+      final capped = PredictionService.predict(cycles,
+          asOf: lastStart, capConfidenceToLow: true);
+      expect(capped.confidence, PredictionConfidence.low);
+      // The next-period estimate survives — only the fertility signal is muted.
+      expect(capped.hasPrediction, isTrue);
+      expect(capped.nextPeriodStart, normal.nextPeriodStart);
+    });
+
+    test('capping suppresses the fertility band inside the window', () {
+      final capped = PredictionService.predict(cycles,
+          asOf: lastStart, capConfidenceToLow: true);
+      // The ovulation day would be `peak` at high confidence; capped it is none.
+      final band = PredictionService.fertilityBand(
+        today: capped.ovulationDay!,
+        ovulation: capped.ovulationDay,
+        fertileWindowStart: capped.fertileWindowStart,
+        fertileWindowEnd: capped.fertileWindowEnd,
+        confidence: capped.confidence,
+      );
+      expect(band, FertilityBand.none);
+    });
+
+    test('is a ceiling, not a floor: none stays none', () {
+      final r = PredictionService.predict([], capConfidenceToLow: true);
+      expect(r.confidence, PredictionConfidence.none);
+    });
+  });
+
   test('irregular history -> low confidence', () {
     // Lengths 24, 40, 22 => out of 21..35 range and high variability.
     final cycles = <Cycle>[

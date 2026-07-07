@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Local notifications: post on Android 13+, reschedule after reboot.
          Uses INEXACT alarms, so no SCHEDULE_EXACT_ALARM permission is needed. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
@@ -7,10 +8,22 @@
     <!-- App lock (local_auth) -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
 
+    <!-- Health Connect: READ basal/body temperature only. This is an ON-DEVICE
+         permission — reads are local IPC to the Health Connect app, NOT network.
+         DELIBERATELY no android.permission.INTERNET is added: keeping it out of
+         the release manifest is the app's bright-line privacy guarantee. -->
+    <uses-permission android:name="android.permission.health.READ_BODY_TEMPERATURE"/>
+
+    <!-- allowBackup=false: the health DB must never leave the device via
+         Android Auto Backup / cloud backup — that would break the app's core
+         "your data can't leave your phone" promise. tools:replace guarantees
+         this wins any library manifest merge that sets allowBackup="true". -->
     <application
         android:label="LunaTrack"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        tools:replace="android:allowBackup">
 
         <!-- flutter_local_notifications receivers -->
         <receiver
@@ -47,12 +60,43 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Health Connect asks the app to show its privacy rationale here
+                 (Android 13-). Required by the `health` plugin. -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
+            </intent-filter>
         </activity>
+        <!-- Health Connect permissions-usage screen (Android 14+). Points back
+             at MainActivity to show the same rationale. -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/>
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS"/>
+            </intent-filter>
+        </activity-alias>
         <!-- AdMob App ID. This is Google's OFFICIAL TEST app ID — replace with
              your real app ID from https://apps.admob.com before release. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3940256099942544~3347511713"/>
+
+        <!-- Home-screen widget: "N days until your next period". Data is pushed
+             from Dart (HomeWidgetService); this receiver only re-renders it.
+             exported=true so the launcher can send APPWIDGET_UPDATE. -->
+        <receiver
+            android:name=".LunaWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/luna_widget_info"/>
+        </receiver>
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -70,5 +114,7 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Lets the app detect / deep-link to the Health Connect app. -->
+        <package android:name="com.google.android.apps.healthdata"/>
     </queries>
 </manifest>

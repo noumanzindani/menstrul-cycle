@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../common/l10n.dart';
+
 /// Reusable safety notice shown alongside predictions. Required by the app's
 /// clinical/legal guardrails — predictions are estimates, NOT contraception.
 class DisclaimerBanner extends StatelessWidget {
@@ -23,10 +25,7 @@ class DisclaimerBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              compact
-                  ? 'Estimates only — not a contraceptive method.'
-                  : 'Predictions are estimates and can be wrong. They are not a '
-                      'contraceptive method and do not replace medical advice.',
+              compact ? context.l10n.disclaimerCompact : context.l10n.disclaimerFull,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),

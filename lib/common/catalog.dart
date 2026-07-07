@@ -28,6 +28,14 @@ const List<TrackOption> kSymptomOptions = [
   TrackOption('constipation', 'Constipation'),
   TrackOption('dizziness', 'Dizziness'),
   TrackOption('discharge', 'Discharge'),
+  TrackOption('migraine', 'Migraine'),
+  TrackOption('hot_flashes', 'Hot flashes'),
+  TrackOption('night_sweats', 'Night sweats'),
+  TrackOption('pelvic_pain', 'Pelvic pain'),
+  TrackOption('leg_pain', 'Leg pain'),
+  TrackOption('swelling', 'Swelling'),
+  TrackOption('fever', 'Fever'),
+  TrackOption('chills', 'Chills'),
 ];
 
 const List<TrackOption> kMoodOptions = [
@@ -41,8 +49,34 @@ const List<TrackOption> kMoodOptions = [
   TrackOption('angry', 'Angry'),
 ];
 
-/// Namespace prefix for sexual-activity keys stored inside the day-tags JSON.
-const String kSexKeyPrefix = 'sex_';
+/// Namespace prefixes for keys stored inside the day-tags JSON that are NOT
+/// plain symptoms. Each groups a set of keys and is EXCLUDED from the doctor
+/// PDF's symptom frequency by default (they are sensitive or non-symptom),
+/// mirroring how sexual-activity data has always been kept separate.
+const String kSexKeyPrefix = 'sex_'; // sexual activity (single-select)
+const String kDischargeKeyPrefix = 'cm_'; // cervical mucus / discharge (single)
+const String kVaginalKeyPrefix = 'vag_'; // vaginal-health flags
+const String kSexualHealthKeyPrefix = 'shx_'; // sexual-health flags
+const String kHabitKeyPrefix = 'habit_'; // lifestyle habits
+
+/// All reserved (non-symptom) prefixes. [decodeSymptoms] skips these so grouped
+/// and sensitive data never surfaces in the symptom chips or the doctor PDF.
+const List<String> kReservedTagPrefixes = [
+  kSexKeyPrefix,
+  kDischargeKeyPrefix,
+  kVaginalKeyPrefix,
+  kSexualHealthKeyPrefix,
+  kHabitKeyPrefix,
+];
+
+/// Numeric day-metric keys (stored as real JSON numbers, not booleans, in the
+/// same day-tags blob). They never satisfy the `== true` symptom check, so they
+/// are naturally excluded from [decodeSymptoms].
+const String kMetricPain = 'pain'; // 0–10
+const String kMetricWater = 'water'; // glasses
+const String kMetricSleep = 'sleep'; // hours
+const String kMetricEnergy = 'energy'; // 1–5
+const String kMetricStress = 'stress'; // 1–5
 
 /// Sexual-activity options (single-select). Keys share the same day-tags JSON as
 /// symptoms but are namespaced with [kSexKeyPrefix] so they never surface in the
@@ -53,13 +87,85 @@ const List<TrackOption> kSexOptions = [
   TrackOption('sex_unprotected', 'Unprotected'),
 ];
 
-/// Encodes selected symptom keys as a JSON object `{key: true}` — an object (not
-/// a list) so we can later attach per-symptom intensity without a migration.
-String encodeSymptoms(Set<String> keys) =>
-    jsonEncode({for (final k in keys) k: true});
+/// Emotional symptoms (boolean multi-select). Plain (un-prefixed) keys — they
+/// are symptoms, so they DO appear in the doctor PDF alongside physical ones.
+const List<TrackOption> kEmotionalOptions = [
+  TrackOption('mood_swings', 'Mood swings'),
+  TrackOption('anxiety', 'Anxiety'),
+  TrackOption('low_mood', 'Low mood'),
+  TrackOption('irritability', 'Irritability'),
+  TrackOption('sensitive_emotional', 'Emotional sensitivity'),
+  TrackOption('tearful', 'Tearful'),
+  TrackOption('low_motivation', 'Low motivation'),
+  TrackOption('brain_fog', 'Brain fog'),
+];
 
-/// Tolerant decode of the symptoms JSON. Accepts the object form and, defensively,
-/// a legacy list form; returns an empty set on anything unexpected.
+/// Discharge / cervical-mucus quality (single-select, [kDischargeKeyPrefix]).
+/// Sensitive + fertility-relevant → excluded from the doctor PDF by default.
+const List<TrackOption> kDischargeOptions = [
+  TrackOption('cm_dry', 'Dry'),
+  TrackOption('cm_sticky', 'Sticky'),
+  TrackOption('cm_creamy', 'Creamy'),
+  TrackOption('cm_watery', 'Watery'),
+  TrackOption('cm_eggwhite', 'Egg-white'),
+];
+
+/// Vaginal-health flags (boolean multi-select, [kVaginalKeyPrefix]). Sensitive
+/// → excluded from the doctor PDF by default.
+const List<TrackOption> kVaginalOptions = [
+  TrackOption('vag_itching', 'Itching'),
+  TrackOption('vag_burning', 'Burning'),
+  TrackOption('vag_dryness', 'Dryness'),
+  TrackOption('vag_odor', 'Unusual odor'),
+];
+
+/// Sexual-health flags (boolean multi-select, [kSexualHealthKeyPrefix]).
+/// Sensitive → excluded from the doctor PDF by default.
+const List<TrackOption> kSexualHealthOptions = [
+  TrackOption('shx_condom', 'Condom used'),
+  TrackOption('shx_emergency', 'Emergency contraception'),
+  TrackOption('shx_pain', 'Pain during sex'),
+  TrackOption('shx_high_libido', 'High libido'),
+];
+
+/// Ovulation-test (LH) result — stored directly in the `DailyLogs.opk` column
+/// (not the day-tags JSON). Single-select.
+const List<TrackOption> kOpkOptions = [
+  TrackOption('negative', 'Negative'),
+  TrackOption('positive', 'Positive'),
+  TrackOption('peak', 'Peak'),
+];
+
+/// Lifestyle habits (boolean multi-select, [kHabitKeyPrefix]).
+const List<TrackOption> kHabitOptions = [
+  TrackOption('habit_exercise', 'Exercise'),
+  TrackOption('habit_caffeine', 'Caffeine'),
+  TrackOption('habit_alcohol', 'Alcohol'),
+  TrackOption('habit_smoking', 'Smoking'),
+  TrackOption('habit_meditation', 'Meditation'),
+];
+
+bool _isReserved(String key) => kReservedTagPrefixes.any(key.startsWith);
+
+/// Encodes a full day's tags into the JSON blob: boolean [flags] (symptoms plus
+/// any selected namespaced keys) as `{key: true}`, and numeric [numbers] as real
+/// JSON numbers. An object (not a list) so per-key detail can be added later
+/// without a migration.
+String encodeDayTags({
+  Set<String> flags = const {},
+  Map<String, num> numbers = const {},
+}) =>
+    jsonEncode({
+      for (final k in flags) k: true,
+      for (final e in numbers.entries) e.key: e.value,
+    });
+
+/// Backward-compatible alias: encode only boolean symptom/flag keys.
+String encodeSymptoms(Set<String> keys) => encodeDayTags(flags: keys);
+
+/// Tolerant decode of the day-tags JSON, returning only PLAIN symptom keys —
+/// boolean-true keys not under any reserved prefix. Numeric metrics are excluded
+/// automatically (they are not `== true`). Defensively accepts a legacy list.
 Set<String> decodeSymptoms(String? json) {
   if (json == null || json.isEmpty) return {};
   try {
@@ -68,35 +174,78 @@ Set<String> decodeSymptoms(String? json) {
       return decoded.entries
           .where((e) => e.value == true)
           .map((e) => e.key.toString())
-          .where((k) => !k.startsWith(kSexKeyPrefix)) // sex is read separately
+          .where((k) => !_isReserved(k))
           .toSet();
     }
     if (decoded is List) {
       return decoded
           .map((e) => e.toString())
-          .where((k) => !k.startsWith(kSexKeyPrefix))
+          .where((k) => !_isReserved(k))
           .toSet();
     }
   } catch (_) {}
   return {};
 }
 
-/// The single selected sexual-activity key in the day-tags JSON, or null.
-/// Sex shares the [encodeSymptoms] blob but is namespaced with [kSexKeyPrefix]
-/// so it round-trips independently of symptoms.
-String? decodeSex(String? json) {
+/// The single selected key under [prefix] in the day-tags JSON, or null. Used
+/// for single-select groups (sexual activity, discharge quality) that share the
+/// symptoms blob but round-trip independently.
+String? decodeSingle(String? json, String prefix) {
   if (json == null || json.isEmpty) return null;
   try {
     final decoded = jsonDecode(json);
     if (decoded is Map) {
       for (final e in decoded.entries) {
-        if (e.value == true && e.key.toString().startsWith(kSexKeyPrefix)) {
+        if (e.value == true && e.key.toString().startsWith(prefix)) {
           return e.key.toString();
         }
       }
     }
   } catch (_) {}
   return null;
+}
+
+/// The selected sexual-activity key, or null. Thin wrapper over [decodeSingle].
+String? decodeSex(String? json) => decodeSingle(json, kSexKeyPrefix);
+
+/// All selected keys under [prefix] in the day-tags JSON — for multi-select
+/// groups such as vaginal-health or lifestyle habits.
+Set<String> decodeGroup(String? json, String prefix) {
+  if (json == null || json.isEmpty) return {};
+  try {
+    final decoded = jsonDecode(json);
+    if (decoded is Map) {
+      return decoded.entries
+          .where((e) => e.value == true && e.key.toString().startsWith(prefix))
+          .map((e) => e.key.toString())
+          .toSet();
+    }
+  } catch (_) {}
+  return {};
+}
+
+/// A numeric day-metric (e.g. [kMetricPain], [kMetricWater]) from the day-tags
+/// JSON, or null if absent/invalid.
+num? decodeNumber(String? json, String key) {
+  if (json == null || json.isEmpty) return null;
+  try {
+    final decoded = jsonDecode(json);
+    if (decoded is Map) {
+      final v = decoded[key];
+      if (v is num) return v;
+    }
+  } catch (_) {}
+  return null;
+}
+
+/// Human label for a plain-symptom [key] (physical or emotional), falling back
+/// to the raw key. Used by the doctor PDF so every symptom group renders a
+/// readable name rather than a storage key.
+String symptomLabel(String key) {
+  for (final o in [...kSymptomOptions, ...kEmotionalOptions]) {
+    if (o.key == key) return o.label;
+  }
+  return key;
 }
 
 extension FlowIntensityUi on FlowIntensity {

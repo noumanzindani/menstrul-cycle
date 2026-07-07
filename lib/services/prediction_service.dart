@@ -1,9 +1,11 @@
 import 'dart:math';
 
 import '../common/date_utils.dart';
+import '../db/database.dart';
 import '../models/cycle.dart';
 import '../models/enums.dart';
 import '../models/prediction.dart';
+import 'ovulation_signal_service.dart';
 
 /// On-device calendar-method predictions. Pure and deterministic given [asOf],
 /// so it is fully unit-testable. NOTHING here is a contraceptive guarantee.
@@ -58,11 +60,22 @@ class PredictionService {
     return result;
   }
 
+  /// [capConfidenceToLow] models perimenopause: cycles become erratic, so any
+  /// computed confidence is capped at `low`. Because the ovulation marker and
+  /// [fertilityBand] are already gated to medium+, this single lever suppresses
+  /// every fertility estimate app-wide while leaving the next-period estimate
+  /// visible (honestly flagged low). It is a ceiling — `none` stays `none`.
+  /// [logs] carries symptothermal signals (OPK results). A positive/peak OPK
+  /// near the computed ovulation corroborates the calendar estimate and raises
+  /// [PredictionResult.fertilityConfidence] one notch — never [confidence], and
+  /// never while [capConfidenceToLow] is set (perimenopause suppression wins).
   static PredictionResult predict(
     List<Cycle> cycles, {
     int fallbackCycleLength = 28,
     int fallbackPeriodLength = 5,
     DateTime? asOf,
+    bool capConfidenceToLow = false,
+    List<DailyLog> logs = const [],
   }) {
     final today = dateOnly(asOf ?? DateTime.now());
 
@@ -92,7 +105,7 @@ class PredictionService {
         cycleVariabilityDays: variability,
         averagePeriodLength: avgPeriod,
         cyclesTracked: lengths.length,
-        confidence: PredictionConfidence.none,
+        confidence: _applyCap(PredictionConfidence.none, capConfidenceToLow),
         lastPeriodStart: null,
         cycleDay: null,
         currentPhase: CyclePhase.unknown,
@@ -123,12 +136,27 @@ class PredictionService {
       fertileEnd: fertileEnd,
     );
 
+    final confidence =
+        _applyCap(_confidenceFor(recent, variability), capConfidenceToLow);
+    // Symptothermal corroboration: a positive/peak OPK near the estimated
+    // ovulation raises ONLY the fertility band's confidence, one notch. Skipped
+    // while capping (perimenopause), so the cap stays the ceiling.
+    final corroborated = !capConfidenceToLow &&
+        OvulationSignalService.opkCorroboratesOvulation(
+          logs: logs,
+          predictedOvulation: ovulation,
+        );
+    final fertilityConfidence = OvulationSignalService.raiseFertilityConfidence(
+        confidence,
+        corroborated: corroborated);
+
     return PredictionResult(
       averageCycleLength: avgCycle,
       cycleVariabilityDays: variability,
       averagePeriodLength: avgPeriod,
       cyclesTracked: lengths.length,
-      confidence: _confidenceFor(recent, variability),
+      confidence: confidence,
+      fertilityConfidence: fertilityConfidence,
       lastPeriodStart: lastStart,
       cycleDay: cycleDay >= 1 ? cycleDay : null,
       currentPhase: phase,
@@ -212,6 +240,15 @@ class PredictionService {
       return PredictionConfidence.medium;
     }
     return PredictionConfidence.low;
+  }
+
+  /// Ceiling helper: clamps [c] to at most `low` when [cap] is set. Never
+  /// raises confidence, so a no-data `none` is preserved.
+  static PredictionConfidence _applyCap(PredictionConfidence c, bool cap) {
+    if (!cap) return c;
+    return c.index > PredictionConfidence.low.index
+        ? PredictionConfidence.low
+        : c;
   }
 
   static double _mean(List<int> xs) =>

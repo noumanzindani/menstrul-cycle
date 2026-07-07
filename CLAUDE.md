@@ -71,6 +71,13 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   precision that reads as a "safe day" — an Apple 1.4.1 / Play health-misinformation /
   real-user-harm risk. The ovulation marker and band are **confidence-gated**: suppressed
   below `PredictionConfidence.medium`.
+- **Two confidences, deliberately split.** `PredictionResult.confidence` gates the
+  next-period chip; `.fertilityConfidence` gates the band + ovulation marker. Symptothermal
+  corroboration (`OvulationSignalService`) raises ONLY `fertilityConfidence`, one notch, so
+  a single OPK unlocks the band when actionable without overstating next-period precision.
+  It only ever RAISES, is skipped while `capConfidenceToLow` is set (perimenopause cap is
+  the ceiling), and the band still self-suppresses outside the window — so it can never
+  manufacture a "safe" reading. `fertilityConfidence` falls back to `confidence` when unset.
 - **DB encryption is seam'd, not on.** `sqlcipher_flutter_libs`/`sqlite3_flutter_libs` are
   no-op stubs in `sqlite3` v3; encryption is a build hook
   (`hooks.user_defines.sqlite3.source: sqlite3mc` in pubspec) that only compiles on a real
@@ -96,6 +103,11 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
 - Track / Conceive **modes** (`AppSettings.mode`); Conceive reorders Home to lead with
   fertility. Ovulation calendar marker + qualitative fertility band. Extended doctor PDF
   (symptom/mood frequency + estimated fertility; sex excluded).
+- **Symptothermal fertility** — BBT numeric input + `fl_chart` chart; cervical-mucus
+  quality (`cm_*`); OPK/LH result (`opk` column); non-diagnostic thermal-shift observation
+  (`BbtService`, 3-over-6 rule, awareness-only in Insights). A positive/peak OPK near the
+  estimated ovulation **corroborates** the calendar and raises the fertility band ONE
+  confidence notch (`OvulationSignalService` → `PredictionResult.fertilityConfidence`).
 
 **Calendar day entry is a bottom sheet, not an inline panel.** Tapping a day opens
 `_DayEntrySheet` (in `calendar_screen.dart`), whose content is a **`Scaffold`** (mirrors
@@ -114,10 +126,6 @@ intrinsic query. `_selectedDay` still gates the calendar ad while the sheet is o
 
 ### v3 backlog (from a Meet You competitor teardown)
 
-- **Symptothermal fertility** — numeric BBT + cervical-mucus quality. The dormant
-  `DailyLogs.bbt` / `.opk` columns are pre-wired for exactly this; adding UI + a
-  thermal-shift refinement upgrades Conceive mode from calendar-only toward a real
-  biological signal (still not contraception-grade without clinical validation).
 - Weight, Habit chips, richer Diary. **i18n/l10n** — the app is currently hardcoded
   English (`AppSettings.language` is dormant); localization is its own initiative.
 

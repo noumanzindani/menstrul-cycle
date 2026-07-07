@@ -21,6 +21,16 @@ version: 1.0.0+1
 environment:
   sdk: ^3.11.5
 
+# Native-assets build hook: swaps the bundled sqlite3 for "SQLite Multiple
+# Ciphers" so `PRAGMA key` encrypts the DB at rest. Only takes effect during an
+# on-device / host BUILD — not `flutter analyze`. Pair with
+# `kDatabaseEncryptionEnabled = true` in lib/db/connection.dart, then verify on
+# a device with databaseIsEncryptedAtRest().
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlite3mc
+
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
 # consider running `flutter pub upgrade --major-versions`. Alternatively,
@@ -30,6 +40,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -38,7 +50,7 @@ dependencies:
   drift: ^2.34.0
   path_provider: ^2.1.6
   path: ^1.9.1
-  intl: ^0.20.3
+  intl: ^0.20.2
   flutter_secure_storage: ^10.3.1
   flutter_local_notifications: ^22.0.1
   timezone: ^0.11.1
@@ -50,6 +62,8 @@ dependencies:
   crypto: ^3.0.7
   google_mobile_ads: ^9.0.0
   in_app_purchase: ^3.3.0
+  health: ^13.0.0
+  home_widget: ^0.9.3
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +84,9 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+
+  # Generate the localizations (AppLocalizations) from lib/l10n/*.arb.
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

@@ -1,12 +1,15 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
+import '../../db/database.dart';
 import '../../models/insights.dart';
 import '../../models/prediction.dart';
 import '../../providers/log_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/bbt_service.dart';
 import '../../services/insights_service.dart';
 import '../../services/pdf_report_service.dart';
 
@@ -44,8 +47,18 @@ class InsightsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cycles = context.watch<LogProvider>().cycles;
+    final logProvider = context.watch<LogProvider>();
+    final cycles = logProvider.cycles;
     final insights = InsightsService.analyze(cycles);
+    final nudges = InsightsService.patternNudges(
+      cycles: cycles,
+      logs: logProvider.logs,
+    );
+    final bbtLogs = [
+      for (final l in logProvider.logs)
+        if (l.bbt != null) l,
+    ]..sort((a, b) => a.date.compareTo(b.date));
+    final thermalShift = BbtService.thermalShift(logProvider.logs);
     final stats = insights.stats;
 
     return Scaffold(
@@ -89,6 +102,50 @@ class InsightsScreen extends StatelessWidget {
                           ?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   for (final f in insights.flags) _FlagCard(flag: f),
+                ],
+                if (nudges.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Text('Patterns worth discussing',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(
+                    'General observations from your logs — not a diagnosis. '
+                    'A clinician can help you make sense of them.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final n in nudges) _NudgeCard(nudge: n),
+                ],
+                if (bbtLogs.length >= 2) ...[
+                  const SizedBox(height: 20),
+                  Text('Basal body temperature',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 12),
+                  SizedBox(height: 180, child: _BbtChart(readings: bbtLogs)),
+                  if (thermalShift != null) ...[
+                    const SizedBox(height: 8),
+                    Card(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Text(
+                          'A sustained temperature rise appeared around '
+                          '${DateFormat.MMMd().format(thermalShift)}. This can '
+                          'indicate ovulation has already happened this cycle — '
+                          'it is awareness only, not a contraceptive method.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 8),
                 FilledButton.icon(
@@ -249,6 +306,95 @@ class _FlagCard extends StatelessWidget {
                   Text(flag.message,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: scheme.onSecondaryContainer)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A simple line chart of basal body temperature readings (oldest → newest),
+/// for symptothermal awareness. Not connected to the fertility band.
+class _BbtChart extends StatelessWidget {
+  const _BbtChart({required this.readings});
+  final List<DailyLog> readings;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final vals = [for (final r in readings) r.bbt!];
+    final spots = [
+      for (var i = 0; i < vals.length; i++) FlSpot(i.toDouble(), vals[i]),
+    ];
+    final lo = vals.reduce((a, b) => a < b ? a : b) - 0.2;
+    final hi = vals.reduce((a, b) => a > b ? a : b) + 0.2;
+
+    return LineChart(
+      LineChartData(
+        minY: lo,
+        maxY: hi,
+        gridData: const FlGridData(show: true, drawVerticalLine: false),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: true, reservedSize: 36),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: false,
+            barWidth: 2,
+            color: scheme.tertiary,
+            dotData: const FlDotData(show: true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A non-diagnostic "discuss with a clinician" prompt. Styled distinctly from
+/// [_FlagCard] (a clinical/medical accent) so it reads as a gentle suggestion,
+/// never an alarm or a diagnosis.
+class _NudgeCard extends StatelessWidget {
+  const _NudgeCard({required this.nudge});
+  final PatternNudge nudge;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      color: scheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.medical_services_outlined,
+                color: scheme.onTertiaryContainer),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(nudge.title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: scheme.onTertiaryContainer,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(nudge.message,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onTertiaryContainer)),
                 ],
               ),
             ),

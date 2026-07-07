@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:menstrul_track/data/daily_log_repository.dart';
 import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/db/database.dart';
+import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/models/prediction.dart';
 import 'package:menstrul_track/providers/log_provider.dart';
@@ -46,6 +47,8 @@ void main() {
       ],
       child: MaterialApp(
         theme: AppTheme.light(),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: IndexedStack(index: 0, children: [child]),
           bottomNavigationBar: const SizedBox(height: 80),

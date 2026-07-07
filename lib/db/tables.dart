@@ -72,6 +72,9 @@ class AppSettings extends Table {
   BoolColumn get onboardingComplete =>
       boolean().withDefault(const Constant(false))();
   DateTimeColumn get lastBackup => dateTime().nullable()();
+  // Pregnancy mode: the last-menstrual-period date the pregnancy is dated from
+  // (null unless mode == pregnancy). Due date is DERIVED (Naegele), not stored.
+  DateTimeColumn get pregnancyStartDate => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

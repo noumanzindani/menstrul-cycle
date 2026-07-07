@@ -39,6 +39,8 @@ class LogProvider extends ChangeNotifier {
     required String symptomsJson,
     String? mood,
     String? notes,
+    double? bbt,
+    String? opk,
   }) async {
     await _repo.upsert(
       date: date,
@@ -46,6 +48,8 @@ class LogProvider extends ChangeNotifier {
       symptomsJson: symptomsJson,
       mood: mood,
       notes: notes,
+      bbt: bbt,
+      opk: opk,
     );
     await load();
   }

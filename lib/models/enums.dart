@@ -21,6 +21,7 @@ enum TrackingMode {
   track,
   conceive,
   perimenopause,
+  pregnancy,
 }
 
 /// Kinds of local reminders. Notification scheduling maps off this.

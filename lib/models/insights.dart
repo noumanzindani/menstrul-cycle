@@ -31,6 +31,16 @@ class RedFlag {
   final String message;
 }
 
+/// A NON-diagnostic prompt to discuss a specific pattern (e.g. PCOS, endo,
+/// PMDD) with a clinician. [key] identifies the pattern (for tests/analytics);
+/// it is never a diagnosis and never a probability/score.
+class PatternNudge {
+  const PatternNudge(this.key, this.title, this.message);
+  final String key; // 'pcos' | 'endo' | 'pmdd'
+  final String title;
+  final String message;
+}
+
 /// Everything the Insights screen and PDF report need.
 class Insights {
   const Insights({

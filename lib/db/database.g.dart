@@ -1922,6 +1922,17 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _pregnancyStartDateMeta =
+      const VerificationMeta('pregnancyStartDate');
+  @override
+  late final GeneratedColumn<DateTime> pregnancyStartDate =
+      GeneratedColumn<DateTime>(
+        'pregnancy_start_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1935,6 +1946,7 @@ class $AppSettingsTable extends AppSettings
     premium,
     onboardingComplete,
     lastBackup,
+    pregnancyStartDate,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2020,6 +2032,15 @@ class $AppSettingsTable extends AppSettings
         lastBackup.isAcceptableOrUnknown(data['last_backup']!, _lastBackupMeta),
       );
     }
+    if (data.containsKey('pregnancy_start_date')) {
+      context.handle(
+        _pregnancyStartDateMeta,
+        pregnancyStartDate.isAcceptableOrUnknown(
+          data['pregnancy_start_date']!,
+          _pregnancyStartDateMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2075,6 +2096,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_backup'],
       ),
+      pregnancyStartDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}pregnancy_start_date'],
+      ),
     );
   }
 
@@ -2099,6 +2124,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final bool premium;
   final bool onboardingComplete;
   final DateTime? lastBackup;
+  final DateTime? pregnancyStartDate;
   const AppSetting({
     required this.id,
     required this.mode,
@@ -2111,6 +2137,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     required this.premium,
     required this.onboardingComplete,
     this.lastBackup,
+    this.pregnancyStartDate,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2130,6 +2157,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || lastBackup != null) {
       map['last_backup'] = Variable<DateTime>(lastBackup);
     }
+    if (!nullToAbsent || pregnancyStartDate != null) {
+      map['pregnancy_start_date'] = Variable<DateTime>(pregnancyStartDate);
+    }
     return map;
   }
 
@@ -2148,6 +2178,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       lastBackup: lastBackup == null && nullToAbsent
           ? const Value.absent()
           : Value(lastBackup),
+      pregnancyStartDate: pregnancyStartDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pregnancyStartDate),
     );
   }
 
@@ -2174,6 +2207,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       premium: serializer.fromJson<bool>(json['premium']),
       onboardingComplete: serializer.fromJson<bool>(json['onboardingComplete']),
       lastBackup: serializer.fromJson<DateTime?>(json['lastBackup']),
+      pregnancyStartDate: serializer.fromJson<DateTime?>(
+        json['pregnancyStartDate'],
+      ),
     );
   }
   @override
@@ -2193,6 +2229,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'premium': serializer.toJson<bool>(premium),
       'onboardingComplete': serializer.toJson<bool>(onboardingComplete),
       'lastBackup': serializer.toJson<DateTime?>(lastBackup),
+      'pregnancyStartDate': serializer.toJson<DateTime?>(pregnancyStartDate),
     };
   }
 
@@ -2208,6 +2245,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     bool? premium,
     bool? onboardingComplete,
     Value<DateTime?> lastBackup = const Value.absent(),
+    Value<DateTime?> pregnancyStartDate = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     mode: mode ?? this.mode,
@@ -2220,6 +2258,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     premium: premium ?? this.premium,
     onboardingComplete: onboardingComplete ?? this.onboardingComplete,
     lastBackup: lastBackup.present ? lastBackup.value : this.lastBackup,
+    pregnancyStartDate: pregnancyStartDate.present
+        ? pregnancyStartDate.value
+        : this.pregnancyStartDate,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -2246,6 +2287,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       lastBackup: data.lastBackup.present
           ? data.lastBackup.value
           : this.lastBackup,
+      pregnancyStartDate: data.pregnancyStartDate.present
+          ? data.pregnancyStartDate.value
+          : this.pregnancyStartDate,
     );
   }
 
@@ -2262,7 +2306,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('appLockEnabled: $appLockEnabled, ')
           ..write('premium: $premium, ')
           ..write('onboardingComplete: $onboardingComplete, ')
-          ..write('lastBackup: $lastBackup')
+          ..write('lastBackup: $lastBackup, ')
+          ..write('pregnancyStartDate: $pregnancyStartDate')
           ..write(')'))
         .toString();
   }
@@ -2280,6 +2325,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     premium,
     onboardingComplete,
     lastBackup,
+    pregnancyStartDate,
   );
   @override
   bool operator ==(Object other) =>
@@ -2295,7 +2341,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.appLockEnabled == this.appLockEnabled &&
           other.premium == this.premium &&
           other.onboardingComplete == this.onboardingComplete &&
-          other.lastBackup == this.lastBackup);
+          other.lastBackup == this.lastBackup &&
+          other.pregnancyStartDate == this.pregnancyStartDate);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -2310,6 +2357,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<bool> premium;
   final Value<bool> onboardingComplete;
   final Value<DateTime?> lastBackup;
+  final Value<DateTime?> pregnancyStartDate;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.mode = const Value.absent(),
@@ -2322,6 +2370,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.premium = const Value.absent(),
     this.onboardingComplete = const Value.absent(),
     this.lastBackup = const Value.absent(),
+    this.pregnancyStartDate = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -2335,6 +2384,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.premium = const Value.absent(),
     this.onboardingComplete = const Value.absent(),
     this.lastBackup = const Value.absent(),
+    this.pregnancyStartDate = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -2348,6 +2398,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<bool>? premium,
     Expression<bool>? onboardingComplete,
     Expression<DateTime>? lastBackup,
+    Expression<DateTime>? pregnancyStartDate,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2364,6 +2415,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (premium != null) 'premium': premium,
       if (onboardingComplete != null) 'onboarding_complete': onboardingComplete,
       if (lastBackup != null) 'last_backup': lastBackup,
+      if (pregnancyStartDate != null)
+        'pregnancy_start_date': pregnancyStartDate,
     });
   }
 
@@ -2379,6 +2432,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<bool>? premium,
     Value<bool>? onboardingComplete,
     Value<DateTime?>? lastBackup,
+    Value<DateTime?>? pregnancyStartDate,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -2393,6 +2447,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       premium: premium ?? this.premium,
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
       lastBackup: lastBackup ?? this.lastBackup,
+      pregnancyStartDate: pregnancyStartDate ?? this.pregnancyStartDate,
     );
   }
 
@@ -2436,6 +2491,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (lastBackup.present) {
       map['last_backup'] = Variable<DateTime>(lastBackup.value);
     }
+    if (pregnancyStartDate.present) {
+      map['pregnancy_start_date'] = Variable<DateTime>(
+        pregnancyStartDate.value,
+      );
+    }
     return map;
   }
 
@@ -2452,7 +2512,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('appLockEnabled: $appLockEnabled, ')
           ..write('premium: $premium, ')
           ..write('onboardingComplete: $onboardingComplete, ')
-          ..write('lastBackup: $lastBackup')
+          ..write('lastBackup: $lastBackup, ')
+          ..write('pregnancyStartDate: $pregnancyStartDate')
           ..write(')'))
         .toString();
   }
@@ -3412,6 +3473,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<bool> premium,
       Value<bool> onboardingComplete,
       Value<DateTime?> lastBackup,
+      Value<DateTime?> pregnancyStartDate,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -3426,6 +3488,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<bool> premium,
       Value<bool> onboardingComplete,
       Value<DateTime?> lastBackup,
+      Value<DateTime?> pregnancyStartDate,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -3490,6 +3553,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<DateTime> get lastBackup => $composableBuilder(
     column: $table.lastBackup,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get pregnancyStartDate => $composableBuilder(
+    column: $table.pregnancyStartDate,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3557,6 +3625,11 @@ class $$AppSettingsTableOrderingComposer
     column: $table.lastBackup,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get pregnancyStartDate => $composableBuilder(
+    column: $table.pregnancyStartDate,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -3612,6 +3685,11 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.lastBackup,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get pregnancyStartDate => $composableBuilder(
+    column: $table.pregnancyStartDate,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -3656,6 +3734,7 @@ class $$AppSettingsTableTableManager
                 Value<bool> premium = const Value.absent(),
                 Value<bool> onboardingComplete = const Value.absent(),
                 Value<DateTime?> lastBackup = const Value.absent(),
+                Value<DateTime?> pregnancyStartDate = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 mode: mode,
@@ -3668,6 +3747,7 @@ class $$AppSettingsTableTableManager
                 premium: premium,
                 onboardingComplete: onboardingComplete,
                 lastBackup: lastBackup,
+                pregnancyStartDate: pregnancyStartDate,
               ),
           createCompanionCallback:
               ({
@@ -3682,6 +3762,7 @@ class $$AppSettingsTableTableManager
                 Value<bool> premium = const Value.absent(),
                 Value<bool> onboardingComplete = const Value.absent(),
                 Value<DateTime?> lastBackup = const Value.absent(),
+                Value<DateTime?> pregnancyStartDate = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 mode: mode,
@@ -3694,6 +3775,7 @@ class $$AppSettingsTableTableManager
                 premium: premium,
                 onboardingComplete: onboardingComplete,
                 lastBackup: lastBackup,
+                pregnancyStartDate: pregnancyStartDate,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

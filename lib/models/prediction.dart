@@ -47,7 +47,8 @@ class PredictionResult {
     required this.ovulationDay,
     required this.fertileWindowStart,
     required this.fertileWindowEnd,
-  });
+    PredictionConfidence? fertilityConfidence,
+  }) : _fertilityConfidence = fertilityConfidence;
 
   final int averageCycleLength;
   final double cycleVariabilityDays;
@@ -55,7 +56,21 @@ class PredictionResult {
 
   /// Number of COMPLETE cycles (with a known length) behind the estimate.
   final int cyclesTracked;
+
+  /// Trust in the NEXT-PERIOD estimate — how many/how regular the cycles are.
+  /// Drives the confidence chip. Symptothermal signals never touch this.
   final PredictionConfidence confidence;
+
+  final PredictionConfidence? _fertilityConfidence;
+
+  /// Trust in the FERTILITY band/ovulation marker specifically. Equals
+  /// [confidence] unless a symptothermal signal (a positive/peak OPK near the
+  /// predicted ovulation) corroborated it, which raises it one notch — so a
+  /// diligent tracker sees the band exactly when it's actionable. It is only
+  /// ever raised, never lowered, and never above [confidence] once perimenopause
+  /// caps fertility, so it can't manufacture a "safe" reading.
+  PredictionConfidence get fertilityConfidence =>
+      _fertilityConfidence ?? confidence;
 
   final DateTime? lastPeriodStart;
 

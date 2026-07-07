@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- HealthKit: read-only access to basal body temperature for the
+	     symptothermal BBT chart. Read on-device; never leaves the phone.
+	     The HealthKit capability/entitlement must ALSO be enabled in Xcode
+	     (Signing & Capabilities -> HealthKit) before this works. -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>LunaTrack can import your basal body temperature to chart it alongside your cycle. Your health data stays on this device.</string>
 </dict>
 </plist>

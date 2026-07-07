@@ -1,0 +1,91 @@
+{
+  "@@locale": "en",
+  "appTitle": "LunaTrack",
+
+  "actionSave": "Save",
+  "actionCancel": "Cancel",
+  "actionAdd": "Add",
+  "actionDelete": "Delete",
+
+  "navToday": "Today",
+  "navCalendar": "Calendar",
+  "navForecast": "Forecast",
+  "navInsights": "Insights",
+  "navSettings": "Settings",
+
+  "disclaimerFull": "Predictions are estimates and can be wrong. They are not a contraceptive method and do not replace medical advice.",
+  "disclaimerCompact": "Estimates only — not a contraceptive method.",
+
+  "homeTitle": "LunaTrack",
+  "homeLogToday": "Log today",
+
+  "settingsTitle": "Settings",
+  "settingsSectionAppearance": "Appearance",
+  "settingsThemeSystem": "System default",
+  "settingsThemeLight": "Light",
+  "settingsThemeDark": "Dark",
+  "settingsSectionLanguage": "Language",
+  "settingsLanguageTitle": "App language",
+  "settingsLanguageSystem": "System default",
+
+  "settingsSectionPremium": "Premium",
+  "settingsPremiumActiveTitle": "Premium active",
+  "settingsPremiumInactiveTitle": "Go Premium",
+  "settingsPremiumActiveSubtitle": "Ads removed — thank you!",
+  "settingsPremiumInactiveSubtitle": "Remove ads and unlock extras",
+
+  "settingsSectionGoal": "Goal",
+  "settingsGoalTrackTitle": "Track my cycle",
+  "settingsGoalTrackSubtitle": "Lead with your next period and phase",
+  "settingsGoalConceiveTitle": "Try to conceive",
+  "settingsGoalConceiveSubtitle": "Lead with fertile days and ovulation",
+  "settingsGoalPerimenopauseTitle": "Perimenopause",
+  "settingsGoalPerimenopauseSubtitle": "Track symptoms as cycles become irregular",
+
+  "settingsPregnancyTitle": "Pregnancy",
+  "settingsPregnancyOn": "Pregnancy tracking is on",
+  "settingsPregnancyOff": "Track a pregnancy",
+
+  "settingsSectionCycleDefaults": "Cycle defaults",
+  "settingsAvgCycleLength": "Average cycle length",
+  "settingsAvgPeriodLength": "Average period length",
+  "settingsUnitDays": "days",
+
+  "settingsSectionReminders": "Reminders",
+  "settingsRemindersTitle": "Reminders",
+  "settingsRemindersSubtitle": "Period, fertile window, and daily log",
+
+  "settingsSectionMedications": "Medications",
+  "settingsMedicationsTitle": "Medications & birth control",
+  "settingsMedicationsSubtitle": "Track medication and set daily reminders",
+
+  "settingsSectionHealth": "Health & wearables",
+  "settingsHealthImportTitle": "Import temperature",
+  "settingsHealthImportSubtitle": "Bring basal body temperature in from your device's health app",
+  "settingsHealthImportDone": "{count, plural, =0{No new temperature readings to import} =1{Imported 1 temperature reading} other{Imported {count} temperature readings}}",
+  "@settingsHealthImportDone": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "settingsHealthImportUnavailable": "Health Connect isn't set up on this device",
+  "settingsHealthImportDenied": "Permission is needed to read your health data",
+  "settingsHealthImportError": "Couldn't import right now — please try again",
+
+  "settingsGenderNeutralTitle": "Gender-neutral language",
+  "settingsGenderNeutralSubtitle": "Use inclusive wording throughout the app",
+
+  "settingsSectionPrivacy": "Privacy",
+  "settingsAppLockTitle": "App lock",
+  "settingsAppLockSubtitle": "Require a PIN or biometrics to open",
+  "settingsDeleteTitle": "Delete all my data",
+  "settingsDeleteSubtitle": "Permanently erase everything on this device",
+
+  "settingsDeleteDialogTitle": "Delete all data?",
+  "settingsDeleteDialogBody": "This permanently erases every period, symptom, medication, reminder, and setting on this device. This cannot be undone.",
+  "settingsDeleteConfirm": "Delete everything",
+  "settingsDeleteDone": "All data deleted.",
+
+  "settingsSectionAbout": "About",
+  "settingsAboutBody": "LunaTrack stores all your data privately on this device. Predictions are estimates and are not a contraceptive method or a substitute for medical advice."
+}

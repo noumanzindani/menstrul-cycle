@@ -10,6 +10,7 @@ import '../../providers/log_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/ad_banner.dart';
 import '../../widgets/day_entry_form.dart';
+import '../../widgets/disclaimer_banner.dart';
 
 /// Month calendar. Logged bleeding days are filled (deeper = heavier); the
 /// upcoming fertile window and predicted next period are overlaid on future,
@@ -63,8 +64,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final periods = context.watch<List<PredictedPeriod>>();
     final overlay = _PredictionOverlay(periods);
     // Only surface a confident single-day ovulation estimate; below medium
-    // confidence we show the fertile window only, never a precise day.
-    final confidence = context.watch<PredictionResult>().confidence;
+    // confidence we show the fertile window only, never a precise day. Uses
+    // fertilityConfidence so a corroborating OPK unlocks the marker in step with
+    // the Home band (and perimenopause's cap still suppresses it).
+    final confidence = context.watch<PredictionResult>().fertilityConfidence;
     final showOvulation =
         confidence.index >= PredictionConfidence.medium.index;
 
@@ -103,6 +106,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     _Legend(showOvulation: showOvulation),
                   ],
                 ),
+              ),
+              // Persistent non-contraception notice — always visible on the
+              // calendar because it overlays a fertile-window / ovulation
+              // estimate (council guardrail; matches Home and Forecast). Kept
+              // OUT of the scrolling ListView so it can't be lazy-culled below
+              // the viewport-filling month grid.
+              const Padding(
+                padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: DisclaimerBanner(compact: true),
               ),
               // Ads must never co-render with the entry sheet (council rule).
               if (_selectedDay == null)

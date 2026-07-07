@@ -8,11 +8,12 @@ import '../../providers/premium_provider.dart';
 class PremiumScreen extends StatelessWidget {
   const PremiumScreen({super.key});
 
+  // Only advertise what Premium actually delivers today. Ad removal is the one
+  // gated benefit; the doctor PDF is (and must stay) free — it is a health
+  // feature and "never paywall a safety feature" is a guardrail. Themes and
+  // backup/restore are not built yet, so listing them would be misleading.
   static const _benefits = [
     ('block', 'Remove all ads'),
-    ('picture_as_pdf', 'Doctor-ready PDF export'),
-    ('palette', 'Extra themes'),
-    ('backup', 'Backup & restore'),
     ('favorite', 'Support a private, indie app'),
   ];
 
@@ -65,9 +66,6 @@ class PremiumScreen extends StatelessWidget {
 
   IconData _iconFor(String key) => switch (key) {
         'block' => Icons.block,
-        'picture_as_pdf' => Icons.picture_as_pdf_outlined,
-        'palette' => Icons.palette_outlined,
-        'backup' => Icons.backup_outlined,
         _ => Icons.favorite_outline,
       };
 }

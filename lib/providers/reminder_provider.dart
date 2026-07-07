@@ -17,8 +17,10 @@ class ReminderProvider extends ChangeNotifier {
   final ReminderRepository _repo;
 
   final Map<ReminderType, Reminder> _byType = {};
+  final List<Reminder> _custom = [];
 
   Reminder? forType(ReminderType type) => _byType[type];
+  List<Reminder> get customReminders => List.unmodifiable(_custom);
   bool isEnabled(ReminderType type) => _byType[type]?.enabled ?? false;
 
   int hourOf(ReminderType type) => _byType[type]?.hour ?? _defaultHour(type);
@@ -36,10 +38,52 @@ class ReminderProvider extends ChangeNotifier {
 
   Future<void> load() async {
     final all = await _repo.getAll();
+    // Smart reminders are one-per-type; custom reminders are a separate list
+    // (many rows) so they don't collide in the by-type map.
     _byType
       ..clear()
-      ..addEntries(all.map((r) => MapEntry(r.type, r)));
+      ..addEntries(all
+          .where((r) => r.type != ReminderType.custom)
+          .map((r) => MapEntry(r.type, r)));
+    _custom
+      ..clear()
+      ..addAll(all.where((r) => r.type == ReminderType.custom));
     notifyListeners();
+  }
+
+  Future<void> addCustom({
+    required String title,
+    required int hour,
+    required int minute,
+  }) async {
+    final id = await _repo.addCustom(title: title, hour: hour, minute: minute);
+    await NotificationService.scheduleCustom(
+        reminderId: id, hour: hour, minute: minute, title: title);
+    await load();
+  }
+
+  Future<void> updateCustom(
+    Reminder reminder, {
+    required String title,
+    required int hour,
+    required int minute,
+    required bool enabled,
+  }) async {
+    await _repo.updateCustom(
+        id: reminder.id, title: title, hour: hour, minute: minute, enabled: enabled);
+    if (enabled) {
+      await NotificationService.scheduleCustom(
+          reminderId: reminder.id, hour: hour, minute: minute, title: title);
+    } else {
+      await NotificationService.cancelCustom(reminder.id);
+    }
+    await load();
+  }
+
+  Future<void> removeCustom(Reminder reminder) async {
+    await NotificationService.cancelCustom(reminder.id);
+    await _repo.deleteCustom(reminder.id);
+    await load();
   }
 
   Future<void> setReminder(

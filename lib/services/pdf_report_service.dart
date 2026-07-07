@@ -132,7 +132,7 @@ class PdfReportService {
               headers: const ['Logged', 'Days'],
               data: [
                 for (final e in symRows)
-                  [_labelFor(kSymptomOptions, e.key), '${e.value}'],
+                  [symptomLabel(e.key), '${e.value}'],
                 for (final e in moodRows)
                   ['Mood: ${_labelFor(kMoodOptions, e.key)}', '${e.value}'],
               ],
@@ -192,5 +192,6 @@ class PdfReportService {
         TrackingMode.track => 'Cycle tracking',
         TrackingMode.conceive => 'Trying to conceive',
         TrackingMode.perimenopause => 'Perimenopause',
+        TrackingMode.pregnancy => 'Pregnancy',
       };
 }

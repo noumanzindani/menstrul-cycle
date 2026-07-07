@@ -4,11 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'data/daily_log_repository.dart';
+import 'data/medication_repository.dart';
 import 'data/reminder_repository.dart';
 import 'data/settings_repository.dart';
+import 'common/l10n.dart';
 import 'db/database.dart';
+import 'models/cycle.dart';
+import 'models/enums.dart';
 import 'models/prediction.dart';
 import 'providers/log_provider.dart';
+import 'providers/medication_provider.dart';
 import 'providers/premium_provider.dart';
 import 'providers/reminder_provider.dart';
 import 'providers/settings_provider.dart';
@@ -17,6 +22,7 @@ import 'services/ad_service.dart';
 import 'services/notification_service.dart';
 import 'services/prediction_service.dart';
 import 'theme/app_theme.dart';
+import 'widgets/home_widget_sync.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,14 +54,29 @@ class LunaTrackApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) =>
+              MedicationProvider(MedicationRepository(database))..load(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) =>
               PremiumProvider(SettingsRepository(database))..load(),
         ),
         // Derived, recomputed whenever logs or settings change.
         ProxyProvider2<LogProvider, SettingsProvider, PredictionResult>(
           update: (_, log, settings, _) => PredictionService.predict(
-            log.cycles,
+            // Suppress all period/fertility predictions during pregnancy.
+            settings.mode == TrackingMode.pregnancy
+                ? const <Cycle>[]
+                : log.cycles,
             fallbackCycleLength: settings.cycleLength,
             fallbackPeriodLength: settings.periodLength,
+            // Perimenopause: erratic cycles → cap confidence to low, which
+            // self-suppresses the ovulation marker + fertility band app-wide.
+            capConfidenceToLow: settings.mode == TrackingMode.perimenopause,
+            // Symptothermal: a positive/peak OPK near ovulation corroborates the
+            // estimate and unlocks the fertility band one confidence notch.
+            logs: settings.mode == TrackingMode.pregnancy
+                ? const <DailyLog>[]
+                : log.logs,
           ),
         ),
         // Multi-month forecast: projects future periods from the user's entered
@@ -77,12 +98,17 @@ class LunaTrackApp extends StatelessWidget {
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
           return MaterialApp(
-            title: 'LunaTrack',
+            onGenerateTitle: (context) => context.l10n.appTitle,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light(),
             darkTheme: AppTheme.dark(),
             themeMode: settings.themeMode,
-            home: const AppGate(),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: settings.language == 'system'
+                ? null
+                : Locale(settings.language),
+            home: const HomeWidgetSync(child: AppGate()),
           );
         },
       ),

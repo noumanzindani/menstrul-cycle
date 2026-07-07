@@ -28,7 +28,9 @@ android {
         applicationId = "com.lunatrack.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Health Connect (health plugin) requires API 26+. This raises the floor
+        // from Flutter's default; it drops pre-Android-8 devices (~1% globally).
+        minSdk = maxOf(26, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

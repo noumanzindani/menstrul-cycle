@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../common/l10n.dart';
+import '../../data/daily_log_repository.dart';
 import '../../db/database.dart';
 import '../../models/enums.dart';
 import '../../providers/log_provider.dart';
+import '../../providers/medication_provider.dart';
 import '../../providers/premium_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/health_import_service.dart';
 import '../../services/lock_service.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/ad_banner.dart';
 import '../lock/setup_lock_screen.dart';
+import '../medications/medications_screen.dart';
+import '../pregnancy/pregnancy_screen.dart';
 import '../premium/premium_screen.dart';
 import '../reminders/reminders_screen.dart';
 
@@ -22,22 +28,19 @@ class SettingsScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete all data?'),
-        content: const Text(
-          'This permanently erases every period, symptom, reminder, and '
-          'setting on this device. This cannot be undone.',
-        ),
+        title: Text(ctx.l10n.settingsDeleteDialogTitle),
+        content: Text(ctx.l10n.settingsDeleteDialogBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(ctx.l10n.actionCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete everything'),
+            child: Text(ctx.l10n.settingsDeleteConfirm),
           ),
         ],
       ),
@@ -48,18 +51,72 @@ class SettingsScreen extends StatelessWidget {
     final db = context.read<AppDatabase>();
     final settings = context.read<SettingsProvider>();
     final logs = context.read<LogProvider>();
+    final meds = context.read<MedicationProvider>();
     final messenger = ScaffoldMessenger.of(context);
+    final deletedMsg = context.l10n.settingsDeleteDone;
 
     await db.deleteAllData();
     await LockService.clearPin();
-    await NotificationService.cancel(NotificationService.idLogNudge);
-    await NotificationService.cancel(NotificationService.idPeriodSoon);
-    await NotificationService.cancel(NotificationService.idFertile);
+    // Cancel every scheduled notification — cycle reminders AND the dynamic
+    // per-medication ones (whose ids we no longer know after the wipe).
+    await NotificationService.cancelAll();
     await settings.load();
     await logs.load();
+    await meds.load();
     messenger.showSnackBar(
-      const SnackBar(content: Text('All data deleted.')),
+      SnackBar(content: Text(deletedMsg)),
     );
+  }
+
+  static String _localeName(String code) => switch (code) {
+        'en' => 'English',
+        _ => code,
+      };
+
+  Future<void> _pickLanguage(
+      BuildContext context, SettingsProvider settings) async {
+    final chosen = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(ctx.l10n.settingsLanguageTitle),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'system'),
+            child: Text(ctx.l10n.settingsLanguageSystem),
+          ),
+          for (final loc in AppLocalizations.supportedLocales)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, loc.languageCode),
+              child: Text(_localeName(loc.languageCode)),
+            ),
+        ],
+      ),
+    );
+    if (chosen != null) await settings.setLanguage(chosen);
+  }
+
+  /// Pulls basal body temperature from Health Connect / HealthKit into the log.
+  /// Native + device-only; the read path is local IPC (no network), so it keeps
+  /// the app's no-backend promise. Captures context-derived values before the
+  /// async gaps.
+  Future<void> _importHealth(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    final repo = DailyLogRepository(context.read<AppDatabase>());
+    final logs = context.read<LogProvider>();
+
+    final outcome =
+        await HealthImportService().importTemperatures(repo: repo);
+    await logs.load(); // surface any newly imported BBT immediately
+
+    final message = switch (outcome.status) {
+      HealthImportStatus.ok =>
+        l10n.settingsHealthImportDone(outcome.result!.imported),
+      HealthImportStatus.unavailable => l10n.settingsHealthImportUnavailable,
+      HealthImportStatus.permissionDenied => l10n.settingsHealthImportDenied,
+      HealthImportStatus.error => l10n.settingsHealthImportError,
+    };
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -68,110 +125,162 @@ class SettingsScreen extends StatelessWidget {
     final premium = context.watch<PremiumProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(context.l10n.settingsTitle)),
       bottomNavigationBar: const SafeArea(child: AdBanner()),
       body: ListView(
         children: [
-          const _SectionHeader('Premium'),
+          _SectionHeader(context.l10n.settingsSectionPremium),
           ListTile(
             leading: Icon(
               premium.isPremium
                   ? Icons.workspace_premium
                   : Icons.workspace_premium_outlined,
             ),
-            title: Text(premium.isPremium ? 'Premium active' : 'Go Premium'),
+            title: Text(premium.isPremium
+                ? context.l10n.settingsPremiumActiveTitle
+                : context.l10n.settingsPremiumInactiveTitle),
             subtitle: Text(premium.isPremium
-                ? 'Ads removed — thank you!'
-                : 'Remove ads and unlock extras'),
+                ? context.l10n.settingsPremiumActiveSubtitle
+                : context.l10n.settingsPremiumInactiveSubtitle),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const PremiumScreen()),
             ),
           ),
           const Divider(),
-          const _SectionHeader('Appearance'),
+          _SectionHeader(context.l10n.settingsSectionAppearance),
           RadioGroup<ThemeMode>(
             groupValue: settings.themeMode,
             onChanged: (m) {
               if (m != null) settings.setThemeMode(m);
             },
-            child: const Column(
+            child: Column(
               children: [
                 RadioListTile(
                   value: ThemeMode.system,
-                  title: Text('System default'),
+                  title: Text(context.l10n.settingsThemeSystem),
                 ),
-                RadioListTile(value: ThemeMode.light, title: Text('Light')),
-                RadioListTile(value: ThemeMode.dark, title: Text('Dark')),
+                RadioListTile(
+                    value: ThemeMode.light,
+                    title: Text(context.l10n.settingsThemeLight)),
+                RadioListTile(
+                    value: ThemeMode.dark,
+                    title: Text(context.l10n.settingsThemeDark)),
               ],
             ),
           ),
           const Divider(),
-          const _SectionHeader('Goal'),
+          _SectionHeader(context.l10n.settingsSectionGoal),
           RadioGroup<TrackingMode>(
             groupValue: settings.mode,
             onChanged: (m) {
               if (m != null) settings.setMode(m);
             },
-            child: const Column(
+            child: Column(
               children: [
                 RadioListTile(
                   value: TrackingMode.track,
-                  title: Text('Track my cycle'),
-                  subtitle: Text('Lead with your next period and phase'),
+                  title: Text(context.l10n.settingsGoalTrackTitle),
+                  subtitle: Text(context.l10n.settingsGoalTrackSubtitle),
                 ),
                 RadioListTile(
                   value: TrackingMode.conceive,
-                  title: Text('Try to conceive'),
-                  subtitle: Text('Lead with fertile days and ovulation'),
+                  title: Text(context.l10n.settingsGoalConceiveTitle),
+                  subtitle: Text(context.l10n.settingsGoalConceiveSubtitle),
+                ),
+                RadioListTile(
+                  value: TrackingMode.perimenopause,
+                  title: Text(context.l10n.settingsGoalPerimenopauseTitle),
+                  subtitle:
+                      Text(context.l10n.settingsGoalPerimenopauseSubtitle),
                 ),
               ],
             ),
           ),
+          ListTile(
+            leading: const Icon(Icons.pregnant_woman_outlined),
+            title: Text(context.l10n.settingsPregnancyTitle),
+            subtitle: Text(settings.isPregnant
+                ? context.l10n.settingsPregnancyOn
+                : context.l10n.settingsPregnancyOff),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PregnancyScreen()),
+            ),
+          ),
           const Divider(),
-          const _SectionHeader('Cycle defaults'),
+          _SectionHeader(context.l10n.settingsSectionCycleDefaults),
           _StepperTile(
-            title: 'Average cycle length',
-            suffix: 'days',
+            title: context.l10n.settingsAvgCycleLength,
+            suffix: context.l10n.settingsUnitDays,
             value: settings.cycleLength,
             min: 21,
             max: 35,
             onChanged: settings.setCycleLength,
           ),
           _StepperTile(
-            title: 'Average period length',
-            suffix: 'days',
+            title: context.l10n.settingsAvgPeriodLength,
+            suffix: context.l10n.settingsUnitDays,
             value: settings.periodLength,
             min: 2,
             max: 10,
             onChanged: settings.setPeriodLength,
           ),
           const Divider(),
-          const _SectionHeader('Reminders'),
+          _SectionHeader(context.l10n.settingsSectionReminders),
           ListTile(
             leading: const Icon(Icons.notifications_outlined),
-            title: const Text('Reminders'),
-            subtitle: const Text('Period, fertile window, and daily log'),
+            title: Text(context.l10n.settingsRemindersTitle),
+            subtitle: Text(context.l10n.settingsRemindersSubtitle),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const RemindersScreen()),
             ),
           ),
           const Divider(),
-          const _SectionHeader('Language'),
+          _SectionHeader(context.l10n.settingsSectionMedications),
+          ListTile(
+            leading: const Icon(Icons.medication_outlined),
+            title: Text(context.l10n.settingsMedicationsTitle),
+            subtitle: Text(context.l10n.settingsMedicationsSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MedicationsScreen()),
+            ),
+          ),
+          const Divider(),
+          _SectionHeader(context.l10n.settingsSectionHealth),
+          ListTile(
+            leading: const Icon(Icons.monitor_heart_outlined),
+            title: Text(context.l10n.settingsHealthImportTitle),
+            subtitle: Text(context.l10n.settingsHealthImportSubtitle),
+            trailing: const Icon(Icons.download_outlined),
+            onTap: () => _importHealth(context),
+          ),
+          const Divider(),
+          _SectionHeader(context.l10n.settingsSectionLanguage),
+          ListTile(
+            leading: const Icon(Icons.language_outlined),
+            title: Text(context.l10n.settingsLanguageTitle),
+            subtitle: Text(settings.language == 'system'
+                ? context.l10n.settingsLanguageSystem
+                : _localeName(settings.language)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _pickLanguage(context, settings),
+          ),
           SwitchListTile(
             secondary: const Icon(Icons.diversity_3_outlined),
-            title: const Text('Gender-neutral language'),
-            subtitle: const Text('Use inclusive wording throughout the app'),
+            title: Text(context.l10n.settingsGenderNeutralTitle),
+            subtitle: Text(context.l10n.settingsGenderNeutralSubtitle),
             value: settings.genderNeutralLanguage,
             onChanged: settings.setGenderNeutralLanguage,
           ),
           const Divider(),
-          const _SectionHeader('Privacy'),
+          _SectionHeader(context.l10n.settingsSectionPrivacy),
           SwitchListTile(
             secondary: const Icon(Icons.lock_outline),
-            title: const Text('App lock'),
-            subtitle: const Text('Require a PIN or biometrics to open'),
+            title: Text(context.l10n.settingsAppLockTitle),
+            subtitle: Text(context.l10n.settingsAppLockSubtitle),
             value: settings.appLockEnabled,
             onChanged: (v) async {
               if (v) {
@@ -187,19 +296,15 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: Icon(Icons.delete_forever_outlined,
                 color: Theme.of(context).colorScheme.error),
-            title: const Text('Delete all my data'),
-            subtitle: const Text('Permanently erase everything on this device'),
+            title: Text(context.l10n.settingsDeleteTitle),
+            subtitle: Text(context.l10n.settingsDeleteSubtitle),
             onTap: () => _confirmDeleteAll(context),
           ),
           const Divider(),
-          const _SectionHeader('About'),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 4, 16, 24),
-            child: Text(
-              'LunaTrack stores all your data privately on this device. '
-              'Predictions are estimates and are not a contraceptive method or '
-              'a substitute for medical advice.',
-            ),
+          _SectionHeader(context.l10n.settingsSectionAbout),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+            child: Text(context.l10n.settingsAboutBody),
           ),
         ],
       ),

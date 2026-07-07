@@ -21,7 +21,11 @@ class SettingsProvider extends ChangeNotifier {
   bool get premium => _settings?.premium ?? false;
   bool get appLockEnabled => _settings?.appLockEnabled ?? false;
   bool get genderNeutralLanguage => _settings?.genderNeutralLanguage ?? false;
+  String get language => _settings?.language ?? 'en';
   bool get onboardingComplete => _settings?.onboardingComplete ?? false;
+  DateTime? get pregnancyStartDate => _settings?.pregnancyStartDate;
+  bool get isPregnant =>
+      mode == TrackingMode.pregnancy && pregnancyStartDate != null;
 
   ThemeMode get themeMode => switch (_settings?.themeMode) {
         'light' => ThemeMode.light,
@@ -65,6 +69,24 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setGenderNeutralLanguage(bool v) =>
       update(AppSettingsCompanion(genderNeutralLanguage: Value(v)));
 
+  /// The app language: a locale code (e.g. 'en') or 'system' to follow the OS.
+  Future<void> setLanguage(String code) =>
+      update(AppSettingsCompanion(language: Value(code)));
+
   Future<void> completeOnboarding() =>
       update(const AppSettingsCompanion(onboardingComplete: Value(true)));
+
+  /// Starts pregnancy tracking, dated from the last-period date [lmp]. Switches
+  /// the app into pregnancy mode (period/fertility predictions are suppressed).
+  Future<void> startPregnancy(DateTime lmp) => update(AppSettingsCompanion(
+        mode: const Value(TrackingMode.pregnancy),
+        pregnancyStartDate: Value(lmp),
+      ));
+
+  /// Ends pregnancy tracking and clears its data. Neutral, one-step, loss-safe —
+  /// returns the app to cycle tracking; cycle history is untouched.
+  Future<void> endPregnancy() => update(const AppSettingsCompanion(
+        mode: Value(TrackingMode.track),
+        pregnancyStartDate: Value(null),
+      ));
 }

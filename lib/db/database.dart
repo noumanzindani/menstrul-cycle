@@ -18,7 +18,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -28,6 +28,14 @@ class AppDatabase extends _$AppDatabase {
           await into(appSettings).insert(
             const AppSettingsCompanion(id: Value(0)),
           );
+        },
+        // v1 → v2: pregnancy mode adds AppSettings.pregnancyStartDate. This is
+        // the app's FIRST onUpgrade — additive only (one nullable column), so
+        // existing rows are preserved untouched.
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(appSettings, appSettings.pregnancyStartDate);
+          }
         },
       );
 
