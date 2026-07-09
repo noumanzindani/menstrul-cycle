@@ -10,6 +10,7 @@ import '../../models/prediction.dart';
 import '../../providers/log_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/bbt_service.dart';
+import '../../services/insights_narrator.dart';
 import '../../services/insights_service.dart';
 import '../../services/pdf_report_service.dart';
 
@@ -59,6 +60,10 @@ class InsightsScreen extends StatelessWidget {
         if (l.bbt != null) l,
     ]..sort((a, b) => a.date.compareTo(b.date));
     final thermalShift = BbtService.thermalShift(logProvider.logs);
+    // Plain-language "Your patterns" narratives. No current-phase line here —
+    // this screen is about history/patterns, not "where am I right now".
+    final narratives =
+        InsightsNarrator.narrate(cycles: cycles, logs: logProvider.logs);
     final stats = insights.stats;
 
     return Scaffold(
@@ -80,6 +85,24 @@ class InsightsScreen extends StatelessWidget {
               children: [
                 _StatGrid(stats: stats),
                 const SizedBox(height: 20),
+                if (narratives.isNotEmpty) ...[
+                  Text('Your patterns',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Plain-language notes from your own logs — descriptions, '
+                    'not a diagnosis.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final n in narratives) _NarrativeCard(narrative: n),
+                  const SizedBox(height: 20),
+                ],
                 if (insights.cycleLengthSeries.length >= 2) ...[
                   Text('Cycle length trend',
                       style: Theme.of(context)
@@ -366,6 +389,39 @@ class _BbtChart extends StatelessWidget {
 /// A non-diagnostic "discuss with a clinician" prompt. Styled distinctly from
 /// [_FlagCard] (a clinical/medical accent) so it reads as a gentle suggestion,
 /// never an alarm or a diagnosis.
+/// One "Your patterns" narrative — a calm, plain-language observation about the
+/// user's own data. Never a diagnosis, never a number.
+class _NarrativeCard extends StatelessWidget {
+  const _NarrativeCard({required this.narrative});
+  final CycleNarrative narrative;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      color: scheme.secondaryContainer,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.insights_outlined,
+                size: 20, color: scheme.onSecondaryContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(narrative.text,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSecondaryContainer,
+                      )),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _NudgeCard extends StatelessWidget {
   const _NudgeCard({required this.nudge});
   final PatternNudge nudge;

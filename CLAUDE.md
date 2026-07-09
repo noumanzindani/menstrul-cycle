@@ -108,6 +108,14 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   (`BbtService`, 3-over-6 rule, awareness-only in Insights). A positive/peak OPK near the
   estimated ovulation **corroborates** the calendar and raises the fertility band ONE
   confidence notch (`OvulationSignalService` → `PredictionResult.fertilityConfidence`).
+- **On-device insights narratives ("Your patterns")** — `InsightsNarrator` (pure, no deps,
+  `services/insights_narrator.dart`) turns the user's own data into plain-language
+  `CycleNarrative`s: cycle-length trend (recent 3 vs earlier), regularity, period-length
+  trend, current phase, and **symptom↔phase correlation** ("you most often log headaches
+  around your luteal phase"). Descriptive, never diagnostic; each gated on enough data.
+  Surfaces: a "Your patterns" section on Insights (inline, no phase), a Home highlight card
+  (shared `ProxyProvider2` → `List<CycleNarrative>`, top non-phase narrative), and a "Cycle
+  patterns" section in the doctor PDF. Branded "insights," not "AI."
 
 **Calendar day entry is a bottom sheet, not an inline panel.** Tapping a day opens
 `_DayEntrySheet` (in `calendar_screen.dart`), whose content is a **`Scaffold`** (mirrors

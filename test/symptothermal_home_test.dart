@@ -9,6 +9,7 @@ import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/models/cycle.dart';
 import 'package:menstrul_track/models/enums.dart';
+import 'package:menstrul_track/models/insights.dart';
 import 'package:menstrul_track/models/prediction.dart';
 import 'package:menstrul_track/providers/premium_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
@@ -64,6 +65,7 @@ void main() {
         ChangeNotifierProvider<PremiumProvider>(
             create: (_) => PremiumProvider(SettingsRepository(db))),
         Provider<PredictionResult>.value(value: prediction),
+        Provider<List<CycleNarrative>>.value(value: const []),
       ],
       child: MaterialApp(
         theme: AppTheme.light(),

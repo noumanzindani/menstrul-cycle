@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../common/date_utils.dart';
 import '../../common/insights_text.dart';
 import '../../models/enums.dart';
+import '../../models/insights.dart';
 import '../../models/prediction.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/prediction_service.dart';
@@ -121,6 +122,38 @@ class _PregnancyHome extends StatelessWidget {
   }
 }
 
+/// A calm, single-line "Your patterns" highlight — the most notable narrative
+/// about the user's own data. Descriptive, never a diagnosis or a number.
+class _InsightHighlight extends StatelessWidget {
+  const _InsightHighlight({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      color: scheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.insights_outlined,
+                size: 20, color: scheme.onSecondaryContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(text,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSecondaryContainer,
+                      )),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PredictionBody extends StatelessWidget {
   const _PredictionBody({required this.prediction, required this.today});
   final PredictionResult prediction;
@@ -137,11 +170,22 @@ class _PredictionBody extends StatelessWidget {
     final fertile = _FertileCard(prediction: prediction, today: today);
     final nextPeriod = _NextPeriodCard(prediction: prediction, today: today);
 
+    // The single most-notable pattern, if any. Skip the 'phase' narrative — the
+    // _PhaseCard already says where the user is now — so this highlights a trend
+    // or symptom correlation instead. Empty when data is still thin.
+    final patterns =
+        context.watch<List<CycleNarrative>>().where((n) => n.key != 'phase');
+    final topInsight = patterns.isEmpty ? null : patterns.first;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       children: [
         _PhaseCard(prediction: prediction),
         const SizedBox(height: 12),
+        if (topInsight != null) ...[
+          _InsightHighlight(text: topInsight.text),
+          const SizedBox(height: 12),
+        ],
         if (peri) ...[
           nextPeriod,
           const SizedBox(height: 12),

@@ -11,6 +11,7 @@ import 'common/l10n.dart';
 import 'db/database.dart';
 import 'models/cycle.dart';
 import 'models/enums.dart';
+import 'models/insights.dart';
 import 'models/prediction.dart';
 import 'providers/log_provider.dart';
 import 'providers/medication_provider.dart';
@@ -19,6 +20,7 @@ import 'providers/reminder_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/app_gate.dart';
 import 'services/ad_service.dart';
+import 'services/insights_narrator.dart';
 import 'services/notification_service.dart';
 import 'services/prediction_service.dart';
 import 'theme/app_theme.dart';
@@ -93,6 +95,16 @@ class LunaTrackApp extends StatelessWidget {
               count: 12,
             );
           },
+        ),
+        // Plain-language "Your patterns" narratives over the user's own data —
+        // shared by Home (top highlight) and Insights. Pure/on-device.
+        ProxyProvider2<LogProvider, PredictionResult, List<CycleNarrative>>(
+          update: (_, log, prediction, _) => InsightsNarrator.narrate(
+            cycles: log.cycles,
+            logs: log.logs,
+            currentCycleDay: prediction.cycleDay,
+            currentPhase: prediction.currentPhase,
+          ),
         ),
       ],
       child: Consumer<SettingsProvider>(

@@ -10,6 +10,7 @@ import '../models/cycle.dart';
 import '../models/enums.dart';
 import '../models/insights.dart';
 import '../models/prediction.dart';
+import 'insights_narrator.dart';
 
 /// Builds a printable/shareable "for your doctor" PDF from the user's history.
 /// Everything is generated on-device from local data.
@@ -44,6 +45,9 @@ class PdfReportService {
     final moodRows = moodCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final hasFertility = prediction != null && prediction.hasPrediction;
+    // Plain-language cycle patterns for the clinician (no "current phase" line —
+    // a doctor summary describes history, not a transient state).
+    final narratives = InsightsNarrator.narrate(cycles: cycles, logs: logs);
 
     doc.addPage(
       pw.MultiPage(
@@ -85,6 +89,14 @@ class PdfReportService {
               ['Days since last period', orDash(stats.daysSinceLastPeriod)],
             ],
           ),
+          if (narratives.isNotEmpty) ...[
+            pw.SizedBox(height: 16),
+            pw.Text('Cycle patterns',
+                style: pw.TextStyle(
+                    fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 6),
+            for (final n in narratives) pw.Bullet(text: n.text),
+          ],
           pw.SizedBox(height: 16),
           pw.Text('Recent cycles',
               style: pw.TextStyle(

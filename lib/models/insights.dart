@@ -41,6 +41,16 @@ class PatternNudge {
   final String message;
 }
 
+/// A single plain-language "Your patterns" observation about the user's OWN
+/// data (e.g. "Your last 3 cycles ran about 2 days shorter than earlier").
+/// Descriptive, never diagnostic and never a probability — the clinical prompts
+/// live in [RedFlag]/[PatternNudge]. [key] is a stable id for tests/ordering.
+class CycleNarrative {
+  const CycleNarrative(this.key, this.text);
+  final String key; // 'cycle_trend' | 'symptom_phase' | 'regularity' | ...
+  final String text;
+}
+
 /// Everything the Insights screen and PDF report need.
 class Insights {
   const Insights({
