@@ -10,6 +10,21 @@ enum PredictionConfidence { none, low, medium, high }
 /// "outside the fertile window, or confidence too low to say".
 enum FertilityBand { none, lower, higher, peak }
 
+/// A retrospective ovulation confirmation from basal-temperature data for the
+/// CURRENT cycle. For Conceive-mode awareness only: a sustained thermal shift
+/// means ovulation has LIKELY ALREADY happened. It is never a "safe day" and
+/// never a contraceptive signal — the fertile window closing is framed for
+/// conception planning, never for avoiding pregnancy.
+class OvulationConfirmation {
+  const OvulationConfirmation(this.shiftDate);
+
+  /// The date of the sustained temperature rise this cycle, or null if none is
+  /// clearly present yet.
+  final DateTime? shiftDate;
+
+  bool get confirmed => shiftDate != null;
+}
+
 /// One projected future period (start..end inclusive). Estimate only.
 class PredictedPeriod {
   const PredictedPeriod({

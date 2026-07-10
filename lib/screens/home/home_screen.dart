@@ -7,7 +7,9 @@ import '../../common/insights_text.dart';
 import '../../models/enums.dart';
 import '../../models/insights.dart';
 import '../../models/prediction.dart';
+import '../../providers/log_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/cycle_check_in.dart';
 import '../../services/prediction_service.dart';
 import '../../services/pregnancy_service.dart';
 import '../../theme/app_theme.dart';
@@ -154,6 +156,135 @@ class _InsightHighlight extends StatelessWidget {
   }
 }
 
+/// Conceive-mode retrospective note: this cycle's temperatures show a sustained
+/// rise, so ovulation has likely already happened. Framed for CONCEPTION
+/// planning — never "safe", always carrying the non-contraceptive caveat.
+class _OvulationConfirmedNote extends StatelessWidget {
+  const _OvulationConfirmedNote({required this.date});
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return Card(
+      color: scheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.thermostat_outlined,
+                    size: 20, color: scheme.onTertiaryContainer),
+                const SizedBox(width: 8),
+                Text('Ovulation likely confirmed',
+                    style: text.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onTertiaryContainer)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Your logged temperatures show a sustained rise, which usually '
+              'follows ovulation — around ${DateFormat.MMMMd().format(date)}. '
+              'For conception, the days leading up to ovulation are the most '
+              'fertile, so this helps with planning. It is an estimate for '
+              'awareness, not a contraceptive method.',
+              style: text.bodySmall?.copyWith(color: scheme.onTertiaryContainer),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A gentle daily check-in: confirm the period has started or ended. "Log it"
+/// opens the full (ad-free) day editor so she can add flow/symptoms; the one-tap
+/// negative records a confirmed no-bleeding day (`flow = none`) — the same
+/// primitive as "Period ended today". Either answer silences the prompt for the
+/// day. Period timing only — no fertility or "safe"/"unsafe" framing here.
+class _CheckInCard extends StatelessWidget {
+  const _CheckInCard({required this.prompt, required this.today});
+  final CheckInPrompt prompt;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final started = prompt == CheckInPrompt.didItStart;
+    final title =
+        started ? 'Did your period start?' : 'Are you still on your period?';
+    final logLabel = started ? 'Started — log it' : 'Still bleeding — log it';
+    final noBleedLabel = started ? 'Not yet' : 'It ended';
+
+    return Card(
+      color: scheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.event_available_outlined,
+                    size: 20, color: scheme.onPrimaryContainer),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(title,
+                      style: text.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onPrimaryContainer)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => DayLogScreen(date: today)),
+                    ),
+                    child: Text(logLabel),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _markNoBleeding(context),
+                    child: Text(noBleedLabel),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// One-tap "no bleeding today": keeps any symptoms/mood/etc. already logged
+  /// for today and just sets the flow to none.
+  void _markNoBleeding(BuildContext context) {
+    final log = context.read<LogProvider>();
+    final existing = log.logForDate(today);
+    log.saveDay(
+      date: today,
+      flow: FlowIntensity.none,
+      symptomsJson: existing?.symptoms ?? '{}',
+      mood: existing?.mood,
+      notes: existing?.notes,
+      bbt: existing?.bbt,
+      opk: existing?.opk,
+    );
+  }
+}
+
 class _PredictionBody extends StatelessWidget {
   const _PredictionBody({required this.prediction, required this.today});
   final PredictionResult prediction;
@@ -177,11 +308,24 @@ class _PredictionBody extends StatelessWidget {
         context.watch<List<CycleNarrative>>().where((n) => n.key != 'phase');
     final topInsight = patterns.isEmpty ? null : patterns.first;
 
+    // Conceive-only: if this cycle's temperatures already show a thermal shift,
+    // ovulation has likely passed — surfaced for conception planning, never as
+    // a "safe" signal.
+    final confirmation = context.watch<OvulationConfirmation>();
+
+    // A gentle daily check-in: did the period start (it's due/overdue) or has it
+    // ended (it's run to typical length)? Shown in every non-pregnancy mode.
+    final checkIn = context.watch<CheckInPrompt>();
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       children: [
         _PhaseCard(prediction: prediction),
         const SizedBox(height: 12),
+        if (checkIn != CheckInPrompt.none) ...[
+          _CheckInCard(prompt: checkIn, today: today),
+          const SizedBox(height: 12),
+        ],
         if (topInsight != null) ...[
           _InsightHighlight(text: topInsight.text),
           const SizedBox(height: 12),
@@ -192,6 +336,10 @@ class _PredictionBody extends StatelessWidget {
           const _PerimenopauseNote(),
         ] else if (conceive) ...[
           fertile,
+          if (confirmation.confirmed) ...[
+            const SizedBox(height: 12),
+            _OvulationConfirmedNote(date: confirmation.shiftDate!),
+          ],
           const SizedBox(height: 12),
           nextPeriod,
         ] else ...[
@@ -306,7 +454,8 @@ class _NextPeriodCard extends StatelessWidget {
 
     String headline;
     if (windowEnd.isBefore(today)) {
-      headline = 'Your period may be late';
+      final late = daysBetween(next, today);
+      headline = 'Your period may be $late ${late == 1 ? 'day' : 'days'} late';
     } else if (days <= 0) {
       headline = 'Your period may start today';
     } else if (days == 1) {

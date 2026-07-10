@@ -7,10 +7,12 @@ import '../../common/date_utils.dart';
 import '../../db/database.dart';
 import '../../models/prediction.dart';
 import '../../providers/log_provider.dart';
+import '../../services/cycle_check_in.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/ad_banner.dart';
 import '../../widgets/day_entry_form.dart';
 import '../../widgets/disclaimer_banner.dart';
+import '../../widgets/period_check_in_banner.dart';
 
 /// Month calendar. Logged bleeding days are filled (deeper = heavier); the
 /// upcoming fertile window and predicted next period are overlaid on future,
@@ -45,13 +47,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
     setState(() => _selectedDay = date);
     // Re-provide LogProvider into the sheet route so the shared form reads it.
     final logProvider = context.read<LogProvider>();
+    // Decide the contextual back-fill prompt for this date here, where the
+    // PredictionResult is in scope (the sheet route doesn't re-provide it).
+    final checkIn = CycleCheckInService.evaluate(
+      logs: logProvider.logs,
+      prediction: context.read<PredictionResult>(),
+      today: date,
+    );
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (_) => ChangeNotifierProvider<LogProvider>.value(
         value: logProvider,
-        child: _DayEntrySheet(date: date),
+        child: _DayEntrySheet(date: date, checkIn: checkIn),
       ),
     );
     if (mounted) setState(() => _selectedDay = null);
@@ -151,8 +160,11 @@ class _PredictionOverlay {
 /// buttons; a fixed header/footer with the form scrolling between them. Save and
 /// Clear pop the sheet.
 class _DayEntrySheet extends StatefulWidget {
-  const _DayEntrySheet({required this.date});
+  const _DayEntrySheet({required this.date, this.checkIn = CheckInPrompt.none});
   final DateTime date;
+
+  /// Contextual back-fill prompt for this date (period didn't start / has ended).
+  final CheckInPrompt checkIn;
 
   @override
   State<_DayEntrySheet> createState() => _DayEntrySheetState();
@@ -197,7 +209,20 @@ class _DayEntrySheetState extends State<_DayEntrySheet> {
               ),
           ],
         ),
-        body: DayEntryForm(key: _formKey, date: widget.date),
+        body: Column(
+          children: [
+            // Contextual express lane: on a predicted-start / run-to-length date,
+            // one tap records a confirmed no-bleeding day and closes the sheet.
+            PeriodCheckInBanner(
+              prompt: widget.checkIn,
+              date: widget.date,
+              onCompleted: () {
+                if (mounted) Navigator.of(context).pop();
+              },
+            ),
+            Expanded(child: DayEntryForm(key: _formKey, date: widget.date)),
+          ],
+        ),
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: FilledButton(onPressed: _save, child: const Text('Save')),

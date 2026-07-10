@@ -35,4 +35,19 @@ class BbtService {
     }
     return null;
   }
+
+  /// The thermal shift date within the CURRENT cycle only (logs on/after
+  /// [cycleStart]), or null. Scoping matters: a shift confirms ovulation has
+  /// already happened, so showing a prior cycle's shift as this cycle's
+  /// ovulation would be wrong. Returns null when the cycle start is unknown.
+  static DateTime? shiftInCurrentCycle(
+      List<DailyLog> logs, DateTime? cycleStart) {
+    if (cycleStart == null) return null;
+    final start = dateOnly(cycleStart);
+    final scoped = [
+      for (final l in logs)
+        if (!dateOnly(l.date).isBefore(start)) l,
+    ];
+    return thermalShift(scoped);
+  }
 }

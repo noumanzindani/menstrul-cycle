@@ -20,6 +20,8 @@ import 'providers/reminder_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/app_gate.dart';
 import 'services/ad_service.dart';
+import 'services/bbt_service.dart';
+import 'services/cycle_check_in.dart';
 import 'services/insights_narrator.dart';
 import 'services/notification_service.dart';
 import 'services/prediction_service.dart';
@@ -104,6 +106,25 @@ class LunaTrackApp extends StatelessWidget {
             logs: log.logs,
             currentCycleDay: prediction.cycleDay,
             currentPhase: prediction.currentPhase,
+          ),
+        ),
+        // Retrospective ovulation confirmation from this cycle's BBT (Conceive
+        // Home). Awareness only — a thermal shift means ovulation likely already
+        // happened; never a "safe day".
+        ProxyProvider2<LogProvider, PredictionResult, OvulationConfirmation>(
+          update: (_, log, prediction, _) => OvulationConfirmation(
+            BbtService.shiftInCurrentCycle(
+                log.logs, prediction.lastPeriodStart),
+          ),
+        ),
+        // Home check-in: should we ask "Did your period start?" / "Has it
+        // ended?" today. At most once per day — a logged flow (bleeding OR an
+        // explicit "no bleeding") answers it. Period timing only, no fertility.
+        ProxyProvider2<LogProvider, PredictionResult, CheckInPrompt>(
+          update: (_, log, prediction, _) => CycleCheckInService.evaluate(
+            logs: log.logs,
+            prediction: prediction,
+            today: DateTime.now(),
           ),
         ),
       ],

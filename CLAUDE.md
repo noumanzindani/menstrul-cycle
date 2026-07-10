@@ -108,6 +108,10 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   (`BbtService`, 3-over-6 rule, awareness-only in Insights). A positive/peak OPK near the
   estimated ovulation **corroborates** the calendar and raises the fertility band ONE
   confidence notch (`OvulationSignalService` → `PredictionResult.fertilityConfidence`).
+  In **Conceive mode only**, a thermal shift in the *current* cycle
+  (`BbtService.shiftInCurrentCycle` → `OvulationConfirmation` provider) surfaces a Home
+  note ("ovulation likely confirmed around …") — framed for conception planning, carrying
+  the non-contraceptive caveat, and NEVER "safe".
 - **On-device insights narratives ("Your patterns")** — `InsightsNarrator` (pure, no deps,
   `services/insights_narrator.dart`) turns the user's own data into plain-language
   `CycleNarrative`s: cycle-length trend (recent 3 vs earlier), regularity, period-length
@@ -123,6 +127,17 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   one transaction — a wrong passphrase throws before any write, so data is never lost. **No
   cloud, no server** — the user owns the file. Deps: `share_plus`, `file_picker`,
   `cryptography` (existing `crypto` can't encrypt).
+- **Period check-ins ("Did it start? / Has it ended?")** — a pure `CycleCheckInService`
+  (`services/cycle_check_in.dart`) decides, from logs + prediction + today, which single
+  prompt (if any) to surface. Both answers collapse to the one primitive
+  `flow = FlowIntensity.none` (a confirmed no-bleeding day — the same as "Period ended
+  today"), so there is **no new column or migration**, and a logged flow of ANY kind
+  silences the prompt for the day (the log itself is the "answered" flag). Surfaces: a Home
+  prompt card (one-tap "Not yet"/"It ended", or "log it" → the ad-free day editor); the
+  shared `PeriodCheckInBanner` on the calendar day-sheet, which back-fills any date
+  (express lane: mark no-bleeding + close, so it never fights the form's Save); and a
+  concrete "N days late" count on the Home next-period card. Period timing only — no
+  fertility framing, the "safe" guardrail is untouched.
 
 **Calendar day entry is a bottom sheet, not an inline panel.** Tapping a day opens
 `_DayEntrySheet` (in `calendar_screen.dart`), whose content is a **`Scaffold`** (mirrors

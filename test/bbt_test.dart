@@ -76,4 +76,40 @@ void main() {
       expect(BbtService.thermalShift(logs), isNull);
     });
   });
+
+  // For the Conceive-mode Home echo: a thermal shift confirms ovulation ALREADY
+  // happened, so it must be scoped to the CURRENT cycle — a shift from a prior
+  // cycle must never be shown as "you ovulated around <old date>".
+  group('shiftInCurrentCycle (scoped to the current cycle)', () {
+    final cycleStart = DateTime(2026, 3, 1);
+
+    test('detects a shift within the current cycle', () {
+      final logs = [
+        for (var i = 0; i < 6; i++)
+          day(cycleStart.add(Duration(days: i)), bbt: 36.4),
+        for (var i = 6; i < 9; i++)
+          day(cycleStart.add(Duration(days: i)), bbt: 36.7),
+      ];
+      expect(BbtService.shiftInCurrentCycle(logs, cycleStart),
+          cycleStart.add(const Duration(days: 6)));
+    });
+
+    test('ignores a shift that happened before the current cycle started', () {
+      // A full shift in the PRIOR cycle (all before cycleStart).
+      final prior = cycleStart.subtract(const Duration(days: 30));
+      final logs = [
+        for (var i = 0; i < 6; i++) day(prior.add(Duration(days: i)), bbt: 36.4),
+        for (var i = 6; i < 9; i++) day(prior.add(Duration(days: i)), bbt: 36.7),
+      ];
+      expect(BbtService.shiftInCurrentCycle(logs, cycleStart), isNull);
+    });
+
+    test('returns null when the cycle start is unknown', () {
+      final logs = [
+        for (var i = 0; i < 9; i++)
+          day(cycleStart.add(Duration(days: i)), bbt: 36.5),
+      ];
+      expect(BbtService.shiftInCurrentCycle(logs, null), isNull);
+    });
+  });
 }

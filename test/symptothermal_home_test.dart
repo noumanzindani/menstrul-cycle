@@ -14,6 +14,7 @@ import 'package:menstrul_track/models/prediction.dart';
 import 'package:menstrul_track/providers/premium_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/screens/home/home_screen.dart';
+import 'package:menstrul_track/services/cycle_check_in.dart';
 import 'package:menstrul_track/services/prediction_service.dart';
 import 'package:menstrul_track/theme/app_theme.dart';
 
@@ -66,6 +67,9 @@ void main() {
             create: (_) => PremiumProvider(SettingsRepository(db))),
         Provider<PredictionResult>.value(value: prediction),
         Provider<List<CycleNarrative>>.value(value: const []),
+        Provider<OvulationConfirmation>.value(
+            value: const OvulationConfirmation(null)),
+        Provider<CheckInPrompt>.value(value: CheckInPrompt.none),
       ],
       child: MaterialApp(
         theme: AppTheme.light(),
