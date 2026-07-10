@@ -14,6 +14,14 @@
          the release manifest is the app's bright-line privacy guarantee. -->
     <uses-permission android:name="android.permission.health.READ_BODY_TEMPERATURE"/>
 
+    <!-- Strip the advertising-ID permission that google_mobile_ads injects via
+         manifest merge. The app ONLY ever requests NON-personalized ads
+         (AdService.request = AdRequest(nonPersonalizedAds: true)), so it never
+         uses the ad ID. Removing it keeps the Play Data Safety story honest and
+         avoids the AD_ID declaration requirement. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove"/>
+
     <!-- allowBackup=false: the health DB must never leave the device via
          Android Auto Backup / cloud backup — that would break the app's core
          "your data can't leave your phone" promise. tools:replace guarantees
