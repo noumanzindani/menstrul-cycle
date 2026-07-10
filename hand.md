@@ -28,8 +28,12 @@ start? / Has it ended?" prompt card + a calendar back-fill banner
 (`services/cycle_check_in.dart` `CycleCheckInService`, `widgets/period_check_in_banner.dart`
 `PeriodCheckInBanner`) + a concrete "N days late" count on the Home next-period card. Both
 answers collapse to `flow = none` (a confirmed no-bleeding day) → **migration-free**.
-**173/173 tests**, analyze clean. Code-complete, **not yet device-verified** (OnePlus USB
-dropped) and **UNCOMMITTED**.
+**173/173 tests**, analyze clean. **Committed** (`c729c73`, alongside `893b6a7` the AD_ID
+manifest strip) and **device-verified** on the OnePlus Nord N200 (Android 12): both surfaces
+tested end-to-end via a reversible DB swap — Home card renders "Did your period start? / N
+days late", "Not yet" writes `flow=none` and dismisses; calendar banner renders "Your period
+was expected around now", "Didn't start" writes `flow=none` and closes the sheet; no "safe"
+on any surface; the test data was restored byte-for-byte afterward.
 
 To get back to work:
 
