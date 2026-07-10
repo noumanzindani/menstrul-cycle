@@ -227,6 +227,72 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsDeleteDone => 'All data deleted.';
 
   @override
+  String get settingsSectionBackup => 'Backup & restore';
+
+  @override
+  String get settingsBackupExportTitle => 'Back up my data';
+
+  @override
+  String get settingsBackupExportSubtitle =>
+      'Save an encrypted file only you can open';
+
+  @override
+  String get settingsBackupRestoreTitle => 'Restore from a backup';
+
+  @override
+  String get settingsBackupRestoreSubtitle =>
+      'Replace current data from a backup file';
+
+  @override
+  String get backupPassphraseTitle => 'Set a passphrase';
+
+  @override
+  String get backupPassphraseBody =>
+      'Your backup is encrypted with this passphrase. You\'ll need the exact passphrase to restore it — it is never stored or sent anywhere, so if you lose it the backup can\'t be opened.';
+
+  @override
+  String get backupPassphraseHint => 'Passphrase';
+
+  @override
+  String get backupPassphraseConfirmHint => 'Confirm passphrase';
+
+  @override
+  String get backupPassphraseMismatch => 'The passphrases don\'t match.';
+
+  @override
+  String get backupPassphraseTooShort => 'Use at least 6 characters.';
+
+  @override
+  String get backupActionBackUp => 'Back up';
+
+  @override
+  String get backupExportError =>
+      'Couldn\'t create the backup — please try again.';
+
+  @override
+  String get backupRestoreConfirmTitle => 'Replace all current data?';
+
+  @override
+  String get backupRestoreConfirmBody =>
+      'Restoring overwrites everything currently in the app with the backup\'s contents. This can\'t be undone.';
+
+  @override
+  String get backupRestoreConfirmAction => 'Choose a file';
+
+  @override
+  String get backupRestorePassphraseTitle => 'Enter the backup\'s passphrase';
+
+  @override
+  String get backupActionRestore => 'Restore';
+
+  @override
+  String get backupRestoreDone => 'Your data was restored.';
+
+  @override
+  String get backupRestoreWrongPass =>
+      'Wrong passphrase, or the file isn\'t a valid LunaTrack backup.';
+
+  @override
   String get settingsSectionAbout => 'About';
 
   @override

@@ -86,6 +86,29 @@
   "settingsDeleteConfirm": "Delete everything",
   "settingsDeleteDone": "All data deleted.",
 
+  "settingsSectionBackup": "Backup & restore",
+  "settingsBackupExportTitle": "Back up my data",
+  "settingsBackupExportSubtitle": "Save an encrypted file only you can open",
+  "settingsBackupRestoreTitle": "Restore from a backup",
+  "settingsBackupRestoreSubtitle": "Replace current data from a backup file",
+
+  "backupPassphraseTitle": "Set a passphrase",
+  "backupPassphraseBody": "Your backup is encrypted with this passphrase. You'll need the exact passphrase to restore it — it is never stored or sent anywhere, so if you lose it the backup can't be opened.",
+  "backupPassphraseHint": "Passphrase",
+  "backupPassphraseConfirmHint": "Confirm passphrase",
+  "backupPassphraseMismatch": "The passphrases don't match.",
+  "backupPassphraseTooShort": "Use at least 6 characters.",
+  "backupActionBackUp": "Back up",
+  "backupExportError": "Couldn't create the backup — please try again.",
+
+  "backupRestoreConfirmTitle": "Replace all current data?",
+  "backupRestoreConfirmBody": "Restoring overwrites everything currently in the app with the backup's contents. This can't be undone.",
+  "backupRestoreConfirmAction": "Choose a file",
+  "backupRestorePassphraseTitle": "Enter the backup's passphrase",
+  "backupActionRestore": "Restore",
+  "backupRestoreDone": "Your data was restored.",
+  "backupRestoreWrongPass": "Wrong passphrase, or the file isn't a valid LunaTrack backup.",
+
   "settingsSectionAbout": "About",
   "settingsAboutBody": "LunaTrack stores all your data privately on this device. Predictions are estimates and are not a contraceptive method or a substitute for medical advice."
 }

@@ -484,6 +484,126 @@ abstract class AppLocalizations {
   /// **'All data deleted.'**
   String get settingsDeleteDone;
 
+  /// No description provided for @settingsSectionBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup & restore'**
+  String get settingsSectionBackup;
+
+  /// No description provided for @settingsBackupExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up my data'**
+  String get settingsBackupExportTitle;
+
+  /// No description provided for @settingsBackupExportSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save an encrypted file only you can open'**
+  String get settingsBackupExportSubtitle;
+
+  /// No description provided for @settingsBackupRestoreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from a backup'**
+  String get settingsBackupRestoreTitle;
+
+  /// No description provided for @settingsBackupRestoreSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace current data from a backup file'**
+  String get settingsBackupRestoreSubtitle;
+
+  /// No description provided for @backupPassphraseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a passphrase'**
+  String get backupPassphraseTitle;
+
+  /// No description provided for @backupPassphraseBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your backup is encrypted with this passphrase. You\'ll need the exact passphrase to restore it — it is never stored or sent anywhere, so if you lose it the backup can\'t be opened.'**
+  String get backupPassphraseBody;
+
+  /// No description provided for @backupPassphraseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Passphrase'**
+  String get backupPassphraseHint;
+
+  /// No description provided for @backupPassphraseConfirmHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm passphrase'**
+  String get backupPassphraseConfirmHint;
+
+  /// No description provided for @backupPassphraseMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The passphrases don\'t match.'**
+  String get backupPassphraseMismatch;
+
+  /// No description provided for @backupPassphraseTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Use at least 6 characters.'**
+  String get backupPassphraseTooShort;
+
+  /// No description provided for @backupActionBackUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up'**
+  String get backupActionBackUp;
+
+  /// No description provided for @backupExportError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t create the backup — please try again.'**
+  String get backupExportError;
+
+  /// No description provided for @backupRestoreConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace all current data?'**
+  String get backupRestoreConfirmTitle;
+
+  /// No description provided for @backupRestoreConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring overwrites everything currently in the app with the backup\'s contents. This can\'t be undone.'**
+  String get backupRestoreConfirmBody;
+
+  /// No description provided for @backupRestoreConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a file'**
+  String get backupRestoreConfirmAction;
+
+  /// No description provided for @backupRestorePassphraseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the backup\'s passphrase'**
+  String get backupRestorePassphraseTitle;
+
+  /// No description provided for @backupActionRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get backupActionRestore;
+
+  /// No description provided for @backupRestoreDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Your data was restored.'**
+  String get backupRestoreDone;
+
+  /// No description provided for @backupRestoreWrongPass.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong passphrase, or the file isn\'t a valid LunaTrack backup.'**
+  String get backupRestoreWrongPass;
+
   /// No description provided for @settingsSectionAbout.
   ///
   /// In en, this message translates to:

@@ -9,6 +9,7 @@ import '../../providers/log_provider.dart';
 import '../../providers/medication_provider.dart';
 import '../../providers/premium_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/backup_service.dart';
 import '../../services/health_import_service.dart';
 import '../../services/lock_service.dart';
 import '../../services/notification_service.dart';
@@ -117,6 +118,83 @@ class SettingsScreen extends StatelessWidget {
       HealthImportStatus.error => l10n.settingsHealthImportError,
     };
     messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Exports all data to a passphrase-encrypted file and opens the share sheet.
+  /// No cloud — the user chooses where the file goes.
+  Future<void> _exportBackup(BuildContext context) async {
+    final pass = await showDialog<String>(
+      context: context,
+      builder: (_) => const _PassphraseDialog(confirm: true),
+    );
+    if (pass == null || !context.mounted) return;
+
+    final db = context.read<AppDatabase>();
+    final messenger = ScaffoldMessenger.of(context);
+    final errorMsg = context.l10n.backupExportError;
+    try {
+      await BackupService.exportToFile(db, pass);
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(errorMsg)));
+    }
+  }
+
+  /// Restores from a user-picked encrypted file. DESTRUCTIVE — confirmed first,
+  /// and the decrypt happens before any write, so a wrong passphrase changes
+  /// nothing.
+  Future<void> _restoreBackup(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.l10n.backupRestoreConfirmTitle),
+        content: Text(ctx.l10n.backupRestoreConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.l10n.actionCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(ctx.l10n.backupRestoreConfirmAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final bytes = await BackupService.pickBackupBytes();
+    if (bytes == null || !context.mounted) return;
+
+    final pass = await showDialog<String>(
+      context: context,
+      builder: (_) => _PassphraseDialog(
+        title: context.l10n.backupRestorePassphraseTitle,
+        action: context.l10n.backupActionRestore,
+      ),
+    );
+    if (pass == null || !context.mounted) return;
+
+    // Capture everything context-derived BEFORE the async gaps.
+    final db = context.read<AppDatabase>();
+    final settings = context.read<SettingsProvider>();
+    final logs = context.read<LogProvider>();
+    final meds = context.read<MedicationProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final doneMsg = context.l10n.backupRestoreDone;
+    final failMsg = context.l10n.backupRestoreWrongPass;
+
+    try {
+      await BackupService.importEncrypted(db, bytes, pass);
+      // Imported reminders differ from whatever was scheduled; clear stale ones
+      // (they reschedule when the user next edits reminders).
+      await NotificationService.cancelAll();
+      await settings.load();
+      await logs.load();
+      await meds.load();
+      messenger.showSnackBar(SnackBar(content: Text(doneMsg)));
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(failMsg)));
+    }
   }
 
   @override
@@ -276,6 +354,22 @@ class SettingsScreen extends StatelessWidget {
             onChanged: settings.setGenderNeutralLanguage,
           ),
           const Divider(),
+          _SectionHeader(context.l10n.settingsSectionBackup),
+          ListTile(
+            leading: const Icon(Icons.backup_outlined),
+            title: Text(context.l10n.settingsBackupExportTitle),
+            subtitle: Text(context.l10n.settingsBackupExportSubtitle),
+            trailing: const Icon(Icons.ios_share),
+            onTap: () => _exportBackup(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.restore_outlined),
+            title: Text(context.l10n.settingsBackupRestoreTitle),
+            subtitle: Text(context.l10n.settingsBackupRestoreSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _restoreBackup(context),
+          ),
+          const Divider(),
           _SectionHeader(context.l10n.settingsSectionPrivacy),
           SwitchListTile(
             secondary: const Icon(Icons.lock_outline),
@@ -308,6 +402,108 @@ class SettingsScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Prompts for a backup passphrase. With [confirm], requires a matching second
+/// field (export); otherwise a single field (restore). Returns the passphrase,
+/// or null if cancelled. The passphrase is never persisted.
+class _PassphraseDialog extends StatefulWidget {
+  const _PassphraseDialog({this.title, this.action, this.confirm = false});
+  final String? title;
+  final String? action;
+  final bool confirm;
+
+  @override
+  State<_PassphraseDialog> createState() => _PassphraseDialogState();
+}
+
+class _PassphraseDialogState extends State<_PassphraseDialog> {
+  final _pass = TextEditingController();
+  final _confirm = TextEditingController();
+  String? _error;
+  bool _obscure = true;
+
+  @override
+  void dispose() {
+    _pass.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final p = _pass.text;
+    if (p.length < 6) {
+      setState(() => _error = context.l10n.backupPassphraseTooShort);
+      return;
+    }
+    if (widget.confirm && p != _confirm.text) {
+      setState(() => _error = context.l10n.backupPassphraseMismatch);
+      return;
+    }
+    Navigator.pop(context, p);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(widget.title ?? l10n.backupPassphraseTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (widget.confirm) ...[
+            Text(l10n.backupPassphraseBody,
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 12),
+          ],
+          TextField(
+            controller: _pass,
+            obscureText: _obscure,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: l10n.backupPassphraseHint,
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                icon: Icon(
+                    _obscure ? Icons.visibility_off : Icons.visibility_outlined),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+          if (widget.confirm) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _confirm,
+              obscureText: _obscure,
+              decoration: InputDecoration(
+                labelText: l10n.backupPassphraseConfirmHint,
+                border: const OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => _submit(),
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(_error!,
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.actionCancel),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(widget.action ?? l10n.backupActionBackUp),
+        ),
+      ],
     );
   }
 }

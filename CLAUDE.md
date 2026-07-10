@@ -116,6 +116,13 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   Surfaces: a "Your patterns" section on Insights (inline, no phase), a Home highlight card
   (shared `ProxyProvider2` → `List<CycleNarrative>`, top non-phase narrative), and a "Cycle
   patterns" section in the doctor PDF. Branded "insights," not "AI."
+- **Local backup & restore** (`services/backup_service.dart`) — Settings → "Backup &
+  restore". Serializes all tables (drift `toJson`/`fromJson`) → **AES-256-GCM + PBKDF2**
+  passphrase encryption (`BackupCrypto`) → `.lunabak` file shared via `share_plus`. Restore
+  picks a file (`file_picker`), confirms (destructive), decrypts, and replaces all data in
+  one transaction — a wrong passphrase throws before any write, so data is never lost. **No
+  cloud, no server** — the user owns the file. Deps: `share_plus`, `file_picker`,
+  `cryptography` (existing `crypto` can't encrypt).
 
 **Calendar day entry is a bottom sheet, not an inline panel.** Tapping a day opens
 `_DayEntrySheet` (in `calendar_screen.dart`), whose content is a **`Scaffold`** (mirrors
