@@ -9,6 +9,7 @@ import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/models/cycle.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/models/insights.dart';
+import 'package:menstrul_track/models/month_ring.dart';
 import 'package:menstrul_track/models/prediction.dart';
 import 'package:menstrul_track/providers/premium_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
@@ -44,6 +45,9 @@ void main() {
     required OvulationConfirmation confirmation,
   }) async {
     await settings.setMode(mode);
+    tester.view.physicalSize = const Size(1080, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(MultiProvider(
       providers: [
         ChangeNotifierProvider<SettingsProvider>.value(value: settings),
@@ -53,6 +57,7 @@ void main() {
         Provider<List<CycleNarrative>>.value(value: const []),
         Provider<OvulationConfirmation>.value(value: confirmation),
         Provider<CheckInPrompt>.value(value: CheckInPrompt.none),
+        Provider<MonthRingData>.value(value: MonthRingData.empty(DateTime.now())),
       ],
       child: MaterialApp(
         theme: AppTheme.light(),

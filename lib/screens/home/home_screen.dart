@@ -6,6 +6,7 @@ import '../../common/date_utils.dart';
 import '../../common/insights_text.dart';
 import '../../models/enums.dart';
 import '../../models/insights.dart';
+import '../../models/month_ring.dart';
 import '../../models/prediction.dart';
 import '../../providers/log_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -15,6 +16,7 @@ import '../../services/pregnancy_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/ad_banner.dart';
 import '../../widgets/disclaimer_banner.dart';
+import '../../widgets/month_ring.dart';
 import '../log/day_log_screen.dart';
 import '../pregnancy/pregnancy_screen.dart';
 
@@ -322,6 +324,8 @@ class _PredictionBody extends StatelessWidget {
       children: [
         _PhaseCard(prediction: prediction),
         const SizedBox(height: 12),
+        const _CycleRingCard(),
+        const SizedBox(height: 12),
         if (checkIn != CheckInPrompt.none) ...[
           _CheckInCard(prompt: checkIn, today: today),
           const SizedBox(height: 12),
@@ -395,6 +399,25 @@ class _PerimenopauseNote extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The month-at-a-glance ring: the current month coloured by each day's role
+/// (period / predicted / fertile / ovulation), today's date in the centre. A
+/// fertility surface — but the builder confidence-gates all fertility colouring,
+/// and the DisclaimerBanner trailing this list already covers it.
+class _CycleRingCard extends StatelessWidget {
+  const _CycleRingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final data = context.watch<MonthRingData>();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+        child: Center(child: MonthRing(data: data)),
       ),
     );
   }

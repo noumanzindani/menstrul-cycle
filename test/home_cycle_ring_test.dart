@@ -3,57 +3,61 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
+import 'package:menstrul_track/data/daily_log_repository.dart';
 import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/models/cycle.dart';
-import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/models/insights.dart';
 import 'package:menstrul_track/models/month_ring.dart';
 import 'package:menstrul_track/models/prediction.dart';
+import 'package:menstrul_track/providers/log_provider.dart';
 import 'package:menstrul_track/providers/premium_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/screens/home/home_screen.dart';
 import 'package:menstrul_track/services/cycle_check_in.dart';
+import 'package:menstrul_track/services/month_ring_builder.dart';
 import 'package:menstrul_track/services/prediction_service.dart';
 import 'package:menstrul_track/theme/app_theme.dart';
+import 'package:menstrul_track/widgets/disclaimer_banner.dart';
+import 'package:menstrul_track/widgets/month_ring.dart';
 
-/// Perimenopause mode: erratic cycles → the calendar-based fertility estimate is
-/// suppressed, replaced by an honest note. The load-bearing safety rule is that
-/// hiding the fertile window must NEVER read as "safe" — so the note must state
-/// pregnancy is still possible.
-List<Cycle> _recentCycles() {
-  final anchor = DateTime.now().subtract(const Duration(days: 6));
-  return [
-    Cycle(
-        start: anchor.subtract(const Duration(days: 28)),
-        end: anchor.subtract(const Duration(days: 24)),
-        lengthDays: 28),
-    Cycle(start: anchor, end: anchor.add(const Duration(days: 4))),
-  ];
-}
-
+/// The month ring is a fertility surface on Home. It must render there, sit on a
+/// surface that still carries the non-contraception DisclaimerBanner, and never
+/// render the word "safe" or a numeric percentage.
 void main() {
   late AppDatabase db;
   late SettingsProvider settings;
+  late LogProvider log;
+
+  final cycles = [
+    Cycle(start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 5), lengthDays: 28),
+    Cycle(start: DateTime(2026, 1, 29), end: DateTime(2026, 2, 2)),
+  ];
+  final prediction =
+      PredictionService.predict(cycles, asOf: DateTime(2026, 1, 29));
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     settings = SettingsProvider(SettingsRepository(db));
     await settings.load();
-    await settings.setMode(TrackingMode.perimenopause);
+    log = LogProvider(DailyLogRepository(db));
+    await log.load();
   });
   tearDown(() => db.close());
 
-  Future<void> pumpHome(WidgetTester tester) async {
-    final prediction =
-        PredictionService.predict(_recentCycles(), capConfidenceToLow: true);
+  Future<void> pump(WidgetTester tester) async {
+    // Tall surface so the whole scrolling dashboard (incl. the trailing
+    // disclaimer under the ring) lays out for structural assertions.
     tester.view.physicalSize = const Size(1080, 3200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
+    final ring = MonthRingBuilder.build(
+        logs: log.logs, prediction: prediction, today: DateTime.now());
     await tester.pumpWidget(MultiProvider(
       providers: [
         ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+        ChangeNotifierProvider<LogProvider>.value(value: log),
         ChangeNotifierProvider<PremiumProvider>(
             create: (_) => PremiumProvider(SettingsRepository(db))),
         Provider<PredictionResult>.value(value: prediction),
@@ -61,7 +65,7 @@ void main() {
         Provider<OvulationConfirmation>.value(
             value: const OvulationConfirmation(null)),
         Provider<CheckInPrompt>.value(value: CheckInPrompt.none),
-        Provider<MonthRingData>.value(value: MonthRingData.empty(DateTime.now())),
+        Provider<MonthRingData>.value(value: ring),
       ],
       child: MaterialApp(
         theme: AppTheme.light(),
@@ -73,24 +77,13 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('shows the still-fertile note and hides the fertile-window card',
+  testWidgets('Home renders the month ring with the disclaimer and no "safe"',
       (tester) async {
-    await pumpHome(tester);
-
-    // The honest framing: fertility is unpredictable, but not zero.
-    expect(find.textContaining('still become pregnant'), findsOneWidget);
-    // The fertile-window card ("awareness only, not contraception") is gone —
-    // a specific calendar window is false precision in perimenopause.
-    expect(find.textContaining('awareness only'), findsNothing);
-  });
-
-  testWidgets('keeps the next-period estimate, flagged low confidence',
-      (tester) async {
-    await pumpHome(tester);
-
-    // Utility preserved: the next-period card still renders...
-    expect(find.textContaining('Period'), findsWidgets);
-    // ...and it is honestly flagged low confidence (the cap reached the UI).
-    expect(find.textContaining('Low confidence'), findsOneWidget);
+    await pump(tester);
+    expect(find.byType(MonthRing), findsOneWidget);
+    expect(find.byType(DisclaimerBanner), findsOneWidget);
+    expect(find.textContaining('safe'), findsNothing);
+    expect(find.textContaining('Safe'), findsNothing);
+    expect(find.textContaining('%'), findsNothing);
   });
 }

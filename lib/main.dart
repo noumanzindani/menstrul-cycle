@@ -12,6 +12,7 @@ import 'db/database.dart';
 import 'models/cycle.dart';
 import 'models/enums.dart';
 import 'models/insights.dart';
+import 'models/month_ring.dart';
 import 'models/prediction.dart';
 import 'providers/log_provider.dart';
 import 'providers/medication_provider.dart';
@@ -23,6 +24,7 @@ import 'services/ad_service.dart';
 import 'services/bbt_service.dart';
 import 'services/cycle_check_in.dart';
 import 'services/insights_narrator.dart';
+import 'services/month_ring_builder.dart';
 import 'services/notification_service.dart';
 import 'services/prediction_service.dart';
 import 'theme/app_theme.dart';
@@ -122,6 +124,17 @@ class LunaTrackApp extends StatelessWidget {
         // explicit "no bleeding") answers it. Period timing only, no fertility.
         ProxyProvider2<LogProvider, PredictionResult, CheckInPrompt>(
           update: (_, log, prediction, _) => CycleCheckInService.evaluate(
+            logs: log.logs,
+            prediction: prediction,
+            today: DateTime.now(),
+          ),
+        ),
+        // Home month ring: one segment per day of the current month, coloured by
+        // role. Fertility colouring runs through the confidence-gated band, so
+        // it's suppressed below medium confidence / in perimenopause — never
+        // implying a "safe" day.
+        ProxyProvider2<LogProvider, PredictionResult, MonthRingData>(
+          update: (_, log, prediction, _) => MonthRingBuilder.build(
             logs: log.logs,
             prediction: prediction,
             today: DateTime.now(),

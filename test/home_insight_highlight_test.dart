@@ -8,6 +8,7 @@ import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/models/cycle.dart';
 import 'package:menstrul_track/models/insights.dart';
+import 'package:menstrul_track/models/month_ring.dart';
 import 'package:menstrul_track/models/prediction.dart';
 import 'package:menstrul_track/providers/premium_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
@@ -51,6 +52,7 @@ void main() {
         Provider<OvulationConfirmation>.value(
             value: const OvulationConfirmation(null)),
         Provider<CheckInPrompt>.value(value: CheckInPrompt.none),
+        Provider<MonthRingData>.value(value: MonthRingData.empty(DateTime.now())),
       ],
       child: MaterialApp(
         theme: AppTheme.light(),

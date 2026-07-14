@@ -138,6 +138,22 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   (express lane: mark no-bleeding + close, so it never fights the form's Save); and a
   concrete "N days late" count on the Home next-period card. Period timing only — no
   fertility framing, the "safe" guardrail is untouched.
+- **Home month ring ("cycle glance")** — a `CustomPaint` ring on the Home dashboard (top,
+  right after the phase card): one arc segment per day of the CURRENT month, today's date +
+  cycle day + phase in the centre, today's segment dotted. A pure `MonthRingBuilder`
+  (`services/month_ring_builder.dart`) maps logs + prediction + today → `MonthRingData`
+  (`models/month_ring.dart`), exposed via a `ProxyProvider2` (main.dart) like the other
+  derived Home models. **Migration-free.** Per-day precedence: logged bleeding → predicted
+  next-period run → fertile/ovulation → normal. Colours come from the `PhaseColors` theme
+  extension (same tokens as the calendar), so light/dark adapt. **The fertility guardrail is
+  structural, not incidental:** fertile/ovulation roles are assigned SOLELY through the
+  confidence-gated `PredictionService.fertilityBand(confidence: fertilityConfidence)`, so
+  they vanish below medium confidence, outside the window, on null data, and under the
+  perimenopause cap — the ring can't imply a "safe" day. The legend shows Fertile/Ovulation
+  entries only when a matching segment is actually painted (each gated on `hasFertile` /
+  `hasOvulation` separately, so a window straddling the month boundary never shows a key
+  with no arc). Display-only (no inline logging → never co-renders with the ad banner); the
+  trailing `DisclaimerBanner` covers it.
 
 **Calendar day entry is a bottom sheet, not an inline panel.** Tapping a day opens
 `_DayEntrySheet` (in `calendar_screen.dart`), whose content is a **`Scaffold`** (mirrors

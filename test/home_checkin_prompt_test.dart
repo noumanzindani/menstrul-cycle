@@ -11,6 +11,7 @@ import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/models/cycle.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/models/insights.dart';
+import 'package:menstrul_track/models/month_ring.dart';
 import 'package:menstrul_track/models/prediction.dart';
 import 'package:menstrul_track/providers/log_provider.dart';
 import 'package:menstrul_track/providers/premium_provider.dart';
@@ -45,6 +46,11 @@ void main() {
   tearDown(() => db.close());
 
   Future<void> pump(WidgetTester tester, CheckInPrompt prompt) async {
+    // Tall surface so the whole scrolling dashboard (incl. the month ring and
+    // the trailing disclaimer) lays out and off-screen buttons stay tappable.
+    tester.view.physicalSize = const Size(1080, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(MultiProvider(
       providers: [
         ChangeNotifierProvider<SettingsProvider>.value(value: settings),
@@ -56,6 +62,7 @@ void main() {
         Provider<OvulationConfirmation>.value(
             value: const OvulationConfirmation(null)),
         Provider<CheckInPrompt>.value(value: prompt),
+        Provider<MonthRingData>.value(value: MonthRingData.empty(DateTime.now())),
       ],
       child: MaterialApp(
         theme: AppTheme.light(),
