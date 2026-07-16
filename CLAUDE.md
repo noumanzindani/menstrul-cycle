@@ -78,11 +78,18 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   It only ever RAISES, is skipped while `capConfidenceToLow` is set (perimenopause cap is
   the ceiling), and the band still self-suppresses outside the window — so it can never
   manufacture a "safe" reading. `fertilityConfidence` falls back to `confidence` when unset.
-- **DB encryption is seam'd, not on.** `sqlcipher_flutter_libs`/`sqlite3_flutter_libs` are
-  no-op stubs in `sqlite3` v3; encryption is a build hook
-  (`hooks.user_defines.sqlite3.source: sqlite3mc` in pubspec) that only compiles on a real
-  device. The flag `kDatabaseEncryptionEnabled` in `lib/db/connection.dart` gates it —
-  flip + verify during a device build before shipping sensitive data.
+- **DB encryption is ON and device-verified** (2026-07-16).
+  `sqlcipher_flutter_libs`/`sqlite3_flutter_libs` are no-op stubs in `sqlite3` v3;
+  encryption is a build hook (`hooks.user_defines.sqlite3.source: sqlite3mc` in pubspec)
+  that only compiles on a real device. `kDatabaseEncryptionEnabled` in
+  `lib/db/connection.dart` is `true`; the DB key is a random 256-bit passphrase in the OS
+  keystore (`flutter_secure_storage`), and the encrypted file is a *separate* filename
+  (`lunatrack_enc.db` vs the old `lunatrack.db`) so enabling it created a fresh DB rather
+  than failing to open a plaintext one — safe only because the app never shipped.
+  **This seam fails SILENTLY:** if the native cipher build isn't active, `PRAGMA key`
+  no-ops on stock sqlite3 and the file stays plaintext while the app believes otherwise.
+  Tests can't catch it (in-memory DBs skip the cipher) — re-verify on a device with
+  `databaseIsEncryptedAtRest()` if you touch `connection.dart` or the pubspec hook.
 
 ### Guardrails (hold these regardless of product pressure)
 
@@ -181,11 +188,10 @@ intrinsic query. `_selectedDay` still gates the calendar ad while the sheet is o
 - Real AdMob app + unit IDs (currently Google **test** IDs — flip `AdConfig.useTestAds`,
   fill `_prod*` + manifest `APPLICATION_ID`).
 - Real Play in-app product id for Premium.
-- Turn on `kDatabaseEncryptionEnabled` + verify on a device build before sex/pregnancy
-  data ships.
+- ✅ **DONE** — `kDatabaseEncryptionEnabled` is on and device-verified (2026-07-16).
 - Host the privacy policy at a URL; declare **sexual-activity** (and later pregnancy) data
-  in Play Data Safety / Apple privacy nutrition label; verify Android auto-backup does not
-  upload a plaintext DB.
+  in Play Data Safety / Apple privacy nutrition label + tick "Data is encrypted at rest"
+  (now true, and backed by the on-device header check).
 
 ## Package gotchas (all currently resolved)
 

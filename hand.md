@@ -8,20 +8,24 @@
 > The authoritative *engineering* reference is [`CLAUDE.md`](./CLAUDE.md) (committed).
 > This file is the *continuity* reference: status, roadmap, and decisions.
 
-**Last updated:** 2026-07-07 · **State:** v3 complete, green.
+**Last updated:** 2026-07-16 · **State:** Phase 4 complete (code side), green. Encryption ON.
 
 ---
 
 ## ⏱️ YOU ARE HERE
 
-LunaTrack **v3 is code-complete and green** — `123/123` tests pass, `flutter analyze`
-is clean, and `flutter build apk --debug` assembles. Everything through **Phase 3**
+LunaTrack is **code-complete and green** — `188/188` tests pass, `flutter analyze`
+is clean, and `flutter build apk --debug` assembles. Everything through **Phase 4**
 (below) is done. The working tree compiles; nothing is committed-then-broken.
 
-**Phase 4 nearly done.** ✅ #2 insights narratives, ✅ #3 **local backup/restore**
-(encrypted `.lunabak`), ✅ #4 **`AD_ID` stripped**, ✅ #5 **Conceive-Home thermal-shift
-echo**. Only **#1 encryption flip** remains — and it's *yours* (a native
-cipher only verifies on a device). See [Phase 4](#-phase-4--next-start-here).
+**Phase 4's engineering work is DONE.** ✅ #1 **encryption ON + device-verified**,
+✅ #2 insights narratives, ✅ #3 **local backup/restore** (encrypted `.lunabak`),
+✅ #4 **`AD_ID` stripped**, ✅ #5 **Conceive-Home thermal-shift echo**.
+
+**What's left is not features.** #6 (i18n sweep) and #7 (migration batching) are debt
+deliberately deferred until something forces them. The only path to a shipped app is
+**#8 store submission**, which needs the owner's Play/AdMob accounts — no more code.
+See [Phase 4](#-phase-4--next-start-here).
 
 **Since Phase 4 (user request):** added **period check-ins** — Home "Did your period
 start? / Has it ended?" prompt card + a calendar back-fill banner
@@ -39,7 +43,7 @@ To get back to work:
 
 ```bash
 flutter pub get
-flutter test          # expect: All tests passed! (123)
+flutter test          # expect: All tests passed! (188)
 flutter analyze       # expect: No issues found!
 flutter run           # on a connected Android device
 ```
@@ -121,7 +125,7 @@ needs the owner's store accounts.
 
 | # | Task | Effort | Why now |
 |---|------|--------|---------|
-| 1 | **Encryption ON** — flip `kDatabaseEncryptionEnabled` in `lib/db/connection.dart`, `flutter run` on a device, confirm `databaseIsEncryptedAtRest()` == true, then declare encryption in `PRIVACY_POLICY.md` + Play Data Safety. | S (user-verify) | The named unblocker. Sensitive data (sex/pregnancy/lab) shouldn't ship at-rest-plaintext. App is unpublished → no rekey needed (encrypted build uses a fresh `lunatrack_enc.db`). |
+| 1 | ✅ **DONE — Encryption ON, device-verified** (2026-07-16, OnePlus Nord N200 / Android 12). `kDatabaseEncryptionEnabled = true`. Proof: `lunatrack_enc.db` header reads `3a40 3cd2 …`, not the `SQLite format 3` magic, while the same build's old `lunatrack.db` still shows the magic (positive control). Write → force-stop → cold-start round-trip read the data back, so the keystore key persists. 188/188 tests, analyze clean. Declared in `PRIVACY_POLICY.md`. **Note:** the old plaintext `lunatrack.db` still sits on that device (untouched, orphaned test data) — the encrypted DB started fresh, by design. | — | Shipped. The named unblocker for #8. |
 | 2 | ✅ **DONE — On-device insights narratives** (`InsightsNarrator`): cycle/period trends, regularity, phase, symptom↔phase correlation → Insights section + Home highlight + doctor-PDF "Cycle patterns". Pure Dart, 20 new tests. | — | Council's #1 value pick. Shipped. |
 | 3 | ✅ **DONE — Local backup / restore** (`BackupService`): all-tables JSON → AES-GCM+PBKDF2 passphrase encryption → `.lunabak` share (`share_plus`) / pick+restore (`file_picker`). Destructive restore confirmed; wrong passphrase never wipes data. No cloud. 9 new tests. | — | Shipped. Deps added: share_plus, file_picker, cryptography. |
 | 4 | ✅ **DONE — `AD_ID` permission stripped** via `tools:node="remove"` in AndroidManifest (app serves only non-personalized ads). Verified absent from the merged manifest via a debug APK build. NOTE: the separate `ACCESS_ADSERVICES_*` Privacy-Sandbox perms remain (riskier to remove; left in). | — | Shipped. |

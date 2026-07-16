@@ -1,6 +1,6 @@
 # LunaTrack Privacy Policy
 
-_Last updated: 6 July 2026_
+_Last updated: 16 July 2026_
 
 LunaTrack ("the app", "we") is a menstrual and cycle tracking app. This policy
 explains what data the app handles and how. **Short version: your health data
@@ -16,6 +16,11 @@ All information you enter — periods, flow, symptoms, moods, **sexual activity*
 notes, reminders, and settings — is stored **only on your device**, in the app's
 private storage.
 
+- Your data is **encrypted at rest**. The app's database is encrypted on your
+  device with a 256-bit key that is generated on your device, stored in the
+  operating system's keystore, and never leaves it. We never see this key, and
+  neither does anyone else — it is not backed up, transmitted, or recoverable by
+  us. If you lose the device, the data is not readable without it.
 - We do **not** operate a server or cloud database.
 - Your cycle and health data is **never uploaded, synced, or shared** by us.
 - There is **no account and no sign-in**. We do not collect your name, email,
