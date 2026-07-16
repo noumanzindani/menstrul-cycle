@@ -3,6 +3,10 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../db/database.dart';
+import '../models/prediction.dart';
+import 'check_in_notifications.dart';
+
 /// Thin wrapper over flutter_local_notifications. Everything is local — no FCM,
 /// no server. Uses INEXACT alarms (a few minutes' drift is fine for cycle
 /// reminders) so no exact-alarm permission is required.
@@ -27,7 +31,15 @@ class NotificationService {
   static const int idCustomBase = 3000;
   static int customNotificationId(int reminderId) => idCustomBase + reminderId;
 
-  static Future<void> init() async {
+  /// The iOS category that carries the one-tap check-in action. On Android the
+  /// action + label ride on each notification; on iOS the category (and its
+  /// single generic action title) is registered once at init.
+  static const String _checkInCategory = 'checkin';
+
+  static Future<void> init({
+    void Function(NotificationResponse)? onForegroundResponse,
+    void Function(NotificationResponse)? onBackgroundResponse,
+  }) async {
     if (_ready) return;
     tzdata.initializeTimeZones();
     try {
@@ -37,9 +49,20 @@ class NotificationService {
       tz.setLocalLocation(tz.getLocation('UTC'));
     }
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const darwin = DarwinInitializationSettings();
+    final darwin = DarwinInitializationSettings(
+      notificationCategories: [
+        DarwinNotificationCategory(
+          _checkInCategory,
+          actions: [
+            DarwinNotificationAction.plain(kCheckInNoBleedingAction, 'Confirm'),
+          ],
+        ),
+      ],
+    );
     await _plugin.initialize(
-      settings: const InitializationSettings(android: android, iOS: darwin),
+      settings: InitializationSettings(android: android, iOS: darwin),
+      onDidReceiveNotificationResponse: onForegroundResponse,
+      onDidReceiveBackgroundNotificationResponse: onBackgroundResponse,
     );
     _ready = true;
   }
@@ -68,6 +91,14 @@ class NotificationService {
       channelDescription: 'Period, fertile-window and daily-log reminders',
       importance: Importance.high,
       priority: Priority.high,
+      // Cycle state must NEVER land on the lock screen — roommates, partners,
+      // parents, coercive control. `secret` keeps the notification out of the
+      // lock screen entirely (Android's default `private` only hides it if the
+      // user separately enabled "hide sensitive content", which most don't); it
+      // still shows in the shade after unlock, which is where the one-tap win
+      // lives. As a bonus, an only-answerable-after-unlock notification means
+      // the keystore is always available when the background writer runs.
+      visibility: NotificationVisibility.secret,
     ),
     iOS: DarwinNotificationDetails(),
   );
@@ -83,10 +114,21 @@ class NotificationService {
     iOS: DarwinNotificationDetails(),
   );
 
-  static Future<void> cancel(int id) => _plugin.cancel(id: id);
+  // Every plugin-touching method is a no-op until [init] has run. On device
+  // main() awaits init() before runApp (and the background isolate awaits it in
+  // handleCheckInResponse), so this only bites under `flutter test`, where the
+  // plugin's platform instance is never initialised — the same "device-only,
+  // guarded" stance HomeWidgetService takes.
+  static Future<void> cancel(int id) async {
+    if (!_ready) return;
+    await _plugin.cancel(id: id);
+  }
 
   /// Cancels every scheduled notification (used by "delete all my data").
-  static Future<void> cancelAll() => _plugin.cancelAll();
+  static Future<void> cancelAll() async {
+    if (!_ready) return;
+    await _plugin.cancelAll();
+  }
 
   /// A repeating daily reminder at [hour]:[minute] with a custom id/title/body.
   static Future<void> scheduleDaily({
@@ -97,6 +139,7 @@ class NotificationService {
     required String body,
     NotificationDetails details = _details,
   }) async {
+    if (!_ready) return;
     await cancel(id);
     await _plugin.zonedSchedule(
       id: id,
@@ -109,18 +152,89 @@ class NotificationService {
     );
   }
 
-  /// The daily "log how you feel" nudge.
-  static Future<void> scheduleDailyLogNudge({
+  /// (Re)schedules the precomputed check-in horizon: one one-shot per day for
+  /// the next [CheckInHorizon.horizonDays] days at [hour]:[minute], each carrying
+  /// the right question (or the generic nudge) and — for the check-in days — the
+  /// one-tap action. This REPLACES the old repeating `scheduleDailyLogNudge`;
+  /// [idLogNudge] is retired here so a nudge left by a previous install version
+  /// can't fire alongside the horizon and double-notify.
+  ///
+  /// The horizon owns the whole daily slot, so every slot is cancelled first and
+  /// only the planned days rescheduled. Gated on [logNudgeEnabled] (the existing
+  /// log-nudge toggle) — off means the slot is cleared and nothing scheduled.
+  static Future<void> rescheduleHorizon({
+    required bool logNudgeEnabled,
     required int hour,
     required int minute,
-  }) =>
-      scheduleDaily(
-        id: idLogNudge,
-        hour: hour,
-        minute: minute,
-        title: 'How are you today?',
-        body: 'Tap to log your flow and symptoms.',
-      );
+    required List<DailyLog> logs,
+    required PredictionResult prediction,
+    DateTime? today,
+  }) async {
+    if (!_ready) return;
+    await cancel(idLogNudge); // retire the pre-horizon repeating nudge
+    for (var i = 0; i < CheckInHorizon.horizonDays; i++) {
+      await cancel(CheckInHorizon.idCheckInBase + i);
+    }
+    final horizon = CheckInHorizon.planIfEnabled(
+      logNudgeEnabled: logNudgeEnabled,
+      logs: logs,
+      prediction: prediction,
+      today: today ?? DateTime.now(),
+    );
+    for (final n in horizon) {
+      await _scheduleCheckIn(n: n, hour: hour, minute: minute);
+    }
+  }
+
+  /// Schedules ONE day's check-in one-shot. The one-tap action uses
+  /// `cancelNotification: false` so the notification is dismissed by the handler
+  /// only after a SUCCESSFUL write — a failed write leaves the question standing
+  /// as its own retry affordance. The answered day rides in the payload.
+  static Future<void> _scheduleCheckIn({
+    required CheckInNotification n,
+    required int hour,
+    required int minute,
+  }) async {
+    final when = _oneShotInstance(n.date, hour, minute);
+    if (when == null) return; // that day/time is already past
+    final android = AndroidNotificationDetails(
+      'cycle_reminders',
+      'Cycle reminders',
+      channelDescription: 'Period, fertile-window and daily-log reminders',
+      importance: Importance.high,
+      priority: Priority.high,
+      visibility: NotificationVisibility.secret,
+      actions: n.hasAction
+          ? [
+              AndroidNotificationAction(
+                n.actionId!,
+                n.actionLabel!,
+                cancelNotification: false,
+                showsUserInterface: false,
+              ),
+            ]
+          : null,
+    );
+    final darwin = DarwinNotificationDetails(
+      categoryIdentifier: n.hasAction ? _checkInCategory : null,
+    );
+    await _plugin.zonedSchedule(
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      scheduledDate: when,
+      notificationDetails: NotificationDetails(android: android, iOS: darwin),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      payload: encodeCheckInPayload(n.date),
+    );
+  }
+
+  /// The [date] at [hour]:[minute] in local tz, or null if already in the past.
+  static tz.TZDateTime? _oneShotInstance(DateTime date, int hour, int minute) {
+    final when = tz.TZDateTime(
+        tz.local, date.year, date.month, date.day, hour, minute);
+    return when.isAfter(tz.TZDateTime.now(tz.local)) ? when : null;
+  }
 
   /// A daily medication / birth-control reminder for [name].
   static Future<void> scheduleMedication({
@@ -168,6 +282,7 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
+    if (!_ready) return;
     await cancel(id);
     final when =
         tz.TZDateTime(tz.local, date.year, date.month, date.day, hour, minute);

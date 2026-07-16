@@ -86,6 +86,36 @@ class DailyLogRepository {
     return true;
   }
 
+  /// Records a confirmed flow for [date] without disturbing the rest of the row.
+  /// Mirrors [setBbtIfEmpty]: it touches ONLY the `flow` column, so a day's
+  /// symptoms/mood/notes/bbt/opk survive, and it never overwrites a flow already
+  /// present. This is the write behind the one-tap check-in (both "Didn't start"
+  /// and "Mark ended here" collapse to `FlowIntensity.none`): being single-column
+  /// and atomic lets a background isolate write safely alongside the foreground
+  /// UI, and the no-op-if-present rule makes stale-notification and double-tap
+  /// answers self-healing — a logged flow of any kind IS the "answered" flag.
+  /// Returns true if a value was written, false if the day already had a flow.
+  Future<bool> setFlowIfEmpty({
+    required DateTime date,
+    required FlowIntensity flow,
+  }) async {
+    final d = dateOnly(date);
+    final existing = await getForDate(d);
+    if (existing == null) {
+      await _db.into(_db.dailyLogs).insert(
+            DailyLogsCompanion.insert(date: d, flow: Value(flow)),
+          );
+      return true;
+    }
+    if (existing.flow != null) return false; // the log is already the answer
+    await (_db.update(_db.dailyLogs)..where((t) => t.id.equals(existing.id)))
+        .write(DailyLogsCompanion(
+      flow: Value(flow),
+      updatedAt: Value(DateTime.now()),
+    ));
+    return true;
+  }
+
   Future<void> deleteForDate(DateTime date) async {
     final d = dateOnly(date);
     await (_db.delete(_db.dailyLogs)..where((t) => t.date.equals(d))).go();

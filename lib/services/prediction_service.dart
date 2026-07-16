@@ -5,6 +5,7 @@ import '../db/database.dart';
 import '../models/cycle.dart';
 import '../models/enums.dart';
 import '../models/prediction.dart';
+import 'cycle_calculator.dart';
 import 'ovulation_signal_service.dart';
 
 /// On-device calendar-method predictions. Pure and deterministic given [asOf],
@@ -69,6 +70,34 @@ class PredictionService {
   /// near the computed ovulation corroborates the calendar estimate and raises
   /// [PredictionResult.fertilityConfidence] one notch — never [confidence], and
   /// never while [capConfidenceToLow] is set (perimenopause suppression wins).
+  /// The whole recompute in one place: raw [logs] + the tracking [mode] → a
+  /// [PredictionResult], with the mode-specific health suppressions applied.
+  /// Both the foreground (`main.dart`'s ProxyProvider) and the background
+  /// isolate (`CheckInWriter`) call this, so the pregnancy/perimenopause rules
+  /// can never diverge between them.
+  ///
+  /// - **Pregnancy**: period/fertility predictions are meaningless and unsafe to
+  ///   show, so cycles AND logs are dropped → no prediction.
+  /// - **Perimenopause**: cycles are erratic, so confidence is capped to low,
+  ///   which self-suppresses the ovulation marker + fertility band app-wide.
+  static PredictionResult predictFromLogs({
+    required List<DailyLog> logs,
+    required TrackingMode mode,
+    required int cycleLength,
+    required int periodLength,
+    DateTime? asOf,
+  }) {
+    final pregnancy = mode == TrackingMode.pregnancy;
+    return predict(
+      pregnancy ? const <Cycle>[] : CycleCalculator.computeCycles(logs),
+      fallbackCycleLength: cycleLength,
+      fallbackPeriodLength: periodLength,
+      capConfidenceToLow: mode == TrackingMode.perimenopause,
+      asOf: asOf,
+      logs: pregnancy ? const <DailyLog>[] : logs,
+    );
+  }
+
   static PredictionResult predict(
     List<Cycle> cycles, {
     int fallbackCycleLength = 28,

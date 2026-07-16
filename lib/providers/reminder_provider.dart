@@ -106,17 +106,19 @@ class ReminderProvider extends ChangeNotifier {
   }
 
   /// (Re)schedules all enabled reminders against [prediction]. Safe to call on
-  /// startup and after any change; cancels the ones that are off.
-  Future<void> reschedule(PredictionResult prediction) async {
-    // Daily log nudge.
-    if (isEnabled(ReminderType.logNudge)) {
-      await NotificationService.scheduleDailyLogNudge(
-        hour: hourOf(ReminderType.logNudge),
-        minute: minuteOf(ReminderType.logNudge),
-      );
-    } else {
-      await NotificationService.cancel(NotificationService.idLogNudge);
-    }
+  /// startup and after any change; cancels the ones that are off. Needs [logs]
+  /// because the daily nudge is now a precomputed check-in horizon keyed on
+  /// (logs, prediction, today) rather than one frozen repeating notification.
+  Future<void> reschedule(
+      PredictionResult prediction, List<DailyLog> logs) async {
+    // Daily nudge → the check-in horizon (gated on the same logNudge toggle).
+    await NotificationService.rescheduleHorizon(
+      logNudgeEnabled: isEnabled(ReminderType.logNudge),
+      hour: hourOf(ReminderType.logNudge),
+      minute: minuteOf(ReminderType.logNudge),
+      logs: logs,
+      prediction: prediction,
+    );
 
     // Period-soon (one-shot before the predicted start).
     final nextStart = prediction.nextPeriodStart;

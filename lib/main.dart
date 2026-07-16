@@ -9,8 +9,6 @@ import 'data/reminder_repository.dart';
 import 'data/settings_repository.dart';
 import 'common/l10n.dart';
 import 'db/database.dart';
-import 'models/cycle.dart';
-import 'models/enums.dart';
 import 'models/insights.dart';
 import 'models/month_ring.dart';
 import 'models/prediction.dart';
@@ -25,6 +23,7 @@ import 'services/bbt_service.dart';
 import 'services/cycle_check_in.dart';
 import 'services/insights_narrator.dart';
 import 'services/month_ring_builder.dart';
+import 'services/notification_actions.dart';
 import 'services/notification_service.dart';
 import 'services/prediction_service.dart';
 import 'theme/app_theme.dart';
@@ -32,7 +31,13 @@ import 'widgets/home_widget_sync.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService.init();
+  // Register the notification action handlers. The background one runs the
+  // one-tap check-in write in a killed-app isolate; the foreground one handles a
+  // tap while the app is open. Both route through handleCheckInResponse.
+  await NotificationService.init(
+    onForegroundResponse: handleCheckInResponse,
+    onBackgroundResponse: checkInNotificationBackgroundHandler,
+  );
   // Ads init is fire-and-forget: the UI must not block on the network.
   unawaited(AdService.instance.initialize());
   final db = AppDatabase();
@@ -68,21 +73,14 @@ class LunaTrackApp extends StatelessWidget {
         ),
         // Derived, recomputed whenever logs or settings change.
         ProxyProvider2<LogProvider, SettingsProvider, PredictionResult>(
-          update: (_, log, settings, _) => PredictionService.predict(
-            // Suppress all period/fertility predictions during pregnancy.
-            settings.mode == TrackingMode.pregnancy
-                ? const <Cycle>[]
-                : log.cycles,
-            fallbackCycleLength: settings.cycleLength,
-            fallbackPeriodLength: settings.periodLength,
-            // Perimenopause: erratic cycles → cap confidence to low, which
-            // self-suppresses the ovulation marker + fertility band app-wide.
-            capConfidenceToLow: settings.mode == TrackingMode.perimenopause,
-            // Symptothermal: a positive/peak OPK near ovulation corroborates the
-            // estimate and unlocks the fertility band one confidence notch.
-            logs: settings.mode == TrackingMode.pregnancy
-                ? const <DailyLog>[]
-                : log.logs,
+          // The whole recompute (incl. the pregnancy/perimenopause suppressions
+          // and symptothermal corroboration) lives in predictFromLogs, shared
+          // with the background CheckInWriter so the two can never diverge.
+          update: (_, log, settings, _) => PredictionService.predictFromLogs(
+            logs: log.logs,
+            mode: settings.mode,
+            cycleLength: settings.cycleLength,
+            periodLength: settings.periodLength,
           ),
         ),
         // Multi-month forecast: projects future periods from the user's entered

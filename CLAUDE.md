@@ -162,6 +162,41 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   with no arc). Display-only (no inline logging → never co-renders with the ad banner); the
   trailing `DisclaimerBanner` covers it.
 
+- **One-tap check-in from the notification shade (Phase A)** — answer the daily
+  period check-in ("Didn't start" / "Mark ended here") from the notification
+  action **without opening the app**. A pure **precomputed horizon**
+  (`services/check_in_notifications.dart`, `CheckInHorizon.plan`) replaces the old
+  single repeating log-nudge: because `CycleCheckInService.evaluate` is pure in
+  `(logs, prediction, day)` and logs can't change while the app is closed, it
+  precomputes one one-shot notification per day for the next **14 days** — the
+  check-in question if there is one, else the generic nudge — carrying the right
+  copy + action baked in. Rescheduled on app foreground/resume
+  (`HomeWidgetSync`) and inside the background handler after a write. Tapping the
+  action runs `notification_actions.dart`'s `@pragma('vm:entry-point')` handler in
+  a **background isolate** (app may be killed): it inits plugins, then
+  `CheckInWriter.answerNoBleeding` opens the **encrypted** DB on a second
+  connection and calls `DailyLogRepository.setFlowIfEmpty` (single-column, atomic,
+  no-op if a flow is already logged — so stale/double-tap answers self-heal, the
+  log IS the "answered" flag), recomputes + reschedules + pushes the widget. Key
+  properties: notifications are **`visibility: secret`** (cycle state never hits
+  the lock screen — and, as a bonus, "only answerable after unlock" means the
+  keystore is always available to the writer); the action uses
+  `cancelNotification: false` and the handler dismisses **only on a successful
+  write**, so a failed write leaves the question standing as its own retry (no
+  "couldn't save" copy); `PRAGMA busy_timeout = 5000` lets the second connection
+  wait rather than throw (no WAL sidecar). The horizon is **gated on the existing
+  `ReminderType.logNudge` toggle** — disabled means nothing is scheduled
+  (regression guard: never resurrect notifications the user turned off). The
+  prediction recompute both the foreground and the isolate run is the SINGLE
+  `PredictionService.predictFromLogs` (mode suppressions in one place, so they
+  can't diverge). **Migration-free.** Copy is verbatim from `PeriodCheckInBanner`
+  — period timing only, no fertility framing (structural guardrail test). The
+  isolate→keystore→cipher path **cannot be unit-tested** (same reason encryption
+  can't) — **verify on a device**: fire the check-in, tap the action with the app
+  killed, confirm the day is written, the widget refreshes, and the notification
+  is cancelled. **iOS** notification actions come via a `DarwinNotificationCategory`
+  (generic "Confirm" label); the iOS home-widget button is Phase B, deferred.
+
 **Calendar day entry is a bottom sheet, not an inline panel.** Tapping a day opens
 `_DayEntrySheet` (in `calendar_screen.dart`), whose content is a **`Scaffold`** (mirrors
 `DayLogScreen`: form in `body`, Save in `bottomNavigationBar`). This is deliberate: an

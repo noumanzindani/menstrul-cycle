@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../db/database.dart';
 import '../../models/enums.dart';
 import '../../models/prediction.dart';
+import '../../providers/log_provider.dart';
 import '../../providers/reminder_provider.dart';
 import '../../services/notification_service.dart';
 
@@ -21,6 +22,7 @@ class RemindersScreen extends StatelessWidget {
   }) async {
     final provider = context.read<ReminderProvider>();
     final prediction = context.read<PredictionResult>();
+    final logs = context.read<LogProvider>().logs;
     final messenger = ScaffoldMessenger.of(context);
 
     if (enabled) {
@@ -33,12 +35,13 @@ class RemindersScreen extends StatelessWidget {
       }
     }
     await provider.setReminder(type, enabled: enabled, daysBefore: daysBefore);
-    await provider.reschedule(prediction);
+    await provider.reschedule(prediction, logs);
   }
 
   Future<void> _pickTime(BuildContext context, ReminderType type) async {
     final provider = context.read<ReminderProvider>();
     final prediction = context.read<PredictionResult>();
+    final logs = context.read<LogProvider>().logs;
     final picked = await showTimePicker(
       context: context,
       initialTime:
@@ -51,7 +54,7 @@ class RemindersScreen extends StatelessWidget {
       hour: picked.hour,
       minute: picked.minute,
     );
-    await provider.reschedule(prediction);
+    await provider.reschedule(prediction, logs);
   }
 
   @override
