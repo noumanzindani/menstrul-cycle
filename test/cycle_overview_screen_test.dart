@@ -21,7 +21,7 @@ void main() {
       painAverage: 5.0,
       painPeak: 7,
       lifestyle: const [LabeledCount('Exercise', 2)],
-      medications: const [],
+      medications: const [LabeledCount('Vitamin D', 3)],
       notesCount: 1,
     );
 
@@ -36,10 +36,12 @@ void main() {
       'Emotions',
       'Pain',
       'Lifestyle',
+      'Medications',
     ]) {
       expect(find.text(header), findsOneWidget, reason: 'missing $header');
     }
     expect(find.text('Cramps'), findsOneWidget);
     expect(find.text('Exercise'), findsOneWidget);
+    expect(find.text('Vitamin D'), findsOneWidget);
   });
 }

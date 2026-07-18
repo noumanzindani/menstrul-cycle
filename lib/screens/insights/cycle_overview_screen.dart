@@ -48,6 +48,8 @@ class CycleOverviewScreen extends StatelessWidget {
             ),
           if (o.lifestyle.isNotEmpty)
             _Section(title: 'Lifestyle', child: _Counts(items: o.lifestyle)),
+          if (o.medications.isNotEmpty)
+            _Section(title: 'Medications', child: _Counts(items: o.medications)),
           if (o.notesCount > 0)
             _Section(
               title: 'Notes',
