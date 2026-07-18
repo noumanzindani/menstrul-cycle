@@ -3,9 +3,11 @@ import 'enums.dart';
 
 /// The role a single day plays on the Home month ring. Precedence when a day
 /// could be more than one (highest wins): [period] > [predictedPeriod] >
-/// [ovulation] > [fertile] > [normal]. Fertility roles are only ever assigned
-/// through the confidence-gated fertility band, so they can't imply a "safe" day.
-enum RingDayRole { normal, period, predictedPeriod, fertile, ovulation }
+/// [ovulation] > [fertile] > [pms] > [normal]. Fertility roles are only ever
+/// assigned through the confidence-gated fertility band, so they can't imply a
+/// "safe" day. [pms] is period-timing (like [predictedPeriod]), not a fertility
+/// signal, so it is not confidence-gated.
+enum RingDayRole { normal, period, predictedPeriod, fertile, ovulation, pms }
 
 /// One day on the ring: its day-of-month, its [role], and whether it is today.
 class RingDay {
@@ -58,6 +60,8 @@ class MonthRingData {
 
   bool get hasPredictedPeriod =>
       days.any((d) => d.role == RingDayRole.predictedPeriod);
+
+  bool get hasPms => days.any((d) => d.role == RingDayRole.pms);
 
   /// An all-normal ring for [today]'s month. A safe, cheap default (e.g. for
   /// tests / harnesses) that paints the frame without any prediction data.

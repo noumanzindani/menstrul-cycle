@@ -302,6 +302,9 @@ class _PredictionBody extends StatelessWidget {
     final peri = mode == TrackingMode.perimenopause;
     final fertile = _FertileCard(prediction: prediction, today: today);
     final nextPeriod = _NextPeriodCard(prediction: prediction, today: today);
+    final pmsWindow = prediction.pmsWindowStart != null
+        ? _PmsWindowCard(prediction: prediction, today: today)
+        : null;
 
     // The single most-notable pattern, if any. Skip the 'phase' narrative — the
     // _PhaseCard already says where the user is now — so this highlights a trend
@@ -336,6 +339,10 @@ class _PredictionBody extends StatelessWidget {
         ],
         if (peri) ...[
           nextPeriod,
+          if (pmsWindow != null) ...[
+            const SizedBox(height: 12),
+            pmsWindow,
+          ],
           const SizedBox(height: 12),
           const _PerimenopauseNote(),
         ] else if (conceive) ...[
@@ -350,6 +357,10 @@ class _PredictionBody extends StatelessWidget {
           nextPeriod,
           const SizedBox(height: 12),
           fertile,
+          if (pmsWindow != null) ...[
+            const SizedBox(height: 12),
+            pmsWindow,
+          ],
         ],
         const SizedBox(height: 16),
         const DisclaimerBanner(),
@@ -537,6 +548,36 @@ class _FertileCard extends StatelessWidget {
       footer: band == FertilityBand.none
           ? null
           : _BandLabel(band: band, corroborated: corroborated),
+    );
+  }
+}
+
+/// The upcoming PMS window — period-timing, like [_NextPeriodCard], not a
+/// fertility signal, so it is never confidence-gated (unlike [_FertileCard]'s
+/// band). Shown in Track/Perimenopause modes only.
+class _PmsWindowCard extends StatelessWidget {
+  const _PmsWindowCard({required this.prediction, required this.today});
+  final PredictionResult prediction;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    // Roll a passed window forward one cycle, same as _FertileCard.
+    var start = prediction.pmsWindowStart!;
+    var end = prediction.pmsWindowEnd!;
+    if (end.isBefore(today)) {
+      final c = prediction.averageCycleLength;
+      start = start.add(Duration(days: c));
+      end = end.add(Duration(days: c));
+    }
+    final inWindow = !today.isBefore(start) && !today.isAfter(end);
+    final range =
+        '${DateFormat.MMMd().format(start)} – ${DateFormat.MMMd().format(end)}';
+
+    return _InfoCard(
+      icon: Icons.mood_outlined,
+      title: inWindow ? 'PMS window (now)' : 'Estimated PMS window',
+      subtitle: range,
     );
   }
 }

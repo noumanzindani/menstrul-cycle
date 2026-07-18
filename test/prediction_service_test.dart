@@ -35,6 +35,12 @@ void main() {
     expect(r.confidence, PredictionConfidence.none);
   });
 
+  test('no cycles -> PMS window is null', () {
+    final r = PredictionService.predict([]);
+    expect(r.pmsWindowStart, isNull);
+    expect(r.pmsWindowEnd, isNull);
+  });
+
   group('regular 28-day history', () {
     // 7 periods => 6 complete cycles of length 28.
     final cycles = _regularCycles(firstStart, count: 7);
@@ -58,6 +64,13 @@ void main() {
       expect(r.ovulationDay, lastStart.add(const Duration(days: 14)));
       expect(r.fertileWindowStart, lastStart.add(const Duration(days: 9)));
       expect(r.fertileWindowEnd, lastStart.add(const Duration(days: 15)));
+    });
+
+    test('PMS window is next period start -5..-1 days', () {
+      final r = PredictionService.predict(cycles, asOf: lastStart);
+      final nextStart = lastStart.add(const Duration(days: 28));
+      expect(r.pmsWindowStart, nextStart.subtract(const Duration(days: 5)));
+      expect(r.pmsWindowEnd, nextStart.subtract(const Duration(days: 1)));
     });
 
     test('phase depends on the day within the cycle', () {

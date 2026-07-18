@@ -15,7 +15,7 @@
         android:layout_height="wrap_content"
         android:textSize="30sp"
         android:textStyle="bold"
-        android:textColor="#FFFFFF"
+        android:textColor="#3A2A30"
         android:maxLines="1"
         tools:text="5" />
 
@@ -25,7 +25,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:textSize="12sp"
-        android:textColor="#EADDFF"
+        android:textColor="#6B4A56"
         android:gravity="center"
         android:maxLines="2"
         tools:text="days to your period" />

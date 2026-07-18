@@ -120,6 +120,13 @@ class _PeriodCard extends StatelessWidget {
                       .labelSmall
                       ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
+                Text(
+                  'PMS ${DateFormat.MMMd().format(period.pmsStart)}',
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
               ],
             ),
           ],

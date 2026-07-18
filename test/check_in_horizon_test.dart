@@ -41,6 +41,8 @@ void main() {
         ovulationDay: null,
         fertileWindowStart: null,
         fertileWindowEnd: null,
+        pmsWindowStart: null,
+        pmsWindowEnd: null,
       );
 
   group('check-in payload codec', () {

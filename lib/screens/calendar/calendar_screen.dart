@@ -153,6 +153,9 @@ class _PredictionOverlay {
 
   bool isOvulation(DateTime d) =>
       periods.any((p) => isSameDay(d, p.ovulation));
+
+  bool isPms(DateTime d) =>
+      periods.any((p) => _inRange(d, p.pmsStart, p.pmsEnd));
 }
 
 /// Bottom-sheet host for the selected day's log form — the "combined calendar +
@@ -332,6 +335,7 @@ class _MonthGrid extends StatelessWidget {
           predictedPeriod: overlay.isPredictedPeriod(date),
           fertile: overlay.isFertile(date),
           ovulation: showOvulation && overlay.isOvulation(date),
+          pms: overlay.isPms(date),
           phases: phases,
           onTap: isFuture ? null : () => onTapDay(date),
         );
@@ -349,6 +353,7 @@ class _DayCell extends StatelessWidget {
     required this.predictedPeriod,
     required this.fertile,
     required this.ovulation,
+    required this.pms,
     required this.phases,
     required this.onTap,
   });
@@ -360,6 +365,7 @@ class _DayCell extends StatelessWidget {
   final bool predictedPeriod;
   final bool fertile;
   final bool ovulation;
+  final bool pms;
   final PhaseColors phases;
   final VoidCallback? onTap;
 
@@ -381,6 +387,9 @@ class _DayCell extends StatelessWidget {
       // deeper fill and a solid ring so it reads as distinct (still an estimate).
       fill = phases.fertile.withValues(alpha: ovulation ? 0.8 : 0.55);
       if (ovulation) borderColor = phases.fertile;
+    } else if (pms) {
+      fill = phases.luteal.withValues(alpha: 0.28);
+      borderColor = phases.luteal.withValues(alpha: 0.55);
     }
 
     final hasOtherData = log != null &&
@@ -391,7 +400,7 @@ class _DayCell extends StatelessWidget {
             flow != null);
 
     final onDark = bleeding && flow.index >= 3; // medium+ → light text
-    final textColor = isFuture && !predictedPeriod && !fertile
+    final textColor = isFuture && !predictedPeriod && !fertile && !pms
         ? scheme.onSurface.withValues(alpha: 0.35)
         : onDark
             ? Colors.white
@@ -463,6 +472,11 @@ class _Legend extends StatelessWidget {
               border: phases.fertile,
               label: 'Ovulation (est.)',
             ),
+          _LegendItem(
+            color: phases.luteal.withValues(alpha: 0.28),
+            border: phases.luteal.withValues(alpha: 0.55),
+            label: 'PMS (est.)',
+          ),
         ],
       ),
     );

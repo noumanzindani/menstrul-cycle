@@ -60,6 +60,30 @@ class InsightsService {
       ));
     }
 
+    // Adaptive "period is late": compares days-since against the user's OWN
+    // usual cycle length plus a tolerance that grows with their variability, so
+    // a naturally-variable cycle isn't flagged early. Needs ≥3 cycles for the
+    // average/variability to mean anything; the 90-day amenorrhea notice above
+    // takes over the extreme case, so this is capped below 90 to avoid doubling.
+    final avg = stats.averageCycleLength;
+    final since = stats.daysSinceLastPeriod;
+    if (avg != null &&
+        since != null &&
+        stats.cyclesTracked >= 3 &&
+        since < 90) {
+      final margin = max(7.0, 1.5 * stats.variability);
+      final overdueBy = since - avg;
+      if (overdueBy > margin) {
+        flags.add(RedFlag(
+          'Your period seems late',
+          'It has been $since days since your last period — about $overdueBy '
+              'days longer than your usual $avg-day cycle. Cycles shift for many '
+              'reasons; if this continues or pregnancy is possible, consider '
+              'checking in with a clinician.',
+        ));
+      }
+    }
+
     // Cycle-length ranges (need at least 2 cycles so a single outlier from
     // sparse logging doesn\'t raise a false notice).
     if (lengths.length >= 2) {

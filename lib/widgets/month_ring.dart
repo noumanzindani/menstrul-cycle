@@ -40,6 +40,7 @@ class MonthRing extends StatelessWidget {
               predicted: phases.menstrual.withValues(alpha: 0.32),
               fertile: phases.fertile.withValues(alpha: 0.70),
               ovulation: phases.fertile,
+              pms: phases.luteal.withValues(alpha: 0.32),
               todayDot: scheme.primary,
               halo: scheme.surface,
             ),
@@ -96,6 +97,8 @@ class _MonthRingLegend extends StatelessWidget {
           _swatch(context, phases.fertile.withValues(alpha: 0.70), 'Fertile'),
         if (data.hasOvulation)
           _swatch(context, phases.fertile, 'Ovulation (est.)'),
+        if (data.hasPms)
+          _swatch(context, phases.luteal.withValues(alpha: 0.32), 'PMS (est.)'),
       ],
     );
   }
@@ -124,6 +127,7 @@ class MonthRingPainter extends CustomPainter {
     required this.predicted,
     required this.fertile,
     required this.ovulation,
+    required this.pms,
     required this.todayDot,
     required this.halo,
   });
@@ -134,6 +138,7 @@ class MonthRingPainter extends CustomPainter {
   final Color predicted;
   final Color fertile;
   final Color ovulation;
+  final Color pms;
   final Color todayDot;
   final Color halo;
 
@@ -179,6 +184,7 @@ class MonthRingPainter extends CustomPainter {
         RingDayRole.predictedPeriod => predicted,
         RingDayRole.fertile => fertile,
         RingDayRole.ovulation => ovulation,
+        RingDayRole.pms => pms,
       };
 
   @override
@@ -189,6 +195,7 @@ class MonthRingPainter extends CustomPainter {
       old.predicted != predicted ||
       old.fertile != fertile ||
       old.ovulation != ovulation ||
+      old.pms != pms ||
       old.todayDot != todayDot ||
       old.halo != halo;
 }

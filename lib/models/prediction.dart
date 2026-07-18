@@ -33,6 +33,8 @@ class PredictedPeriod {
     required this.ovulation,
     required this.fertileStart,
     required this.fertileEnd,
+    required this.pmsStart,
+    required this.pmsEnd,
   });
 
   final DateTime start;
@@ -40,6 +42,8 @@ class PredictedPeriod {
   final DateTime ovulation; // estimated, ≈ start − 14 (luteal)
   final DateTime fertileStart;
   final DateTime fertileEnd;
+  final DateTime pmsStart; // estimated, start − 5
+  final DateTime pmsEnd; // estimated, start − 1
 
   int get lengthDays => end.difference(start).inDays + 1;
 }
@@ -62,6 +66,8 @@ class PredictionResult {
     required this.ovulationDay,
     required this.fertileWindowStart,
     required this.fertileWindowEnd,
+    required this.pmsWindowStart,
+    required this.pmsWindowEnd,
     PredictionConfidence? fertilityConfidence,
   }) : _fertilityConfidence = fertilityConfidence;
 
@@ -100,6 +106,9 @@ class PredictionResult {
   final DateTime? ovulationDay; // current cycle estimate
   final DateTime? fertileWindowStart;
   final DateTime? fertileWindowEnd;
+
+  final DateTime? pmsWindowStart; // nextPeriodStart − 5
+  final DateTime? pmsWindowEnd; // nextPeriodStart − 1
 
   bool get hasPrediction => nextPeriodStart != null;
 }

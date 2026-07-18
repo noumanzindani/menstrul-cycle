@@ -15,7 +15,9 @@ import 'prediction_service.dart';
 /// SOLELY from [PredictionService.fertilityBand] (which is confidence-gated and
 /// window-bounded), so the ring can never show fertility below medium
 /// confidence, outside the window, or on missing data — i.e. it can never imply
-/// a "safe" day.
+/// a "safe" day; otherwise a day inside the PMS window is [RingDayRole.pms] —
+/// period-timing like [RingDayRole.predictedPeriod], so it is gated only by
+/// having a prediction, never by confidence.
 class MonthRingBuilder {
   const MonthRingBuilder._();
 
@@ -107,7 +109,20 @@ class MonthRingBuilder {
       case FertilityBand.lower:
         return RingDayRole.fertile;
       case FertilityBand.none:
-        return RingDayRole.normal;
+        break;
     }
+
+    // 4. PMS window — period-timing (like predictedPeriod above), not a
+    // fertility signal, so it is gated only by having a prediction, never by
+    // confidence.
+    final pmsStart = prediction.pmsWindowStart;
+    final pmsEnd = prediction.pmsWindowEnd;
+    if (pmsStart != null && pmsEnd != null) {
+      final d = dateOnly(date);
+      if (!d.isBefore(dateOnly(pmsStart)) && !d.isAfter(dateOnly(pmsEnd))) {
+        return RingDayRole.pms;
+      }
+    }
+    return RingDayRole.normal;
   }
 }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Rounded lavender card matching LunaTrack's brand primary. -->
+<!-- Rounded baby-pink card matching LunaTrack's brand primary. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <corners android:radius="20dp" />
-    <solid android:color="#6750A4" />
+    <solid android:color="#F7A8C4" />
 </shape>

@@ -58,4 +58,29 @@ void main() {
     expect(r.flags.map((f) => f.title),
         contains('No period logged in a while'));
   });
+
+  test('adaptive: a period later than usual raises an overdue flag', () {
+    // Regular 28-day history; last start ~Mar 26, asOf is ~55 days later.
+    final r = InsightsService.analyze(_cycles([28, 28, 28]),
+        asOf: DateTime(2026, 5, 20));
+    final titles = r.flags.map((f) => f.title).toList();
+    expect(titles, contains('Your period seems late'));
+    // Not yet 90 days, so it is the adaptive flag, not amenorrhea.
+    expect(titles, isNot(contains('No period logged in a while')));
+  });
+
+  test('adaptive: no overdue flag while within the usual cycle range', () {
+    final r = InsightsService.analyze(_cycles([28, 28, 28]),
+        asOf: DateTime(2026, 4, 10));
+    expect(r.flags.map((f) => f.title),
+        isNot(contains('Your period seems late')));
+  });
+
+  test('adaptive: needs at least 3 cycles of history', () {
+    // Late (>35 days) but only 2 complete cycles → no adaptive flag.
+    final r = InsightsService.analyze(_cycles([28, 28]),
+        asOf: DateTime(2026, 4, 20));
+    expect(r.flags.map((f) => f.title),
+        isNot(contains('Your period seems late')));
+  });
 }

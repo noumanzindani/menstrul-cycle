@@ -84,18 +84,29 @@ class PhaseColors extends ThemeExtension<PhaseColors> {
 class AppTheme {
   AppTheme._();
 
-  /// Muted rose-plum: warm and calming, works for a broad audience, reads well
-  /// with the gender-neutral toggle (not hot-pink).
-  static const Color seed = Color(0xFFB5476B);
+  /// Baby pink: soft and gentle. M3 [ColorScheme.fromSeed] normalizes the seed's
+  /// tone, so this pastel still yields a pink primary with enough contrast for
+  /// buttons/text — while the light theme's surfaces are forced to pure white
+  /// below, giving the "white + baby-pink" look (white background, soft-pink
+  /// cards/accents).
+  static const Color seed = Color(0xFFF7A8C4);
 
   static ThemeData light() => _build(Brightness.light, PhaseColors.light);
   static ThemeData dark() => _build(Brightness.dark, PhaseColors.dark);
 
   static ThemeData _build(Brightness brightness, PhaseColors phases) {
-    final scheme = ColorScheme.fromSeed(
+    var scheme = ColorScheme.fromSeed(
       seedColor: seed,
       brightness: brightness,
     );
+    if (brightness == Brightness.light) {
+      // Pure-white backgrounds. surfaceContainer* keep their generated soft-pink
+      // tint, so cards/sheets read baby pink against the white scaffold.
+      scheme = scheme.copyWith(
+        surface: Colors.white,
+        onSurface: const Color(0xFF3A2A30), // warm near-black for text on white
+      );
+    }
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,

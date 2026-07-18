@@ -38,6 +38,8 @@ void main() {
         ovulationDay: null,
         fertileWindowStart: null,
         fertileWindowEnd: null,
+        pmsWindowStart: null,
+        pmsWindowEnd: null,
       );
 
   // A run of bleeding days [start .. start+len-1].

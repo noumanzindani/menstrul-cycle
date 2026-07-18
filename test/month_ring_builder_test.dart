@@ -30,6 +30,8 @@ void main() {
     DateTime? ovulationDay,
     DateTime? fertileWindowStart,
     DateTime? fertileWindowEnd,
+    DateTime? pmsWindowStart,
+    DateTime? pmsWindowEnd,
     int averagePeriodLength = 5,
     int? cycleDay = 14,
     CyclePhase phase = CyclePhase.ovulatory,
@@ -49,6 +51,8 @@ void main() {
         ovulationDay: ovulationDay,
         fertileWindowStart: fertileWindowStart,
         fertileWindowEnd: fertileWindowEnd,
+        pmsWindowStart: pmsWindowStart,
+        pmsWindowEnd: pmsWindowEnd,
         fertilityConfidence: fertilityConfidence,
       );
 
@@ -133,6 +137,24 @@ void main() {
     // Period + predicted are NOT fertility-gated, so they still show.
     expect(roleOn(d, 1), RingDayRole.period);
     expect(roleOn(d, 30), RingDayRole.predictedPeriod);
+  });
+
+  test('the PMS window (before the predicted period) is coloured pms', () {
+    final withPms = pred(
+      fertilityConfidence: PredictionConfidence.medium,
+      nextPeriodStart: DateTime(2026, 7, 30),
+      ovulationDay: DateTime(2026, 7, 16),
+      fertileWindowStart: DateTime(2026, 7, 11),
+      fertileWindowEnd: DateTime(2026, 7, 17),
+      pmsWindowStart: DateTime(2026, 7, 25),
+      pmsWindowEnd: DateTime(2026, 7, 29),
+    );
+    final d = MonthRingBuilder.build(logs: logs, prediction: withPms, today: today);
+    expect(roleOn(d, 25), RingDayRole.pms);
+    expect(roleOn(d, 29), RingDayRole.pms);
+    expect(roleOn(d, 24), RingDayRole.normal); // just before the window
+    expect(roleOn(d, 30), RingDayRole.predictedPeriod); // period wins
+    expect(d.hasPms, isTrue);
   });
 
   test('no fertile colouring when the fertility dates are null', () {

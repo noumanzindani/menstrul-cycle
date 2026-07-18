@@ -51,9 +51,20 @@ void main() {
     await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
+    // The section now sits below the stat grid + regularity card, so scroll it
+    // into view first.
+    await tester.dragUntilVisible(
+      find.text('Your patterns'),
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('Your patterns'), findsOneWidget);
     expect(find.textContaining('very regular'), findsOneWidget);
-    // Must read as description, never diagnosis.
-    expect(find.textContaining('not a diagnosis'), findsOneWidget);
+    // Must read as description, never diagnosis. Assert the section's own
+    // subtitle specifically (several sections now carry a "not a diagnosis"
+    // caveat, which is exactly the intent — this pins the Your-patterns one).
+    expect(find.textContaining('descriptions, not a diagnosis'), findsOneWidget);
   });
 }

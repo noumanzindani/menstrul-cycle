@@ -24,6 +24,8 @@ void main() {
         ovulationDay: null,
         fertileWindowStart: null,
         fertileWindowEnd: null,
+        pmsWindowStart: null,
+        pmsWindowEnd: null,
       );
 
   HomeWidgetData build(PredictionResult p,

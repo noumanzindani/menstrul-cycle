@@ -43,6 +43,8 @@ void main() {
         ovulationDay: DateTime(2026, 7, 16),
         fertileWindowStart: DateTime(2026, 7, 11),
         fertileWindowEnd: DateTime(2026, 7, 17),
+        pmsWindowStart: DateTime(2026, 7, 25),
+        pmsWindowEnd: DateTime(2026, 7, 29),
         fertilityConfidence: fertilityConfidence,
       );
 
@@ -117,6 +119,8 @@ void main() {
       ovulationDay: DateTime(2026, 7, 31),
       fertileWindowStart: DateTime(2026, 7, 26),
       fertileWindowEnd: DateTime(2026, 8, 1),
+      pmsWindowStart: DateTime(2026, 8, 9),
+      pmsWindowEnd: DateTime(2026, 8, 13),
       fertilityConfidence: PredictionConfidence.medium,
     );
     final d = MonthRingBuilder.build(
@@ -127,6 +131,12 @@ void main() {
     await pump(tester, d);
     expect(find.text('Fertile'), findsOneWidget);
     expect(find.textContaining('Ovulation'), findsNothing);
+  });
+
+  testWidgets('shows a PMS legend entry when a PMS day is painted this month',
+      (tester) async {
+    await pump(tester, data(PredictionConfidence.medium));
+    expect(find.textContaining('PMS'), findsOneWidget);
   });
 
   testWidgets(

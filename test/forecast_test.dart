@@ -63,6 +63,19 @@ void main() {
       expect(second.fertileEnd, DateTime(2026, 1, 16));
     });
 
+    test('PMS window is start -5..-1 days', () {
+      final periods = PredictionService.projectFuturePeriods(
+        anchorStart: anchor,
+        cycleLength: 28,
+        periodLength: 5,
+        count: 2,
+        asOf: anchor,
+      );
+      final second = periods[1]; // starts 2026-01-29
+      expect(second.pmsStart, DateTime(2026, 1, 24));
+      expect(second.pmsEnd, DateTime(2026, 1, 28));
+    });
+
     test('guards against nonsense cycle length', () {
       final periods = PredictionService.projectFuturePeriods(
         anchorStart: anchor,

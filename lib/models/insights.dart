@@ -1,3 +1,9 @@
+/// How consistent the user's cycle lengths are, from length variability.
+/// Thresholds match the narrator's language (≤3.5 d regular, ≤7 d fairly
+/// regular, >7 d the red-flag "vary quite a bit" zone). Descriptive, not a
+/// diagnosis.
+enum CycleRegularity { regular, fairlyRegular, irregular, unknown }
+
 /// Aggregate statistics over a user's cycle history.
 class CycleStats {
   const CycleStats({
@@ -21,6 +27,15 @@ class CycleStats {
   final int? daysSinceLastPeriod;
 
   bool get hasData => cyclesTracked > 0;
+
+  /// A coarse regularity category for a visual indicator. Needs at least three
+  /// complete cycles for variability to mean anything; below that it's unknown.
+  CycleRegularity get regularity {
+    if (cyclesTracked < 3) return CycleRegularity.unknown;
+    if (variability > 7) return CycleRegularity.irregular;
+    if (variability > 3.5) return CycleRegularity.fairlyRegular;
+    return CycleRegularity.regular;
+  }
 }
 
 /// A gentle, NON-diagnostic notice. Never a diagnosis, never alarmist — always

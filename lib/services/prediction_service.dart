@@ -21,6 +21,11 @@ class PredictionService {
   static const int _fertilePreOvulation = 5;
   static const int _fertilePostOvulation = 1;
 
+  /// PMS window = the 5 days immediately before a period starts (mirrors
+  /// InsightsService's retrospective `_premenstrualDays` window, but applied
+  /// prospectively here).
+  static const int _premenstrualDays = 5;
+
   /// Projects the next [count] periods forward from [anchorStart], stepping by
   /// [cycleLength] days with a [periodLength]-day bleed. Only periods whose end
   /// is today or later are returned (past ones are dropped). Pure/deterministic.
@@ -56,6 +61,8 @@ class PredictionService {
         fertileStart:
             ovulation.subtract(const Duration(days: _fertilePreOvulation)),
         fertileEnd: ovulation.add(const Duration(days: _fertilePostOvulation)),
+        pmsStart: start.subtract(const Duration(days: _premenstrualDays)),
+        pmsEnd: start.subtract(const Duration(days: 1)),
       ));
     }
     return result;
@@ -144,6 +151,8 @@ class PredictionService {
         ovulationDay: null,
         fertileWindowStart: null,
         fertileWindowEnd: null,
+        pmsWindowStart: null,
+        pmsWindowEnd: null,
       );
     }
 
@@ -154,6 +163,8 @@ class PredictionService {
         ovulation.subtract(const Duration(days: _fertilePreOvulation));
     final fertileEnd =
         ovulation.add(const Duration(days: _fertilePostOvulation));
+    final pmsStart = nextStart.subtract(const Duration(days: _premenstrualDays));
+    final pmsEnd = nextStart.subtract(const Duration(days: 1));
 
     final cycleDay = daysBetween(lastStart, today) + 1;
     final phase = _phaseFor(
@@ -195,6 +206,8 @@ class PredictionService {
       ovulationDay: ovulation,
       fertileWindowStart: fertileStart,
       fertileWindowEnd: fertileEnd,
+      pmsWindowStart: pmsStart,
+      pmsWindowEnd: pmsEnd,
     );
   }
 
