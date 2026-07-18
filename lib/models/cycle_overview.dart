@@ -8,12 +8,8 @@ class LabeledCount {
 }
 
 /// Everything logged during one cycle, rolled up per category. A single view of
-/// the cycle's experience — bleeding, symptoms, emotions, pain, lifestyle and
-/// notes — assembled from the raw day logs inside the cycle's span.
-///
-/// Medications are intentionally absent: this app has no per-day medication
-/// intake log (the Medications table is a schedule, not a diary), so surfacing
-/// them here would be inventing data.
+/// the cycle's experience — bleeding, symptoms, emotions, pain, lifestyle,
+/// medications, and notes — assembled from the raw day logs inside the cycle's span.
 class CycleOverview {
   const CycleOverview({
     required this.start,
@@ -27,6 +23,7 @@ class CycleOverview {
     required this.painAverage,
     required this.painPeak,
     required this.lifestyle,
+    required this.medications,
     required this.notesCount,
   });
 
@@ -48,6 +45,11 @@ class CycleOverview {
 
   /// Lifestyle habits (exercise, caffeine, …), ranked most-frequent first.
   final List<LabeledCount> lifestyle;
+
+  /// Per-medication day-counts for this cycle (empty if none logged). Labels are
+  /// resolved from the medication catalog; an orphaned id (deleted med) falls
+  /// back to "Medication".
+  final List<LabeledCount> medications;
 
   final int notesCount;
 }

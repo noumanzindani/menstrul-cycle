@@ -1,9 +1,12 @@
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:menstrul_track/common/catalog.dart';
+import 'package:menstrul_track/data/daily_log_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/models/cycle.dart';
 import 'package:menstrul_track/models/enums.dart';
+import 'package:menstrul_track/services/cycle_calculator.dart';
 import 'package:menstrul_track/services/cycle_overview_service.dart';
 
 /// Aggregates one cycle's raw day logs into a single rollup: bleeding, symptoms,
@@ -82,5 +85,37 @@ void main() {
     // Lifestyle + notes.
     expect(o.lifestyle.any((l) => l.label == 'Exercise' && l.count == 1), isTrue);
     expect(o.notesCount, 1);
+  });
+
+  test('tallies medication days, mapping id to name with orphan fallback',
+      () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    final repo = DailyLogRepository(db);
+    // A 3-day period → one cycle starting Jan 1.
+    for (final d in [1, 2, 3]) {
+      await repo.upsert(
+        date: DateTime(2026, 1, d),
+        flow: FlowIntensity.medium,
+        // med 5 taken all 3 days; med 9 (deleted → no name) taken 1 day.
+        symptomsJson: encodeDayTags(
+            flags: d == 1 ? {'med_5', 'med_9'} : {'med_5'}),
+      );
+    }
+    final logs = await repo.getAll();
+    final cycles = CycleCalculator.computeCycles(logs);
+
+    final overview = CycleOverviewService.summarize(
+      cycles.single, logs,
+      medNames: {5: 'Vitamin D'},
+    );
+
+    expect(overview.medications, hasLength(2));
+    // Ranked by day-count desc: Vitamin D (3) before the orphan (1).
+    expect(overview.medications.first.label, 'Vitamin D');
+    expect(overview.medications.first.count, 3);
+    expect(overview.medications.last.label, 'Medication'); // orphan fallback
+    expect(overview.medications.last.count, 1);
+
+    await db.close();
   });
 }

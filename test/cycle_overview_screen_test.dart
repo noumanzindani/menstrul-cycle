@@ -21,6 +21,7 @@ void main() {
       painAverage: 5.0,
       painPeak: 7,
       lifestyle: const [LabeledCount('Exercise', 2)],
+      medications: const [],
       notesCount: 1,
     );
 

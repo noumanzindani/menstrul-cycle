@@ -16,7 +16,11 @@ class CycleOverviewService {
   static final Set<String> _emotionalKeys =
       kEmotionalOptions.map((o) => o.key).toSet();
 
-  static CycleOverview summarize(Cycle cycle, List<DailyLog> logs) {
+  static CycleOverview summarize(
+    Cycle cycle,
+    List<DailyLog> logs, {
+    Map<int, String> medNames = const {},
+  }) {
     final start = dateOnly(cycle.start);
     final periodEnd = dateOnly(cycle.end);
     final nextStart =
@@ -30,6 +34,7 @@ class CycleOverviewService {
     final physical = <String, int>{};
     final emotional = <String, int>{};
     final lifestyle = <String, int>{};
+    final medications = <String, int>{};
     final painValues = <int>[];
     var notesCount = 0;
     var bleedingDays = 0;
@@ -63,6 +68,10 @@ class CycleOverviewService {
         lifestyle[key] = (lifestyle[key] ?? 0) + 1;
       }
 
+      for (final key in decodeGroup(l.symptoms, kMedicationKeyPrefix)) {
+        medications[key] = (medications[key] ?? 0) + 1;
+      }
+
       final pain = decodeNumber(l.symptoms, kMetricPain);
       if (pain != null) painValues.add(pain.round());
 
@@ -84,6 +93,10 @@ class CycleOverviewService {
       painPeak:
           painValues.isEmpty ? null : painValues.reduce((a, b) => a > b ? a : b),
       lifestyle: _rank(lifestyle, (k) => _labelFrom(kHabitOptions, k)),
+      medications: _rank(medications, (key) {
+        final id = int.tryParse(key.substring(kMedicationKeyPrefix.length));
+        return (id != null ? medNames[id] : null) ?? 'Medication';
+      }),
       notesCount: notesCount,
     );
   }
