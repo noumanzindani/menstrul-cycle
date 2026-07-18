@@ -58,6 +58,7 @@ const String kDischargeKeyPrefix = 'cm_'; // cervical mucus / discharge (single)
 const String kVaginalKeyPrefix = 'vag_'; // vaginal-health flags
 const String kSexualHealthKeyPrefix = 'shx_'; // sexual-health flags
 const String kHabitKeyPrefix = 'habit_'; // lifestyle habits
+const String kMedicationKeyPrefix = 'med_'; // per-day medication intake
 
 /// All reserved (non-symptom) prefixes. [decodeSymptoms] skips these so grouped
 /// and sensitive data never surfaces in the symptom chips or the doctor PDF.
@@ -67,6 +68,7 @@ const List<String> kReservedTagPrefixes = [
   kVaginalKeyPrefix,
   kSexualHealthKeyPrefix,
   kHabitKeyPrefix,
+  kMedicationKeyPrefix,
 ];
 
 /// Numeric day-metric keys (stored as real JSON numbers, not booleans, in the
