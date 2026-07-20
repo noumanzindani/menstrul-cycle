@@ -52,7 +52,11 @@ class _DayLogScreenState extends State<DayLogScreen> {
             ),
         ],
       ),
-      body: DayEntryForm(key: _formKey, date: widget.date),
+      body: DayEntryForm(
+        key: _formKey,
+        date: widget.date,
+        medications: enabledMedChips(context),
+      ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         child: FilledButton(onPressed: _save, child: const Text('Save')),

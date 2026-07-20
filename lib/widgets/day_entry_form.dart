@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../common/catalog.dart';
 import '../models/enums.dart';
 import '../providers/log_provider.dart';
+import '../providers/medication_provider.dart';
 
 /// The set of selectors for one day. Extracted so it can be hosted both by the
 /// full-screen [DayLogScreen] and inline on the calendar. Call
@@ -38,6 +39,18 @@ class MedChip {
   const MedChip(this.id, this.name);
   final int id;
   final String name;
+}
+
+/// Enabled medications as intake chips, or empty when the provider is absent.
+/// The nullable lookup returns null instead of throwing, which keeps the form
+/// and its hosts pumpable in tests that wire no [MedicationProvider].
+List<MedChip> enabledMedChips(BuildContext context) {
+  final meds = context.watch<MedicationProvider?>();
+  if (meds == null) return const [];
+  return [
+    for (final m in meds.items)
+      if (m.enabled) MedChip(m.id, m.name),
+  ];
 }
 
 /// Numeric metrics rendered as 0..max sliders; 0 means "not logged".

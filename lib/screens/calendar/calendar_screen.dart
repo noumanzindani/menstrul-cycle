@@ -223,7 +223,13 @@ class _DayEntrySheetState extends State<_DayEntrySheet> {
                 if (mounted) Navigator.of(context).pop();
               },
             ),
-            Expanded(child: DayEntryForm(key: _formKey, date: widget.date)),
+            Expanded(
+              child: DayEntryForm(
+                key: _formKey,
+                date: widget.date,
+                medications: enabledMedChips(context),
+              ),
+            ),
           ],
         ),
         bottomNavigationBar: Padding(

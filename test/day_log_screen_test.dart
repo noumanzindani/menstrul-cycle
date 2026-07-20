@@ -5,8 +5,10 @@ import 'package:provider/provider.dart';
 
 import 'package:menstrul_track/data/daily_log_repository.dart';
 import 'package:menstrul_track/db/database.dart';
+import 'package:menstrul_track/data/medication_repository.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/providers/log_provider.dart';
+import 'package:menstrul_track/providers/medication_provider.dart';
 import 'package:menstrul_track/screens/log/day_log_screen.dart';
 
 void main() {
@@ -61,5 +63,34 @@ void main() {
     expect(saved, isNotNull);
     // Sex is stored in the tags JSON but must not surface as a symptom.
     expect(saved!.symptoms.contains('sex_protected'), isTrue);
+  });
+
+  testWidgets('day log screen shows configured medication chips',
+      (tester) async {
+    final medRepo = MedicationRepository(db);
+    await medRepo.add(name: 'Iron', enabled: true);
+    await medRepo.add(name: 'Retired pill', enabled: false);
+    final meds = MedicationProvider(medRepo);
+    await meds.load();
+
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<LogProvider>.value(value: logs),
+        ChangeNotifierProvider<MedicationProvider>.value(value: meds),
+      ],
+      child: MaterialApp(home: DayLogScreen(date: DateTime(2026, 3, 10))),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Iron'),
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Iron'), findsOneWidget);
+    // Disabled medications are not offered for intake.
+    expect(find.text('Retired pill'), findsNothing);
   });
 }

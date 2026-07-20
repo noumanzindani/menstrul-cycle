@@ -11,6 +11,7 @@ import '../../models/insights.dart';
 import '../../models/prediction.dart';
 import '../../models/symptom_analysis.dart';
 import '../../providers/log_provider.dart';
+import '../../providers/medication_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/bbt_service.dart';
 import '../../services/cycle_overview_service.dart';
@@ -184,7 +185,16 @@ class InsightsScreen extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 8),
-                  _CycleHistory(cycles: cycles, logs: logProvider.logs),
+                  _CycleHistory(
+                    cycles: cycles,
+                    logs: logProvider.logs,
+                    medNames: {
+                      for (final m
+                          in context.watch<MedicationProvider?>()?.items ??
+                              const [])
+                        m.id: m.name,
+                    },
+                  ),
                   const SizedBox(height: 20),
                 ],
                 if (insights.flags.isNotEmpty) ...[
@@ -589,9 +599,17 @@ class _SymptomFrequencyList extends StatelessWidget {
 /// The user's cycles, newest first, each opening a per-cycle [CycleOverview].
 /// The overview is computed lazily on tap so the list stays cheap.
 class _CycleHistory extends StatelessWidget {
-  const _CycleHistory({required this.cycles, required this.logs});
+  const _CycleHistory({
+    required this.cycles,
+    required this.logs,
+    this.medNames = const {},
+  });
   final List<Cycle> cycles;
   final List<DailyLog> logs;
+
+  /// Medication id → display name, so past cycles can label intake days even
+  /// for medications the user has since disabled.
+  final Map<int, String> medNames;
 
   @override
   Widget build(BuildContext context) {
@@ -611,7 +629,8 @@ class _CycleHistory extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => CycleOverviewScreen(
-                    overview: CycleOverviewService.summarize(c, logs),
+                    overview: CycleOverviewService.summarize(c, logs,
+                        medNames: medNames),
                   ),
                 ),
               ),
