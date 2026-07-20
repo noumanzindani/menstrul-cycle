@@ -8,6 +8,7 @@ import '../../db/database.dart';
 import '../../models/cycle.dart';
 import '../../models/flow_analysis.dart';
 import '../../models/insights.dart';
+import '../../models/medication_adherence.dart';
 import '../../models/prediction.dart';
 import '../../models/symptom_analysis.dart';
 import '../../providers/log_provider.dart';
@@ -18,6 +19,7 @@ import '../../services/cycle_overview_service.dart';
 import '../../services/flow_analysis_service.dart';
 import '../../services/insights_narrator.dart';
 import '../../services/insights_service.dart';
+import '../../services/medication_adherence_service.dart';
 import '../../services/pdf_report_service.dart';
 import '../../services/symptom_analysis_service.dart';
 import '../../theme/app_theme.dart';
@@ -71,6 +73,15 @@ class InsightsScreen extends StatelessWidget {
         if (l.bbt != null) l,
     ]..sort((a, b) => a.date.compareTo(b.date));
     final thermalShift = BbtService.thermalShift(logProvider.logs);
+    // Medication intake for the most recent *complete* cycle — a partial current
+    // cycle would understate every count against a full-cycle scale.
+    final meds =
+        context.watch<MedicationProvider?>()?.items ?? const <Medication>[];
+    final completeCycles = cycles.where((c) => c.isComplete).toList();
+    final adherence = completeCycles.isEmpty
+        ? const MedicationAdherence([])
+        : MedicationAdherenceService.forCycle(
+            completeCycles.last, logProvider.logs, meds);
     // Plain-language "Your patterns" narratives. No current-phase line here —
     // this screen is about history/patterns, not "where am I right now".
     final narratives =
@@ -195,6 +206,23 @@ class InsightsScreen extends StatelessWidget {
                         m.id: m.name,
                     },
                   ),
+                  const SizedBox(height: 20),
+                ],
+                if (adherence.hasData) ...[
+                  Text('Medications this cycle',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Days you logged each medication in your last complete cycle.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  _MedicationAdherenceList(adherence: adherence),
                   const SizedBox(height: 20),
                 ],
                 if (insights.flags.isNotEmpty) ...[
@@ -530,6 +558,60 @@ class _FlowChart extends StatelessWidget {
 /// A ranked list of the most-logged symptoms as proportional bars, plus an
 /// optional pain-severity summary. Uses plain bars (not a chart lib) so it reads
 /// as a compact "top symptoms" leaderboard. Descriptive, never diagnostic.
+/// Per-medication days-logged for the most recent complete cycle, as bars scaled
+/// to the cycle length. A count, never a percentage (dosing frequency isn't
+/// stored, so no adherence target is implied).
+class _MedicationAdherenceList extends StatelessWidget {
+  const _MedicationAdherenceList({required this.adherence});
+  final MedicationAdherence adherence;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final e in adherence.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 110,
+                  child: Text(e.name,
+                      style: Theme.of(context).textTheme.bodySmall,
+                      overflow: TextOverflow.ellipsis),
+                ),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: e.cycleLength == 0
+                          ? 0
+                          : (e.daysLogged / e.cycleLength).clamp(0.0, 1.0),
+                      minHeight: 12,
+                      backgroundColor: scheme.surfaceContainerHighest,
+                      valueColor: AlwaysStoppedAnimation(scheme.primary),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 40,
+                  child: Text(
+                    '${e.daysLogged} ${e.daysLogged == 1 ? 'day' : 'days'}',
+                    textAlign: TextAlign.end,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _SymptomFrequencyList extends StatelessWidget {
   const _SymptomFrequencyList({required this.analysis});
   final SymptomAnalysis analysis;
