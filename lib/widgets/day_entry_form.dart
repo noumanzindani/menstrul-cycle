@@ -18,13 +18,26 @@ import '../providers/log_provider.dart';
 /// [shrinkWrap] makes it embeddable inside another scroll view (calendar);
 /// standalone it scrolls itself.
 class DayEntryForm extends StatefulWidget {
-  const DayEntryForm({super.key, required this.date, this.shrinkWrap = false});
+  const DayEntryForm({
+    super.key,
+    required this.date,
+    this.shrinkWrap = false,
+    this.medications = const [],
+  });
 
   final DateTime date;
   final bool shrinkWrap;
+  final List<MedChip> medications;
 
   @override
   DayEntryFormState createState() => DayEntryFormState();
+}
+
+/// One configured medication offered as an intake chip in the day editor.
+class MedChip {
+  const MedChip(this.id, this.name);
+  final int id;
+  final String name;
 }
 
 /// Numeric metrics rendered as 0..max sliders; 0 means "not logged".
@@ -44,6 +57,7 @@ class DayEntryFormState extends State<DayEntryForm> {
   final Set<String> _vaginal = {};
   final Set<String> _sexualHealth = {};
   final Set<String> _habits = {};
+  final Set<String> _medications = {}; // med_<id> keys
   final Map<String, int> _metrics = {}; // includes pain + the lifestyle metrics
   late final TextEditingController _notes;
   late final TextEditingController _bbt; // basal body temperature (°C)
@@ -66,6 +80,7 @@ class DayEntryFormState extends State<DayEntryForm> {
     _vaginal.addAll(decodeGroup(tags, kVaginalKeyPrefix));
     _sexualHealth.addAll(decodeGroup(tags, kSexualHealthKeyPrefix));
     _habits.addAll(decodeGroup(tags, kHabitKeyPrefix));
+    _medications.addAll(decodeGroup(tags, kMedicationKeyPrefix));
     _metrics[kMetricPain] = decodeNumber(tags, kMetricPain)?.round() ?? 0;
     for (final m in _metricConfigs) {
       _metrics[m.key] = decodeNumber(tags, m.key)?.round() ?? 0;
@@ -89,6 +104,7 @@ class DayEntryFormState extends State<DayEntryForm> {
       ..._vaginal,
       ..._sexualHealth,
       ..._habits,
+      ..._medications,
       ?_sex,
       ?_discharge,
     };
@@ -232,6 +248,19 @@ class DayEntryFormState extends State<DayEntryForm> {
           onToggle: (key, sel) =>
               setState(() => sel ? _habits.add(key) : _habits.remove(key)),
         ),
+        if (widget.medications.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          _SectionLabel('Medications'),
+          _FilterChips(
+            options: [
+              for (final m in widget.medications)
+                TrackOption('$kMedicationKeyPrefix${m.id}', m.name),
+            ],
+            isSelected: _medications.contains,
+            onToggle: (key, sel) => setState(
+                () => sel ? _medications.add(key) : _medications.remove(key)),
+          ),
+        ],
         const SizedBox(height: 8),
         for (final m in _metricConfigs)
           _MetricSlider(
