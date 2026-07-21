@@ -30,16 +30,17 @@ void main() {
       expect(decodeSingle(json, 'sex_'), isNull);
     });
 
+    // Derived from kReservedTagPrefixes rather than a hardcoded list, so every
+    // prefix added later is covered without anyone remembering to edit this.
     test('decodeSymptoms excludes every reserved (sensitive/grouped) prefix', () {
-      final json = encodeDayTags(flags: {
-        'headache', // plain symptom → included
-        'sex_protected', // sexual activity
-        'cm_dry', // cervical mucus / discharge
-        'vag_burning', // vaginal health
-        'shx_condom', // sexual health
-        'habit_exercise', // lifestyle habit
-      });
-      expect(decodeSymptoms(json), {'headache'});
+      for (final prefix in kReservedTagPrefixes) {
+        final key = '${prefix}example';
+        final json = encodeDayTags(flags: {'cramps', key});
+        expect(decodeSymptoms(json), contains('cramps'));
+        expect(decodeSymptoms(json), isNot(contains(key)),
+            reason: '$prefix leaked into decodeSymptoms');
+        expect(decodeGroup(json, prefix), {key});
+      }
     });
 
     test('decodeSex keeps working via the generalized single-select', () {

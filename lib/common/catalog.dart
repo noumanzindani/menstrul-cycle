@@ -59,6 +59,9 @@ const String kVaginalKeyPrefix = 'vag_'; // vaginal-health flags
 const String kSexualHealthKeyPrefix = 'shx_'; // sexual-health flags
 const String kHabitKeyPrefix = 'habit_'; // lifestyle habits
 const String kMedicationKeyPrefix = 'med_'; // per-day medication intake
+const String kUrineKeyPrefix = 'urn_'; // urinary symptoms
+const String kDigestionKeyPrefix = 'dig_'; // digestion / bowel
+const String kSkinKeyPrefix = 'skin_'; // skin & hair
 
 /// All reserved (non-symptom) prefixes. [decodeSymptoms] skips these so grouped
 /// and sensitive data never surfaces in the symptom chips or the doctor PDF.
@@ -69,6 +72,9 @@ const List<String> kReservedTagPrefixes = [
   kSexualHealthKeyPrefix,
   kHabitKeyPrefix,
   kMedicationKeyPrefix,
+  kUrineKeyPrefix,
+  kDigestionKeyPrefix,
+  kSkinKeyPrefix,
 ];
 
 /// Numeric day-metric keys (stored as real JSON numbers, not booleans, in the
@@ -79,6 +85,7 @@ const String kMetricWater = 'water'; // glasses
 const String kMetricSleep = 'sleep'; // hours
 const String kMetricEnergy = 'energy'; // 1–5
 const String kMetricStress = 'stress'; // 1–5
+const String kMetricSleepQuality = 'sleep_quality'; // 1–5
 
 /// Sexual-activity options (single-select). Keys share the same day-tags JSON as
 /// symptoms but are namespaced with [kSexKeyPrefix] so they never surface in the
@@ -119,6 +126,11 @@ const List<TrackOption> kVaginalOptions = [
   TrackOption('vag_burning', 'Burning'),
   TrackOption('vag_dryness', 'Dryness'),
   TrackOption('vag_odor', 'Unusual odor'),
+  // "Vulval swelling", not "Swelling" — plain `swelling` already exists in
+  // [kSymptomOptions] and an exact label clash breaks find.text in widget tests.
+  TrackOption('vag_swelling', 'Vulval swelling'),
+  TrackOption('vag_lumps', 'Lumps or bumps'),
+  TrackOption('vag_discomfort', 'Discomfort'),
 ];
 
 /// Sexual-health flags (boolean multi-select, [kSexualHealthKeyPrefix]).
@@ -145,6 +157,39 @@ const List<TrackOption> kHabitOptions = [
   TrackOption('habit_alcohol', 'Alcohol'),
   TrackOption('habit_smoking', 'Smoking'),
   TrackOption('habit_meditation', 'Meditation'),
+];
+
+/// Urinary symptoms (boolean multi-select, [kUrineKeyPrefix]).
+const List<TrackOption> kUrineOptions = [
+  TrackOption('urn_frequent', 'Frequent'),
+  TrackOption('urn_urgency', 'Urgency'),
+  TrackOption('urn_burning', 'Burning or pain'),
+  TrackOption('urn_dark', 'Dark colour'),
+  TrackOption('urn_cloudy', 'Cloudy'),
+  TrackOption('urn_blood', 'Blood in urine'),
+  TrackOption('urn_leaking', 'Leaking'),
+];
+
+/// Digestion / bowel (boolean multi-select, [kDigestionKeyPrefix]). Deliberately
+/// excludes diarrhea/constipation/bloating/nausea — those are already plain
+/// symptoms in [kSymptomOptions] and must not be restated under a second key.
+const List<TrackOption> kDigestionOptions = [
+  TrackOption('dig_gas', 'Gas'),
+  TrackOption('dig_heartburn', 'Heartburn'),
+  TrackOption('dig_no_bm', 'No bowel movement'),
+  TrackOption('dig_loose_stool', 'Loose stool'),
+  TrackOption('dig_hard_stool', 'Hard stool'),
+];
+
+/// Skin & hair (boolean multi-select, [kSkinKeyPrefix]). Excludes `acne`, which
+/// is already a plain symptom.
+const List<TrackOption> kSkinOptions = [
+  TrackOption('skin_dry', 'Dry skin'),
+  TrackOption('skin_oily', 'Oily skin'),
+  TrackOption('skin_itchy', 'Itchy skin'),
+  TrackOption('skin_rash', 'Rash'),
+  TrackOption('skin_hair_loss', 'Hair loss'),
+  TrackOption('skin_hair_oily', 'Oily hair'),
 ];
 
 bool _isReserved(String key) => kReservedTagPrefixes.any(key.startsWith);
