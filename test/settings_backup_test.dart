@@ -89,4 +89,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Replace all current data?'), findsNothing);
   });
+
+  // A .lunabak written before schema v3 has no trackingCategories key at all.
+  // Restore must not throw on the missing key, and the absent value must land
+  // as NULL so the user falls back to the registry defaults rather than to an
+  // empty set (which would read as "everything turned off").
+  test('settings JSON without trackingCategories restores as null', () {
+    final row = AppSetting.fromJson(const {
+      'id': 0,
+      'mode': 0,
+      'defaultCycleLength': 28,
+      'defaultPeriodLength': 5,
+      'themeMode': 'system',
+      'language': 'en',
+      'genderNeutralLanguage': false,
+      'appLockEnabled': false,
+      'premium': false,
+      'onboardingComplete': true,
+    });
+    expect(row.trackingCategories, isNull);
+  });
 }

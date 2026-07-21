@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 
+import '../common/tracking_categories.dart';
 import '../data/settings_repository.dart';
 import '../db/database.dart';
 import '../models/enums.dart';
@@ -26,6 +29,40 @@ class SettingsProvider extends ChangeNotifier {
   DateTime? get pregnancyStartDate => _settings?.pregnancyStartDate;
   bool get isPregnant =>
       mode == TrackingMode.pregnancy && pregnancyStartDate != null;
+
+  /// Day-editor categories the user has switched on. A NULL column means the
+  /// user has never customised this, so the registry defaults apply. An EMPTY
+  /// array means they turned everything off — that is a real choice and must
+  /// not be reset to defaults. Unknown ids (written by a newer build) and
+  /// malformed JSON are ignored.
+  Set<String> get enabledCategories {
+    final raw = _settings?.trackingCategories;
+    if (raw == null) return defaultEnabledCategoryIds();
+
+    final known = {for (final c in kTrackingCategories) c.id};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return defaultEnabledCategoryIds();
+      return {
+        for (final e in decoded)
+          if (e is String && known.contains(e)) e,
+      };
+    } on FormatException {
+      return defaultEnabledCategoryIds();
+    }
+  }
+
+  Future<void> setCategoryEnabled(String id, bool on) {
+    final next = {...enabledCategories};
+    if (on) {
+      next.add(id);
+    } else {
+      next.remove(id);
+    }
+    return update(AppSettingsCompanion(
+      trackingCategories: Value(jsonEncode(next.toList())),
+    ));
+  }
 
   ThemeMode get themeMode => switch (_settings?.themeMode) {
         'light' => ThemeMode.light,
