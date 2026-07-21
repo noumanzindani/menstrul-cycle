@@ -228,6 +228,7 @@ class _DayEntrySheetState extends State<_DayEntrySheet> {
                 key: _formKey,
                 date: widget.date,
                 medications: enabledMedChips(context),
+                categories: visibleCategories(context),
               ),
             ),
           ],

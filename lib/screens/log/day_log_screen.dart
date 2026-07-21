@@ -56,6 +56,7 @@ class _DayLogScreenState extends State<DayLogScreen> {
         key: _formKey,
         date: widget.date,
         medications: enabledMedChips(context),
+        categories: visibleCategories(context),
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),

@@ -3,8 +3,10 @@
 /// re-encodes every group, so a hidden category never loses logged data.
 ///
 /// Deliberately NOT toggleable, and therefore absent from this list: Flow,
-/// "Period ended today", Pain, BBT/OPK and Notes. Those are the app's core
-/// cycle and fertility data — hiding them would break its primary function.
+/// "Period ended today", Mood, Pain, BBT/OPK and Notes. Those are the app's
+/// core cycle and fertility data — hiding them would break its primary
+/// function (cycles are DERIVED from logged flow, so hiding it would silently
+/// starve every prediction).
 class TrackingCategory {
   const TrackingCategory(this.id, this.label, {this.defaultOn = true});
 

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../common/catalog.dart';
+import '../common/tracking_categories.dart';
 import '../models/enums.dart';
 import '../providers/log_provider.dart';
 import '../providers/medication_provider.dart';
+import '../providers/settings_provider.dart';
 
 /// The set of selectors for one day. Extracted so it can be hosted both by the
 /// full-screen [DayLogScreen] and inline on the calendar. Call
@@ -24,11 +26,18 @@ class DayEntryForm extends StatefulWidget {
     required this.date,
     this.shrinkWrap = false,
     this.medications = const [],
+    this.categories,
   });
 
   final DateTime date;
   final bool shrinkWrap;
   final List<MedChip> medications;
+
+  /// Which sections to RENDER. NULL means "no opinion" and shows everything, so
+  /// the form stays pumpable without a [SettingsProvider]; an EMPTY set means
+  /// "explicitly nothing". Gating NEVER affects decode or encode — see
+  /// [DayEntryFormState.save].
+  final Set<String>? categories;
 
   @override
   DayEntryFormState createState() => DayEntryFormState();
@@ -53,12 +62,35 @@ List<MedChip> enabledMedChips(BuildContext context) {
   ];
 }
 
-/// Numeric metrics rendered as 0..max sliders; 0 means "not logged".
+/// Every category id — the fail-open value used when [DayEntryForm.categories]
+/// is null.
+final Set<String> kAllCategoryIds = {
+  for (final c in kTrackingCategories) c.id,
+};
+
+/// Categories the user has switched on, or ALL of them when no
+/// [SettingsProvider] is in scope. Deliberately fails OPEN: unlike
+/// [enabledMedChips], an empty set here would blank every section for the
+/// screens that pump this form without settings wired.
+///
+/// Named `visibleCategories`, not `enabledCategories`, because
+/// [SettingsProvider.enabledCategories] already owns that name and the two have
+/// deliberately different fallbacks.
+Set<String> visibleCategories(BuildContext context) {
+  final settings = context.watch<SettingsProvider?>();
+  if (settings == null || !settings.loaded) return kAllCategoryIds;
+  return settings.enabledCategories;
+}
+
+/// Numeric metrics rendered as 0..max sliders; 0 means "not logged". NEVER
+/// filter this list — it drives the initState decode as well as the render, so
+/// dropping an entry here would erase that metric on the next save.
 const List<({String label, String key, int max, String suffix})> _metricConfigs = [
   (label: 'Water (glasses)', key: kMetricWater, max: 12, suffix: ''),
   (label: 'Sleep (hours)', key: kMetricSleep, max: 12, suffix: 'h'),
   (label: 'Energy', key: kMetricEnergy, max: 5, suffix: '/5'),
   (label: 'Stress', key: kMetricStress, max: 5, suffix: '/5'),
+  (label: 'Sleep quality', key: kMetricSleepQuality, max: 5, suffix: '/5'),
 ];
 
 class DayEntryFormState extends State<DayEntryForm> {
@@ -71,6 +103,9 @@ class DayEntryFormState extends State<DayEntryForm> {
   final Set<String> _sexualHealth = {};
   final Set<String> _habits = {};
   final Set<String> _medications = {}; // med_<id> keys
+  final Set<String> _urine = {};
+  final Set<String> _digestion = {};
+  final Set<String> _skin = {};
   final Map<String, int> _metrics = {}; // includes pain + the lifestyle metrics
   late final TextEditingController _notes;
   late final TextEditingController _bbt; // basal body temperature (°C)
@@ -94,6 +129,11 @@ class DayEntryFormState extends State<DayEntryForm> {
     _sexualHealth.addAll(decodeGroup(tags, kSexualHealthKeyPrefix));
     _habits.addAll(decodeGroup(tags, kHabitKeyPrefix));
     _medications.addAll(decodeGroup(tags, kMedicationKeyPrefix));
+    // Decoded unconditionally, even for hidden categories: save() rebuilds the
+    // whole blob, so a group left un-decoded here would be erased on save.
+    _urine.addAll(decodeGroup(tags, kUrineKeyPrefix));
+    _digestion.addAll(decodeGroup(tags, kDigestionKeyPrefix));
+    _skin.addAll(decodeGroup(tags, kSkinKeyPrefix));
     _metrics[kMetricPain] = decodeNumber(tags, kMetricPain)?.round() ?? 0;
     for (final m in _metricConfigs) {
       _metrics[m.key] = decodeNumber(tags, m.key)?.round() ?? 0;
@@ -118,6 +158,9 @@ class DayEntryFormState extends State<DayEntryForm> {
       ..._sexualHealth,
       ..._habits,
       ..._medications,
+      ..._urine,
+      ..._digestion,
+      ..._skin,
       ?_sex,
       ?_discharge,
     };
@@ -137,6 +180,11 @@ class DayEntryFormState extends State<DayEntryForm> {
   }
 
   Future<void> clear() => context.read<LogProvider>().clearDay(widget.date);
+
+  /// Sections to render. Resolving null here (rather than in the constructor)
+  /// keeps the default out of the const-expression rules while preserving the
+  /// null-vs-empty distinction: null = show everything, {} = show nothing.
+  Set<String> get _cats => widget.categories ?? kAllCategoryIds;
 
   @override
   Widget build(BuildContext context) {
@@ -167,22 +215,26 @@ class DayEntryFormState extends State<DayEntryForm> {
           onChanged: (on) =>
               setState(() => _flow = on ? FlowIntensity.none : null),
         ),
-        const SizedBox(height: 20),
-        _SectionLabel('Physical symptoms'),
-        _FilterChips(
-          options: kSymptomOptions,
-          isSelected: _symptoms.contains,
-          onToggle: (key, sel) => setState(
-              () => sel ? _symptoms.add(key) : _symptoms.remove(key)),
-        ),
-        const SizedBox(height: 20),
-        _SectionLabel('Emotional symptoms'),
-        _FilterChips(
-          options: kEmotionalOptions,
-          isSelected: _symptoms.contains,
-          onToggle: (key, sel) => setState(
-              () => sel ? _symptoms.add(key) : _symptoms.remove(key)),
-        ),
+        if (_cats.contains(kCatPhysicalSymptoms)) ...[
+          const SizedBox(height: 20),
+          _SectionLabel('Physical symptoms'),
+          _FilterChips(
+            options: kSymptomOptions,
+            isSelected: _symptoms.contains,
+            onToggle: (key, sel) => setState(
+                () => sel ? _symptoms.add(key) : _symptoms.remove(key)),
+          ),
+        ],
+        if (_cats.contains(kCatEmotional)) ...[
+          const SizedBox(height: 20),
+          _SectionLabel('Emotional symptoms'),
+          _FilterChips(
+            options: kEmotionalOptions,
+            isSelected: _symptoms.contains,
+            onToggle: (key, sel) => setState(
+                () => sel ? _symptoms.add(key) : _symptoms.remove(key)),
+          ),
+        ],
         const SizedBox(height: 20),
         _SectionLabel('Mood'),
         _SingleChips(
@@ -199,13 +251,15 @@ class DayEntryFormState extends State<DayEntryForm> {
           suffix: '/10',
           onChanged: (v) => setState(() => _metrics[kMetricPain] = v),
         ),
-        const SizedBox(height: 20),
-        _SectionLabel('Discharge'),
-        _SingleChips(
-          options: kDischargeOptions,
-          selected: _discharge,
-          onSelect: (key) => setState(() => _discharge = key),
-        ),
+        if (_cats.contains(kCatDischarge)) ...[
+          const SizedBox(height: 20),
+          _SectionLabel('Discharge'),
+          _SingleChips(
+            options: kDischargeOptions,
+            selected: _discharge,
+            onSelect: (key) => setState(() => _discharge = key),
+          ),
+        ],
         const SizedBox(height: 20),
         _SectionLabel('Temperature & ovulation tests'),
         TextField(
@@ -230,38 +284,47 @@ class DayEntryFormState extends State<DayEntryForm> {
           selected: _opk,
           onSelect: (key) => setState(() => _opk = key),
         ),
-        const SizedBox(height: 20),
-        _SectionLabel('Vaginal health'),
-        _FilterChips(
-          options: kVaginalOptions,
-          isSelected: _vaginal.contains,
-          onToggle: (key, sel) =>
-              setState(() => sel ? _vaginal.add(key) : _vaginal.remove(key)),
-        ),
-        const SizedBox(height: 20),
-        _SectionLabel('Sex'),
-        _SingleChips(
-          options: kSexOptions,
-          selected: _sex,
-          onSelect: (key) => setState(() => _sex = key),
-        ),
-        const SizedBox(height: 20),
-        _SectionLabel('Sexual health'),
-        _FilterChips(
-          options: kSexualHealthOptions,
-          isSelected: _sexualHealth.contains,
-          onToggle: (key, sel) => setState(() =>
-              sel ? _sexualHealth.add(key) : _sexualHealth.remove(key)),
-        ),
-        const SizedBox(height: 20),
-        _SectionLabel('Lifestyle'),
-        _FilterChips(
-          options: kHabitOptions,
-          isSelected: _habits.contains,
-          onToggle: (key, sel) =>
-              setState(() => sel ? _habits.add(key) : _habits.remove(key)),
-        ),
-        if (widget.medications.isNotEmpty) ...[
+        if (_cats.contains(kCatVaginal)) ...[
+          const SizedBox(height: 20),
+          _SectionLabel('Vaginal health'),
+          _FilterChips(
+            options: kVaginalOptions,
+            isSelected: _vaginal.contains,
+            onToggle: (key, sel) =>
+                setState(() => sel ? _vaginal.add(key) : _vaginal.remove(key)),
+          ),
+        ],
+        if (_cats.contains(kCatSex)) ...[
+          const SizedBox(height: 20),
+          _SectionLabel('Sex'),
+          _SingleChips(
+            options: kSexOptions,
+            selected: _sex,
+            onSelect: (key) => setState(() => _sex = key),
+          ),
+        ],
+        if (_cats.contains(kCatSexualHealth)) ...[
+          const SizedBox(height: 20),
+          _SectionLabel('Sexual health'),
+          _FilterChips(
+            options: kSexualHealthOptions,
+            isSelected: _sexualHealth.contains,
+            onToggle: (key, sel) => setState(() =>
+                sel ? _sexualHealth.add(key) : _sexualHealth.remove(key)),
+          ),
+        ],
+        if (_cats.contains(kCatLifestyle)) ...[
+          const SizedBox(height: 20),
+          _SectionLabel('Lifestyle'),
+          _FilterChips(
+            options: kHabitOptions,
+            isSelected: _habits.contains,
+            onToggle: (key, sel) =>
+                setState(() => sel ? _habits.add(key) : _habits.remove(key)),
+          ),
+        ],
+        if (_cats.contains(kCatMedications) &&
+            widget.medications.isNotEmpty) ...[
           const SizedBox(height: 20),
           _SectionLabel('Medications'),
           _FilterChips(
@@ -274,15 +337,41 @@ class DayEntryFormState extends State<DayEntryForm> {
                 () => sel ? _medications.add(key) : _medications.remove(key)),
           ),
         ],
-        const SizedBox(height: 8),
+        // Structurally identical groups, rendered from one loop rather than
+        // three hand-copied blocks.
+        for (final g in [
+          (kCatUrine, 'Urine', kUrineOptions, _urine),
+          (kCatDigestion, 'Digestion', kDigestionOptions, _digestion),
+          (kCatSkin, 'Skin & hair', kSkinOptions, _skin),
+        ])
+          if (_cats.contains(g.$1)) ...[
+            const SizedBox(height: 20),
+            _SectionLabel(g.$2),
+            _FilterChips(
+              options: g.$3,
+              isSelected: g.$4.contains,
+              onToggle: (key, sel) =>
+                  setState(() => sel ? g.$4.add(key) : g.$4.remove(key)),
+            ),
+          ],
+        if (_cats.contains(kCatWellbeing) ||
+            _cats.contains(kCatSleepQuality)) ...[
+          const SizedBox(height: 20),
+          _SectionLabel('Wellbeing'),
+        ],
+        // Filtered HERE ONLY. _metricConfigs itself stays whole so initState
+        // still decodes every metric — see the note on that list.
         for (final m in _metricConfigs)
-          _MetricSlider(
-            label: m.label,
-            value: _metrics[m.key] ?? 0,
-            max: m.max,
-            suffix: m.suffix,
-            onChanged: (v) => setState(() => _metrics[m.key] = v),
-          ),
+          if (_cats.contains(m.key == kMetricSleepQuality
+              ? kCatSleepQuality
+              : kCatWellbeing))
+            _MetricSlider(
+              label: m.label,
+              value: _metrics[m.key] ?? 0,
+              max: m.max,
+              suffix: m.suffix,
+              onChanged: (v) => setState(() => _metrics[m.key] = v),
+            ),
         const SizedBox(height: 20),
         _SectionLabel('Notes'),
         TextField(
