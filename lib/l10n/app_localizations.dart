@@ -376,6 +376,24 @@ abstract class AppLocalizations {
   /// **'Track medication and set daily reminders'**
   String get settingsMedicationsSubtitle;
 
+  /// No description provided for @settingsTrackingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize tracking'**
+  String get settingsTrackingTitle;
+
+  /// No description provided for @settingsTrackingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what appears when you log a day'**
+  String get settingsTrackingSubtitle;
+
+  /// No description provided for @settingsTrackingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Turning a category off only hides it from the day editor. Anything you\'ve already logged is kept on this device.'**
+  String get settingsTrackingNote;
+
   /// No description provided for @settingsSectionHealth.
   ///
   /// In en, this message translates to:

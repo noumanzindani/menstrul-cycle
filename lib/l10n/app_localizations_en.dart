@@ -157,6 +157,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Track medication and set daily reminders';
 
   @override
+  String get settingsTrackingTitle => 'Customize tracking';
+
+  @override
+  String get settingsTrackingSubtitle =>
+      'Choose what appears when you log a day';
+
+  @override
+  String get settingsTrackingNote =>
+      'Turning a category off only hides it from the day editor. Anything you\'ve already logged is kept on this device.';
+
+  @override
   String get settingsSectionHealth => 'Health & wearables';
 
   @override

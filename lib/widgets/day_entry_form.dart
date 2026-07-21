@@ -286,7 +286,8 @@ class DayEntryFormState extends State<DayEntryForm> {
         ),
         if (_cats.contains(kCatVaginal)) ...[
           const SizedBox(height: 20),
-          _SectionLabel('Vaginal health'),
+          // Matches the registry label so Settings and the day editor agree.
+          _SectionLabel('Vulva & vagina'),
           _FilterChips(
             options: kVaginalOptions,
             isSelected: _vaginal.contains,

@@ -16,6 +16,7 @@ import '../../services/notification_service.dart';
 import '../../widgets/ad_banner.dart';
 import '../lock/setup_lock_screen.dart';
 import '../medications/medications_screen.dart';
+import 'tracking_categories_screen.dart';
 import '../pregnancy/pregnancy_screen.dart';
 import '../premium/premium_screen.dart';
 import '../reminders/reminders_screen.dart';
@@ -324,6 +325,16 @@ class SettingsScreen extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const MedicationsScreen()),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.tune),
+            title: Text(context.l10n.settingsTrackingTitle),
+            subtitle: Text(context.l10n.settingsTrackingSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                  builder: (_) => const TrackingCategoriesScreen()),
             ),
           ),
           const Divider(),

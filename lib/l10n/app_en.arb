@@ -59,6 +59,10 @@
   "settingsMedicationsTitle": "Medications & birth control",
   "settingsMedicationsSubtitle": "Track medication and set daily reminders",
 
+  "settingsTrackingTitle": "Customize tracking",
+  "settingsTrackingSubtitle": "Choose what appears when you log a day",
+  "settingsTrackingNote": "Turning a category off only hides it from the day editor. Anything you've already logged is kept on this device.",
+
   "settingsSectionHealth": "Health & wearables",
   "settingsHealthImportTitle": "Import temperature",
   "settingsHealthImportSubtitle": "Bring basal body temperature in from your device's health app",
