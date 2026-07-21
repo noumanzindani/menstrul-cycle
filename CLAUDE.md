@@ -63,7 +63,34 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   (`common/catalog.dart`: `kSexKeyPrefix`, `decodeSex`). `decodeSymptoms` filters `sex_`
   keys out, so sex never pollutes the symptom-chip list — and it is **excluded by default
   from the doctor PDF**. JSON-object storage (`{key:true}`) is used so tags extend with
-  zero migration.
+  zero migration. **Many groups now ride this one blob** under reserved key prefixes
+  (`med_`, `sex_`, `cm_`, `vag_`, `shx_`, `habit_`, `urn_`, `dig_`, `skin_` — all listed in
+  `kReservedTagPrefixes`); `decodeSymptoms` strips every reserved prefix, so none of them
+  reach the symptom list, Insights, or the doctor PDF. `encodeDayTags` is a full **REPLACE**
+  (rebuilds the whole blob from form state), so the day editor must decode/encode EVERY
+  group unconditionally — gating a group out of decode or save silently destroys it.
+- **Schema & migrations.** `schemaVersion` is **3**. `onUpgrade` uses independent additive
+  `if (from < n)` branches (not else-if), one nullable column each, so a user on any old
+  version runs every intervening branch and existing rows need no backfill: v1→v2 added
+  `AppSettings.pregnancyStartDate`; v2→v3 added `AppSettings.trackingCategories`. A committed
+  JSON snapshot per version lives in `drift_schemas/` and `test/generated_migrations/`;
+  `test/db_migration_v3_test.dart` uses drift's `SchemaVerifier` to run the REAL `onUpgrade`
+  against a v2 DB seeded with non-default rows. In-memory `AppDatabase.forTesting` runs
+  `onCreate` at the current schema and NEVER exercises `onUpgrade`, so every new migration
+  needs a snapshot dumped BEFORE the version bump (only derivable while that version is
+  current) and its own SchemaVerifier test. Not yet verified: the background-isolate
+  migration path (`CheckInWriter` opens a bare `AppDatabase()` from a killed-app
+  notification action) — re-test at the next bump.
+- **Customizable tracking (Phase A).** The day editor renders sections gated by a registry
+  of `TrackingCategory` ids (`common/tracking_categories.dart`); Settings → "Customize
+  tracking" (`screens/settings/tracking_categories_screen.dart`) toggles them, persisted as
+  a JSON id array in `AppSettings.trackingCategories`. **null column = use registry defaults;
+  empty array = user turned everything off** (a real choice — never conflate the two).
+  Gating is **render-only** (`build` filters by category); decode and encode always cover
+  all groups. `DayEntryForm.categories` is nullable: `null` = "no opinion, show everything"
+  so the form stays pumpable without a `SettingsProvider`. All tracking is FREE (no
+  `PremiumProvider` read anywhere in this feature). Flow, Period-ended, Mood, Pain, BBT/OPK
+  and Notes are core cycle/fertility data and deliberately NOT toggleable.
 - **Prediction is the calendar method**, always labelled an estimate and **never a
   contraceptive method**. Fertile window is awareness-only.
 - **Fertility indicator is a qualitative band, never a number** (`FertilityBand` enum,
@@ -101,7 +128,7 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
 
 ## Feature status
 
-### Shipped (v1 + v2, all v2 increments migration-free)
+### Shipped (v1 + v2 migration-free; v3 = customizable tracking, first real migration)
 
 - Daily logging (flow, symptoms, mood, sex, notes) + "Period ended" toggle
 - Combined calendar + entry, predictions + Home, reminders, insights + doctor PDF export
@@ -208,8 +235,11 @@ intrinsic query. `_selectedDay` still gates the calendar ad while the sheet is o
 
 ### Deferred
 
-- **Pregnancy mode** — its own release. Needs the one DB migration (`schemaVersion` bump +
-  `onUpgrade`), a `PregnancyService` (Naegele EDD), and loss-safe UX (neutral wording, no
+- **Pregnancy mode** — its own release. The migration scaffolding now exists (schema is at
+  **v3** with a tested `onUpgrade` and `drift_schemas/` snapshots — see "Schema & migrations"
+  above), so this needs only its own additive `if (from < 4)` branch + column (and a v3
+  snapshot dumped before the bump), a `PregnancyService` (Naegele EDD), and loss-safe UX
+  (neutral wording, no
   celebratory UI, instant stop of pregnancy notifications on exit, one-tap exit + delete).
 
 ### v3 backlog (from a Meet You competitor teardown)
