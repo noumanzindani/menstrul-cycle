@@ -1933,6 +1933,17 @@ class $AppSettingsTable extends AppSettings
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _trackingCategoriesMeta =
+      const VerificationMeta('trackingCategories');
+  @override
+  late final GeneratedColumn<String> trackingCategories =
+      GeneratedColumn<String>(
+        'tracking_categories',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1947,6 +1958,7 @@ class $AppSettingsTable extends AppSettings
     onboardingComplete,
     lastBackup,
     pregnancyStartDate,
+    trackingCategories,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2041,6 +2053,15 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('tracking_categories')) {
+      context.handle(
+        _trackingCategoriesMeta,
+        trackingCategories.isAcceptableOrUnknown(
+          data['tracking_categories']!,
+          _trackingCategoriesMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2100,6 +2121,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.dateTime,
         data['${effectivePrefix}pregnancy_start_date'],
       ),
+      trackingCategories: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tracking_categories'],
+      ),
     );
   }
 
@@ -2125,6 +2150,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final bool onboardingComplete;
   final DateTime? lastBackup;
   final DateTime? pregnancyStartDate;
+  final String? trackingCategories;
   const AppSetting({
     required this.id,
     required this.mode,
@@ -2138,6 +2164,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     required this.onboardingComplete,
     this.lastBackup,
     this.pregnancyStartDate,
+    this.trackingCategories,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2160,6 +2187,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || pregnancyStartDate != null) {
       map['pregnancy_start_date'] = Variable<DateTime>(pregnancyStartDate);
     }
+    if (!nullToAbsent || trackingCategories != null) {
+      map['tracking_categories'] = Variable<String>(trackingCategories);
+    }
     return map;
   }
 
@@ -2181,6 +2211,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       pregnancyStartDate: pregnancyStartDate == null && nullToAbsent
           ? const Value.absent()
           : Value(pregnancyStartDate),
+      trackingCategories: trackingCategories == null && nullToAbsent
+          ? const Value.absent()
+          : Value(trackingCategories),
     );
   }
 
@@ -2210,6 +2243,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       pregnancyStartDate: serializer.fromJson<DateTime?>(
         json['pregnancyStartDate'],
       ),
+      trackingCategories: serializer.fromJson<String?>(
+        json['trackingCategories'],
+      ),
     );
   }
   @override
@@ -2230,6 +2266,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'onboardingComplete': serializer.toJson<bool>(onboardingComplete),
       'lastBackup': serializer.toJson<DateTime?>(lastBackup),
       'pregnancyStartDate': serializer.toJson<DateTime?>(pregnancyStartDate),
+      'trackingCategories': serializer.toJson<String?>(trackingCategories),
     };
   }
 
@@ -2246,6 +2283,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     bool? onboardingComplete,
     Value<DateTime?> lastBackup = const Value.absent(),
     Value<DateTime?> pregnancyStartDate = const Value.absent(),
+    Value<String?> trackingCategories = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     mode: mode ?? this.mode,
@@ -2261,6 +2299,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     pregnancyStartDate: pregnancyStartDate.present
         ? pregnancyStartDate.value
         : this.pregnancyStartDate,
+    trackingCategories: trackingCategories.present
+        ? trackingCategories.value
+        : this.trackingCategories,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -2290,6 +2331,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       pregnancyStartDate: data.pregnancyStartDate.present
           ? data.pregnancyStartDate.value
           : this.pregnancyStartDate,
+      trackingCategories: data.trackingCategories.present
+          ? data.trackingCategories.value
+          : this.trackingCategories,
     );
   }
 
@@ -2307,7 +2351,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('premium: $premium, ')
           ..write('onboardingComplete: $onboardingComplete, ')
           ..write('lastBackup: $lastBackup, ')
-          ..write('pregnancyStartDate: $pregnancyStartDate')
+          ..write('pregnancyStartDate: $pregnancyStartDate, ')
+          ..write('trackingCategories: $trackingCategories')
           ..write(')'))
         .toString();
   }
@@ -2326,6 +2371,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     onboardingComplete,
     lastBackup,
     pregnancyStartDate,
+    trackingCategories,
   );
   @override
   bool operator ==(Object other) =>
@@ -2342,7 +2388,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.premium == this.premium &&
           other.onboardingComplete == this.onboardingComplete &&
           other.lastBackup == this.lastBackup &&
-          other.pregnancyStartDate == this.pregnancyStartDate);
+          other.pregnancyStartDate == this.pregnancyStartDate &&
+          other.trackingCategories == this.trackingCategories);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -2358,6 +2405,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<bool> onboardingComplete;
   final Value<DateTime?> lastBackup;
   final Value<DateTime?> pregnancyStartDate;
+  final Value<String?> trackingCategories;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.mode = const Value.absent(),
@@ -2371,6 +2419,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.onboardingComplete = const Value.absent(),
     this.lastBackup = const Value.absent(),
     this.pregnancyStartDate = const Value.absent(),
+    this.trackingCategories = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -2385,6 +2434,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.onboardingComplete = const Value.absent(),
     this.lastBackup = const Value.absent(),
     this.pregnancyStartDate = const Value.absent(),
+    this.trackingCategories = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -2399,6 +2449,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<bool>? onboardingComplete,
     Expression<DateTime>? lastBackup,
     Expression<DateTime>? pregnancyStartDate,
+    Expression<String>? trackingCategories,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2417,6 +2468,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (lastBackup != null) 'last_backup': lastBackup,
       if (pregnancyStartDate != null)
         'pregnancy_start_date': pregnancyStartDate,
+      if (trackingCategories != null) 'tracking_categories': trackingCategories,
     });
   }
 
@@ -2433,6 +2485,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<bool>? onboardingComplete,
     Value<DateTime?>? lastBackup,
     Value<DateTime?>? pregnancyStartDate,
+    Value<String?>? trackingCategories,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -2448,6 +2501,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
       lastBackup: lastBackup ?? this.lastBackup,
       pregnancyStartDate: pregnancyStartDate ?? this.pregnancyStartDate,
+      trackingCategories: trackingCategories ?? this.trackingCategories,
     );
   }
 
@@ -2496,6 +2550,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
         pregnancyStartDate.value,
       );
     }
+    if (trackingCategories.present) {
+      map['tracking_categories'] = Variable<String>(trackingCategories.value);
+    }
     return map;
   }
 
@@ -2513,7 +2570,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('premium: $premium, ')
           ..write('onboardingComplete: $onboardingComplete, ')
           ..write('lastBackup: $lastBackup, ')
-          ..write('pregnancyStartDate: $pregnancyStartDate')
+          ..write('pregnancyStartDate: $pregnancyStartDate, ')
+          ..write('trackingCategories: $trackingCategories')
           ..write(')'))
         .toString();
   }
@@ -3474,6 +3532,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<bool> onboardingComplete,
       Value<DateTime?> lastBackup,
       Value<DateTime?> pregnancyStartDate,
+      Value<String?> trackingCategories,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -3489,6 +3548,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<bool> onboardingComplete,
       Value<DateTime?> lastBackup,
       Value<DateTime?> pregnancyStartDate,
+      Value<String?> trackingCategories,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -3558,6 +3618,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<DateTime> get pregnancyStartDate => $composableBuilder(
     column: $table.pregnancyStartDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get trackingCategories => $composableBuilder(
+    column: $table.trackingCategories,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3630,6 +3695,11 @@ class $$AppSettingsTableOrderingComposer
     column: $table.pregnancyStartDate,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get trackingCategories => $composableBuilder(
+    column: $table.trackingCategories,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -3690,6 +3760,11 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.pregnancyStartDate,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get trackingCategories => $composableBuilder(
+    column: $table.trackingCategories,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -3735,6 +3810,7 @@ class $$AppSettingsTableTableManager
                 Value<bool> onboardingComplete = const Value.absent(),
                 Value<DateTime?> lastBackup = const Value.absent(),
                 Value<DateTime?> pregnancyStartDate = const Value.absent(),
+                Value<String?> trackingCategories = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 mode: mode,
@@ -3748,6 +3824,7 @@ class $$AppSettingsTableTableManager
                 onboardingComplete: onboardingComplete,
                 lastBackup: lastBackup,
                 pregnancyStartDate: pregnancyStartDate,
+                trackingCategories: trackingCategories,
               ),
           createCompanionCallback:
               ({
@@ -3763,6 +3840,7 @@ class $$AppSettingsTableTableManager
                 Value<bool> onboardingComplete = const Value.absent(),
                 Value<DateTime?> lastBackup = const Value.absent(),
                 Value<DateTime?> pregnancyStartDate = const Value.absent(),
+                Value<String?> trackingCategories = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 mode: mode,
@@ -3776,6 +3854,7 @@ class $$AppSettingsTableTableManager
                 onboardingComplete: onboardingComplete,
                 lastBackup: lastBackup,
                 pregnancyStartDate: pregnancyStartDate,
+                trackingCategories: trackingCategories,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

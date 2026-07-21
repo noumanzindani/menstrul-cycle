@@ -75,6 +75,10 @@ class AppSettings extends Table {
   // Pregnancy mode: the last-menstrual-period date the pregnancy is dated from
   // (null unless mode == pregnancy). Due date is DERIVED (Naegele), not stored.
   DateTimeColumn get pregnancyStartDate => dateTime().nullable()();
+  // Enabled day-editor categories as a JSON array of ids (see
+  // common/tracking_categories.dart). NULL means "use defaults", so existing
+  // rows need no backfill.
+  TextColumn get trackingCategories => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

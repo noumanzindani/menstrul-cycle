@@ -18,7 +18,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -29,12 +29,18 @@ class AppDatabase extends _$AppDatabase {
             const AppSettingsCompanion(id: Value(0)),
           );
         },
-        // v1 → v2: pregnancy mode adds AppSettings.pregnancyStartDate. This is
-        // the app's FIRST onUpgrade — additive only (one nullable column), so
-        // existing rows are preserved untouched.
+        // Every branch is additive-only (one nullable column each), so existing
+        // rows are preserved untouched and no backfill is needed:
+        //   v1 → v2: pregnancy mode adds AppSettings.pregnancyStartDate.
+        //   v2 → v3: customizable tracking adds AppSettings.trackingCategories.
+        // Branches are independent `if (from < n)` checks, not else-if, so a
+        // user upgrading straight from v1 runs both.
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(appSettings, appSettings.pregnancyStartDate);
+          }
+          if (from < 3) {
+            await m.addColumn(appSettings, appSettings.trackingCategories);
           }
         },
       );
