@@ -75,18 +75,34 @@ fat-fingered weight of `700` would distort the trend chart's y-axis permanently.
 - Out-of-range input is **refused with a visible message**, never silently
   clamped or stored.
 
+Refusal requires an interface change: `DayEntryFormState.save()` currently returns
+`Future<void>` and both hosts (`DayLogScreen._save` and the calendar sheet's
+`_save`) unconditionally pop afterwards. It becomes **`Future<bool>`** — false
+means validation failed and the form is showing an inline error, so the host must
+*not* pop. Weight is the app's first field that can be invalid, so this seam does
+not exist yet.
+
 ### Migration (the only schema change)
 
-`schemaVersion` 3 → 4, following the pattern documented in `CLAUDE.md`, in this
-order:
+`schemaVersion` 3 → 4, following the pattern documented in `CLAUDE.md`.
 
-1. **Dump the v3 snapshot first**, to `drift_schemas/` and
-   `test/generated_migrations/`. It is only derivable while v3 is current — after
-   the bump it is unrecoverable.
-2. Bump to 4 and add an **independent additive** `if (from < 4)` branch (not
-   else-if), so a user on v1 still runs every intervening branch. One nullable
-   column, no backfill.
-3. `test/db_migration_v4_test.dart` — drift's `SchemaVerifier` running the **real**
+**The v3 snapshot already exists** — `drift_schemas/drift_schema_v3.json` and
+`test/generated_migrations/schema_v3.dart` are committed, and `GeneratedHelper`
+already dispatches versions 2 and 3. So the usual "dump before bumping or lose it
+forever" hazard does **not** apply here: the starting point for a v3→v4 test is
+already captured. Order of work:
+
+1. Add the column, bump to 4, add an **independent additive** `if (from < 4)`
+   branch (not else-if), so a user on v1 still runs every intervening branch. One
+   nullable column, no backfill.
+2. `dart run build_runner build` to regenerate `database.g.dart`.
+3. `dart run drift_dev schema dump lib/db/database.dart drift_schemas/` to emit
+   `drift_schema_v4.json`, then
+   `dart run drift_dev schema generate drift_schemas/ test/generated_migrations/`
+   to add `schema_v4.dart` and extend `GeneratedHelper`. The v4 dump is needed
+   because `migrateAndValidate(db, 4)` validates the final shape against it — and
+   it becomes the starting point for the *next* migration.
+4. `test/db_migration_v4_test.dart` — drift's `SchemaVerifier` running the **real**
    `onUpgrade` against a v3 DB seeded with **non-default** rows.
 
 **Background-isolate verification.** `CLAUDE.md` records the isolate migration
@@ -111,7 +127,11 @@ dedicated regression test.
 
 - **Day editor** (`widgets/day_entry_form.dart`) — a decimal `TextField` with a
   kg/lb suffix, mirroring the existing `_bbt` controller pattern (parse on save,
-  prefill from `existing`). Gated by `kCatWeight`.
+  prefill from `existing`). Gated by `kCatWeight`. It **cannot** join the existing
+  `_metrics` map: that is a `Map<String, int>` driven by 0..max sliders, and weight
+  needs one decimal place. So weight gets its own controller and is written into
+  the `numbers` map separately, as a `double`. The controller holds the value in
+  the *display* unit; conversion to canonical kg happens in `save()`.
 - **Settings** — the kg/lb toggle, as a new item in the same section as
   "Customize tracking" (it configures tracking rather than app behaviour).
 - **Insights** — a pure `WeightTrendService` over `LogProvider.logs` (same shape
