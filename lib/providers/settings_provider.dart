@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 
+import '../common/catalog.dart';
 import '../common/tracking_categories.dart';
 import '../data/settings_repository.dart';
 import '../db/database.dart';
@@ -26,6 +27,10 @@ class SettingsProvider extends ChangeNotifier {
   bool get genderNeutralLanguage => _settings?.genderNeutralLanguage ?? false;
   String get language => _settings?.language ?? 'en';
   bool get onboardingComplete => _settings?.onboardingComplete ?? false;
+
+  /// Display unit for weight. Stored values are always canonical kg; null in the
+  /// column means "never chosen" and reads as kg.
+  String get weightUnit => _settings?.weightUnit ?? kWeightUnitKg;
   DateTime? get pregnancyStartDate => _settings?.pregnancyStartDate;
   bool get isPregnant =>
       mode == TrackingMode.pregnancy && pregnancyStartDate != null;
@@ -109,6 +114,11 @@ class SettingsProvider extends ChangeNotifier {
   /// The app language: a locale code (e.g. 'en') or 'system' to follow the OS.
   Future<void> setLanguage(String code) =>
       update(AppSettingsCompanion(language: Value(code)));
+
+  /// Switches the weight DISPLAY unit only. Values stay in canonical kg, so this
+  /// never rewrites logged data.
+  Future<void> setWeightUnit(String unit) =>
+      update(AppSettingsCompanion(weightUnit: Value(unit)));
 
   Future<void> completeOnboarding() =>
       update(const AppSettingsCompanion(onboardingComplete: Value(true)));

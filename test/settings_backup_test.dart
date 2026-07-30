@@ -47,7 +47,11 @@ void main() {
 
   testWidgets('shows the Backup & restore section', (tester) async {
     await pump(tester);
-    await tester.dragUntilVisible(find.text('Back up my data'),
+    // Scroll to the LAST of the three, not the first: dragUntilVisible stops on
+    // the frame its target appears, so aiming at 'Back up my data' left the tile
+    // below it unbuilt in the lazy list — and any tile added higher up in
+    // Settings would silently break the assertion.
+    await tester.dragUntilVisible(find.text('Restore from a backup'),
         find.byType(Scrollable).first, const Offset(0, -300));
     expect(find.text('Backup & restore'), findsOneWidget);
     expect(find.text('Back up my data'), findsOneWidget);

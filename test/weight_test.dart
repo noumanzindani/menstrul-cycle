@@ -1,5 +1,9 @@
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/common/catalog.dart';
+import 'package:menstrul_track/data/settings_repository.dart';
+import 'package:menstrul_track/db/database.dart';
+import 'package:menstrul_track/providers/settings_provider.dart';
 
 void main() {
   group('weight unit conversion', () {
@@ -74,6 +78,32 @@ void main() {
         numbers: {kMetricWeight: 62.5},
       );
       expect(decodeSymptoms(json), {'cramps'});
+    });
+  });
+
+  group('SettingsProvider.weightUnit', () {
+    late AppDatabase db;
+    late SettingsProvider provider;
+
+    setUp(() async {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      provider = SettingsProvider(SettingsRepository(db));
+      await provider.load();
+    });
+
+    tearDown(() => db.close());
+
+    test('defaults to kg when never chosen', () {
+      expect(provider.weightUnit, kWeightUnitKg);
+    });
+
+    test('persists a switch to lb', () async {
+      await provider.setWeightUnit(kWeightUnitLb);
+      expect(provider.weightUnit, kWeightUnitLb);
+
+      final reloaded = SettingsProvider(SettingsRepository(db));
+      await reloaded.load();
+      expect(reloaded.weightUnit, kWeightUnitLb);
     });
   });
 }
