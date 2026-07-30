@@ -69,18 +69,27 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   reach the symptom list, Insights, or the doctor PDF. `encodeDayTags` is a full **REPLACE**
   (rebuilds the whole blob from form state), so the day editor must decode/encode EVERY
   group unconditionally — gating a group out of decode or save silently destroys it.
-- **Schema & migrations.** `schemaVersion` is **3**. `onUpgrade` uses independent additive
+  Numeric metrics (`pain`, `water`, `sleep`, `energy`, `stress`, `sleep_quality`, `weight`)
+  ride the same blob as real JSON numbers, so they never satisfy the `== true` symptom check
+  and need no key prefix. **`0` means "unset" for every numeric metric**, weight included.
+- **Schema & migrations.** `schemaVersion` is **4**. `onUpgrade` uses independent additive
   `if (from < n)` branches (not else-if), one nullable column each, so a user on any old
   version runs every intervening branch and existing rows need no backfill: v1→v2 added
-  `AppSettings.pregnancyStartDate`; v2→v3 added `AppSettings.trackingCategories`. A committed
-  JSON snapshot per version lives in `drift_schemas/` and `test/generated_migrations/`;
-  `test/db_migration_v3_test.dart` uses drift's `SchemaVerifier` to run the REAL `onUpgrade`
-  against a v2 DB seeded with non-default rows. In-memory `AppDatabase.forTesting` runs
-  `onCreate` at the current schema and NEVER exercises `onUpgrade`, so every new migration
-  needs a snapshot dumped BEFORE the version bump (only derivable while that version is
-  current) and its own SchemaVerifier test. Not yet verified: the background-isolate
-  migration path (`CheckInWriter` opens a bare `AppDatabase()` from a killed-app
-  notification action) — re-test at the next bump.
+  `AppSettings.pregnancyStartDate`; v2→v3 added `AppSettings.trackingCategories`; v3→v4
+  added `AppSettings.weightUnit`. A committed JSON snapshot per version lives in
+  `drift_schemas/` and `test/generated_migrations/` (both `drift_schema_v4.json` and
+  `schema_v4.dart` are committed); `test/db_migration_v4_test.dart` uses drift's
+  `SchemaVerifier` to run the REAL `onUpgrade` against a v3 DB seeded with non-default rows.
+  In-memory `AppDatabase.forTesting` runs `onCreate` at the current schema and NEVER
+  exercises `onUpgrade`, so every new migration needs a snapshot dumped BEFORE the version
+  bump (only derivable while that version is current) and its own SchemaVerifier test.
+  **`migrateAndValidate(db, n)` upgrades to the database's OWN `schemaVersion`, so an old
+  migration test cannot keep validating against an intermediate version.** At each bump,
+  re-point the *older* tests at the new version rather than deleting them — that is what
+  makes `db_migration_v3_test.dart` the multi-hop guard (v2 → current, proving a v2-era user
+  runs every intervening branch, which is the whole point of independent `if`s). Not yet
+  verified: the background-isolate migration path (`CheckInWriter` opens a bare
+  `AppDatabase()` from a killed-app notification action) — re-test at the next bump.
 - **Customizable tracking (Phase A).** The day editor renders sections gated by a registry
   of `TrackingCategory` ids (`common/tracking_categories.dart`); Settings → "Customize
   tracking" (`screens/settings/tracking_categories_screen.dart`) toggles them, persisted as
@@ -128,7 +137,7 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
 
 ## Feature status
 
-### Shipped (v1 + v2 migration-free; v3 = customizable tracking, first real migration)
+### Shipped (v1 + v2 migration-free; v3 = customizable tracking, first real migration; v4 = weight unit)
 
 - Daily logging (flow, symptoms, mood, sex, notes) + "Period ended" toggle
 - Combined calendar + entry, predictions + Home, reminders, insights + doctor PDF export
@@ -224,28 +233,63 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   is cancelled. **iOS** notification actions come via a `DarwinNotificationCategory`
   (generic "Confirm" label); the iOS home-widget button is Phase B, deferred.
 
+- **Weight tracking** — a numeric day-metric (`kMetricWeight`) stored in the day-tags blob
+  in **canonical kilograms**, so no `DailyLogs` migration was needed. The kg/lb choice is a
+  global preference (`AppSettings.weightUnit`, null = kg) applied only at the display
+  boundary, so switching units never rewrites data. Input is refused outside 20–350 kg
+  (checked AFTER conversion, so the same rule holds in both units) rather than clamped —
+  which is why **`DayEntryFormState.save()` returns `Future<bool>`** and both hosts must not
+  pop on `false`. Off by default via the `kCatWeight` tracking category; like every other
+  group, weight is decoded and re-encoded **unconditionally** regardless of that gating
+  (`test/weight_form_test.dart` has the regression test). Trend (90-day series + net change,
+  null below two readings) is a pure `WeightTrendService`, charted on Insights and summarised
+  in the doctor PDF (always kg there — it is a clinical document).
+  **Deliberately no BMI, no height, and no classification of any kind** — a judgeable body
+  label is the same class of harm as a synthesized fertility %. Enforced by a structural test
+  scanning `lib/` string literals for body-judgement copy; note a naive `/bmi/` search
+  matches "su**bmi**t", so it is scoped to quoted strings with word boundaries.
+- **Diary** — `DiaryService` + `DiaryScreen` read back the notes users already write:
+  non-blank notes only, newest first, case-insensitive search over the **note text only**
+  (matching symptoms or dates would surface days the user never wrote about), with the cycle
+  day shown per row. Reached from a Calendar app-bar action (bottom nav is already at
+  Material's five destinations). Pure presentation over `LogProvider.logs`; no query, no
+  schema change. Carries **no ad banner**, and diary text **never** enters the doctor PDF —
+  both structurally tested. The PDF guardrail asserts by output **size**, not substring: the
+  `pdf` package compresses text streams, so a byte search finds nothing even for headings
+  that ARE present, and `generatedOn` is injected rather than read from the clock, making the
+  output byte-deterministic.
+
 **Calendar day entry is a bottom sheet, not an inline panel.** Tapping a day opens
-`_DayEntrySheet` (in `calendar_screen.dart`), whose content is a **`Scaffold`** (mirrors
+`DayEntrySheet` / `showDayEntrySheet()` (`lib/widgets/day_entry_sheet.dart`, shared by the
+calendar and the diary), whose content is a **`Scaffold`** (mirrors
 `DayLogScreen`: form in `body`, Save in `bottomNavigationBar`). This is deliberate: an
 inline panel below the viewport-filling month grid never reliably lays out (a lazy
 `ListView` skips it; eager variants crash with "BoxConstraints forces an infinite width"
 because a Material button won't lay out under a scroll/sheet's unbounded-width intrinsic
 pass). A Scaffold gives the form and button bounded, tight constraints and absorbs that
-intrinsic query. `_selectedDay` still gates the calendar ad while the sheet is open.
+intrinsic query. `_selectedDay` still gates the calendar ad while the sheet is open. The
+sheet route **re-provides `LogProvider`** (routes build from the navigator's context, which
+in tests sits above the pumped providers) but deliberately does NOT re-provide a
+`PredictionResult` — the caller computes the `CheckInPrompt` and passes it in.
+`test/calendar_inline_entry_test.dart` is the regression guard for this whole structure.
 
 ### Deferred
 
-- **Pregnancy mode** — its own release. The migration scaffolding now exists (schema is at
-  **v3** with a tested `onUpgrade` and `drift_schemas/` snapshots — see "Schema & migrations"
-  above), so this needs only its own additive `if (from < 4)` branch + column (and a v3
-  snapshot dumped before the bump), a `PregnancyService` (Naegele EDD), and loss-safe UX
-  (neutral wording, no
-  celebratory UI, instant stop of pregnancy notifications on exit, one-tap exit + delete).
+- **Pregnancy milestone reminders.** Pregnancy mode ITSELF is shipped — `PregnancyService`
+  (Naegele EDD, gestational age, trimester), `PregnancyScreen` with a loss-safe neutral exit,
+  a Settings entry point, `_PregnancyHome` with no ads and no fetal content, "Week N" in the
+  home widget, prediction suppression, and `pregnancy_test.dart` + `pregnancy_flow_test.dart`.
+  Only the milestone reminders are outstanding, and there is currently **no pregnancy
+  `ReminderType`**. If they are ever added, `endPregnancy` MUST cancel every one — a
+  congratulatory notification after a loss is the worst failure this app can have.
 
 ### v3 backlog (from a Meet You competitor teardown)
 
-- Weight, Habit chips, richer Diary. **i18n/l10n** — the app is currently hardcoded
-  English (`AppSettings.language` is dormant); localization is its own initiative.
+- **i18n/l10n** — the app is hardcoded English outside `settings_screen`
+  (`AppSettings.language` is dormant); localization is its own initiative. Weight, habit
+  chips (`kHabitOptions`, in the Lifestyle section) and the diary have all shipped; what
+  remains for the diary is richer entry (per-day multiple entries, attachments), not reading
+  notes back.
 
 ## Pre-store-submission checklist (needs the project owner's accounts)
 
