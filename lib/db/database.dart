@@ -18,7 +18,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -33,14 +33,18 @@ class AppDatabase extends _$AppDatabase {
         // rows are preserved untouched and no backfill is needed:
         //   v1 → v2: pregnancy mode adds AppSettings.pregnancyStartDate.
         //   v2 → v3: customizable tracking adds AppSettings.trackingCategories.
+        //   v3 → v4: weight tracking adds AppSettings.weightUnit.
         // Branches are independent `if (from < n)` checks, not else-if, so a
-        // user upgrading straight from v1 runs both.
+        // user upgrading straight from v1 runs all of them.
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(appSettings, appSettings.pregnancyStartDate);
           }
           if (from < 3) {
             await m.addColumn(appSettings, appSettings.trackingCategories);
+          }
+          if (from < 4) {
+            await m.addColumn(appSettings, appSettings.weightUnit);
           }
         },
       );
