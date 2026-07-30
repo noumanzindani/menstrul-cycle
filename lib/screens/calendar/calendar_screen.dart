@@ -11,6 +11,7 @@ import '../../services/cycle_check_in.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/ad_banner.dart';
 import '../../widgets/day_entry_sheet.dart';
+import '../diary/diary_screen.dart';
 import '../../widgets/disclaimer_banner.dart';
 
 /// Month calendar. Logged bleeding days are filled (deeper = heavier); the
@@ -70,7 +71,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
         confidence.index >= PredictionConfidence.medium.index;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Calendar')),
+      appBar: AppBar(
+        title: const Text('Calendar'),
+        actions: [
+          // Diary lives here rather than in the bottom nav, which is already at
+          // Material's five-destination ceiling.
+          IconButton(
+            tooltip: 'Diary',
+            icon: const Icon(Icons.menu_book_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DiaryScreen()),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _selectDay(today),
         icon: const Icon(Icons.add),
