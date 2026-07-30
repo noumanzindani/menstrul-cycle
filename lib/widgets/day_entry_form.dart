@@ -16,7 +16,8 @@ import '../providers/settings_provider.dart';
 /// All tracking lives in the one day-tags JSON blob (see `common/catalog.dart`):
 /// plain boolean symptoms, namespaced single-select/flag groups (discharge,
 /// vaginal & sexual health, habits — kept out of the doctor PDF by default), and
-/// numeric metrics (pain, water, sleep, energy, stress). No schema/migration.
+/// numeric metrics (pain, water, sleep, energy, stress, and weight in canonical
+/// kilograms). No schema/migration.
 ///
 /// [shrinkWrap] makes it embeddable inside another scroll view (calendar);
 /// standalone it scrolls itself.
@@ -109,6 +110,8 @@ class DayEntryFormState extends State<DayEntryForm> {
   final Map<String, int> _metrics = {}; // includes pain + the lifestyle metrics
   late final TextEditingController _notes;
   late final TextEditingController _bbt; // basal body temperature (°C)
+  late final TextEditingController _weight; // in the DISPLAY unit, not kg
+  String? _weightError;
   String? _opk; // ovulation-test result
   bool _hadExisting = false;
 
@@ -141,6 +144,16 @@ class DayEntryFormState extends State<DayEntryForm> {
     _notes = TextEditingController(text: existing?.notes ?? '');
     _bbt = TextEditingController(
         text: existing?.bbt != null ? '${existing!.bbt}' : '');
+    // Decoded unconditionally too (see the note above): the stored value is
+    // canonical kg, shown in whatever unit was chosen when the editor opened.
+    final unitAtOpen =
+        context.read<SettingsProvider?>()?.weightUnit ?? kWeightUnitKg;
+    final existingKg = decodeNumber(tags, kMetricWeight)?.toDouble();
+    _weight = TextEditingController(
+      text: existingKg == null || existingKg <= 0
+          ? ''
+          : formatWeightFromKg(existingKg, unitAtOpen),
+    );
     _opk = existing?.opk;
   }
 
@@ -148,10 +161,29 @@ class DayEntryFormState extends State<DayEntryForm> {
   void dispose() {
     _notes.dispose();
     _bbt.dispose();
+    _weight.dispose();
     super.dispose();
   }
 
-  Future<void> save() {
+  /// Saves the day. Returns false WITHOUT writing when the typed weight is
+  /// invalid — an inline error is then showing, so hosts must not pop.
+  Future<bool> save() async {
+    final unit =
+        context.read<SettingsProvider?>()?.weightUnit ?? kWeightUnitKg;
+    final raw = _weight.text.trim();
+    double? weightKg;
+    if (raw.isNotEmpty) {
+      weightKg = parseWeightToKg(raw, unit);
+      if (weightKg == null) {
+        final lo = formatWeightFromKg(kMinWeightKg, unit);
+        final hi = formatWeightFromKg(kMaxWeightKg, unit);
+        setState(
+            () => _weightError = 'Enter a weight between $lo and $hi $unit');
+        return false;
+      }
+    }
+    if (_weightError != null) setState(() => _weightError = null);
+
     final flags = <String>{
       ..._symptoms,
       ..._vaginal,
@@ -167,8 +199,11 @@ class DayEntryFormState extends State<DayEntryForm> {
     final numbers = <String, num>{
       for (final e in _metrics.entries)
         if (e.value > 0) e.key: e.value,
+      // Written unconditionally, even when the Weight category is hidden: the
+      // blob is fully REPLACED on save, so omitting it would erase the value.
+      kMetricWeight: ?weightKg,
     };
-    return context.read<LogProvider>().saveDay(
+    await context.read<LogProvider>().saveDay(
           date: widget.date,
           flow: _flow,
           symptomsJson: encodeDayTags(flags: flags, numbers: numbers),
@@ -177,6 +212,7 @@ class DayEntryFormState extends State<DayEntryForm> {
           bbt: double.tryParse(_bbt.text.trim()),
           opk: _opk,
         );
+    return true;
   }
 
   Future<void> clear() => context.read<LogProvider>().clearDay(widget.date);
@@ -373,6 +409,22 @@ class DayEntryFormState extends State<DayEntryForm> {
               suffix: m.suffix,
               onChanged: (v) => setState(() => _metrics[m.key] = v),
             ),
+        if (_cats.contains(kCatWeight)) ...[
+          const SizedBox(height: 20),
+          _SectionLabel('Weight'),
+          TextField(
+            key: const Key('weight-field'),
+            controller: _weight,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Weight',
+              suffixText: context.watch<SettingsProvider?>()?.weightUnit ??
+                  kWeightUnitKg,
+              errorText: _weightError,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         _SectionLabel('Notes'),
         TextField(

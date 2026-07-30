@@ -177,7 +177,8 @@ class _DayEntrySheetState extends State<_DayEntrySheet> {
   final _formKey = GlobalKey<DayEntryFormState>();
 
   Future<void> _save() async {
-    await _formKey.currentState?.save();
+    final saved = await _formKey.currentState?.save() ?? false;
+    if (!saved) return; // keep the sheet open so the error is visible
     if (mounted) Navigator.of(context).pop();
   }
 
