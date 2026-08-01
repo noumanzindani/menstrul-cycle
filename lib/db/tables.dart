@@ -79,6 +79,10 @@ class AppSettings extends Table {
   // common/tracking_categories.dart). NULL means "use defaults", so existing
   // rows need no backfill.
   TextColumn get trackingCategories => text().nullable()();
+  // Weight display unit ('kg' | 'lb'). NULL means "never chosen" and reads as
+  // kg. Weight VALUES are always stored in canonical kg in the day-tags blob,
+  // so switching this never rewrites data.
+  TextColumn get weightUnit => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

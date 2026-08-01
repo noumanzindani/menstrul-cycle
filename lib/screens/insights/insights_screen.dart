@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
+import '../../common/catalog.dart';
 import '../../db/database.dart';
 import '../../models/cycle.dart';
 import '../../models/flow_analysis.dart';
@@ -22,6 +23,7 @@ import '../../services/insights_service.dart';
 import '../../services/medication_adherence_service.dart';
 import '../../services/pdf_report_service.dart';
 import '../../services/symptom_analysis_service.dart';
+import '../../services/weight_trend_service.dart';
 import '../../theme/app_theme.dart';
 import 'cycle_overview_screen.dart';
 
@@ -86,6 +88,15 @@ class InsightsScreen extends StatelessWidget {
     // this screen is about history/patterns, not "where am I right now".
     final narratives =
         InsightsNarrator.narrate(cycles: cycles, logs: logProvider.logs);
+    // Weight: descriptive series only. No BMI, no height, no classification —
+    // a judgeable body label is the same class of harm as a synthesized
+    // fertility percentage.
+    final weightUnit =
+        context.watch<SettingsProvider?>()?.weightUnit ?? kWeightUnitKg;
+    final weightTrend = WeightTrendService.compute(
+      logProvider.logs,
+      asOf: DateTime.now(),
+    );
     final stats = insights.stats;
 
     return Scaffold(
@@ -277,6 +288,26 @@ class InsightsScreen extends StatelessWidget {
                       ),
                     ),
                   ],
+                ],
+                if (weightTrend != null) ...[
+                  const SizedBox(height: 16),
+                  Text('Weight',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 180,
+                    child: _WeightChart(trend: weightTrend),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Latest '
+                    '${formatWeightFromKg(weightTrend.points.last.kg, weightUnit)} '
+                    '$weightUnit over ${weightTrend.points.length} readings — '
+                    '${weightTrend.netChangeKg >= 0 ? 'up' : 'down'} '
+                    '${formatWeightFromKg(weightTrend.netChangeKg.abs(), weightUnit)} '
+                    '$weightUnit in the last 90 days.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ],
                 const SizedBox(height: 8),
                 FilledButton.icon(
@@ -803,6 +834,60 @@ class _BbtChart extends StatelessWidget {
             isCurved: false,
             barWidth: 2,
             color: scheme.tertiary,
+            dotData: const FlDotData(show: true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The weight series. Mirrors [_BbtChart]'s fl_chart configuration so both
+/// charts read the same. Plots the DISPLAY unit; the axis is bounded by the data
+/// with no reference lines, because there is no "target" or "normal" band to
+/// draw — that would be a body judgement, which this app does not make.
+class _WeightChart extends StatelessWidget {
+  const _WeightChart({required this.trend});
+  final WeightTrend trend;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final unit =
+        context.watch<SettingsProvider?>()?.weightUnit ?? kWeightUnitKg;
+    final vals = [
+      for (final p in trend.points)
+        unit == kWeightUnitLb ? kgToLb(p.kg) : p.kg,
+    ];
+    final spots = [
+      for (var i = 0; i < vals.length; i++) FlSpot(i.toDouble(), vals[i]),
+    ];
+    final lo = vals.reduce((a, b) => a < b ? a : b) - 1;
+    final hi = vals.reduce((a, b) => a > b ? a : b) + 1;
+
+    return LineChart(
+      LineChartData(
+        minY: lo,
+        maxY: hi,
+        gridData: const FlGridData(show: true, drawVerticalLine: false),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: true, reservedSize: 36),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: false,
+            barWidth: 2,
+            color: scheme.primary,
             dotData: const FlDotData(show: true),
           ),
         ],

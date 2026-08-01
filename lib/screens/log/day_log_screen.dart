@@ -28,7 +28,8 @@ class _DayLogScreenState extends State<DayLogScreen> {
   }
 
   Future<void> _save() async {
-    await _formKey.currentState?.save();
+    final saved = await _formKey.currentState?.save() ?? false;
+    if (!saved) return; // invalid input; the form is showing the error
     if (mounted) Navigator.of(context).pop();
   }
 

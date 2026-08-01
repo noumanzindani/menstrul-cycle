@@ -1944,6 +1944,17 @@ class $AppSettingsTable extends AppSettings
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _weightUnitMeta = const VerificationMeta(
+    'weightUnit',
+  );
+  @override
+  late final GeneratedColumn<String> weightUnit = GeneratedColumn<String>(
+    'weight_unit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1959,6 +1970,7 @@ class $AppSettingsTable extends AppSettings
     lastBackup,
     pregnancyStartDate,
     trackingCategories,
+    weightUnit,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2062,6 +2074,12 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('weight_unit')) {
+      context.handle(
+        _weightUnitMeta,
+        weightUnit.isAcceptableOrUnknown(data['weight_unit']!, _weightUnitMeta),
+      );
+    }
     return context;
   }
 
@@ -2125,6 +2143,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}tracking_categories'],
       ),
+      weightUnit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}weight_unit'],
+      ),
     );
   }
 
@@ -2151,6 +2173,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final DateTime? lastBackup;
   final DateTime? pregnancyStartDate;
   final String? trackingCategories;
+  final String? weightUnit;
   const AppSetting({
     required this.id,
     required this.mode,
@@ -2165,6 +2188,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.lastBackup,
     this.pregnancyStartDate,
     this.trackingCategories,
+    this.weightUnit,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2190,6 +2214,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || trackingCategories != null) {
       map['tracking_categories'] = Variable<String>(trackingCategories);
     }
+    if (!nullToAbsent || weightUnit != null) {
+      map['weight_unit'] = Variable<String>(weightUnit);
+    }
     return map;
   }
 
@@ -2214,6 +2241,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       trackingCategories: trackingCategories == null && nullToAbsent
           ? const Value.absent()
           : Value(trackingCategories),
+      weightUnit: weightUnit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weightUnit),
     );
   }
 
@@ -2246,6 +2276,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       trackingCategories: serializer.fromJson<String?>(
         json['trackingCategories'],
       ),
+      weightUnit: serializer.fromJson<String?>(json['weightUnit']),
     );
   }
   @override
@@ -2267,6 +2298,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'lastBackup': serializer.toJson<DateTime?>(lastBackup),
       'pregnancyStartDate': serializer.toJson<DateTime?>(pregnancyStartDate),
       'trackingCategories': serializer.toJson<String?>(trackingCategories),
+      'weightUnit': serializer.toJson<String?>(weightUnit),
     };
   }
 
@@ -2284,6 +2316,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<DateTime?> lastBackup = const Value.absent(),
     Value<DateTime?> pregnancyStartDate = const Value.absent(),
     Value<String?> trackingCategories = const Value.absent(),
+    Value<String?> weightUnit = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     mode: mode ?? this.mode,
@@ -2302,6 +2335,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     trackingCategories: trackingCategories.present
         ? trackingCategories.value
         : this.trackingCategories,
+    weightUnit: weightUnit.present ? weightUnit.value : this.weightUnit,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -2334,6 +2368,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       trackingCategories: data.trackingCategories.present
           ? data.trackingCategories.value
           : this.trackingCategories,
+      weightUnit: data.weightUnit.present
+          ? data.weightUnit.value
+          : this.weightUnit,
     );
   }
 
@@ -2352,7 +2389,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('onboardingComplete: $onboardingComplete, ')
           ..write('lastBackup: $lastBackup, ')
           ..write('pregnancyStartDate: $pregnancyStartDate, ')
-          ..write('trackingCategories: $trackingCategories')
+          ..write('trackingCategories: $trackingCategories, ')
+          ..write('weightUnit: $weightUnit')
           ..write(')'))
         .toString();
   }
@@ -2372,6 +2410,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     lastBackup,
     pregnancyStartDate,
     trackingCategories,
+    weightUnit,
   );
   @override
   bool operator ==(Object other) =>
@@ -2389,7 +2428,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.onboardingComplete == this.onboardingComplete &&
           other.lastBackup == this.lastBackup &&
           other.pregnancyStartDate == this.pregnancyStartDate &&
-          other.trackingCategories == this.trackingCategories);
+          other.trackingCategories == this.trackingCategories &&
+          other.weightUnit == this.weightUnit);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -2406,6 +2446,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<DateTime?> lastBackup;
   final Value<DateTime?> pregnancyStartDate;
   final Value<String?> trackingCategories;
+  final Value<String?> weightUnit;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.mode = const Value.absent(),
@@ -2420,6 +2461,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.lastBackup = const Value.absent(),
     this.pregnancyStartDate = const Value.absent(),
     this.trackingCategories = const Value.absent(),
+    this.weightUnit = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -2435,6 +2477,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.lastBackup = const Value.absent(),
     this.pregnancyStartDate = const Value.absent(),
     this.trackingCategories = const Value.absent(),
+    this.weightUnit = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -2450,6 +2493,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<DateTime>? lastBackup,
     Expression<DateTime>? pregnancyStartDate,
     Expression<String>? trackingCategories,
+    Expression<String>? weightUnit,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2469,6 +2513,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (pregnancyStartDate != null)
         'pregnancy_start_date': pregnancyStartDate,
       if (trackingCategories != null) 'tracking_categories': trackingCategories,
+      if (weightUnit != null) 'weight_unit': weightUnit,
     });
   }
 
@@ -2486,6 +2531,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<DateTime?>? lastBackup,
     Value<DateTime?>? pregnancyStartDate,
     Value<String?>? trackingCategories,
+    Value<String?>? weightUnit,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -2502,6 +2548,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       lastBackup: lastBackup ?? this.lastBackup,
       pregnancyStartDate: pregnancyStartDate ?? this.pregnancyStartDate,
       trackingCategories: trackingCategories ?? this.trackingCategories,
+      weightUnit: weightUnit ?? this.weightUnit,
     );
   }
 
@@ -2553,6 +2600,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (trackingCategories.present) {
       map['tracking_categories'] = Variable<String>(trackingCategories.value);
     }
+    if (weightUnit.present) {
+      map['weight_unit'] = Variable<String>(weightUnit.value);
+    }
     return map;
   }
 
@@ -2571,7 +2621,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('onboardingComplete: $onboardingComplete, ')
           ..write('lastBackup: $lastBackup, ')
           ..write('pregnancyStartDate: $pregnancyStartDate, ')
-          ..write('trackingCategories: $trackingCategories')
+          ..write('trackingCategories: $trackingCategories, ')
+          ..write('weightUnit: $weightUnit')
           ..write(')'))
         .toString();
   }
@@ -3533,6 +3584,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<DateTime?> lastBackup,
       Value<DateTime?> pregnancyStartDate,
       Value<String?> trackingCategories,
+      Value<String?> weightUnit,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -3549,6 +3601,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<DateTime?> lastBackup,
       Value<DateTime?> pregnancyStartDate,
       Value<String?> trackingCategories,
+      Value<String?> weightUnit,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -3623,6 +3676,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get trackingCategories => $composableBuilder(
     column: $table.trackingCategories,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get weightUnit => $composableBuilder(
+    column: $table.weightUnit,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3700,6 +3758,11 @@ class $$AppSettingsTableOrderingComposer
     column: $table.trackingCategories,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get weightUnit => $composableBuilder(
+    column: $table.weightUnit,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -3765,6 +3828,11 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.trackingCategories,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get weightUnit => $composableBuilder(
+    column: $table.weightUnit,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -3811,6 +3879,7 @@ class $$AppSettingsTableTableManager
                 Value<DateTime?> lastBackup = const Value.absent(),
                 Value<DateTime?> pregnancyStartDate = const Value.absent(),
                 Value<String?> trackingCategories = const Value.absent(),
+                Value<String?> weightUnit = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 mode: mode,
@@ -3825,6 +3894,7 @@ class $$AppSettingsTableTableManager
                 lastBackup: lastBackup,
                 pregnancyStartDate: pregnancyStartDate,
                 trackingCategories: trackingCategories,
+                weightUnit: weightUnit,
               ),
           createCompanionCallback:
               ({
@@ -3841,6 +3911,7 @@ class $$AppSettingsTableTableManager
                 Value<DateTime?> lastBackup = const Value.absent(),
                 Value<DateTime?> pregnancyStartDate = const Value.absent(),
                 Value<String?> trackingCategories = const Value.absent(),
+                Value<String?> weightUnit = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 mode: mode,
@@ -3855,6 +3926,7 @@ class $$AppSettingsTableTableManager
                 lastBackup: lastBackup,
                 pregnancyStartDate: pregnancyStartDate,
                 trackingCategories: trackingCategories,
+                weightUnit: weightUnit,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

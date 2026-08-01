@@ -86,6 +86,39 @@ const String kMetricSleep = 'sleep'; // hours
 const String kMetricEnergy = 'energy'; // 1–5
 const String kMetricStress = 'stress'; // 1–5
 const String kMetricSleepQuality = 'sleep_quality'; // 1–5
+const String kMetricWeight = 'weight'; // canonical KILOGRAMS, one decimal
+
+/// Weight unit preference values for `AppSettings.weightUnit`.
+const String kWeightUnitKg = 'kg';
+const String kWeightUnitLb = 'lb';
+
+/// Plausible-human bounds, checked in canonical kg. A fat-fingered entry would
+/// otherwise distort the weight trend chart's y-axis permanently.
+const double kMinWeightKg = 20.0;
+const double kMaxWeightKg = 350.0;
+
+const double _kgPerLb = 0.45359237;
+
+double lbToKg(double lb) => lb * _kgPerLb;
+double kgToLb(double kg) => kg / _kgPerLb;
+
+/// Parses user input in [unit] into canonical kg, or null when it is blank,
+/// unparseable, or outside [kMinWeightKg]..[kMaxWeightKg]. The range is applied
+/// AFTER conversion so the same rule holds in both units.
+double? parseWeightToKg(String input, String unit) {
+  final parsed = double.tryParse(input.trim());
+  if (parsed == null) return null;
+  final kg = unit == kWeightUnitLb ? lbToKg(parsed) : parsed;
+  if (kg < kMinWeightKg || kg > kMaxWeightKg) return null;
+  return kg;
+}
+
+/// Formats canonical [kg] for display in [unit], to one decimal place and
+/// WITHOUT a unit suffix (the field renders the suffix itself).
+String formatWeightFromKg(double kg, String unit) {
+  final shown = unit == kWeightUnitLb ? kgToLb(kg) : kg;
+  return shown.toStringAsFixed(1);
+}
 
 /// Sexual-activity options (single-select). Keys share the same day-tags JSON as
 /// symptoms but are namespaced with [kSexKeyPrefix] so they never surface in the

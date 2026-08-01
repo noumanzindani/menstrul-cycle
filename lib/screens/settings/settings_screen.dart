@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../common/catalog.dart';
 import '../../common/l10n.dart';
 import '../../data/daily_log_repository.dart';
 import '../../db/database.dart';
@@ -95,6 +96,37 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
     if (chosen != null) await settings.setLanguage(chosen);
+  }
+
+  /// Picks the weight DISPLAY unit. Logged values are canonical kg either way,
+  /// so switching is purely cosmetic and never rewrites data.
+  Future<void> _pickWeightUnit(BuildContext context) async {
+    final settings = context.read<SettingsProvider>();
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Weight unit'),
+        children: [
+          RadioGroup<String>(
+            groupValue: settings.weightUnit,
+            onChanged: (v) => Navigator.pop(ctx, v),
+            child: const Column(
+              children: [
+                RadioListTile(
+                  value: kWeightUnitKg,
+                  title: Text('Kilograms (kg)'),
+                ),
+                RadioListTile(
+                  value: kWeightUnitLb,
+                  title: Text('Pounds (lb)'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked != null) await settings.setWeightUnit(picked);
   }
 
   /// Pulls basal body temperature from Health Connect / HealthKit into the log.
@@ -336,6 +368,16 @@ class SettingsScreen extends StatelessWidget {
               MaterialPageRoute(
                   builder: (_) => const TrackingCategoriesScreen()),
             ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.monitor_weight_outlined),
+            title: const Text('Weight unit'),
+            subtitle: Text(
+              context.watch<SettingsProvider>().weightUnit == kWeightUnitLb
+                  ? 'Pounds (lb)'
+                  : 'Kilograms (kg)',
+            ),
+            onTap: () => _pickWeightUnit(context),
           ),
           const Divider(),
           _SectionHeader(context.l10n.settingsSectionHealth),
