@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/providers/auth_provider.dart';
+import 'package:menstrul_track/screens/auth/forgot_password_screen.dart';
 import 'package:menstrul_track/screens/auth/sign_in_screen.dart';
 import 'package:menstrul_track/screens/auth/sign_up_screen.dart';
 import 'package:menstrul_track/services/auth_service.dart';
@@ -121,5 +122,36 @@ void main() {
 
     expect(find.text('Passwords do not match'), findsOneWidget);
     expect(fake.lastPassword, isNull);
+  });
+
+  testWidgets(
+      'forgot-password treats wrongCredentials as success so an '
+      'unregistered address cannot be distinguished from a registered one',
+      (tester) async {
+    fake.nextFailure = AuthFailure(AuthErrorCode.wrongCredentials);
+    await tester.pumpWidget(_wrap(const ForgotPasswordScreen(), fake));
+
+    await tester.enterText(find.byKey(const Key('forgot.email')), 'a@b.com');
+    await tester.tap(find.byKey(const Key('forgot.submit')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('forgot.sent')), findsOneWidget);
+    expect(find.text('Email or password is incorrect.'), findsNothing);
+  });
+
+  testWidgets('forgot-password still surfaces a network error',
+      (tester) async {
+    fake.nextFailure = AuthFailure(AuthErrorCode.networkError);
+    await tester.pumpWidget(_wrap(const ForgotPasswordScreen(), fake));
+
+    await tester.enterText(find.byKey(const Key('forgot.email')), 'a@b.com');
+    await tester.tap(find.byKey(const Key('forgot.submit')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('forgot.sent')), findsNothing);
+    expect(
+      find.text('No connection. Check your network and try again.'),
+      findsOneWidget,
+    );
   });
 }

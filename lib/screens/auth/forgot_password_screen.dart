@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../services/auth_service.dart';
 import 'auth_error_text.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -29,7 +30,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!mounted) return;
     // Confirm regardless of whether the address is registered: revealing which
     // emails have accounts would leak that someone uses a period tracker.
-    if (auth.lastError == null) setState(() => _sent = true);
+    //
+    // `wrongCredentials` is deliberately treated as SUCCESS here, and only
+    // here. Firebase can throw `user-not-found` for sendPasswordResetEmail
+    // when a project has email-enumeration protection disabled --
+    // FirebaseAuthService collapses that into `wrongCredentials`, which is
+    // the right behavior for the sign-in screen. But if this screen showed
+    // "Email or password is incorrect." for an unregistered address while
+    // showing the generic confirmation for a registered one, the two visibly
+    // different outcomes would BE the enumeration leak this screen's copy
+    // exists to prevent. Do not "fix" this back to `auth.lastError == null`.
+    final error = auth.lastError;
+    if (error == null || error == AuthErrorCode.wrongCredentials) {
+      setState(() => _sent = true);
+    }
   }
 
   @override
