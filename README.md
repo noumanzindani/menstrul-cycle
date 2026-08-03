@@ -15,3 +15,12 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Firebase setup
+
+`android/app/google-services.json` is intentionally gitignored (it identifies the
+Firebase project). To build from a fresh clone, download it from the Firebase
+console: project `hbgapp-c3c88` → Project settings → the `com.lunatrack.app`
+Android app → `google-services.json`, and place it at `android/app/`.
+
+LunaTrack uses the **named** Firestore database `lunatrack`, not `(default)`.
