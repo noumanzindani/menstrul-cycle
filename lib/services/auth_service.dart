@@ -80,7 +80,7 @@ class FirebaseAuthService implements AuthService {
   }
 
   @override
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() => _run(_auth.signOut);
 
   @override
   Future<void> sendPasswordReset(String email) =>
