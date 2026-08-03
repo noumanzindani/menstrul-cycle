@@ -59,6 +59,8 @@ DailyLogsCompanion dailyLogFromMap(Map<String, dynamic> map) {
 
   final symptoms = (map['symptoms'] as Map?)?.cast<String, dynamic>() ?? {};
 
+  final updatedAt = updatedAtFromMap(map) ?? DateTime.now();
+
   return DailyLogsCompanion(
     date: Value(date),
     flow: Value(flow),
@@ -67,8 +69,16 @@ DailyLogsCompanion dailyLogFromMap(Map<String, dynamic> map) {
     notes: Value(map['notes'] as String?),
     bbt: Value((map['bbt'] as num?)?.toDouble()),
     opk: Value(map['opk'] as String?),
-    updatedAt: Value(updatedAtFromMap(map) ?? DateTime.now()),
+    createdAt: Value(createdAtFromMap(map) ?? updatedAt),
+    updatedAt: Value(updatedAt),
   );
+}
+
+/// The remote row's creation time.
+DateTime? createdAtFromMap(Map<String, dynamic> map) {
+  final millis = map['createdAt'] as int?;
+  if (millis == null) return null;
+  return DateTime.fromMillisecondsSinceEpoch(millis);
 }
 
 /// The remote row's last-modified time, used for last-write-wins merging.

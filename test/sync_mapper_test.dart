@@ -49,6 +49,7 @@ void main() {
     expect(companion.notes.value, 'felt fine');
     expect(companion.bbt.value, 36.6);
     expect(companion.opk.value, 'positive');
+    expect(companion.createdAt.value, log.createdAt);
     expect(map['deviceId'], 'device-abc');
   });
 
@@ -75,6 +76,20 @@ void main() {
     expect(map['symptoms']['cramps'], isTrue);
   });
 
+  test('createdAt falls back to updatedAt when absent', () {
+    final updatedAtTime = DateTime(2026, 8, 7, 10, 30);
+    final map = {
+      'date': '2026-08-07',
+      'symptoms': <String, dynamic>{},
+      'updatedAt': updatedAtTime.millisecondsSinceEpoch,
+    };
+
+    expect(
+      dailyLogFromMap(map).createdAt.value,
+      updatedAtTime,
+    );
+  });
+
   test('an out-of-range flow index decodes to null instead of crashing',
       () async {
     // Defensive: a future app version could write an enum index this build
@@ -84,6 +99,18 @@ void main() {
       'flow': 99,
       'symptoms': <String, dynamic>{},
       'updatedAt': DateTime(2026, 8, 7).millisecondsSinceEpoch,
+    };
+
+    expect(dailyLogFromMap(map).flow.value, isNull);
+  });
+
+  test('a negative flow index decodes to null instead of crashing', () {
+    // Defensive: guard the lower bound as well as the upper bound.
+    final map = {
+      'date': '2026-08-08',
+      'flow': -1,
+      'symptoms': <String, dynamic>{},
+      'updatedAt': DateTime(2026, 8, 8).millisecondsSinceEpoch,
     };
 
     expect(dailyLogFromMap(map).flow.value, isNull);
