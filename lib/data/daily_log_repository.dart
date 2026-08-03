@@ -116,8 +116,41 @@ class DailyLogRepository {
     return true;
   }
 
+  /// Deletes the log for [date] and records a tombstone in the SAME
+  /// transaction. Without the tombstone a hard-deleted row is indistinguishable
+  /// from one that never existed, and the next sync pull would resurrect it.
   Future<void> deleteForDate(DateTime date) async {
     final d = dateOnly(date);
-    await (_db.delete(_db.dailyLogs)..where((t) => t.date.equals(d))).go();
+    await _db.transaction(() async {
+      await (_db.delete(_db.dailyLogs)..where((t) => t.date.equals(d))).go();
+      // `date` is UNIQUE, so a repeat delete replaces rather than duplicates.
+      final existing =
+          await (_db.select(_db.syncTombstones)..where((t) => t.date.equals(d)))
+              .getSingleOrNull();
+      if (existing == null) {
+        await _db.into(_db.syncTombstones).insert(
+              SyncTombstonesCompanion.insert(
+                date: d,
+                deletedAt: Value(DateTime.now()),
+              ),
+            );
+      } else {
+        await (_db.update(_db.syncTombstones)
+              ..where((t) => t.date.equals(d)))
+            .write(SyncTombstonesCompanion(
+              deletedAt: Value(DateTime.now()),
+            ));
+      }
+    });
+  }
+
+  /// Days deleted locally whose deletion has not yet reached Firestore.
+  Future<List<SyncTombstone>> getTombstones() =>
+      _db.select(_db.syncTombstones).get();
+
+  /// Clears a tombstone after its remote document has been deleted.
+  Future<void> clearTombstone(DateTime date) async {
+    final d = dateOnly(date);
+    await (_db.delete(_db.syncTombstones)..where((t) => t.date.equals(d))).go();
   }
 }
