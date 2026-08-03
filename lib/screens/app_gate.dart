@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import 'app_shell.dart';
+import 'auth/sign_in_screen.dart';
 import 'lock/lock_screen.dart';
 import 'onboarding/onboarding_screen.dart';
 
@@ -44,6 +46,19 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
+    // Cold start: Firebase restores the session asynchronously. Showing a
+    // splash here avoids a flash of the sign-in form for an already-signed-in
+    // user.
+    if (auth.state == AuthState.unknown) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    // An account is required (design spec §7.1).
+    if (auth.state == AuthState.signedOut) {
+      return const SignInScreen();
+    }
+
     final settings = context.watch<SettingsProvider>();
 
     // Wait for settings to load to avoid a flash of the wrong screen.

@@ -12,6 +12,7 @@ import 'db/database.dart';
 import 'models/insights.dart';
 import 'models/month_ring.dart';
 import 'models/prediction.dart';
+import 'providers/auth_provider.dart';
 import 'providers/log_provider.dart';
 import 'providers/medication_provider.dart';
 import 'providers/premium_provider.dart';
@@ -19,6 +20,7 @@ import 'providers/reminder_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/app_gate.dart';
 import 'services/ad_service.dart';
+import 'services/auth_service.dart';
 import 'services/bbt_service.dart';
 import 'services/cycle_check_in.dart';
 import 'services/insights_narrator.dart';
@@ -45,15 +47,24 @@ Future<void> main() async {
 }
 
 class LunaTrackApp extends StatelessWidget {
-  const LunaTrackApp({super.key, required this.database});
+  const LunaTrackApp({super.key, required this.database, this.authService});
 
   final AppDatabase database;
+
+  /// Overridable for tests: [FirebaseAuthService] touches `FirebaseAuth.instance`
+  /// in its constructor, which throws without a real Firebase app. Widget tests
+  /// that pump this widget directly (see `test/widget_test.dart`) inject a fake
+  /// here instead.
+  final AuthService? authService;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         Provider<AppDatabase>.value(value: database),
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(authService ?? FirebaseAuthService()),
+        ),
         ChangeNotifierProvider(
           create: (_) => LogProvider(DailyLogRepository(database))..load(),
         ),
