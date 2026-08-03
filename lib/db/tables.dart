@@ -33,6 +33,30 @@ class DailyLogs extends Table {
       ];
 }
 
+/// A day whose local log was deleted and whose deletion has not yet been
+/// pushed to Firestore.
+///
+/// `DailyLogRepository.deleteForDate` performs a hard DELETE, which leaves a
+/// deleted day indistinguishable from a day that never existed — the next pull
+/// would resurrect it from the server. A tombstone records the intent.
+///
+/// This is a separate table rather than a `deleted` flag on `DailyLogs` on
+/// purpose: a flag would require adding `where(deleted == false)` to EVERY
+/// existing read path (repositories, CycleCalculator, insights, diary, PDF
+/// export), and missing one silently resurfaces deleted days in a doctor's
+/// report. A tombstone table leaves all existing queries untouched.
+class SyncTombstones extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  DateTimeColumn get date => dateTime()(); // normalized to local midnight
+  DateTimeColumn get deletedAt =>
+      dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {date},
+      ];
+}
+
 /// A scheduled local notification. No server — everything fires on-device.
 class Reminders extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -83,6 +107,15 @@ class AppSettings extends Table {
   // kg. Weight VALUES are always stored in canonical kg in the day-tags blob,
   // so switching this never rewrites data.
   TextColumn get weightUnit => text().nullable()();
+  // High-water mark for Firestore sync: rows with `updatedAt` after this need
+  // pushing, remote docs after this need pulling. NULL means "never synced",
+  // which correctly triggers a full initial pull.
+  DateTimeColumn get lastSyncedAt => dateTime().nullable()();
+  // When the settings row itself last changed. `DailyLogs` already has its own
+  // `updatedAt`; settings had none, and without it sync cannot tell a locally
+  // edited preference from a stale one — so a device syncing later would push
+  // its old settings over another device's newer change.
+  DateTimeColumn get settingsUpdatedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

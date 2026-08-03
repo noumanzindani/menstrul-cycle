@@ -20,7 +20,7 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('v3 -> v4 adds weightUnit and preserves existing data', () async {
+  test('v3 -> v5 adds weightUnit and preserves existing data', () async {
     final schema = await verifier.schemaAt(3);
 
     final oldDb = DatabaseAtV3(schema.newConnection());
@@ -40,7 +40,7 @@ void main() {
     await oldDb.close();
 
     final db = AppDatabase.forTesting(schema.newConnection());
-    await verifier.migrateAndValidate(db, 4);
+    await verifier.migrateAndValidate(db, 5);
 
     final settings = await db.getSettings();
     expect(settings.defaultCycleLength, 31);
@@ -54,6 +54,9 @@ void main() {
     final logs = await db.select(db.dailyLogs).get();
     expect(logs, hasLength(1));
     expect(decodeNumber(logs.single.symptoms, kMetricWeight), 62.5);
+
+    // Proves the `from < 5` branch also ran on this v3-era hop.
+    expect(settings.lastSyncedAt, isNull);
 
     await db.close();
   });

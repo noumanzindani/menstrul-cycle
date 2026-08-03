@@ -1955,6 +1955,29 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncedAt = GeneratedColumn<DateTime>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _settingsUpdatedAtMeta = const VerificationMeta(
+    'settingsUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> settingsUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'settings_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1971,6 +1994,8 @@ class $AppSettingsTable extends AppSettings
     pregnancyStartDate,
     trackingCategories,
     weightUnit,
+    lastSyncedAt,
+    settingsUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2080,6 +2105,24 @@ class $AppSettingsTable extends AppSettings
         weightUnit.isAcceptableOrUnknown(data['weight_unit']!, _weightUnitMeta),
       );
     }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('settings_updated_at')) {
+      context.handle(
+        _settingsUpdatedAtMeta,
+        settingsUpdatedAt.isAcceptableOrUnknown(
+          data['settings_updated_at']!,
+          _settingsUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2147,6 +2190,14 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}weight_unit'],
       ),
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+      settingsUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}settings_updated_at'],
+      ),
     );
   }
 
@@ -2174,6 +2225,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final DateTime? pregnancyStartDate;
   final String? trackingCategories;
   final String? weightUnit;
+  final DateTime? lastSyncedAt;
+  final DateTime? settingsUpdatedAt;
   const AppSetting({
     required this.id,
     required this.mode,
@@ -2189,6 +2242,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.pregnancyStartDate,
     this.trackingCategories,
     this.weightUnit,
+    this.lastSyncedAt,
+    this.settingsUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2217,6 +2272,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || weightUnit != null) {
       map['weight_unit'] = Variable<String>(weightUnit);
     }
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
+    }
+    if (!nullToAbsent || settingsUpdatedAt != null) {
+      map['settings_updated_at'] = Variable<DateTime>(settingsUpdatedAt);
+    }
     return map;
   }
 
@@ -2244,6 +2305,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       weightUnit: weightUnit == null && nullToAbsent
           ? const Value.absent()
           : Value(weightUnit),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+      settingsUpdatedAt: settingsUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(settingsUpdatedAt),
     );
   }
 
@@ -2277,6 +2344,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         json['trackingCategories'],
       ),
       weightUnit: serializer.fromJson<String?>(json['weightUnit']),
+      lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
+      settingsUpdatedAt: serializer.fromJson<DateTime?>(
+        json['settingsUpdatedAt'],
+      ),
     );
   }
   @override
@@ -2299,6 +2370,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'pregnancyStartDate': serializer.toJson<DateTime?>(pregnancyStartDate),
       'trackingCategories': serializer.toJson<String?>(trackingCategories),
       'weightUnit': serializer.toJson<String?>(weightUnit),
+      'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
+      'settingsUpdatedAt': serializer.toJson<DateTime?>(settingsUpdatedAt),
     };
   }
 
@@ -2317,6 +2390,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<DateTime?> pregnancyStartDate = const Value.absent(),
     Value<String?> trackingCategories = const Value.absent(),
     Value<String?> weightUnit = const Value.absent(),
+    Value<DateTime?> lastSyncedAt = const Value.absent(),
+    Value<DateTime?> settingsUpdatedAt = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     mode: mode ?? this.mode,
@@ -2336,6 +2411,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         ? trackingCategories.value
         : this.trackingCategories,
     weightUnit: weightUnit.present ? weightUnit.value : this.weightUnit,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+    settingsUpdatedAt: settingsUpdatedAt.present
+        ? settingsUpdatedAt.value
+        : this.settingsUpdatedAt,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -2371,6 +2450,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       weightUnit: data.weightUnit.present
           ? data.weightUnit.value
           : this.weightUnit,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+      settingsUpdatedAt: data.settingsUpdatedAt.present
+          ? data.settingsUpdatedAt.value
+          : this.settingsUpdatedAt,
     );
   }
 
@@ -2390,7 +2475,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('lastBackup: $lastBackup, ')
           ..write('pregnancyStartDate: $pregnancyStartDate, ')
           ..write('trackingCategories: $trackingCategories, ')
-          ..write('weightUnit: $weightUnit')
+          ..write('weightUnit: $weightUnit, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('settingsUpdatedAt: $settingsUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -2411,6 +2498,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     pregnancyStartDate,
     trackingCategories,
     weightUnit,
+    lastSyncedAt,
+    settingsUpdatedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -2429,7 +2518,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.lastBackup == this.lastBackup &&
           other.pregnancyStartDate == this.pregnancyStartDate &&
           other.trackingCategories == this.trackingCategories &&
-          other.weightUnit == this.weightUnit);
+          other.weightUnit == this.weightUnit &&
+          other.lastSyncedAt == this.lastSyncedAt &&
+          other.settingsUpdatedAt == this.settingsUpdatedAt);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -2447,6 +2538,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<DateTime?> pregnancyStartDate;
   final Value<String?> trackingCategories;
   final Value<String?> weightUnit;
+  final Value<DateTime?> lastSyncedAt;
+  final Value<DateTime?> settingsUpdatedAt;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.mode = const Value.absent(),
@@ -2462,6 +2555,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.pregnancyStartDate = const Value.absent(),
     this.trackingCategories = const Value.absent(),
     this.weightUnit = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.settingsUpdatedAt = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -2478,6 +2573,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.pregnancyStartDate = const Value.absent(),
     this.trackingCategories = const Value.absent(),
     this.weightUnit = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.settingsUpdatedAt = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -2494,6 +2591,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<DateTime>? pregnancyStartDate,
     Expression<String>? trackingCategories,
     Expression<String>? weightUnit,
+    Expression<DateTime>? lastSyncedAt,
+    Expression<DateTime>? settingsUpdatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2514,6 +2613,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
         'pregnancy_start_date': pregnancyStartDate,
       if (trackingCategories != null) 'tracking_categories': trackingCategories,
       if (weightUnit != null) 'weight_unit': weightUnit,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+      if (settingsUpdatedAt != null) 'settings_updated_at': settingsUpdatedAt,
     });
   }
 
@@ -2532,6 +2633,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<DateTime?>? pregnancyStartDate,
     Value<String?>? trackingCategories,
     Value<String?>? weightUnit,
+    Value<DateTime?>? lastSyncedAt,
+    Value<DateTime?>? settingsUpdatedAt,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -2549,6 +2652,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       pregnancyStartDate: pregnancyStartDate ?? this.pregnancyStartDate,
       trackingCategories: trackingCategories ?? this.trackingCategories,
       weightUnit: weightUnit ?? this.weightUnit,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      settingsUpdatedAt: settingsUpdatedAt ?? this.settingsUpdatedAt,
     );
   }
 
@@ -2603,6 +2708,12 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (weightUnit.present) {
       map['weight_unit'] = Variable<String>(weightUnit.value);
     }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
+    }
+    if (settingsUpdatedAt.present) {
+      map['settings_updated_at'] = Variable<DateTime>(settingsUpdatedAt.value);
+    }
     return map;
   }
 
@@ -2622,7 +2733,260 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('lastBackup: $lastBackup, ')
           ..write('pregnancyStartDate: $pregnancyStartDate, ')
           ..write('trackingCategories: $trackingCategories, ')
-          ..write('weightUnit: $weightUnit')
+          ..write('weightUnit: $weightUnit, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('settingsUpdatedAt: $settingsUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncTombstonesTable extends SyncTombstones
+    with TableInfo<$SyncTombstonesTable, SyncTombstone> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncTombstonesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, date, deletedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_tombstones';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncTombstone> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {date},
+  ];
+  @override
+  SyncTombstone map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncTombstone(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}date'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncTombstonesTable createAlias(String alias) {
+    return $SyncTombstonesTable(attachedDatabase, alias);
+  }
+}
+
+class SyncTombstone extends DataClass implements Insertable<SyncTombstone> {
+  final int id;
+  final DateTime date;
+  final DateTime deletedAt;
+  const SyncTombstone({
+    required this.id,
+    required this.date,
+    required this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['date'] = Variable<DateTime>(date);
+    map['deleted_at'] = Variable<DateTime>(deletedAt);
+    return map;
+  }
+
+  SyncTombstonesCompanion toCompanion(bool nullToAbsent) {
+    return SyncTombstonesCompanion(
+      id: Value(id),
+      date: Value(date),
+      deletedAt: Value(deletedAt),
+    );
+  }
+
+  factory SyncTombstone.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncTombstone(
+      id: serializer.fromJson<int>(json['id']),
+      date: serializer.fromJson<DateTime>(json['date']),
+      deletedAt: serializer.fromJson<DateTime>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'date': serializer.toJson<DateTime>(date),
+      'deletedAt': serializer.toJson<DateTime>(deletedAt),
+    };
+  }
+
+  SyncTombstone copyWith({int? id, DateTime? date, DateTime? deletedAt}) =>
+      SyncTombstone(
+        id: id ?? this.id,
+        date: date ?? this.date,
+        deletedAt: deletedAt ?? this.deletedAt,
+      );
+  SyncTombstone copyWithCompanion(SyncTombstonesCompanion data) {
+    return SyncTombstone(
+      id: data.id.present ? data.id.value : this.id,
+      date: data.date.present ? data.date.value : this.date,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncTombstone(')
+          ..write('id: $id, ')
+          ..write('date: $date, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, date, deletedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncTombstone &&
+          other.id == this.id &&
+          other.date == this.date &&
+          other.deletedAt == this.deletedAt);
+}
+
+class SyncTombstonesCompanion extends UpdateCompanion<SyncTombstone> {
+  final Value<int> id;
+  final Value<DateTime> date;
+  final Value<DateTime> deletedAt;
+  const SyncTombstonesCompanion({
+    this.id = const Value.absent(),
+    this.date = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  });
+  SyncTombstonesCompanion.insert({
+    this.id = const Value.absent(),
+    required DateTime date,
+    this.deletedAt = const Value.absent(),
+  }) : date = Value(date);
+  static Insertable<SyncTombstone> custom({
+    Expression<int>? id,
+    Expression<DateTime>? date,
+    Expression<DateTime>? deletedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (date != null) 'date': date,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+    });
+  }
+
+  SyncTombstonesCompanion copyWith({
+    Value<int>? id,
+    Value<DateTime>? date,
+    Value<DateTime>? deletedAt,
+  }) {
+    return SyncTombstonesCompanion(
+      id: id ?? this.id,
+      date: date ?? this.date,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncTombstonesCompanion(')
+          ..write('id: $id, ')
+          ..write('date: $date, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -2636,6 +3000,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RemindersTable reminders = $RemindersTable(this);
   late final $MedicationsTable medications = $MedicationsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final $SyncTombstonesTable syncTombstones = $SyncTombstonesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2646,6 +3011,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     reminders,
     medications,
     appSettings,
+    syncTombstones,
   ];
 }
 
@@ -3585,6 +3951,8 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<DateTime?> pregnancyStartDate,
       Value<String?> trackingCategories,
       Value<String?> weightUnit,
+      Value<DateTime?> lastSyncedAt,
+      Value<DateTime?> settingsUpdatedAt,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -3602,6 +3970,8 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<DateTime?> pregnancyStartDate,
       Value<String?> trackingCategories,
       Value<String?> weightUnit,
+      Value<DateTime?> lastSyncedAt,
+      Value<DateTime?> settingsUpdatedAt,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -3681,6 +4051,16 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get weightUnit => $composableBuilder(
     column: $table.weightUnit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get settingsUpdatedAt => $composableBuilder(
+    column: $table.settingsUpdatedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3763,6 +4143,16 @@ class $$AppSettingsTableOrderingComposer
     column: $table.weightUnit,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get settingsUpdatedAt => $composableBuilder(
+    column: $table.settingsUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -3833,6 +4223,16 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.weightUnit,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get settingsUpdatedAt => $composableBuilder(
+    column: $table.settingsUpdatedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -3880,6 +4280,8 @@ class $$AppSettingsTableTableManager
                 Value<DateTime?> pregnancyStartDate = const Value.absent(),
                 Value<String?> trackingCategories = const Value.absent(),
                 Value<String?> weightUnit = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<DateTime?> settingsUpdatedAt = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 mode: mode,
@@ -3895,6 +4297,8 @@ class $$AppSettingsTableTableManager
                 pregnancyStartDate: pregnancyStartDate,
                 trackingCategories: trackingCategories,
                 weightUnit: weightUnit,
+                lastSyncedAt: lastSyncedAt,
+                settingsUpdatedAt: settingsUpdatedAt,
               ),
           createCompanionCallback:
               ({
@@ -3912,6 +4316,8 @@ class $$AppSettingsTableTableManager
                 Value<DateTime?> pregnancyStartDate = const Value.absent(),
                 Value<String?> trackingCategories = const Value.absent(),
                 Value<String?> weightUnit = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<DateTime?> settingsUpdatedAt = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 mode: mode,
@@ -3927,6 +4333,8 @@ class $$AppSettingsTableTableManager
                 pregnancyStartDate: pregnancyStartDate,
                 trackingCategories: trackingCategories,
                 weightUnit: weightUnit,
+                lastSyncedAt: lastSyncedAt,
+                settingsUpdatedAt: settingsUpdatedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -3953,6 +4361,164 @@ typedef $$AppSettingsTableProcessedTableManager =
       AppSetting,
       PrefetchHooks Function()
     >;
+typedef $$SyncTombstonesTableCreateCompanionBuilder =
+    SyncTombstonesCompanion Function({
+      Value<int> id,
+      required DateTime date,
+      Value<DateTime> deletedAt,
+    });
+typedef $$SyncTombstonesTableUpdateCompanionBuilder =
+    SyncTombstonesCompanion Function({
+      Value<int> id,
+      Value<DateTime> date,
+      Value<DateTime> deletedAt,
+    });
+
+class $$SyncTombstonesTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncTombstonesTable> {
+  $$SyncTombstonesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncTombstonesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncTombstonesTable> {
+  $$SyncTombstonesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncTombstonesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncTombstonesTable> {
+  $$SyncTombstonesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$SyncTombstonesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncTombstonesTable,
+          SyncTombstone,
+          $$SyncTombstonesTableFilterComposer,
+          $$SyncTombstonesTableOrderingComposer,
+          $$SyncTombstonesTableAnnotationComposer,
+          $$SyncTombstonesTableCreateCompanionBuilder,
+          $$SyncTombstonesTableUpdateCompanionBuilder,
+          (
+            SyncTombstone,
+            BaseReferences<_$AppDatabase, $SyncTombstonesTable, SyncTombstone>,
+          ),
+          SyncTombstone,
+          PrefetchHooks Function()
+        > {
+  $$SyncTombstonesTableTableManager(
+    _$AppDatabase db,
+    $SyncTombstonesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncTombstonesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncTombstonesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncTombstonesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<DateTime> date = const Value.absent(),
+                Value<DateTime> deletedAt = const Value.absent(),
+              }) => SyncTombstonesCompanion(
+                id: id,
+                date: date,
+                deletedAt: deletedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required DateTime date,
+                Value<DateTime> deletedAt = const Value.absent(),
+              }) => SyncTombstonesCompanion.insert(
+                id: id,
+                date: date,
+                deletedAt: deletedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncTombstonesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncTombstonesTable,
+      SyncTombstone,
+      $$SyncTombstonesTableFilterComposer,
+      $$SyncTombstonesTableOrderingComposer,
+      $$SyncTombstonesTableAnnotationComposer,
+      $$SyncTombstonesTableCreateCompanionBuilder,
+      $$SyncTombstonesTableUpdateCompanionBuilder,
+      (
+        SyncTombstone,
+        BaseReferences<_$AppDatabase, $SyncTombstonesTable, SyncTombstone>,
+      ),
+      SyncTombstone,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3967,4 +4533,6 @@ class $AppDatabaseManager {
       $$MedicationsTableTableManager(_db, _db.medications);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
+  $$SyncTombstonesTableTableManager get syncTombstones =>
+      $$SyncTombstonesTableTableManager(_db, _db.syncTombstones);
 }

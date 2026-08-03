@@ -27,7 +27,7 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('v2 -> v4 adds every intervening column and preserves existing data',
+  test('v2 -> v5 adds every intervening column and preserves existing data',
       () async {
     // schemaAt() hands out multiple connections over ONE underlying database,
     // so rows seeded through the v2 database class are still there when the
@@ -48,7 +48,7 @@ void main() {
     await oldDb.close();
 
     final db = AppDatabase.forTesting(schema.newConnection());
-    await verifier.migrateAndValidate(db, 4);
+    await verifier.migrateAndValidate(db, 5);
 
     final settings = await db.getSettings();
     expect(settings.defaultCycleLength, 31);
@@ -61,6 +61,9 @@ void main() {
     final logs = await db.select(db.dailyLogs).get();
     expect(logs, hasLength(1));
     expect(logs.single.symptoms, contains('cramps'));
+
+    // Proves the `from < 5` branch also ran on this v2-era hop.
+    expect(settings.lastSyncedAt, isNull);
 
     await db.close();
   });

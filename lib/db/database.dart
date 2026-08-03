@@ -9,7 +9,14 @@ part 'database.g.dart';
 /// The app's single on-device database. All health data lives here and never
 /// leaves the device.
 @DriftDatabase(
-  tables: [PeriodEntries, DailyLogs, Reminders, Medications, AppSettings],
+  tables: [
+    PeriodEntries,
+    DailyLogs,
+    Reminders,
+    Medications,
+    AppSettings,
+    SyncTombstones,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openDatabaseConnection());
@@ -18,7 +25,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -34,6 +41,7 @@ class AppDatabase extends _$AppDatabase {
         //   v1 → v2: pregnancy mode adds AppSettings.pregnancyStartDate.
         //   v2 → v3: customizable tracking adds AppSettings.trackingCategories.
         //   v3 → v4: weight tracking adds AppSettings.weightUnit.
+        //   v4 → v5: sync adds the SyncTombstones table + AppSettings.lastSyncedAt.
         // Branches are independent `if (from < n)` checks, not else-if, so a
         // user upgrading straight from v1 runs all of them.
         onUpgrade: (m, from, to) async {
@@ -45,6 +53,11 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 4) {
             await m.addColumn(appSettings, appSettings.weightUnit);
+          }
+          if (from < 5) {
+            await m.createTable(syncTombstones);
+            await m.addColumn(appSettings, appSettings.lastSyncedAt);
+            await m.addColumn(appSettings, appSettings.settingsUpdatedAt);
           }
         },
       );
