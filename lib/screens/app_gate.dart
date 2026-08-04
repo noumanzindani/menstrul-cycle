@@ -68,8 +68,13 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       final count = (await DailyLogRepository(db).getAll()).length;
       if (count == 0 || !context.mounted) return;
       final upload = await showClaimLocalDataSheet(context, dayCount: count);
-      if (upload != true || !context.mounted) return;
-      await context.read<SyncTrigger>().syncNow();
+      if (!context.mounted) return;
+      // `resolveClaim` (not a bare `syncNow`) either way: `upload == true`
+      // clears SyncTrigger's pending-claim gate and runs the deferred sync;
+      // `upload == false` (or a dismissal, though the sheet itself is
+      // non-dismissible) leaves that gate set so nothing pushes this
+      // session's declined history later.
+      await context.read<SyncTrigger>().resolveClaim(upload: upload == true);
     });
   }
 
