@@ -51,6 +51,13 @@ class SyncService {
   CollectionReference<Map<String, dynamic>> get _remoteDeletions =>
       _firestore.collection('users/$uid/deletions');
 
+  /// This device's own pull cursors — see [_readPullCursors].
+  ///
+  /// Holds no health data, only two timestamps, and lives under the same
+  /// `users/{uid}/…` root as everything else.
+  DocumentReference<Map<String, dynamic>> get _deviceDoc =>
+      _firestore.doc('users/$uid/devices/$deviceId');
+
   /// Runs one full push + pull cycle.
   ///
   /// Ordering invariant — **tombstones, then pull deletions, then prune old
@@ -71,8 +78,9 @@ class SyncService {
   /// pulled yet. Do not reorder any of this without re-reading the git
   /// history on this line — it has broken more than once.
   ///
-  /// `lastSyncedAt` advances ONLY on full success, so a partial failure simply
-  /// re-attempts the same window next time. Re-pushing an already-pushed day is
+  /// `lastSyncedAt` (the PUSH gate) and the pull cursors (see
+  /// [_readPullCursors]) both advance ONLY on full success, so a partial
+  /// failure simply re-attempts the same window next time. Re-pushing an already-pushed day is
   /// harmless because documents are keyed by date and writes are idempotent —
   /// the design tolerates duplicate work but never data loss.
   Future<void> syncNow() async {
@@ -92,12 +100,16 @@ class SyncService {
       // is correct; under-pushing is data loss.
       final startedAt = DateTime.now();
       final since = (await _settings.get()).lastSyncedAt;
+      // `since` is a LOCAL clock value and gates the PUSH side only. The pull
+      // side is scoped by server-derived cursors instead -- see
+      // [_readPullCursors].
+      final cursors = await _readPullCursors(fullSweep: since == null);
       await _pushTombstones();
-      await _pullDeletions(since);
+      final deletionsCursor = await _pullDeletions(cursors.deletions);
       await _pruneOldDeletionMarkers();
-      await _pullLogs(since);
+      final logsCursor = await _pullLogs(cursors.logs);
       await _pushLogs(since);
-      await _pullSettings(since);
+      await _pullSettings();
       // Re-read AFTER the pull: `_pullSettings` may just have overwritten the
       // local settings row with a newer remote one. Pushing a snapshot taken
       // before that pull would push stale pre-pull state back out, quietly
@@ -109,9 +121,105 @@ class SyncService {
       await _settings.updateSyncState(
         AppSettingsCompanion(lastSyncedAt: Value(startedAt)),
       );
+      // Committed LAST, and only on full success, for the same reason
+      // `lastSyncedAt` is: a cursor that advanced past a document this run
+      // failed to apply would never fetch it again.
+      await _writePullCursors(
+        logs: logsCursor,
+        deletions: deletionsCursor,
+        previous: cursors,
+      );
     } finally {
       _running = false;
     }
+  }
+
+  /// Where the PULL side resumes from, per collection.
+  ///
+  /// These are deliberately NOT `lastSyncedAt`. `lastSyncedAt` is stamped from
+  /// this device's own `DateTime.now()`, while `syncedAt` on every remote
+  /// document is stamped by the SERVER. Comparing the two is comparing two
+  /// different clocks: a device running δ ahead of the server would query
+  /// `syncedAt > server_now + δ`, so every peer write landing in the next δ is
+  /// never fetched -- and never will be, because the cutoff only advances. A
+  /// device that syncs more often than δ pulls NOTHING, EVER, silently. Only a
+  /// value the server itself produced is comparable with `syncedAt`.
+  ///
+  /// So each cursor is the greatest `syncedAt` this device has actually
+  /// OBSERVED and applied from that collection (see [_pullLogs] /
+  /// [_pullDeletions]), which is by construction ≤ the server time at which
+  /// that query ran. Anything newer than the cursor is therefore either
+  /// already applied or still waiting to be fetched -- never skipped.
+  ///
+  /// Cursors are per-collection because the two pull queries run at different
+  /// moments: a single shared cursor advanced to the maximum seen across both
+  /// could jump past a document written into the OTHER collection between the
+  /// two queries, which is exactly the permanent-skip failure this whole
+  /// mechanism exists to prevent.
+  ///
+  /// They live in Firestore rather than in a local column purely to avoid a
+  /// drift schema migration (which needs the project owner's sign-off); the
+  /// cost is one document read per sync. `lastSyncedAt == null` -- a fresh
+  /// install, or a local "delete all my data" wipe -- forces a full sweep
+  /// regardless of what the remote cursors say, so a device that has lost its
+  /// local state re-reads everything instead of trusting a cursor that no
+  /// longer describes it.
+  Future<({Timestamp? logs, Timestamp? deletions})> _readPullCursors({
+    required bool fullSweep,
+  }) async {
+    if (fullSweep) return (logs: null, deletions: null);
+    final data = (await _deviceDoc.get()).data();
+    if (data == null) return (logs: null, deletions: null);
+    return (
+      logs: _asOrNull<Timestamp>(data['logsCursor']),
+      deletions: _asOrNull<Timestamp>(data['deletionsCursor']),
+    );
+  }
+
+  Future<void> _writePullCursors({
+    required Timestamp? logs,
+    required Timestamp? deletions,
+    required ({Timestamp? logs, Timestamp? deletions}) previous,
+  }) async {
+    final update = <String, dynamic>{};
+    if (_advances(logs, previous.logs)) update['logsCursor'] = logs;
+    if (_advances(deletions, previous.deletions)) {
+      update['deletionsCursor'] = deletions;
+    }
+    if (update.isEmpty) return; // nothing new was observed -- skip the write
+    await _deviceDoc.set(update, SetOptions(merge: true));
+  }
+
+  /// True when [next] is a real, different cursor value. Compared with
+  /// [Timestamp.compareTo] rather than `==` so this does not depend on
+  /// `Timestamp` implementing value equality.
+  bool _advances(Timestamp? next, Timestamp? previous) =>
+      next != null && (previous == null || next.compareTo(previous) != 0);
+
+  /// The server-stamped `syncedAt` of [doc], backfilling it when absent.
+  ///
+  /// A Firestore range filter silently excludes documents that lack the
+  /// ordered field, so a `dailyLogs` document or a deletion marker written
+  /// before `syncedAt` existed (an older build, a console write, a partial
+  /// write) would be invisible to every future cursor-scoped pull AND to the
+  /// retention sweep, which also filters on `syncedAt` -- i.e. never merged
+  /// and never pruned. Such a document can only ever be seen during a full
+  /// sweep, so that is where it gets its stamp.
+  ///
+  /// Returns null in that case rather than the value just written: the
+  /// backfilled stamp is "now", which says nothing about how much of the
+  /// collection this run actually observed, and must not drag a cursor
+  /// forward. The document is simply re-fetched once on the next run.
+  Future<Timestamp?> _observedSyncedAt(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    final existing = _asOrNull<Timestamp>(doc.data()['syncedAt']);
+    if (existing != null) return existing;
+    await doc.reference.set(
+      {'syncedAt': FieldValue.serverTimestamp()},
+      SetOptions(merge: true),
+    );
+    return null;
   }
 
   /// Deletions first: pushing a local row for a day that was just deleted
@@ -145,7 +253,7 @@ class SyncService {
         // delete it. No deletion marker is written in this branch: the
         // deletion lost, so there is nothing to tell other devices to
         // delete.
-        await _logs.clearTombstone(t.date);
+        //
         // Restore the day locally HERE, from the document already in hand,
         // rather than leaving it to `_pullLogs` later in this same run. The
         // pull is scoped by a `since` window: it only fetches documents whose
@@ -154,10 +262,21 @@ class SyncService {
         // carries no `syncedAt` at all, e.g. written by an older build) is
         // never fetched -- and the deleting device would then be the ONE
         // device permanently missing a day that every peer still has, with
-        // no path back: its tombstone is now cleared, so it will never ask
+        // no path back: its tombstone would be cleared, so it would never ask
         // again. We already know this document won the merge, so applying it
         // directly is both cheaper and unconditional.
+        //
+        // The restore runs BEFORE `clearTombstone`, never after. The restore
+        // writes to the encrypted drift database, which a background isolate
+        // (`CheckInWriter`) can be holding past `busy_timeout` -- that write
+        // CAN throw. Clearing the tombstone first and then failing would
+        // leave this device with no local row, no tombstone and a remote
+        // document it has stopped asking about: the day is gone here,
+        // permanently, with no retry path. Restoring first means a failure
+        // aborts the run with the tombstone intact, so the next run simply
+        // tries again.
         await _applyRemoteLog(remoteData!);
+        await _logs.clearTombstone(t.date);
         continue;
       }
 
@@ -209,18 +328,35 @@ class SyncService {
   /// `deletedAt` (the deleting device's own point-in-time intent, which is
   /// still what decides WHO WINS below -- this is only about which documents
   /// get fetched). A device that logs or deletes something OFFLINE and only
-  /// reconnects much later stamps `deletedAt` in the past; a `since` cutoff
-  /// compared against that field would never match it, silently and
-  /// permanently hiding the deletion from every peer. `syncedAt` reflects
-  /// when the write actually reached the server, so a late-arriving offline
-  /// change is still visible to anyone whose `since` predates the RECONNECT,
-  /// not the original (offline) edit.
-  Future<void> _pullDeletions(DateTime? since) async {
-    final snapshot = since == null
+  /// reconnects much later stamps `deletedAt` in the past; a cutoff compared
+  /// against that field would never match it, silently and permanently hiding
+  /// the deletion from every peer. `syncedAt` reflects when the write actually
+  /// reached the server, so a late-arriving offline change is still visible to
+  /// anyone whose cursor predates the RECONNECT, not the original (offline)
+  /// edit.
+  ///
+  /// `isGreaterThanOrEqualTo`, not `isGreaterThan`: a strict cutoff drops a
+  /// marker whose server stamp lands exactly ON the cursor, and because the
+  /// cursor only ever advances it drops it PERMANENTLY -- the identical
+  /// failure mode as the push-side tie. The cost of the inclusive bound is
+  /// re-fetching the single boundary document each run and re-deciding it
+  /// identically, which is idempotent.
+  ///
+  /// Returns the cursor this collection should resume from next run.
+  Future<Timestamp?> _pullDeletions(Timestamp? cursor) async {
+    final snapshot = cursor == null
         ? await _remoteDeletions.get()
-        : await _remoteDeletions.where('syncedAt', isGreaterThan: since).get();
+        : await _remoteDeletions
+            .where('syncedAt', isGreaterThanOrEqualTo: cursor)
+            .get();
 
+    var high = cursor;
     for (final doc in snapshot.docs) {
+      final observed = await _observedSyncedAt(doc);
+      if (observed != null && (high == null || observed.compareTo(high) > 0)) {
+        high = observed;
+      }
+
       final deletedAtMillis = _asOrNull<int>(doc.data()['deletedAt']);
       if (deletedAtMillis == null) continue; // malformed marker -- skip it
       final deletedAt = DateTime.fromMillisecondsSinceEpoch(deletedAtMillis);
@@ -244,23 +380,57 @@ class SyncService {
         // The local edit is at least as new as (or exactly tied with -- see
         // `_pushTombstones`) the deletion, so IT wins and the day is
         // resurrected. Delete the remote marker so it stops resurfacing on
-        // every future sync.
+        // every future sync, then republish the day.
         await doc.reference.delete();
-        // Then stamp `updatedAt` to `now()` so `_pushLogs`'s OWN since-based
-        // gate (below, later in this same run) treats this row as freshly
-        // changed. Without this, if this exact row was already pushed in an
-        // EARLIER sync, its `updatedAt` already sits below THIS device's own
-        // `since` -- `_pushLogs` would see "nothing changed since my last
-        // push" and skip it, even though the remote copy was just destroyed
-        // by the peer's tombstone and must be recreated. The deleting
-        // device's own `lastSyncedAt` has already advanced past the moment
-        // of its delete, so only a push stamped newer than that will ever
-        // reach it again -- clock skew only widens this gap, it never closes
-        // it on its own.
-        await (_db.update(_db.dailyLogs)..where((t) => t.date.equals(date)))
-            .write(DailyLogsCompanion(updatedAt: Value(DateTime.now())));
+        await _restoreRemoteDay(local);
       }
     }
+    return high;
+  }
+
+  /// Republishes a day whose local row beat a peer's deletion marker.
+  ///
+  /// The remote document was destroyed by that peer's `_pushTombstones`, and
+  /// `_pushLogs`'s own since-based gate will not necessarily re-send it: if
+  /// this row was already pushed in an EARLIER run its `updatedAt` sits below
+  /// this device's `since`, so the ordinary push sees "nothing changed" and
+  /// skips it. The day would then survive locally but stay deleted for every
+  /// other device.
+  ///
+  /// It deliberately does NOT stamp `updatedAt = now()` to force that push.
+  /// `updatedAt` is the merge-decision field for every device: inflating it
+  /// makes this row look like the newest edit of the day when it is not.
+  /// Concretely -- A deletes at t1, C edits the same day at t2 > t1, this
+  /// device holds t3 with t1 < t3 < t2. Bumping to t4 = now > t2 makes
+  /// `_pullLogs` (later in this same run) keep the STALE local content and
+  /// `_pushLogs` re-push it over C's newer edit. Buying a push by falsifying
+  /// the timestamp destroys real data.
+  ///
+  /// Instead the day is republished directly, and the choice of what to
+  /// publish is routed through the SAME [decideMerge] every other path uses,
+  /// so a peer document that is genuinely newer wins here exactly as it would
+  /// anywhere else.
+  Future<void> _restoreRemoteDay(DailyLog local) async {
+    final docId = syncDocId(local.date);
+    final remoteData = (await _remoteLogs.doc(docId).get()).data();
+    final decision = decideMerge(
+      local: local.updatedAt,
+      remote: remoteData == null ? null : updatedAtFromMap(remoteData),
+    );
+    if (decision == MergeDecision.takeRemote) {
+      // A peer recreated the day with a newer edit than ours. Apply it
+      // directly rather than waiting for `_pullLogs`, whose cursor may
+      // already sit past that document.
+      await _applyRemoteLog(remoteData!);
+    } else if (decision == MergeDecision.keepLocal) {
+      // Either nothing is there (the common case: the peer's tombstone
+      // deleted it) or what is there is older than our row.
+      final map = dailyLogToMap(local, deviceId: deviceId);
+      map['syncedAt'] = FieldValue.serverTimestamp();
+      await _remoteLogs.doc(docId).set(map);
+    }
+    // `unchanged` -- an exact tie -- means the remote document already holds
+    // this same version of the day. Nothing to publish, nothing to apply.
   }
 
   Future<void> _pushLogs(DateTime? since) async {
@@ -295,27 +465,41 @@ class SyncService {
   /// `updatedAt` (the row's own last-edited time, which still decides who
   /// wins via `decideMerge` below -- this is only about which documents get
   /// fetched). A device that logs a day OFFLINE and only reconnects much
-  /// later stamps `updatedAt` in the past; a `since` cutoff compared against
-  /// that field would never match it once a peer's `since` has advanced past
-  /// that (long-past) moment -- the peer would never see the day, and would
-  /// never re-push its own copy either, since its own `updatedAt` sits below
-  /// its own `since` too. Offline-then-reconnect is a core scenario for this
-  /// app, not an edge case. `syncedAt` reflects when the write actually
-  /// reached the server, so it is always fresh relative to when the OTHER
-  /// device's `since` was captured, regardless of how old the edit itself is.
-  Future<void> _pullLogs(DateTime? since) async {
-    // Read only what changed since the last successful sync, not the whole
+  /// later stamps `updatedAt` in the past; a cutoff compared against that
+  /// field would never match it once a peer's cutoff has advanced past that
+  /// (long-past) moment -- the peer would never see the day, and would never
+  /// re-push its own copy either, since its own `updatedAt` sits below its own
+  /// `since` too. Offline-then-reconnect is a core scenario for this app, not
+  /// an edge case. `syncedAt` reflects when the write actually reached the
+  /// server, so it is always fresh relative to when the OTHER device last
+  /// pulled, regardless of how old the edit itself is.
+  ///
+  /// The cutoff is a server-derived cursor, never `lastSyncedAt` -- see
+  /// [_readPullCursors] -- and is inclusive, for the same reason
+  /// [_pullDeletions]'s is.
+  ///
+  /// Returns the cursor this collection should resume from next run.
+  Future<Timestamp?> _pullLogs(Timestamp? cursor) async {
+    // Read only what arrived since the last successful sync, not the whole
     // collection every run. A two-year user has ~700 days of history; this
     // project's stated thesis is $0 running cost, and Firestore bills per
     // document read. `decideMerge` below remains the correctness backstop
     // regardless -- this query is an optimisation, never a substitute for it
-    // (a first sync, `since == null`, still reads everything, correctly).
-    final snapshot = since == null
+    // (a first sync, `cursor == null`, still reads everything, correctly).
+    final snapshot = cursor == null
         ? await _remoteLogs.get()
-        : await _remoteLogs.where('syncedAt', isGreaterThan: since).get();
+        : await _remoteLogs
+            .where('syncedAt', isGreaterThanOrEqualTo: cursor)
+            .get();
+    var high = cursor;
     for (final doc in snapshot.docs) {
+      final observed = await _observedSyncedAt(doc);
+      if (observed != null && (high == null || observed.compareTo(high) > 0)) {
+        high = observed;
+      }
       await _applyRemoteLog(doc.data());
     }
+    return high;
   }
 
   /// Merges ONE remote day document into the local database, last-write-wins.
@@ -334,36 +518,52 @@ class SyncService {
   /// bad document costs one day, not the whole sync. `sync_mapper.dart` itself
   /// is intentionally not modified; this wraps the call instead. Nothing about
   /// the document is logged -- its content is menstrual-health data.
+  ///
+  /// The guard covers the DECODE ONLY, never the database write, and the
+  /// distinction is the difference between losing one malformed document and
+  /// losing a good day forever. `CheckInWriter` opens a SECOND connection to
+  /// the encrypted database from a background isolate, so a drift write here
+  /// can fail on a lock held past `busy_timeout`. Swallowing that would let
+  /// the run complete, advance `lastSyncedAt` and the pull cursors past a
+  /// document that was never applied, and never fetch it again -- silent,
+  /// permanent local data loss. Letting it propagate aborts the run with
+  /// nothing committed, so the next run retries the same window: the
+  /// self-healing outcome.
   Future<void> _applyRemoteLog(Map<String, dynamic> data) async {
+    final ({DateTime? updatedAt, DailyLogsCompanion companion}) decoded;
     try {
-      final remoteUpdated = updatedAtFromMap(data);
-      final companion = dailyLogFromMap(data);
-      final local = await _logs.getForDate(companion.date.value);
-
-      final decision = decideMerge(
-        local: local?.updatedAt,
-        remote: remoteUpdated,
+      decoded = (
+        updatedAt: updatedAtFromMap(data),
+        companion: dailyLogFromMap(data),
       );
-      if (decision != MergeDecision.takeRemote) return;
-
-      // Not `insertOnConflictUpdate`: it resolves conflicts on the PRIMARY
-      // KEY (`id`), but `DailyLogs`' real uniqueness constraint is `date`.
-      // A companion built from a remote doc never carries the local `id`,
-      // so an insert-on-conflict(id) attempt against an existing same-date
-      // row hits the `date` UNIQUE constraint uncaught. Mirror
-      // `DailyLogRepository.upsert()`'s own explicit-existence-check
-      // pattern instead — but keep the remote's real `updatedAt` (rather
-      // than stamping `DateTime.now()`, which is what that helper does),
-      // since the merge algorithm depends on the pulled row's timestamp
-      // being the remote's own.
-      if (local == null) {
-        await _db.into(_db.dailyLogs).insert(companion);
-      } else {
-        await (_db.update(_db.dailyLogs)..where((t) => t.id.equals(local.id)))
-            .write(companion);
-      }
     } catch (_) {
-      return;
+      return; // malformed document -- costs this one day, not the whole run
+    }
+
+    final companion = decoded.companion;
+    final local = await _logs.getForDate(companion.date.value);
+
+    final decision = decideMerge(
+      local: local?.updatedAt,
+      remote: decoded.updatedAt,
+    );
+    if (decision != MergeDecision.takeRemote) return;
+
+    // Not `insertOnConflictUpdate`: it resolves conflicts on the PRIMARY
+    // KEY (`id`), but `DailyLogs`' real uniqueness constraint is `date`.
+    // A companion built from a remote doc never carries the local `id`,
+    // so an insert-on-conflict(id) attempt against an existing same-date
+    // row hits the `date` UNIQUE constraint uncaught. Mirror
+    // `DailyLogRepository.upsert()`'s own explicit-existence-check
+    // pattern instead — but keep the remote's real `updatedAt` (rather
+    // than stamping `DateTime.now()`, which is what that helper does),
+    // since the merge algorithm depends on the pulled row's timestamp
+    // being the remote's own.
+    if (local == null) {
+      await _db.into(_db.dailyLogs).insert(companion);
+    } else {
+      await (_db.update(_db.dailyLogs)..where((t) => t.id.equals(local.id)))
+          .write(companion);
     }
   }
 
@@ -403,7 +603,9 @@ class SyncService {
     });
   }
 
-  Future<void> _pullSettings(DateTime? since) async {
+  /// Takes no cutoff: this is a single-document `get()`, not a collection
+  /// query, so there is nothing to scope. `decideMerge` decides the outcome.
+  Future<void> _pullSettings() async {
     final doc = await _remoteSettings.get();
     final data = doc.data();
     if (data == null) return;
