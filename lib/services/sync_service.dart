@@ -40,17 +40,31 @@ class SyncService {
   DocumentReference<Map<String, dynamic>> get _remoteSettings =>
       _firestore.doc('users/$uid/settings/current');
 
+  /// Deletion markers, keyed by the same `syncDocId` scheme as `dailyLogs`.
+  /// The pull side of a sync only ever iterates documents that EXIST -- a
+  /// document's absence is never observed by another device. Deleting
+  /// `dailyLogs/{date}` alone therefore never reaches another device: it
+  /// would keep its own stale copy of that day forever, and would never
+  /// re-push it back either (its `updatedAt` sits below its `since`, so
+  /// `_pushLogs` skips it too). This collection makes the deletion itself an
+  /// observable, positive fact another device's pull can act on.
+  CollectionReference<Map<String, dynamic>> get _remoteDeletions =>
+      _firestore.collection('users/$uid/deletions');
+
   /// Runs one full push + pull cycle.
   ///
-  /// Ordering invariant — **tombstones, then pull, then push** — for both logs
-  /// and settings. `_pushLogs`/`_pushSettings` write with a blind `.set()`,
-  /// with no comparison against the remote's CURRENT value. If push ran
-  /// first, a stale local copy would overwrite a document another device
-  /// wrote more recently — moments before pull ever gets a chance to compare
-  /// timestamps — destroying that newer remote change. Pulling first lets
-  /// last-write-wins resolve locally; the push that follows re-sends the
-  /// already-merged row, which is a harmless idempotent write, not a
-  /// clobber. Do not reorder this without re-reading the git history on this
+  /// Ordering invariant — **tombstones, then pull deletions, then pull logs,
+  /// then push logs, then pull/push settings**. `_pushLogs`/`_pushSettings`
+  /// write with a blind `.set()`, with no comparison against the remote's
+  /// CURRENT value. If push ran first, a stale local copy would overwrite a
+  /// document another device wrote more recently — moments before pull ever
+  /// gets a chance to compare timestamps — destroying that newer remote
+  /// change. Pulling first lets last-write-wins resolve locally; the push
+  /// that follows re-sends the already-merged row, which is a harmless
+  /// idempotent write, not a clobber. Deletion markers are pulled before
+  /// logs for the same reason tombstones are pushed first: applying a
+  /// deletion before the day it targets is pulled avoids briefly resurrecting
+  /// it. Do not reorder this without re-reading the git history on this
   /// line — it has broken twice.
   ///
   /// `lastSyncedAt` advances ONLY on full success, so a partial failure simply
@@ -75,6 +89,7 @@ class SyncService {
       final startedAt = DateTime.now();
       final since = (await _settings.get()).lastSyncedAt;
       await _pushTombstones();
+      await _pullDeletions(since);
       await _pullLogs(since);
       await _pushLogs(since);
       await _pullSettings(since);
@@ -105,6 +120,8 @@ class SyncService {
   /// Blindly deleting would let an offline device's stale tombstone destroy
   /// a genuinely newer remote edit once it reconnects.
   Future<void> _pushTombstones() async {
+    await _pruneOldDeletionMarkers();
+
     for (final t in await _logs.getTombstones()) {
       final remoteDoc = await _remoteLogs.doc(syncDocId(t.date)).get();
       final remoteData = remoteDoc.data();
@@ -115,13 +132,82 @@ class SyncService {
         // The remote edit is newer than our deletion: leave the remote doc
         // alone and clear the tombstone so we stop trying to delete it. The
         // pull that follows sees a remote doc with no matching local row and
-        // takes it, bringing the day back locally -- the correct outcome.
+        // takes it, bringing the day back locally -- the correct outcome. No
+        // deletion marker is written in this branch: the deletion lost, so
+        // there is nothing to tell other devices to delete.
         await _logs.clearTombstone(t.date);
         continue;
       }
 
-      await _remoteLogs.doc(syncDocId(t.date)).delete();
+      final docId = syncDocId(t.date);
+      await _remoteLogs.doc(docId).delete();
+      // Record the deletion itself so other devices' pulls can observe it --
+      // see the doc comment on `_remoteDeletions`.
+      await _remoteDeletions.doc(docId).set({
+        'date': docId,
+        'deletedAt': t.deletedAt.millisecondsSinceEpoch,
+      });
       await _logs.clearTombstone(t.date);
+    }
+  }
+
+  /// Deletion markers accumulate without bound otherwise. 180 days is a
+  /// trade-off, not a correctness requirement: a device that stays offline
+  /// for LONGER than this will not see a day another device deleted come
+  /// back missing on it -- it simply keeps its own (by-then-stale) copy and
+  /// re-pushes it, silently resurrecting the day remotely. That is judged an
+  /// acceptable, rare edge case against the alternative of `deletions`
+  /// growing forever for every active user.
+  static const _deletionMarkerRetention = Duration(days: 180);
+
+  Future<void> _pruneOldDeletionMarkers() async {
+    final cutoff = DateTime.now().subtract(_deletionMarkerRetention);
+    final stale = await _remoteDeletions
+        .where('deletedAt', isLessThan: cutoff.millisecondsSinceEpoch)
+        .get();
+    for (final doc in stale.docs) {
+      await doc.reference.delete();
+    }
+  }
+
+  /// Applies remote deletion markers written by another device's
+  /// `_pushTombstones`. Runs BEFORE `_pullLogs` in [syncNow] so a day already
+  /// known to be deleted never round-trips through the log pull first.
+  Future<void> _pullDeletions(DateTime? since) async {
+    final snapshot = since == null
+        ? await _remoteDeletions.get()
+        : await _remoteDeletions
+            .where('deletedAt', isGreaterThan: since.millisecondsSinceEpoch)
+            .get();
+
+    for (final doc in snapshot.docs) {
+      final deletedAtMillis = _asOrNull<int>(doc.data()['deletedAt']);
+      if (deletedAtMillis == null) continue; // malformed marker -- skip it
+      final deletedAt = DateTime.fromMillisecondsSinceEpoch(deletedAtMillis);
+
+      final date = _parseSyncDocId(doc.id);
+      if (date == null) continue; // malformed doc id -- skip it
+
+      final local = await _logs.getForDate(date);
+      if (local == null) continue; // nothing to do
+
+      if (local.updatedAt.isBefore(deletedAt)) {
+        // The deletion wins. Delete the local row DIRECTLY against the drift
+        // table -- deliberately NOT `DailyLogRepository.deleteForDate`, which
+        // records a local tombstone by design. Routing through it here would
+        // manufacture a fresh tombstone for every pulled deletion, which
+        // `_pushTombstones` would then push right back out as a marker on
+        // every device, forever: this direct delete is the loop guard.
+        await (_db.delete(_db.dailyLogs)..where((t) => t.date.equals(date)))
+            .go();
+      } else {
+        // The local edit is at least as new as the deletion, so IT wins and
+        // the day is resurrected. Leave the local row alone and delete the
+        // remote marker so it stops resurfacing on every future sync -- the
+        // push that follows later in this same syncNow() re-creates the
+        // remote day from the surviving local row.
+        await doc.reference.delete();
+      }
     }
   }
 
@@ -276,4 +362,16 @@ class SyncService {
   /// missing or a different type. See the defensive-cast note in
   /// [_pullSettings].
   T? _asOrNull<T>(Object? value) => value is T ? value : null;
+
+  /// Parses a `syncDocId`-formatted id (`YYYY-MM-DD`) back into a [DateTime],
+  /// returning `null` instead of throwing on a malformed id.
+  DateTime? _parseSyncDocId(String id) {
+    final parts = id.split('-');
+    if (parts.length != 3) return null;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+    if (year == null || month == null || day == null) return null;
+    return DateTime(year, month, day);
+  }
 }
