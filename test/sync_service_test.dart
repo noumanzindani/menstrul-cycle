@@ -65,6 +65,13 @@ void main() {
     expect(local, isNotNull);
     expect(local!.flow, FlowIntensity.light);
     expect(local.symptoms, '{"headache":true}');
+    // The pulled row must carry the REMOTE's own updatedAt, not a fresh
+    // `DateTime.now()` stamped at pull time. If it didn't, every pulled day
+    // would look locally-newer on the next sync and ping-pong between
+    // devices forever -- this is the single most load-bearing property in
+    // the file, and reverting `dailyLogFromMap`'s timestamp handling to
+    // `DateTime.now()` would pass every other assertion in this suite.
+    expect(local.updatedAt, DateTime(2026, 8, 9, 10));
   });
 
   test('a newer remote overwrites the local row', () async {
@@ -110,6 +117,49 @@ void main() {
     await sync.syncNow();
 
     expect(await remoteDay('2026-08-12'), isNull);
+    expect(await logs.getTombstones(), isEmpty);
+  });
+
+  test('a remote edit newer than the deletion survives and returns locally',
+      () async {
+    final day = DateTime(2026, 8, 20);
+    await logs.upsert(date: day, flow: FlowIntensity.medium, symptomsJson: '{}');
+    await sync.syncNow(); // pushes the day so a remote copy exists
+
+    await logs.deleteForDate(day); // local delete + tombstone, deletedAt ~ now
+
+    // Another device edits the SAME day after our deletion.
+    await firestore.collection('users/uid-1/dailyLogs').doc('2026-08-20').set({
+      'date': '2026-08-20',
+      'flow': FlowIntensity.heavy.index,
+      'symptoms': <String, dynamic>{},
+      'updatedAt':
+          DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+    });
+
+    await sync.syncNow();
+
+    // Whole-day last-write-wins: the remote edit is newer than the
+    // deletion, so it wins -- the doc must NOT be deleted remotely, and the
+    // day must come back locally via the normal pull.
+    expect(await remoteDay('2026-08-20'), isNotNull);
+    final local = await logs.getForDate(day);
+    expect(local, isNotNull);
+    expect(local!.flow, FlowIntensity.heavy);
+    expect(await logs.getTombstones(), isEmpty);
+  });
+
+  test('a deletion newer than the remote edit deletes the remote day',
+      () async {
+    final day = DateTime(2026, 8, 21);
+    await logs.upsert(date: day, flow: FlowIntensity.medium, symptomsJson: '{}');
+    await sync.syncNow(); // remote doc's updatedAt is from this push
+
+    await logs.deleteForDate(day); // deletedAt is AFTER the remote doc's updatedAt
+    await sync.syncNow();
+
+    expect(await remoteDay('2026-08-21'), isNull);
+    expect(await logs.getForDate(day), isNull);
     expect(await logs.getTombstones(), isEmpty);
   });
 
@@ -263,6 +313,43 @@ void main() {
     // did not simply invert the bug so that local changes are the ones lost.
     final doc = await firestore.doc('users/uid-1/settings/current').get();
     expect(doc.data()!['defaultCycleLength'], 19);
+  });
+
+  test('a settings pull with missing/malformed fields applies what it can '
+      'and does not abort sync', () async {
+    final settings = SettingsRepository(db);
+    await firestore.doc('users/uid-1/settings/current').set({
+      // 'mode' is missing entirely.
+      'defaultCycleLength': 35, // present and well-typed.
+      // 'defaultPeriodLength' is missing entirely.
+      'themeMode': 'dark', // present and well-typed.
+      'language': 12345, // present but the WRONG type (should be a String).
+      'genderNeutralLanguage': true, // present and well-typed.
+      'pregnancyStartDate': null,
+      'trackingCategories': null,
+      'weightUnit': 'kg',
+      'updatedAt':
+          DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+    });
+
+    // Must complete without throwing -- a plain `as int`/`as String` cast on
+    // a missing or malformed field would abort syncNow() here, and every
+    // subsequent run, since lastSyncedAt would never advance to move past it.
+    await sync.syncNow();
+
+    final local = await settings.get();
+    // Present, well-typed fields are applied.
+    expect(local.defaultCycleLength, 35);
+    expect(local.themeMode, 'dark');
+    expect(local.genderNeutralLanguage, isTrue);
+    expect(local.weightUnit, 'kg');
+    // Missing or malformed fields leave the column at its existing
+    // (default, since this is a fresh row) value instead of throwing.
+    expect(local.mode, TrackingMode.track);
+    expect(local.defaultPeriodLength, 5);
+    expect(local.language, 'en');
+    // Sync completed and advanced the high-water mark -- it did not wedge.
+    expect(local.lastSyncedAt, isNotNull);
   });
 
   test('signing out does not wipe local data', () async {
