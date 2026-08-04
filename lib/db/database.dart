@@ -62,9 +62,13 @@ class AppDatabase extends _$AppDatabase {
         },
       );
 
-  /// Wipes ALL user data and resets settings to defaults. Used by the
-  /// in-app "delete all my data" control (no accounts, so this is the full
-  /// right-to-erasure path).
+  /// Wipes all LOCAL user data and resets settings to defaults.
+  ///
+  /// This is NOT the full right-to-erasure path any more — logs also live in
+  /// Firestore under `users/{uid}`. Erasure means
+  /// `AccountDeletionService.deleteFirestoreData()` AND this. The in-app
+  /// "delete all my data" control clears the device; "Delete account"
+  /// (Settings → Account) does both.
   Future<void> deleteAllData() async {
     await transaction(() async {
       await delete(dailyLogs).go();
@@ -72,6 +76,17 @@ class AppDatabase extends _$AppDatabase {
       await delete(reminders).go();
       await delete(medications).go();
       await delete(appSettings).go();
+      // A pending tombstone is a not-yet-pushed deletion intent for a day
+      // that no longer exists locally. Leaving it here means the NEXT
+      // account signed into on this device (a fresh account after "delete
+      // account", or simply signing in as someone else) would push a bogus
+      // deletion marker under ITS OWN Firestore path the moment sync first
+      // runs — a stale local record leaking into an account that never
+      // tracked that day. This wipe also resets `lastSyncedAt`/
+      // `settingsUpdatedAt` to null via the fresh `appSettings` row below,
+      // which is what makes "delete account" not leave a stale sync
+      // high-water mark behind either.
+      await delete(syncTombstones).go();
       await into(appSettings).insert(const AppSettingsCompanion(id: Value(0)));
     });
   }
