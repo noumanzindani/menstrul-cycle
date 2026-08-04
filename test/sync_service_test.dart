@@ -1,6 +1,7 @@
 // `show Value` avoids drift's Column/Table names colliding with flutter_test.
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/data/daily_log_repository.dart';
@@ -33,6 +34,33 @@ void main() {
     final doc =
         await firestore.collection('users/uid-1/dailyLogs').doc(id).get();
     return doc.data();
+  }
+
+  /// Directly forces a just-created tombstone's `deletedAt` to be
+  /// unambiguously after "now" -- and therefore after whatever `updatedAt`
+  /// an earlier `sync.syncNow()` push wrote to the remote doc in the SAME
+  /// test. This sidesteps this environment's tendency to tie a whole
+  /// multi-step async chain (upsert -> sync -> delete) to the SAME
+  /// millisecond, which would otherwise make the deletion LOSE to fix round
+  /// 3's Finding 3 tie-break (an exact tie now keeps the remote/local edit,
+  /// matching `_pullDeletions`'s own tie-break -- see the tie tests above).
+  ///
+  /// Returns the value as it is actually PERSISTED, read back from drift --
+  /// not the in-memory `DateTime` that was written. Drift stores `DateTime`
+  /// columns as whole unix SECONDS (this database does not set
+  /// `storeDateTimeValuesAsText`), so sub-second precision is dropped at the
+  /// storage boundary. The tombstone's real `deletedAt` -- the value the
+  /// merge decision is made against, and the value `_pushTombstones` must
+  /// write into the deletion marker -- is therefore the second-resolution one
+  /// that comes back out of the table, and that is what callers must assert
+  /// against.
+  Future<DateTime> forceTombstoneWins(DateTime day) async {
+    final forced = DateTime.now().add(const Duration(hours: 1));
+    await (db.update(db.syncTombstones)..where((t) => t.date.equals(day)))
+        .write(SyncTombstonesCompanion(deletedAt: Value(forced)));
+    final stored =
+        (await logs.getTombstones()).firstWhere((t) => t.date == day);
+    return stored.deletedAt;
   }
 
   test('pushes a local day to users/{uid}/dailyLogs/{date}', () async {
@@ -106,6 +134,153 @@ void main() {
     expect((await logs.getForDate(day))!.flow, FlowIntensity.light);
   });
 
+  test(
+      'a document synced recently is still pulled even though its updatedAt '
+      'is old (offline-then-reconnect)', () async {
+    // A device can log (or delete) something OFFLINE, stamping `updatedAt`
+    // with whatever the clock read at that moment, and only reconnect and
+    // push much later. A peer's `since` -- captured from ITS OWN last sync,
+    // which may well have happened AFTER that old `updatedAt` but BEFORE
+    // this device finally reconnected -- must still see the write:
+    // filtering the query on `updatedAt` would exclude it forever, since
+    // `since` only ever advances. Offline-then-reconnect is a core scenario
+    // for this app, not an edge case.
+    final since = DateTime.now().subtract(const Duration(days: 1));
+    await SettingsRepository(db).updateSyncState(
+      AppSettingsCompanion(lastSyncedAt: Value(since)),
+    );
+
+    await firestore.collection('users/uid-1/dailyLogs').doc('2026-01-01').set({
+      'date': '2026-01-01',
+      'flow': FlowIntensity.medium.index,
+      'symptoms': <String, dynamic>{},
+      'updatedAt': DateTime(2020, 1, 1).millisecondsSinceEpoch, // far in the past
+      'syncedAt': Timestamp.fromDate(DateTime.now()), // written just now
+    });
+
+    await sync.syncNow();
+
+    expect(await logs.getForDate(DateTime(2026, 1, 1)), isNotNull);
+  });
+
+  test('one malformed remote day does not abort the pull of the others',
+      () async {
+    // `sync_mapper.dart`'s decoders throw rather than return null on a bad
+    // shape (`dailyLogFromMap` splits and parses `date` directly). A single
+    // bad document -- a partial write, a hand-edited console value, a field a
+    // future app version wrote differently -- must cost ONE day, not the
+    // whole run: an uncaught throw here aborts `syncNow()` before
+    // `lastSyncedAt` advances, so every subsequent sync re-reads the same bad
+    // document and dies at the same place, wedging sync permanently.
+    await firestore.collection('users/uid-1/dailyLogs').doc('bad-doc').set({
+      'date': 'not-a-date',
+      'flow': FlowIntensity.heavy.index,
+      'symptoms': <String, dynamic>{},
+      'updatedAt': DateTime(2026, 8, 31).millisecondsSinceEpoch,
+    });
+    await firestore.collection('users/uid-1/dailyLogs').doc('2026-08-31').set({
+      'date': '2026-08-31',
+      'flow': FlowIntensity.light.index,
+      'symptoms': <String, dynamic>{},
+      'updatedAt': DateTime(2026, 8, 31).millisecondsSinceEpoch,
+    });
+
+    await sync.syncNow();
+
+    // The good day landed...
+    expect(await logs.getForDate(DateTime(2026, 8, 31)), isNotNull);
+    // ...and the run completed rather than wedging on the bad one.
+    expect((await SettingsRepository(db).get()).lastSyncedAt, isNotNull);
+  });
+
+  test(
+      '_pushTombstones writes the tombstone\'s real deletedAt into the '
+      'marker', () async {
+    final day = DateTime(2026, 8, 30);
+    await logs.upsert(date: day, flow: FlowIntensity.medium, symptomsJson: '{}');
+    await sync.syncNow();
+
+    await logs.deleteForDate(day);
+    // Force (and capture) the tombstone's ACTUAL deletedAt -- see
+    // `forceTombstoneWins` -- so the deletion definitely wins.
+    final forcedDeletedAt = await forceTombstoneWins(day);
+
+    await sync.syncNow();
+
+    final markerDoc = await firestore
+        .collection('users/uid-1/deletions')
+        .doc('2026-08-30')
+        .get();
+    // Deliberately does not go through `bumpMarkerForward` (which overwrites
+    // the value AFTER the fact) -- this asserts the value `_pushTombstones`
+    // itself wrote from the tombstone, proving more than just "some marker
+    // exists". The expectation is the tombstone's PERSISTED `deletedAt` (see
+    // `forceTombstoneWins`): drift stores DateTimes at whole-second
+    // resolution, so that -- not the pre-write in-memory value -- is the
+    // tombstone's real `deletedAt`, and it must reach the marker unchanged
+    // because every merge decision on the pull side is made against it.
+    expect(markerDoc.data()!['deletedAt'], forcedDeletedAt.millisecondsSinceEpoch);
+    // And it is the tombstone's own field, NOT the server-stamped `syncedAt`
+    // (which is a Timestamp, and answers a different question: when the write
+    // reached the server, used only to scope peers' pull queries).
+    expect(markerDoc.data()!['syncedAt'], isA<Timestamp>());
+  });
+
+  test('an exact tie between a tombstone and a remote edit keeps the remote day',
+      () async {
+    final day = DateTime(2026, 9, 1);
+    await logs.upsert(date: day, flow: FlowIntensity.medium, symptomsJson: '{}');
+    await sync.syncNow();
+
+    final remoteBefore = await remoteDay('2026-09-01');
+    final tiedAt =
+        DateTime.fromMillisecondsSinceEpoch(remoteBefore!['updatedAt'] as int);
+
+    // Simulate a LOCAL deletion whose tombstone.deletedAt is EXACTLY tied
+    // with the remote doc's updatedAt -- a genuine, reachable tie (this
+    // file's own suite has hit same-millisecond timestamps in practice),
+    // constructed directly since `DailyLogRepository.deleteForDate` cannot
+    // be handed an explicit timestamp.
+    await logs.deleteForDate(day);
+    await (db.update(db.syncTombstones)..where((t) => t.date.equals(day)))
+        .write(SyncTombstonesCompanion(deletedAt: Value(tiedAt)));
+
+    await sync.syncNow();
+
+    // The tie resolves the SAME way `_pullDeletions` resolves an exact
+    // `local.updatedAt == deletedAt` tie (see the test below): the edit
+    // wins, not the deletion. `_pushTombstones` used to disagree (`isAfter`
+    // gave a tie to the deletion); this is the fix.
+    expect(await remoteDay('2026-09-01'), isNotNull);
+    expect(await logs.getForDate(day), isNotNull);
+    expect(await logs.getTombstones(), isEmpty);
+  });
+
+  test(
+      'an exact tie between a local row and a deletion marker keeps the '
+      'local row', () async {
+    final day = DateTime(2026, 9, 2);
+    await logs.upsert(date: day, flow: FlowIntensity.medium, symptomsJson: '{}');
+    await sync.syncNow();
+
+    final local = await logs.getForDate(day);
+    final tiedAt = local!.updatedAt;
+
+    // The mirror-image of the push-side tie test above: a marker whose
+    // deletedAt is EXACTLY tied with the local row's own updatedAt. Both
+    // paths must resolve an exact tie the SAME way.
+    await firestore.collection('users/uid-1/deletions').doc('2026-09-02').set({
+      'date': '2026-09-02',
+      'deletedAt': tiedAt.millisecondsSinceEpoch,
+      'syncedAt':
+          Timestamp.fromDate(DateTime.now().add(const Duration(hours: 1))),
+    });
+
+    await sync.syncNow();
+
+    expect(await logs.getForDate(day), isNotNull);
+  });
+
   test('a deleted day is removed remotely and the tombstone is cleared',
       () async {
     final day = DateTime(2026, 8, 12);
@@ -114,6 +289,7 @@ void main() {
     expect(await remoteDay('2026-08-12'), isNotNull);
 
     await logs.deleteForDate(day);
+    await forceTombstoneWins(day); // see forceTombstoneWins's doc comment
     await sync.syncNow();
 
     expect(await remoteDay('2026-08-12'), isNull);
@@ -156,6 +332,7 @@ void main() {
     await sync.syncNow(); // remote doc's updatedAt is from this push
 
     await logs.deleteForDate(day); // deletedAt is AFTER the remote doc's updatedAt
+    await forceTombstoneWins(day); // see forceTombstoneWins's doc comment
     await sync.syncNow();
 
     expect(await remoteDay('2026-08-21'), isNull);
@@ -168,6 +345,7 @@ void main() {
     await logs.upsert(date: day, flow: FlowIntensity.medium, symptomsJson: '{}');
     await sync.syncNow();
     await logs.deleteForDate(day);
+    await forceTombstoneWins(day); // see forceTombstoneWins's doc comment
     await sync.syncNow();
 
     await sync.syncNow(); // a second pull must not bring it back
@@ -187,6 +365,75 @@ void main() {
     await sync.syncNow();
 
     expect((await settings.get()).lastSyncedAt, isNotNull);
+  });
+
+  test(
+      'a write landing during a run is still pushed on the next sync '
+      '(lastSyncedAt is stamped at the run\'s START, not its end)', () async {
+    // A genuinely concurrent write landing WHILE syncNow() executes isn't
+    // stageable in this environment: fake Firestore and drift both run
+    // synchronously within the test's single execution context, with no
+    // real threads. Falling back to the documented alternative: construct a
+    // row whose updatedAt falls strictly after a completed run's OWN
+    // startedAt -- exactly the position a write landing DURING that run
+    // would occupy -- and assert the FOLLOWING run still pushes it.
+    await sync.syncNow(); // establishes an initial lastSyncedAt
+
+    final runStart = (await SettingsRepository(db).get()).lastSyncedAt!;
+
+    final day = DateTime(2026, 8, 29);
+    // Direct drift insert (not `logs.upsert()`, whose internal
+    // `DateTime.now()` this test needs independence from) with `updatedAt`
+    // fixed at a value strictly after `runStart` -- exactly the position a
+    // write landing DURING that run would occupy. If `lastSyncedAt` had
+    // instead been stamped with a `DateTime.now()` taken AFTER the run
+    // finished (the bug this guards against), this row's updatedAt could
+    // sit BELOW that later stamp and get skipped by `_pushLogs` forever.
+    await db.into(db.dailyLogs).insert(DailyLogsCompanion.insert(
+          date: day,
+          flow: const Value(FlowIntensity.heavy),
+          updatedAt: Value(runStart.add(const Duration(hours: 1))),
+        ));
+
+    await sync.syncNow(); // must push it, not skip it
+
+    final remote = await remoteDay('2026-08-29');
+    expect(remote, isNotNull);
+    expect(remote!['flow'], FlowIntensity.heavy.index);
+  });
+
+  test(
+      'a row whose updatedAt ties exactly with lastSyncedAt is still pushed '
+      '(drift stores DateTimes at whole-second resolution)', () async {
+    // Drift persists `DateTime` columns as whole unix SECONDS, so BOTH
+    // `lastSyncedAt` and a row's `updatedAt` come back out of the database
+    // truncated to the second. Every edit made in the same second the sync
+    // run started therefore reads back EXACTLY EQUAL to `since` -- not
+    // merely close to it. A strictly-greater push gate (`!isAfter(since)` ->
+    // skip) drops those rows, and because `lastSyncedAt` only ever advances,
+    // it drops them PERMANENTLY: the row is never pushed again, and if
+    // another device later writes that day, the pull destroys the local edit
+    // outright. Same failure mode as the `startedAt` fix, reached through
+    // storage resolution rather than through a post-run clock read.
+    //
+    // The tie is constructed from the stored value itself rather than by
+    // racing the clock, so this is deterministic rather than
+    // timing-dependent.
+    await sync.syncNow(); // establishes lastSyncedAt
+    final since = (await SettingsRepository(db).get()).lastSyncedAt!;
+
+    final day = DateTime(2026, 9, 3);
+    await db.into(db.dailyLogs).insert(DailyLogsCompanion.insert(
+          date: day,
+          flow: const Value(FlowIntensity.heavy),
+          updatedAt: Value(since), // the exact tie
+        ));
+
+    await sync.syncNow();
+
+    final remote = await remoteDay('2026-09-03');
+    expect(remote, isNotNull);
+    expect(remote!['flow'], FlowIntensity.heavy.index);
   });
 
   test('one user cannot see another user\'s collection path', () async {
@@ -387,15 +634,20 @@ void main() {
     // (`since` only ever advances). So, exactly like the rest of this file
     // already does for "definitely newer"/"definitely older" remote writes
     // (e.g. `DateTime.now().add(const Duration(hours: 1))`), the marker's
-    // `deletedAt` is forced to an EXPLICIT offset after it's written via the
+    // fields are forced to an EXPLICIT offset after it's written via the
     // real push flow, rather than trusted to already be correctly ordered.
+    // Both `deletedAt` (the merge-decision field) and `syncedAt` (the
+    // query-scoping field, since the fix-round-3 `syncedAt` change) are
+    // bumped, since a test using this helper wants the marker to both WIN
+    // the merge decision and be FOUND by the pull query.
     Future<void> bumpMarkerForward(String docId) async {
       final ref = firestore.collection('users/uid-1/deletions').doc(docId);
       final marker = (await ref.get()).data()!;
+      final forward = DateTime.now().add(const Duration(hours: 1));
       await ref.set({
         ...marker,
-        'deletedAt':
-            DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+        'deletedAt': forward.millisecondsSinceEpoch,
+        'syncedAt': Timestamp.fromDate(forward),
       });
     }
 
@@ -408,6 +660,7 @@ void main() {
       expect(await logsB.getForDate(day), isNotNull);
 
       await logs.deleteForDate(day); // A deletes locally
+      await forceTombstoneWins(day); // see forceTombstoneWins's doc comment
       await sync.syncNow(); // A pushes the tombstone -> writes a deletion marker
       // Force the marker unambiguously ahead of B's local row and its
       // `since` cutoff -- see the comment on `bumpMarkerForward`.
@@ -429,30 +682,41 @@ void main() {
       expect(pulled, isNotNull);
 
       await logs.deleteForDate(day); // A deletes...
+      await forceTombstoneWins(day); // see forceTombstoneWins's doc comment
       await sync.syncNow(); // ...and pushes the marker.
 
-      // Place the marker strictly BETWEEN B's `since` (captured moments ago,
-      // during B's first sync above) and the local edit that follows -- by
-      // deriving it from B's own recorded `since` rather than a fresh
-      // `DateTime.now()`, this is ordered correctly regardless of how the
-      // sandboxed clock behaves.
+      // `deletedAt` (the merge-decision field) and `syncedAt` (the
+      // query-scoping field) are independent since fix round 3, so each is
+      // placed deterministically relative to B's own recorded `since`
+      // without needing them to agree with each other:
+      //  - `syncedAt` must be strictly AFTER `sinceB`, or B's pull query
+      //    would never even fetch this marker.
+      //  - `deletedAt` must be strictly BEFORE B's upcoming local edit, or
+      //    the deletion would win the merge decision instead of the edit.
+      // Deriving both from B's own recorded `since` (rather than a fresh
+      // `DateTime.now()`) keeps this ordered correctly regardless of how
+      // the sandboxed clock behaves.
       final sinceB = (await SettingsRepository(dbB).get()).lastSyncedAt!;
+      final markerSyncedAt = sinceB.add(const Duration(hours: 1));
       final markerDeletedAt = sinceB.add(const Duration(minutes: 30));
       final markerRef =
           firestore.collection('users/uid-1/deletions').doc('2026-08-26');
       final marker = (await markerRef.get()).data()!;
-      await markerRef
-          .set({...marker, 'deletedAt': markerDeletedAt.millisecondsSinceEpoch});
+      await markerRef.set({
+        ...marker,
+        'deletedAt': markerDeletedAt.millisecondsSinceEpoch,
+        'syncedAt': Timestamp.fromDate(markerSyncedAt),
+      });
 
-      // B's edit is explicitly newer than the marker -- written directly
-      // against drift (not through `logsB.upsert()`, whose internal
+      // B's edit is explicitly newer than the marker's `deletedAt` -- written
+      // directly against drift (not through `logsB.upsert()`, whose internal
       // `DateTime.now()` is exactly the value this whole test works around)
       // so the "local edit is newer" side of this scenario is as
       // deterministic as the marker side above.
       await (dbB.update(dbB.dailyLogs)..where((t) => t.id.equals(pulled!.id)))
           .write(DailyLogsCompanion(
         flow: const Value(FlowIntensity.heavy),
-        updatedAt: Value(markerDeletedAt.add(const Duration(minutes: 30))),
+        updatedAt: Value(markerDeletedAt.add(const Duration(minutes: 15))),
       ));
 
       await syncB.syncNow();
@@ -479,6 +743,7 @@ void main() {
       await syncB.syncNow();
 
       await logs.deleteForDate(day);
+      await forceTombstoneWins(day); // see forceTombstoneWins's doc comment
       await sync.syncNow();
       await bumpMarkerForward('2026-08-27');
 
@@ -495,23 +760,24 @@ void main() {
     test(
         'a deletion marker older than the retention cutoff is pruned; a '
         'recent one is not', () async {
-      final oldMillis = DateTime.now()
-          .subtract(const Duration(days: 181))
-          .millisecondsSinceEpoch;
-      final recentMillis = DateTime.now()
-          .subtract(const Duration(days: 10))
-          .millisecondsSinceEpoch;
+      // Pruning keys off `syncedAt` (fix round 3, Finding 4), not
+      // `deletedAt` -- a foreign device's own clock is not trustworthy for
+      // this device's retention cutoff, but the server-stamped write time is.
+      final old = DateTime.now().subtract(const Duration(days: 181));
+      final recent = DateTime.now().subtract(const Duration(days: 10));
 
       await firestore.collection('users/uid-1/deletions').doc('2026-01-01').set({
         'date': '2026-01-01',
-        'deletedAt': oldMillis,
+        'deletedAt': old.millisecondsSinceEpoch,
+        'syncedAt': Timestamp.fromDate(old),
       });
       await firestore.collection('users/uid-1/deletions').doc('2026-07-25').set({
         'date': '2026-07-25',
-        'deletedAt': recentMillis,
+        'deletedAt': recent.millisecondsSinceEpoch,
+        'syncedAt': Timestamp.fromDate(recent),
       });
 
-      await sync.syncNow(); // prunes as part of the tombstone-push step
+      await sync.syncNow(); // prunes as part of the sync run
 
       final oldDoc = await firestore
           .collection('users/uid-1/deletions')
@@ -523,6 +789,62 @@ void main() {
           .get();
       expect(oldDoc.exists, isFalse);
       expect(recentDoc.exists, isTrue);
+    });
+
+    test('the deleting device recovers a day resurrected by a peer',
+        () async {
+      final day = DateTime(2026, 8, 28);
+      await logs.upsert(date: day, flow: FlowIntensity.medium, symptomsJson: '{}');
+      await sync.syncNow();
+      await syncB.syncNow();
+      final pulled = await logsB.getForDate(day);
+      expect(pulled, isNotNull);
+
+      await logs.deleteForDate(day); // A deletes...
+      await forceTombstoneWins(day); // see forceTombstoneWins's doc comment
+      await sync.syncNow(); // ...and pushes the marker.
+
+      // Force the marker's `deletedAt` safely BEFORE B's row's (unbumped)
+      // updatedAt, so the resurrect/local-wins branch fires, and its
+      // `syncedAt` safely AFTER B's own `since`, so B's pull query actually
+      // finds the marker -- decoupled, deterministic control over the two
+      // fields fix round 3 separated. See the note on `bumpMarkerForward`
+      // above about why relative real-clock ordering cannot be trusted here.
+      final sinceB = (await SettingsRepository(dbB).get()).lastSyncedAt!;
+      final markerRef =
+          firestore.collection('users/uid-1/deletions').doc('2026-08-28');
+      final marker = (await markerRef.get()).data()!;
+      await markerRef.set({
+        ...marker,
+        'deletedAt': pulled!.updatedAt
+            .subtract(const Duration(hours: 1))
+            .millisecondsSinceEpoch,
+        'syncedAt': Timestamp.fromDate(sinceB.add(const Duration(hours: 1))),
+      });
+
+      // B resurrects: local wins (its row's updatedAt is after the
+      // now-adjusted deletedAt), deletes the stale marker, bumps its row's
+      // updatedAt to "now" (Finding 2's fix), and re-pushes. B's row was
+      // ALREADY fully synced from its own earlier push above -- i.e. its
+      // pre-bump `updatedAt` already sits at/below B's own `since` for this
+      // very sync call -- which is exactly the condition Finding 2 guards:
+      // without the updatedAt bump, `_pushLogs`'s own since-based gate would
+      // see "nothing changed" and never re-push it, even though the remote
+      // copy was just destroyed by A's tombstone and must be recreated.
+      await syncB.syncNow();
+
+      // Force A's own `since` safely into the past, so its next query is
+      // guaranteed to include B's fresh re-push regardless of how tightly
+      // packed the two devices' real clocks land in this environment.
+      await SettingsRepository(db).updateSyncState(
+        const AppSettingsCompanion(lastSyncedAt: Value(null)),
+      );
+
+      await sync.syncNow(); // A's NEXT sync must recover the day.
+
+      final backOnA = await logs.getForDate(day);
+      expect(backOnA, isNotNull);
+      expect(backOnA!.flow, FlowIntensity.medium);
     });
   });
 
