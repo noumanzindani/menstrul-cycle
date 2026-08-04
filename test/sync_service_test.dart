@@ -1091,33 +1091,41 @@ void main() {
       await forceTombstoneWins(day); // see forceTombstoneWins's doc comment
       await sync.syncNow(); // ...and pushes the marker.
 
-      // Force the marker's `deletedAt` safely BEFORE B's row's (unbumped)
-      // updatedAt, so the resurrect/local-wins branch fires, and its
-      // `syncedAt` safely AFTER B's own `since`, so B's pull query actually
-      // finds the marker -- decoupled, deterministic control over the two
-      // fields fix round 3 separated. See the note on `bumpMarkerForward`
-      // above about why relative real-clock ordering cannot be trusted here.
       final sinceB = (await SettingsRepository(dbB).get()).lastSyncedAt!;
+
+      // Put B's row a full hour BELOW B's own push gate. This is the ordinary
+      // state of any day B synced on an earlier run, and it is what makes this
+      // test discriminate: `_pushLogs` skips a row whose `updatedAt` predates
+      // `since`, so the ONLY thing that can put the day back on the server is
+      // the resurrect path republishing it. Leaving the row at whatever the
+      // clock happened to produce made it tie with `since` at drift's
+      // whole-second resolution, so the ordinary push re-sent it anyway and
+      // the test passed with the resurrect republish deleted entirely.
+      await (dbB.update(dbB.dailyLogs)..where((t) => t.id.equals(pulled!.id)))
+          .write(DailyLogsCompanion(
+        updatedAt: Value(sinceB.subtract(const Duration(hours: 1))),
+      ));
+
+      // The marker's `deletedAt` sits BELOW that, so B's row still wins the
+      // merge decision and the resurrect/local-wins branch fires; its
+      // `syncedAt` sits ABOVE B's cursor, so B's pull query actually finds it.
+      // The two fields are independent (fix round 3), so each is placed
+      // directly rather than trusting relative real-clock ordering -- see the
+      // note on `bumpMarkerForward` above.
       final markerRef =
           firestore.collection('users/uid-1/deletions').doc('2026-08-28');
       final marker = (await markerRef.get()).data()!;
       await markerRef.set({
         ...marker,
-        'deletedAt': pulled!.updatedAt
-            .subtract(const Duration(hours: 1))
-            .millisecondsSinceEpoch,
+        'deletedAt':
+            sinceB.subtract(const Duration(hours: 2)).millisecondsSinceEpoch,
         'syncedAt': Timestamp.fromDate(sinceB.add(const Duration(hours: 1))),
       });
 
-      // B resurrects: local wins (its row's updatedAt is after the
-      // now-adjusted deletedAt), deletes the stale marker, bumps its row's
-      // updatedAt to "now" (Finding 2's fix), and re-pushes. B's row was
-      // ALREADY fully synced from its own earlier push above -- i.e. its
-      // pre-bump `updatedAt` already sits at/below B's own `since` for this
-      // very sync call -- which is exactly the condition Finding 2 guards:
-      // without the updatedAt bump, `_pushLogs`'s own since-based gate would
-      // see "nothing changed" and never re-push it, even though the remote
-      // copy was just destroyed by A's tombstone and must be recreated.
+      // B resurrects: its row wins, the stale marker is deleted, and the day
+      // is republished from the row as it stands -- WITHOUT touching
+      // `updatedAt`, which is every device's merge-decision field and not a
+      // lever for buying a push.
       await syncB.syncNow();
 
       // Force A's own `since` safely into the past, so its next query is
