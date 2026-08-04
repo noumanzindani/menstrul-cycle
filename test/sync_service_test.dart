@@ -196,6 +196,75 @@ void main() {
     expect(local.weightUnit, 'lb');
   });
 
+  test('a newer remote settings document is not clobbered by a stale local push',
+      () async {
+    final settings = SettingsRepository(db);
+    // Local edit: bumps settingsUpdatedAt to "now", enabling the push path.
+    await settings.update(const AppSettingsCompanion(
+      defaultCycleLength: Value(21),
+    ));
+
+    // A remote change from another device, strictly newer than the local edit.
+    await firestore.doc('users/uid-1/settings/current').set({
+      'mode': TrackingMode.track.index,
+      'defaultCycleLength': 40,
+      'defaultPeriodLength': 5,
+      'themeMode': 'system',
+      'language': 'en',
+      'genderNeutralLanguage': false,
+      'pregnancyStartDate': null,
+      'trackingCategories': null,
+      'weightUnit': null,
+      'updatedAt':
+          DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+    });
+
+    await sync.syncNow();
+
+    // (a) the local row took the remote's newer value.
+    expect((await settings.get()).defaultCycleLength, 40);
+
+    // (b) the remote document still holds the remote's value -- a blind push
+    // of the pre-sync local row (21) would have clobbered it before the pull
+    // ever got a chance to compare timestamps. This assertion is the one
+    // that actually catches the bug: without it, the test can pass while the
+    // remote document has already been destroyed.
+    final doc = await firestore.doc('users/uid-1/settings/current').get();
+    expect(doc.data()!['defaultCycleLength'], 40);
+  });
+
+  test('a newer local settings change survives and still reaches the remote',
+      () async {
+    final settings = SettingsRepository(db);
+    // A remote document, older than the local edit that follows.
+    await firestore.doc('users/uid-1/settings/current').set({
+      'mode': TrackingMode.track.index,
+      'defaultCycleLength': 22,
+      'defaultPeriodLength': 5,
+      'themeMode': 'system',
+      'language': 'en',
+      'genderNeutralLanguage': false,
+      'pregnancyStartDate': null,
+      'trackingCategories': null,
+      'weightUnit': null,
+      'updatedAt': DateTime(2020, 1, 1).millisecondsSinceEpoch,
+    });
+
+    await settings.update(const AppSettingsCompanion(
+      defaultCycleLength: Value(19),
+    ));
+
+    await sync.syncNow();
+
+    // Local keeps its own, genuinely newer value.
+    expect((await settings.get()).defaultCycleLength, 19);
+
+    // And it still reaches the remote -- proving the pull-before-push reorder
+    // did not simply invert the bug so that local changes are the ones lost.
+    final doc = await firestore.doc('users/uid-1/settings/current').get();
+    expect(doc.data()!['defaultCycleLength'], 19);
+  });
+
   test('signing out does not wipe local data', () async {
     // Design spec §7.3: sign-out must never delete the device's logs — a user
     // switching accounts would otherwise lose everything.

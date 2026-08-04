@@ -42,6 +42,17 @@ class SyncService {
 
   /// Runs one full push + pull cycle.
   ///
+  /// Ordering invariant — **tombstones, then pull, then push** — for both logs
+  /// and settings. `_pushLogs`/`_pushSettings` write with a blind `.set()`,
+  /// with no comparison against the remote's CURRENT value. If push ran
+  /// first, a stale local copy would overwrite a document another device
+  /// wrote more recently — moments before pull ever gets a chance to compare
+  /// timestamps — destroying that newer remote change. Pulling first lets
+  /// last-write-wins resolve locally; the push that follows re-sends the
+  /// already-merged row, which is a harmless idempotent write, not a
+  /// clobber. Do not reorder this without re-reading the git history on this
+  /// line — it has broken twice.
+  ///
   /// `lastSyncedAt` advances ONLY on full success, so a partial failure simply
   /// re-attempts the same window next time. Re-pushing an already-pushed day is
   /// harmless because documents are keyed by date and writes are idempotent —
@@ -50,20 +61,16 @@ class SyncService {
     if (_running) return; // overlapping runs would fight over the same window
     _running = true;
     try {
-      final row = await _settings.get();
-      final since = row.lastSyncedAt;
+      final since = (await _settings.get()).lastSyncedAt;
       await _pushTombstones();
-      // Pull before push: on a first sync (`since == null`) `_pushLogs` writes
-      // every local row unconditionally. Pushing first would blind-`.set()`
-      // over a concurrently-newer remote document before it's ever compared,
-      // which is a real data-loss window — not just duplicate work. Pulling
-      // first lets last-write-wins resolve the row locally; `_pushLogs`
-      // re-queries the DB fresh, so it naturally re-pushes the merged result
-      // (a harmless idempotent write) rather than clobbering it.
       await _pullLogs(since);
       await _pushLogs(since);
-      await _pushSettings(row, since);
       await _pullSettings(since);
+      // Re-read AFTER the pull: `_pullSettings` may just have overwritten the
+      // local settings row with a newer remote one. Pushing a snapshot taken
+      // before that pull would push stale pre-pull state back out, quietly
+      // reverting the very row the pull just merged.
+      await _pushSettings(await _settings.get(), since);
       // `updateSyncState`, NOT `update`: advancing the high-water mark is not a
       // user edit, and stamping `settingsUpdatedAt` here would make every sync
       // look like a settings change and push forever.
