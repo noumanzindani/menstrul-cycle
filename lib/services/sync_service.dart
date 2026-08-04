@@ -55,6 +55,32 @@ class SyncService {
   ///
   /// Holds no health data, only two timestamps, and lives under the same
   /// `users/{uid}/…` root as everything else.
+  ///
+  /// **`deviceId` correctness invariant** (this class does not, and cannot,
+  /// enforce it -- it is a constructor parameter; wiring it is a later
+  /// task's job, so state it here for whoever writes that code):
+  ///
+  /// - MUST be a per-install random identifier, generated once and persisted
+  ///   locally for the life of that install.
+  /// - MUST NOT be a hardware or vendor id. Two installs that happen to share
+  ///   one -- a device transfer, a cloned image, any id the platform reuses
+  ///   across app installs -- would then share this one cursor doc. Pull
+  ///   completeness depends on the doc's cursor reflecting only what THAT
+  ///   install has actually observed (see [_readPullCursors]): if install A
+  ///   advances the shared cursor to `t2` and install B queries
+  ///   `syncedAt >= t2`, B never fetches anything stamped before `t2` -- on
+  ///   ANY future run, because the cursor only advances and nothing re-pushes
+  ///   a day whose `updatedAt` sits below its owner's own push gate. The skip
+  ///   is silent and permanent. A reused hardware/vendor id is also simply
+  ///   the wrong choice for a menstrual-health app on privacy grounds alone,
+  ///   independent of this correctness failure.
+  /// - MUST NOT be restored from backup -- specifically, exclude whatever
+  ///   local field stores it from Android auto-backup. A backup-restored id
+  ///   reintroduces the identical two-installs-one-cursor failure above
+  ///   between the original device and its restore target.
+  ///
+  /// Violate any of these and the result is the same: permanent, silent loss
+  /// of peer history on whichever device ends up holding the duplicate id.
   DocumentReference<Map<String, dynamic>> get _deviceDoc =>
       _firestore.doc('users/$uid/devices/$deviceId');
 
@@ -379,10 +405,28 @@ class SyncService {
       } else {
         // The local edit is at least as new as (or exactly tied with -- see
         // `_pushTombstones`) the deletion, so IT wins and the day is
-        // resurrected. Delete the remote marker so it stops resurfacing on
-        // every future sync, then republish the day.
-        await doc.reference.delete();
+        // resurrected: republish it, then delete the remote marker so it
+        // stops resurfacing on every future sync.
+        //
+        // Republish runs BEFORE the marker delete, never after -- the same
+        // shape as `_pushTombstones`'s restore-before-clear, mirrored here.
+        // `_restoreRemoteDay` does its own Firestore read/write, which CAN
+        // throw (a dropped mobile connection mid-run; round 4 also made DB
+        // errors propagate instead of being swallowed). If the marker were
+        // deleted first and the republish then failed, the marker's absence
+        // is itself the only reason this branch is ever re-entered -- so a
+        // fault between the two leaves no marker AND no remote day, and
+        // `_pushLogs`'s own since-gate (see the doc comment on
+        // `_restoreRemoteDay`) will not re-send it either, because this row
+        // was already pushed in an earlier run and its `updatedAt` sits below
+        // this device's `since`. The day would then survive on this device
+        // alone and stay deleted, permanently, on every other device, with
+        // nothing left to retry. Republishing first means a failure aborts
+        // the run with the marker still intact, so the next run simply tries
+        // again; the republish itself is idempotent, so a harmless duplicate
+        // write on retry is the worst case.
         await _restoreRemoteDay(local);
+        await doc.reference.delete();
       }
     }
     return high;
