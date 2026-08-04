@@ -12,10 +12,16 @@ void main() {
   late DailyLogRepository logs;
   late FakeFirebaseFirestore firestore;
 
+  /// Stands in for `ClaimPreference`'s persisted storage across the whole
+  /// test (not reset per `trigger()` call), so a NEW `SyncTrigger` instance
+  /// reading from it simulates a decline surviving an app relaunch.
+  late Map<String, String> declineStore;
+
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     logs = DailyLogRepository(db);
     firestore = FakeFirebaseFirestore();
+    declineStore = {};
   });
 
   tearDown(() => db.close());
@@ -24,6 +30,9 @@ void main() {
         db,
         firestore: () => firestore,
         deviceId: () async => 'device-1',
+        readDeclinedUid: () async => declineStore['decision'],
+        writeDeclinedUid: (uid) async => declineStore['decision'] = uid,
+        clearDeclinedUid: () async => declineStore.remove('decision'),
       );
 
   Future<Map<String, dynamic>?> remoteDay(DateTime date) async {
@@ -83,6 +92,90 @@ void main() {
       await t.syncNow();
 
       expect(await remoteDay(DateTime(2026, 1, 5)), isNull);
+    });
+  });
+
+  group('persisting the decline, scoped to the account it was made for', () {
+    test('resolveClaim(upload: false) records the decline for that uid',
+        () async {
+      await logs.upsert(
+        date: DateTime(2026, 1, 5),
+        flow: FlowIntensity.medium,
+        symptomsJson: '{}',
+      );
+
+      final t = trigger();
+      await t.setUser('uid-1');
+      expect(await t.declinedUidOnRecord(), isNull);
+
+      await t.resolveClaim(upload: false);
+
+      expect(await t.declinedUidOnRecord(), 'uid-1');
+    });
+
+    test(
+        'a decline survives a fresh SyncTrigger instance (an app relaunch) '
+        '-- syncNow stays a no-op and no local logs are pushed', () async {
+      await logs.upsert(
+        date: DateTime(2026, 1, 5),
+        flow: FlowIntensity.medium,
+        symptomsJson: '{}',
+      );
+
+      final first = trigger();
+      await first.setUser('uid-1');
+      await first.resolveClaim(upload: false);
+
+      // A brand-new SyncTrigger, as `main.dart` constructs at every app
+      // launch, backed by the SAME persisted store.
+      final relaunch = trigger();
+      await relaunch.setUser('uid-1');
+      await relaunch.syncNow(); // e.g. the app-resume hook firing
+
+      expect(await remoteDay(DateTime(2026, 1, 5)), isNull);
+    });
+
+    test(
+        'a decline recorded for uid-1 does NOT suppress the question for a '
+        'DIFFERENT uid-2 -- that account has never been asked', () async {
+      await logs.upsert(
+        date: DateTime(2026, 1, 5),
+        flow: FlowIntensity.medium,
+        symptomsJson: '{}',
+      );
+
+      final first = trigger();
+      await first.setUser('uid-1');
+      await first.resolveClaim(upload: false);
+
+      final second = trigger();
+      await second.setUser('uid-2');
+
+      // The record on file is still uid-1's -- the caller (AppGate) is the
+      // one that compares it against the signed-in uid to decide whether to
+      // re-prompt; this proves the record itself doesn't silently widen to
+      // cover uid-2.
+      expect(await second.declinedUidOnRecord(), 'uid-1');
+    });
+
+    test(
+        'opting in later (resolveClaim(upload: true)) clears the earlier '
+        'decline and runs the deferred sync', () async {
+      await logs.upsert(
+        date: DateTime(2026, 1, 5),
+        flow: FlowIntensity.medium,
+        symptomsJson: '{}',
+      );
+
+      final t = trigger();
+      await t.setUser('uid-1');
+      await t.resolveClaim(upload: false);
+      expect(await t.declinedUidOnRecord(), 'uid-1');
+
+      await t.resolveClaim(upload: true);
+
+      expect(await t.declinedUidOnRecord(), isNull);
+      expect(await remoteDay(DateTime(2026, 1, 5)), isNotNull);
     });
   });
 

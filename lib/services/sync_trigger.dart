@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../data/daily_log_repository.dart';
 import '../data/settings_repository.dart';
 import '../db/database.dart';
+import 'claim_preference.dart';
 import 'device_id.dart';
 import 'firestore_ref.dart';
 import 'sync_service.dart';
@@ -17,8 +18,14 @@ class SyncTrigger extends ChangeNotifier {
     this._db, {
     FirebaseFirestore Function()? firestore,
     Future<String> Function()? deviceId,
+    Future<String?> Function()? readDeclinedUid,
+    Future<void> Function(String uid)? writeDeclinedUid,
+    Future<void> Function()? clearDeclinedUid,
   })  : _firestore = firestore ?? lunaFirestore,
-        _deviceId = deviceId ?? DeviceId.get;
+        _deviceId = deviceId ?? DeviceId.get,
+        _readDeclinedUid = readDeclinedUid ?? ClaimPreference.declinedUid,
+        _writeDeclinedUid = writeDeclinedUid ?? ClaimPreference.setDeclined,
+        _clearDeclinedUid = clearDeclinedUid ?? ClaimPreference.clear;
 
   final AppDatabase _db;
 
@@ -30,6 +37,13 @@ class SyncTrigger extends ChangeNotifier {
   /// Overridable so tests can avoid `flutter_secure_storage`'s platform
   /// channel, which has no handler registered outside a full app.
   final Future<String> Function() _deviceId;
+
+  /// These three are overridable for the same reason as [_deviceId]:
+  /// `ClaimPreference`'s default is backed by `flutter_secure_storage`, whose
+  /// platform channel has no handler in a test harness.
+  final Future<String?> Function() _readDeclinedUid;
+  final Future<void> Function(String uid) _writeDeclinedUid;
+  final Future<void> Function() _clearDeclinedUid;
 
   String? _uid;
   SyncService? _service;
@@ -43,7 +57,39 @@ class SyncTrigger extends ChangeNotifier {
   /// [setUser]'s own auto-sync, the app-resume hook in `AppGate`, or a
   /// debounced write from [scheduleSync] can push that history before the
   /// user has actually been asked. Only [resolveClaim] can clear it.
+  ///
+  /// This stays true across an entire declined session even though the claim
+  /// prompt itself is shown at most once (see [declinedUidOnRecord]) --
+  /// there is deliberately no separate "the user said no" flag distinct from
+  /// "still pending": both mean the same thing to [syncNow], which is "do not
+  /// push this device's history".
   bool _pendingClaim = false;
+
+  /// State for a future Settings control (a later task) to reflect "sync is
+  /// currently held back pending/declined for this account" and offer to
+  /// reverse it via `resolveClaim(upload: true)`.
+  ///
+  /// Deliberately a plain getter, not backed by `notifyListeners()`: this
+  /// class's own [setUser] runs synchronously up to its first `await` when
+  /// called from `main.dart`'s `Consumer2` DURING that widget's build, and
+  /// `notifyListeners()` on that same synchronous path throws
+  /// ("setState() ... called during build") -- confirmed by running the full
+  /// suite with a trial `notifyListeners()` added to every state transition
+  /// here, which broke `test/widget_test.dart` with exactly that assertion.
+  /// Whatever reactivity a Settings control needs is that task's call to make
+  /// (e.g. its own polling, or a wrapper that defers notification to a
+  /// microtask) — this getter only needs to be readable on demand.
+  bool get isPendingClaim => _pendingClaim;
+
+  /// The uid on record as having chosen "keep on this device only", or null.
+  ///
+  /// Exposed so `AppGate` can decide independently of [setUser]'s own async
+  /// timing whether to re-show the claim prompt: `setUser`'s continuation and
+  /// the prompt's post-frame callback are scheduled separately, so a caller
+  /// that instead read a flag [setUser] computes internally would race it.
+  /// This performs its own fresh read via the same injected function, with no
+  /// dependency on [setUser] having run (or finished) at all.
+  Future<String?> declinedUidOnRecord() => _readDeclinedUid();
 
   /// Called when the signed-in user changes. A null uid tears sync down without
   /// touching local data — signing out must never wipe the device.
@@ -80,6 +126,14 @@ class SyncTrigger extends ChangeNotifier {
     // has been asked anything — would silently upload months of health data
     // the instant they sign in. Defer to the claim prompt instead; see
     // [resolveClaim].
+    //
+    // Deliberately does NOT consult `declinedUidOnRecord()` here: whether this
+    // uid already declined only changes whether `AppGate` re-shows the
+    // prompt, never whether sync itself should be held back. Keeping that
+    // single "held back" condition here means an already-declined account
+    // stays correctly blocked (this just never gets released by a prompt
+    // answer, only by `resolveClaim(upload: true)`) without this class having
+    // to track two separate reasons for the same outcome.
     final settings = await SettingsRepository(_db).get();
     if (settings.lastSyncedAt == null) {
       final hasLocalLogs =
@@ -94,17 +148,25 @@ class SyncTrigger extends ChangeNotifier {
 
   /// Resolves the claim prompt's decision.
   ///
-  /// `upload: true` clears the pending gate and runs the deferred sync — a
-  /// genuine, consented push of the local history plus the normal pull.
+  /// `upload: true` clears the pending gate, clears any earlier decline on
+  /// record for this uid (an opt-in supersedes it), and runs the deferred
+  /// sync — a genuine, consented push of the local history plus the normal
+  /// pull.
   ///
-  /// `upload: false` deliberately leaves the gate SET for the rest of this
-  /// app session: [syncNow] keeps refusing to run, so neither the app-resume
-  /// hook nor a later debounced write can push the declined history. This
-  /// flag lives only in memory, so the next app launch re-evaluates from
-  /// scratch and asks again rather than silently opting the account in.
+  /// `upload: false` persists the decline (scoped to this uid, via
+  /// [ClaimPreference]) and deliberately leaves the pending gate SET for the
+  /// rest of this app session: [syncNow] keeps refusing to run, so neither the
+  /// app-resume hook nor a later debounced write can push the declined
+  /// history. The persisted record is what makes the decline survive an app
+  /// restart (`AppGate` checks [declinedUidOnRecord] before showing the
+  /// prompt again), not this in-memory flag.
   Future<void> resolveClaim({required bool upload}) async {
-    if (!upload) return;
+    if (!upload) {
+      if (_uid != null) await _writeDeclinedUid(_uid!);
+      return;
+    }
     _pendingClaim = false;
+    if (_uid != null) await _clearDeclinedUid();
     await syncNow();
   }
 

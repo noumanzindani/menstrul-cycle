@@ -56,25 +56,36 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
 
   /// Offers to upload pre-existing local logs the first time an account signs
   /// in on this device. Runs after the frame so it can show a modal sheet.
-  void _maybePromptClaim(BuildContext context) {
+  void _maybePromptClaim(BuildContext context, String? uid) {
     if (_claimPromptShown) return;
     _claimPromptShown = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final db = context.read<AppDatabase>();
       final settings = context.read<SettingsProvider>();
+      final trigger = context.read<SyncTrigger>();
       // Only ask when there is local data that predates this account.
       if (settings.lastSyncedAt != null) return;
       final count = (await DailyLogRepository(db).getAll()).length;
       if (count == 0 || !context.mounted) return;
+      // Scoped to the signed-in account: a decline recorded for a DIFFERENT
+      // uid must not suppress this genuinely new question for `uid` — that
+      // account has never been offered this device's data. Checked AFTER
+      // `count`, not before: this touches `ClaimPreference`'s secure-storage
+      // read, and most signed-in rebuilds have nothing to claim at all (a
+      // fresh account, or one already synced) — no reason to touch storage
+      // on every one of those when a fast, already-in-hand local read already
+      // rules the prompt out.
+      if (uid != null && await trigger.declinedUidOnRecord() == uid) return;
+      if (!context.mounted) return;
       final upload = await showClaimLocalDataSheet(context, dayCount: count);
       if (!context.mounted) return;
       // `resolveClaim` (not a bare `syncNow`) either way: `upload == true`
       // clears SyncTrigger's pending-claim gate and runs the deferred sync;
       // `upload == false` (or a dismissal, though the sheet itself is
-      // non-dismissible) leaves that gate set so nothing pushes this
-      // session's declined history later.
-      await context.read<SyncTrigger>().resolveClaim(upload: upload == true);
+      // non-dismissible) persists the decline for this uid and leaves the
+      // gate set so nothing pushes this session's declined history later.
+      await trigger.resolveClaim(upload: upload == true);
     });
   }
 
@@ -92,7 +103,7 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     if (auth.state == AuthState.signedOut) {
       return const SignInScreen();
     }
-    _maybePromptClaim(context);
+    _maybePromptClaim(context, auth.user?.uid);
 
     final settings = context.watch<SettingsProvider>();
 
