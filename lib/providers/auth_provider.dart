@@ -43,6 +43,11 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> signOut() => _guard(_service.signOut);
 
+  /// Deletes the Firebase Auth user. Callers (the Account section in
+  /// Settings) MUST delete the Firestore subtree and local data first — see
+  /// `AuthService.deleteAccount`'s own doc comment for why.
+  Future<void> deleteAccount() => _guard(_service.deleteAccount);
+
   /// Runs an action with busy/error bookkeeping. `busy` is always cleared, so a
   /// failed sign-in re-enables the button instead of stranding the user.
   Future<void> _guard(Future<void> Function() action) async {

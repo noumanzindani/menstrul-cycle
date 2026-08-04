@@ -6,10 +6,35 @@ import 'package:provider/provider.dart';
 import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/l10n/app_localizations.dart';
+import 'package:menstrul_track/providers/auth_provider.dart';
 import 'package:menstrul_track/providers/premium_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/screens/settings/settings_screen.dart';
+import 'package:menstrul_track/services/auth_service.dart';
+import 'package:menstrul_track/services/sync_trigger.dart';
 import 'package:menstrul_track/theme/app_theme.dart';
+
+/// Reports an already-signed-in user, like the other test files' fakes (see
+/// `test/widget_test.dart` / `test/auth_gate_test.dart`) — this screen now
+/// hosts `AccountSection` (task 11), which reads `AuthProvider`.
+class _FakeSignedInAuthService implements AuthService {
+  static const _user = AppUser(uid: 'test-uid', email: 'test@example.com');
+
+  @override
+  Stream<AppUser?> authStateChanges() => Stream.value(_user);
+  @override
+  AppUser? get currentUser => _user;
+  @override
+  Future<void> signUp({required String email, required String password}) async {}
+  @override
+  Future<void> signIn({required String email, required String password}) async {}
+  @override
+  Future<void> signOut() async {}
+  @override
+  Future<void> sendPasswordReset(String email) async {}
+  @override
+  Future<void> deleteAccount() async {}
+}
 
 /// The Settings "Backup & restore" section: export opens a passphrase dialog
 /// (with confirmation + validation), and restore CONFIRMS before touching data.
@@ -34,6 +59,21 @@ void main() {
         Provider<AppDatabase>.value(value: db),
         ChangeNotifierProvider<SettingsProvider>.value(value: settings),
         ChangeNotifierProvider<PremiumProvider>.value(value: premium),
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(_FakeSignedInAuthService()),
+        ),
+        // Overridden decline/deviceId hooks so AccountSection's
+        // declinedUidOnRecord() read doesn't touch the real
+        // flutter_secure_storage plugin, which hangs under flutter_tester on
+        // this host (see sync_trigger_test.dart / account_section_test.dart).
+        ChangeNotifierProvider(
+          create: (_) => SyncTrigger(
+            db,
+            readDeclinedUid: () async => null,
+            writeDeclinedUid: (_) async {},
+            clearDeclinedUid: () async {},
+          ),
+        ),
       ],
       child: MaterialApp(
         theme: AppTheme.light(),
@@ -61,7 +101,12 @@ void main() {
   testWidgets('export opens a passphrase dialog and rejects a mismatch',
       (tester) async {
     await pump(tester);
-    await tester.dragUntilVisible(find.text('Back up my data'),
+    // Scroll past 'Restore from a backup' (the LAST of the three), not just
+    // to 'Back up my data' itself -- see the identical note above: stopping
+    // right at the target can leave it only partially visible (right at the
+    // viewport edge), and any tile added higher up in Settings shifts this
+    // further, as AccountSection (task 11) now does.
+    await tester.dragUntilVisible(find.text('Restore from a backup'),
         find.byType(Scrollable).first, const Offset(0, -300));
     await tester.tap(find.text('Back up my data'));
     await tester.pumpAndSettle();

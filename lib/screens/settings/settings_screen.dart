@@ -17,6 +17,7 @@ import '../../services/notification_service.dart';
 import '../../widgets/ad_banner.dart';
 import '../lock/setup_lock_screen.dart';
 import '../medications/medications_screen.dart';
+import 'account_section.dart';
 import 'tracking_categories_screen.dart';
 import '../pregnancy/pregnancy_screen.dart';
 import '../premium/premium_screen.dart';
@@ -240,6 +241,8 @@ class SettingsScreen extends StatelessWidget {
       bottomNavigationBar: const SafeArea(child: AdBanner()),
       body: ListView(
         children: [
+          const AccountSection(),
+          const Divider(),
           _SectionHeader(context.l10n.settingsSectionPremium),
           ListTile(
             leading: Icon(
