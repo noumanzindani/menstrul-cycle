@@ -28,6 +28,7 @@ import 'services/month_ring_builder.dart';
 import 'services/notification_actions.dart';
 import 'services/notification_service.dart';
 import 'services/prediction_service.dart';
+import 'services/sync_trigger.dart';
 import 'theme/app_theme.dart';
 import 'widgets/home_widget_sync.dart';
 
@@ -65,6 +66,7 @@ class LunaTrackApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AuthProvider(authService ?? FirebaseAuthService()),
         ),
+        ChangeNotifierProvider(create: (_) => SyncTrigger(database)),
         ChangeNotifierProvider(
           create: (_) => LogProvider(DailyLogRepository(database))..load(),
         ),
@@ -149,23 +151,37 @@ class LunaTrackApp extends StatelessWidget {
             today: DateTime.now(),
           ),
         ),
+        // Local writes schedule a debounced sync. Returns void because nothing
+        // consumes it; it exists purely for the side effect of reacting to a
+        // LogProvider change.
+        ProxyProvider2<LogProvider, SyncTrigger, void>(
+          update: (_, log, trigger, _) => trigger.scheduleSync(),
+        ),
       ],
-      child: Consumer<SettingsProvider>(
-        builder: (context, settings, _) {
-          return MaterialApp(
-            onGenerateTitle: (context) => context.l10n.appTitle,
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(),
-            darkTheme: AppTheme.dark(),
-            themeMode: settings.themeMode,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            locale: settings.language == 'system'
-                ? null
-                : Locale(settings.language),
-            home: const HomeWidgetSync(child: AppGate()),
-          );
+      child: Consumer2<AuthProvider, SyncTrigger>(
+        builder: (context, auth, trigger, child) {
+          // Fire-and-forget: the UI never blocks on sync. A null uid tears sync
+          // down and leaves local data alone.
+          trigger.setUser(auth.user?.uid);
+          return child!;
         },
+        child: Consumer<SettingsProvider>(
+          builder: (context, settings, _) {
+            return MaterialApp(
+              onGenerateTitle: (context) => context.l10n.appTitle,
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.light(),
+              darkTheme: AppTheme.dark(),
+              themeMode: settings.themeMode,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              locale: settings.language == 'system'
+                  ? null
+                  : Locale(settings.language),
+              home: const HomeWidgetSync(child: AppGate()),
+            );
+          },
+        ),
       ),
     );
   }

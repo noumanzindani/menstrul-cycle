@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/daily_log_repository.dart';
+import '../db/database.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/sync_trigger.dart';
 import 'app_shell.dart';
+import 'auth/claim_local_data_sheet.dart';
 import 'auth/sign_in_screen.dart';
 import 'lock/lock_screen.dart';
 import 'onboarding/onboarding_screen.dart';
@@ -20,6 +24,7 @@ class AppGate extends StatefulWidget {
 class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   bool _locked = false;
   bool _initialLockApplied = false;
+  bool _claimPromptShown = false;
 
   @override
   void initState() {
@@ -42,6 +47,30 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
         setState(() => _locked = true);
       }
     }
+    if (state == AppLifecycleState.resumed) {
+      if (!mounted) return;
+      // Pull anything logged on another device while we were away.
+      context.read<SyncTrigger>().syncNow();
+    }
+  }
+
+  /// Offers to upload pre-existing local logs the first time an account signs
+  /// in on this device. Runs after the frame so it can show a modal sheet.
+  void _maybePromptClaim(BuildContext context) {
+    if (_claimPromptShown) return;
+    _claimPromptShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final db = context.read<AppDatabase>();
+      final settings = context.read<SettingsProvider>();
+      // Only ask when there is local data that predates this account.
+      if (settings.lastSyncedAt != null) return;
+      final count = (await DailyLogRepository(db).getAll()).length;
+      if (count == 0 || !context.mounted) return;
+      final upload = await showClaimLocalDataSheet(context, dayCount: count);
+      if (upload != true || !context.mounted) return;
+      await context.read<SyncTrigger>().syncNow();
+    });
   }
 
   @override
@@ -58,6 +87,7 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     if (auth.state == AuthState.signedOut) {
       return const SignInScreen();
     }
+    _maybePromptClaim(context);
 
     final settings = context.watch<SettingsProvider>();
 

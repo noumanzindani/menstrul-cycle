@@ -28,6 +28,11 @@ class SettingsProvider extends ChangeNotifier {
   String get language => _settings?.language ?? 'en';
   bool get onboardingComplete => _settings?.onboardingComplete ?? false;
 
+  /// Null on a fresh install or a never-synced account — the signal
+  /// `_AppGateState._maybePromptClaim` uses to tell a brand-new account from
+  /// one that has already synced.
+  DateTime? get lastSyncedAt => _settings?.lastSyncedAt;
+
   /// Display unit for weight. Stored values are always canonical kg; null in the
   /// column means "never chosen" and reads as kg.
   String get weightUnit => _settings?.weightUnit ?? kWeightUnitKg;

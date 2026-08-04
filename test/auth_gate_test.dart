@@ -10,6 +10,7 @@ import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/screens/app_gate.dart';
 import 'package:menstrul_track/screens/auth/sign_in_screen.dart';
 import 'package:menstrul_track/services/auth_service.dart';
+import 'package:menstrul_track/services/sync_trigger.dart';
 import 'package:provider/provider.dart';
 
 class FakeAuthService implements AuthService {
@@ -48,10 +49,12 @@ void main() {
 
   Widget wrap() => MultiProvider(
         providers: [
+          Provider<AppDatabase>.value(value: db),
           ChangeNotifierProvider(create: (_) => AuthProvider(fake)),
           ChangeNotifierProvider(
             create: (_) => SettingsProvider(SettingsRepository(db))..load(),
           ),
+          ChangeNotifierProvider(create: (_) => SyncTrigger(db)),
         ],
         child: const MaterialApp(home: AppGate()),
       );
