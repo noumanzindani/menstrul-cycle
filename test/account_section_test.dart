@@ -136,6 +136,12 @@ void main() {
   late bool notificationsCancelled;
   late bool claimPreferenceCleared;
 
+  /// Captured INSIDE the injected cache-clear so the ordering is provable, not
+  /// inferred: after `terminate()` the Firestore client accepts nothing but
+  /// `clearPersistence()`, so the marker write and the sign-out must already
+  /// have happened when it runs.
+  late bool signedOutWhenCacheCleared;
+
   const user = AppUser(uid: 'uid-1', email: 'a@b.com');
 
   setUp(() {
@@ -147,6 +153,7 @@ void main() {
     pinCleared = false;
     notificationsCancelled = false;
     claimPreferenceCleared = false;
+    signedOutWhenCacheCleared = false;
   });
 
   tearDown(() {
@@ -205,6 +212,14 @@ void main() {
             clearDeclinedPreference: () async => claimPreferenceCleared = true,
             clearPin: () async => pinCleared = true,
             cancelNotifications: () async => notificationsCancelled = true,
+            // Injected for a second reason beyond the platform channel:
+            // `FakeFirebaseFirestore.clearPersistence()` wipes the ENTIRE fake
+            // database, server side included, so letting the real call through
+            // would destroy the cloud copy these tests assert survives.
+            clearFirestoreCache: () async {
+              calls.add('clearCache');
+              signedOutWhenCacheCleared = authService.signOutCalled;
+            },
           ),
         ),
       ),
@@ -346,7 +361,41 @@ void main() {
       await tapDelete(tester);
       await tester.pumpAndSettle();
 
-      expect(calls, ['suspend', 'request']);
+      expect(calls, ['suspend', 'request', 'clearCache']);
+    });
+
+    testWidgets(
+        "Firestore's own on-device cache is cleared too -- drift is encrypted "
+        'at rest, the SDK cache is not, and it holds the same health documents',
+        (tester) async {
+      await seedLocalDay(DateTime(2026, 1, 1));
+      await tester.pumpWidget(wrap());
+      await tester.pumpAndSettle();
+
+      await tapDelete(tester);
+      await tester.pumpAndSettle();
+
+      expect(calls, contains('clearCache'));
+      // Ordering, not just occurrence: `terminate()` leaves the client able to
+      // do nothing but `clearPersistence()`, so this MUST come after the
+      // marker write and the sign-out. Both halves are asserted -- the marker
+      // via the call order, the sign-out via the flag captured inside the
+      // injected clear itself.
+      expect(calls.indexOf('clearCache'), greaterThan(calls.indexOf('request')));
+      expect(signedOutWhenCacheCleared, isTrue);
+    });
+
+    testWidgets(
+        'an aborted request does NOT clear the Firestore cache -- nothing was '
+        'deleted, so the client must stay usable', (tester) async {
+      await seedLocalDay(DateTime(2026, 1, 1));
+      await tester.pumpWidget(wrap(failRequest: true));
+      await tester.pumpAndSettle();
+
+      await tapDelete(tester);
+      await tester.pumpAndSettle();
+
+      expect(calls, isNot(contains('clearCache')));
     });
 
     testWidgets(

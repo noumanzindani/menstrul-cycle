@@ -40,13 +40,15 @@ class AccountSection extends StatefulWidget {
     Future<void> Function()? clearDeclinedPreference,
     Future<void> Function()? clearPin,
     Future<void> Function()? cancelNotifications,
+    Future<void> Function()? clearFirestoreCache,
     this.requestTimeout = const Duration(seconds: 20),
   })  : deletionService = deletionService ?? _liveDeletionService,
         clearDeclinedPreference =
             clearDeclinedPreference ?? ClaimPreference.clear,
         clearPin = clearPin ?? LockService.clearPin,
         cancelNotifications =
-            cancelNotifications ?? NotificationService.cancelAll;
+            cancelNotifications ?? NotificationService.cancelAll,
+        clearFirestoreCache = clearFirestoreCache ?? clearLunaFirestoreCache;
 
   static AccountDeletionService _liveDeletionService(String uid) =>
       AccountDeletionService(firestore: lunaFirestore(), uid: uid);
@@ -69,6 +71,16 @@ class AccountSection extends StatefulWidget {
   final Future<void> Function() clearDeclinedPreference;
   final Future<void> Function() clearPin;
   final Future<void> Function() cancelNotifications;
+
+  /// Wipes Firestore's unencrypted on-device cache — see
+  /// [clearLunaFirestoreCache], which also explains why it can only run at the
+  /// very end of the deletion flow.
+  ///
+  /// Overridable for a reason beyond the usual platform-channel one:
+  /// `FakeFirebaseFirestore.clearPersistence()` wipes the whole fake database,
+  /// server side included, so a test that let the real call through could not
+  /// then assert that the cloud copy survived the request.
+  final Future<void> Function() clearFirestoreCache;
 
   /// How long to wait for the deletion marker to reach the server before
   /// reporting failure.
@@ -321,6 +333,27 @@ class _AccountSectionState extends State<AccountSection> {
       // now there is no local data left to push and the marker is on record,
       // so `SyncService` refuses to sync this account from any device.
       await auth.signOut();
+
+      // LAST, and it has to be last: `terminate()` leaves the client accepting
+      // nothing but `clearPersistence()`, so the marker write above — and the
+      // sign-out — must already have landed. See [clearLunaFirestoreCache].
+      //
+      // Until this ran, "Everything on this device is erased straight away"
+      // was false: drift was wiped but Firestore's own on-device persistence
+      // still physically held `users/{uid}/dailyLogs` and the settings
+      // document, UNENCRYPTED (drift is encrypted at rest; the Firestore SDK
+      // cache is not). It also discards any push still queued offline, which
+      // `suspend()` cannot do — that queue lives inside the SDK, not here.
+      //
+      // Swallowed rather than surfaced: by this point the request is on record
+      // and the database is already empty, so there is nothing to roll back
+      // and nothing actionable to tell the user. It throws on a build with no
+      // Firebase app, which is this build today — there is no cache to clear
+      // there either.
+      try {
+        await widget.clearFirestoreCache();
+      } catch (_) {}
+
       closeProgress();
       final error = auth.lastError;
       if (error != null) {

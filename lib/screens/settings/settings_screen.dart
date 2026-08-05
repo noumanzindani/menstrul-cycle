@@ -11,6 +11,7 @@ import '../../providers/medication_provider.dart';
 import '../../providers/premium_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/backup_service.dart';
+import '../../services/firestore_ref.dart';
 import '../../services/health_import_service.dart';
 import '../../services/lock_service.dart';
 import '../../services/notification_service.dart';
@@ -26,7 +27,30 @@ import '../reminders/reminders_screen.dart';
 /// App settings: appearance, cycle defaults (feed prediction when history is
 /// thin), reminders, and the required disclaimer/about.
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({
+    super.key,
+    this.clearFirestoreCache = clearLunaFirestoreCache,
+    this.clearPin = LockService.clearPin,
+    this.cancelNotifications = NotificationService.cancelAll,
+  });
+
+  /// Wipes Firestore's unencrypted on-device cache as part of "delete all my
+  /// data" — see [clearLunaFirestoreCache].
+  ///
+  /// Injectable because `FakeFirebaseFirestore.clearPersistence()` wipes the
+  /// whole fake database (server side included), so a test could not otherwise
+  /// assert that this control leaves the cloud copy alone.
+  final Future<void> Function() clearFirestoreCache;
+
+  /// These two are injectable for the reason `AccountSection`'s identical pair
+  /// is (see its doc comment): `flutter_secure_storage` and the local
+  /// notifications plugin have no platform-channel handler under
+  /// `flutter_tester` on this host, and the former HANGS rather than throwing —
+  /// which `pumpAndSettle` does not detect, because it waits on frames, not on
+  /// a stalled channel call. Without these seams the "delete all my data"
+  /// control could not be tested at all.
+  final Future<void> Function() clearPin;
+  final Future<void> Function() cancelNotifications;
 
   Future<void> _confirmDeleteAll(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -40,6 +64,7 @@ class SettingsScreen extends StatelessWidget {
             child: Text(ctx.l10n.actionCancel),
           ),
           FilledButton(
+            key: const Key('settings.confirmDeleteAll'),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
@@ -60,13 +85,27 @@ class SettingsScreen extends StatelessWidget {
     final deletedMsg = context.l10n.settingsDeleteDone;
 
     await db.deleteAllData();
-    await LockService.clearPin();
+    await clearPin();
     // Cancel every scheduled notification — cycle reminders AND the dynamic
     // per-medication ones (whose ids we no longer know after the wipe).
-    await NotificationService.cancelAll();
+    await cancelNotifications();
     await settings.load();
     await logs.load();
     await meds.load();
+
+    // The other half of "everything on this device": drift is encrypted at
+    // rest, Firestore's own on-device persistence is NOT, and it physically
+    // holds copies of `users/{uid}/dailyLogs` and the settings document. This
+    // control promises erasure, so it has to clear that store too. See
+    // [clearLunaFirestoreCache] for why it can only run once nothing else in
+    // this flow needs Firestore.
+    //
+    // Swallowed: the database is already empty by now, and it throws on a
+    // build with no Firebase app — where there is no cache to clear.
+    try {
+      await clearFirestoreCache();
+    } catch (_) {}
+
     messenger.showSnackBar(
       SnackBar(content: Text(deletedMsg)),
     );
