@@ -4,9 +4,13 @@ import 'package:provider/provider.dart';
 import '../data/daily_log_repository.dart';
 import '../db/database.dart';
 import '../providers/auth_provider.dart';
+import '../providers/log_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/account_deletion_service.dart';
 import '../services/claim_preference.dart';
+import '../services/firestore_ref.dart';
 import '../services/sync_trigger.dart';
+import 'account/deletion_pending_screen.dart';
 import 'app_shell.dart';
 import 'auth/claim_local_data_sheet.dart';
 import 'auth/sign_in_screen.dart';
@@ -16,7 +20,28 @@ import 'onboarding/onboarding_screen.dart';
 /// Wraps the app in the lock gate. When app lock is enabled, shows [LockScreen]
 /// on cold start and again whenever the app returns from the background.
 class AppGate extends StatefulWidget {
-  const AppGate({super.key});
+  const AppGate({
+    super.key,
+    this.pendingDeletion = _livePendingDeletion,
+    this.cancelDeletion = _liveCancelDeletion,
+  });
+
+  /// The deletion-request marker read, and its withdrawal.
+  ///
+  /// Injected for the reason `AccountSection`'s identical seam is: the live
+  /// implementations go through `lunaFirestore()`, which throws with no
+  /// initialized Firebase app — the state of every test harness, and of this
+  /// build until the console setup lands.
+  final Future<DeletionRequest?> Function(String uid) pendingDeletion;
+  final Future<void> Function(String uid) cancelDeletion;
+
+  static Future<DeletionRequest?> _livePendingDeletion(String uid) =>
+      AccountDeletionService(firestore: lunaFirestore(), uid: uid)
+          .pendingRequest();
+
+  static Future<void> _liveCancelDeletion(String uid) =>
+      AccountDeletionService(firestore: lunaFirestore(), uid: uid)
+          .cancelDeletion();
 
   @override
   State<AppGate> createState() => _AppGateState();
@@ -32,6 +57,22 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   /// was never asked — and, because `SyncTrigger.setUser` leaves the gate set
   /// for an unanswered account, uid-2 then got no sync at all, silently.
   String? _claimPromptShownFor;
+
+  /// The uid the deletion-marker read has already been issued for, and its
+  /// result. Same per-uid keying as [_claimPromptShownFor], for the same
+  /// reason: a bare bool would latch across a sign-out and sign-in.
+  String? _deletionCheckedFor;
+  DeletionRequest? _pendingDeletion;
+
+  /// The marker read is a network round-trip, and it must not become one the
+  /// user waits on. Nothing here blocks a build: the read is issued from a
+  /// post-frame callback and the app renders normally until it lands, so the
+  /// common path (no request on record — nearly everyone) costs one small
+  /// document read off the critical path and no added latency at all. If it
+  /// errors, times out, or the build has no Firebase app, the result is "no
+  /// request", i.e. show the app: this notice must never be able to lock
+  /// someone out of their own tracker.
+  static const _deletionCheckTimeout = Duration(seconds: 10);
 
   @override
   void initState() {
@@ -121,6 +162,59 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     });
   }
 
+  /// Looks for a deletion request on record for the signed-in account.
+  ///
+  /// Deliberately registered AFTER [_maybePromptClaim] in `build`, and it does
+  /// not touch that flow: the claim prompt's sequencing (post-frame callback,
+  /// `hasLocalDataToClaim()` first, per-uid record check, null ≠ declined) is
+  /// load-bearing against the pre-consent upload race and is left exactly as
+  /// it was. The two can overlap only for an account that requested deletion
+  /// from ANOTHER device and still has local data here, and that overlap is
+  /// harmless: `SyncService.syncNow` refuses to run for an account with a
+  /// marker on record, so answering the claim prompt pushes nothing.
+  void _maybeCheckDeletion(String? uid) {
+    if (uid == null || _deletionCheckedFor == uid) return;
+    _deletionCheckedFor = uid;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      DeletionRequest? request;
+      try {
+        request =
+            await widget.pendingDeletion(uid).timeout(_deletionCheckTimeout);
+      } catch (_) {
+        // Fail toward showing the app. Offline this is also the reachable
+        // false negative: a user inside the grace window sees no notice at all
+        // until they have a connection. Under-warning is the only direction
+        // that is safe here — the binding gate is the marker itself, which
+        // `SyncService` re-reads on every run.
+        request = null;
+      }
+      if (!mounted || request == null || _deletionCheckedFor != uid) return;
+      setState(() => _pendingDeletion = request);
+    });
+  }
+
+  /// Withdraws the request, then pulls the account's data back down.
+  ///
+  /// The sync is not incidental. `SyncTrigger.resume()` returns immediately
+  /// unless this session is the one that suspended — which it is not, in a
+  /// fresh session after signing back in — so without an explicit [syncNow]
+  /// the user would sit on the device they wiped, reading "Not synced yet",
+  /// until they background and foreground the app. The provider reloads follow
+  /// for the same reason: `SyncService` writes straight to drift and nothing
+  /// tells the in-memory providers to re-read.
+  Future<void> _cancelPendingDeletion(BuildContext context, String uid) async {
+    final trigger = context.read<SyncTrigger>();
+    final settings = context.read<SettingsProvider>();
+    final logs = context.read<LogProvider>();
+    await widget.cancelDeletion(uid); // throws → the screen reports it
+    if (!mounted) return;
+    setState(() => _pendingDeletion = null);
+    await trigger.syncNow();
+    if (!mounted) return;
+    await settings.load();
+    await logs.load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -136,9 +230,14 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       // Forget which account was asked: whoever signs in next — including the
       // same account, if it never answered — gets the question again.
       _claimPromptShownFor = null;
+      // Same reasoning for the marker: the next account to sign in here is a
+      // different question, and a stale answer must not carry over.
+      _deletionCheckedFor = null;
+      _pendingDeletion = null;
       return const SignInScreen();
     }
     _maybePromptClaim(context, auth.user?.uid);
+    _maybeCheckDeletion(auth.user?.uid);
 
     final settings = context.watch<SettingsProvider>();
 
@@ -146,6 +245,29 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     if (!settings.loaded) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    // A pending deletion outranks onboarding, and that ordering IS the fix:
+    // `deleteAllData()` resets `onboardingComplete`, so a user who requested
+    // deletion and signs back in inside the grace window would otherwise walk
+    // the whole first-run flow for an account scheduled for erasure and never
+    // be told — Settings → Account, the only other disclosure, is somewhere
+    // they have no reason to go.
+    //
+    // It sits ahead of the lock branch below as a consequence, which is
+    // consistent with what this gate already does (the sign-in screen and the
+    // claim sheet both precede the lock too) and cannot expose anything: both
+    // actions on that screen are non-destructive, and after a deletion request
+    // the app-lock PIN is cleared and settings are reset to defaults, so app
+    // lock is off in the state this branch exists for.
+    final pendingDeletion = _pendingDeletion;
+    final uid = auth.user?.uid;
+    if (pendingDeletion != null && uid != null) {
+      return DeletionPendingScreen(
+        request: pendingDeletion,
+        onCancel: () => _cancelPendingDeletion(context, uid),
+        onSignOut: () => context.read<AuthProvider>().signOut(),
+      );
+    }
+
     // First run: onboarding before anything else.
     if (!settings.onboardingComplete) {
       return const OnboardingScreen();
