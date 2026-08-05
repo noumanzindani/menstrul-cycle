@@ -163,13 +163,34 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
   }
 }
 
-/// [LockScreen] plus the [Overlay] it needs.
+/// [LockScreen] plus the [Overlay] and [ScaffoldMessenger] it needs.
 ///
 /// The lock is deliberately OUTSIDE the app's `Navigator` — that placement is
 /// the whole fix — and therefore outside the `Overlay` that comes with it. An
 /// `EditableText` (the PIN field) requires an `Overlay` ancestor for its
 /// selection handles and magnifier, so the lock brings its own. It is scoped to
 /// this widget: one overlay and one entry per lock episode, both dying with it.
+///
+/// It ALSO brings its own [ScaffoldMessenger], for a reason that is not
+/// obvious from `LockScreen` alone: `MaterialApp` installs one app-wide
+/// `ScaffoldMessenger` AROUND the entire output of `builder:` — i.e. around
+/// this whole `AppLock` subtree, `_LockLayer` included. Without a
+/// `ScaffoldMessenger` of its own here, `LockScreen`'s `Scaffold` finds and
+/// registers with THAT SAME app-wide instance (`ScaffoldMessengerState`
+/// walks up via `_ScaffoldMessengerScope`, and `AppLock` sits below it in the
+/// tree), and — being a `Scaffold` with no ancestor `ScaffoldState` of its
+/// own — is treated as a ROOT scaffold that immediately paints whatever
+/// snackbar is pending. Concretely: a snackbar live when the app is
+/// backgrounded, or raised by an in-flight async call (e.g.
+/// `settings_screen._importHealth`, `account_section._enableSync`) that
+/// completes after the lock has already engaged, rendered ON TOP of the lock
+/// screen — readable, and if it carried a `SnackBarAction` (e.g.
+/// `account_section._showError`'s 8-second "Retry", whose `onPressed` wipes
+/// local data, clears the PIN and signs out), tappable, with no PIN. Wrapping
+/// the `Overlay` in a fresh `ScaffoldMessenger` gives `LockScreen`'s own
+/// registration nowhere else to go: it can only ever show a snackbar this
+/// widget itself raises, which is never. `test/app_lock_snackbar_isolation_test.dart`
+/// is the regression guard.
 class _LockLayer extends StatefulWidget {
   const _LockLayer({required this.onUnlocked});
 
@@ -189,7 +210,8 @@ class _LockLayerState extends State<_LockLayer> {
   );
 
   @override
-  Widget build(BuildContext context) => Overlay(initialEntries: [_entry]);
+  Widget build(BuildContext context) =>
+      ScaffoldMessenger(child: Overlay(initialEntries: [_entry]));
 }
 
 class _LockScope extends InheritedWidget {
