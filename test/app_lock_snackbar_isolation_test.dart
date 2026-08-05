@@ -185,6 +185,14 @@ void main() {
     await tester.pump();
     // Sanity: unlocked, the action really is there and tappable.
     expect(find.widgetWithText(SnackBarAction, 'Retry'), findsOneWidget);
+    // Captured while genuinely on screen, so the post-lock tap below targets
+    // the exact pixel the button occupied rather than relying on `find`
+    // locating nothing — which `expect(retry, findsNothing)` on the next
+    // line already throws on, making a `find`-based tap after it dead code
+    // that always "passes" trivially. `tapAt` at a raw offset can't be
+    // short-circuited by a failed finder.
+    final retryCenter =
+        tester.getCenter(find.widgetWithText(SnackBarAction, 'Retry'));
 
     await background(tester);
     await foreground(tester);
@@ -192,12 +200,48 @@ void main() {
 
     // THE REGRESSION. Before the fix this button is hit-testable and its
     // `onPressed` genuinely fires with no PIN.
-    final retry = find.widgetWithText(SnackBarAction, 'Retry');
-    expect(retry, findsNothing);
-    if (retry.evaluate().isNotEmpty) {
-      await tester.tap(retry);
-      await tester.pump();
-    }
+    expect(find.widgetWithText(SnackBarAction, 'Retry'), findsNothing);
+    // Tap the exact former on-screen location by coordinate — not through a
+    // finder — so this genuinely exercises hit-testing at that point rather
+    // than being unreachable the moment the finder above found nothing.
+    await tester.tapAt(retryCenter);
+    await tester.pump();
     expect(actionFired, isFalse);
+  });
+
+  const bannerText = 'Cloud sync failed. Retry from Settings.';
+
+  testWidgets(
+      'a MaterialBanner does not render on the lock screen either — same '
+      'ScaffoldMessenger channel as a SnackBar', (tester) async {
+    // `ScaffoldMessengerState.showMaterialBanner` registers through the same
+    // `_register` path as `showSnackBar`
+    // (material/scaffold.dart:216-218) — one `ScaffoldMessenger` per
+    // `LockScreen` closes both leaks at once, but nothing in this suite
+    // exercised the banner half. There are zero `showMaterialBanner` call
+    // sites in `lib/` today, so this only guards against the FIRST future
+    // use silently reopening the hole this file exists to close.
+    await seedSettings(appLock: true);
+    await launch(tester);
+    await unlockWithPin(tester);
+
+    final messenger =
+        ScaffoldMessenger.of(tester.element(find.byType(NavigationBar)));
+    messenger.showMaterialBanner(MaterialBanner(
+      content: const Text(bannerText),
+      actions: const [SizedBox.shrink()],
+    ));
+    await tester.pump();
+    // Sanity: unlocked, it really is on screen.
+    expect(find.text(bannerText), findsOneWidget);
+
+    await background(tester);
+    await foreground(tester);
+
+    expect(find.byType(LockScreen), findsOneWidget);
+    // THE REGRESSION, banner flavour: before a `ScaffoldMessenger` of its own,
+    // `LockScreen` registers with the SAME app-wide messenger this banner is
+    // live on, and a root `Scaffold` immediately paints whatever is pending.
+    expect(find.text(bannerText), findsNothing);
   });
 }
