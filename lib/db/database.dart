@@ -64,11 +64,21 @@ class AppDatabase extends _$AppDatabase {
 
   /// Wipes all LOCAL user data and resets settings to defaults.
   ///
-  /// This is NOT the full right-to-erasure path any more — logs also live in
-  /// Firestore under `users/{uid}`. Erasure means
-  /// `AccountDeletionService.deleteFirestoreData()` AND this. The in-app
-  /// "delete all my data" control clears the device; "Delete account"
-  /// (Settings → Account) does both.
+  /// **This is not an erasure, and for a signed-in user it is not even
+  /// permanent.** Logs also live in Firestore under `users/{uid}`, and this
+  /// method resets `lastSyncedAt` to null, which makes the next sync a FULL
+  /// sweep: the entire cloud history is pulled straight back down onto the
+  /// device. So the in-app "delete all my data" control empties the device
+  /// *now*, and — while the account is still syncing — the next sync refills
+  /// it. `test/sync_service_test.dart` ("what a local 'delete all my data'
+  /// does and does not do") pins that behaviour.
+  ///
+  /// Erasing the server copy is a separate act: Settings → Account →
+  /// "Request account deletion" records `deletionRequests/{uid}`, which stops
+  /// sync in both directions (`SyncService.syncNow`) and queues the account
+  /// for a purge after `AccountDeletionService.graceWindow`. Whether the local
+  /// control should ALSO stop the refill is a real open question, flagged in
+  /// the task-11 report rather than decided here.
   Future<void> deleteAllData() async {
     await transaction(() async {
       await delete(dailyLogs).go();
@@ -78,14 +88,25 @@ class AppDatabase extends _$AppDatabase {
       await delete(appSettings).go();
       // A pending tombstone is a not-yet-pushed deletion intent for a day
       // that no longer exists locally. Leaving it here means the NEXT
-      // account signed into on this device (a fresh account after "delete
-      // account", or simply signing in as someone else) would push a bogus
+      // account signed into on this device (a fresh account after a deletion
+      // request, or simply signing in as someone else) would push a bogus
       // deletion marker under ITS OWN Firestore path the moment sync first
       // runs — a stale local record leaking into an account that never
-      // tracked that day. This wipe also resets `lastSyncedAt`/
-      // `settingsUpdatedAt` to null via the fresh `appSettings` row below,
-      // which is what makes "delete account" not leave a stale sync
-      // high-water mark behind either.
+      // tracked that day.
+      //
+      // TRADE-OFF, deliberately taken: this also discards the intent for the
+      // SAME account. A user who deletes day X, does not sync, then taps
+      // "delete all my data" loses the pending deletion — day X survives in
+      // the cloud and the next full sweep restores it locally. Both halves
+      // are pinned by tests: `sync_tombstone_test.dart` (the tombstones are
+      // cleared) and `sync_service_test.dart` (the day comes back). A
+      // cross-ACCOUNT leak of one user's deletion dates into another user's
+      // Firestore subtree is judged worse than one lost deletion within the
+      // same account, which the user can simply repeat.
+      //
+      // This wipe also resets `lastSyncedAt`/`settingsUpdatedAt` to null via
+      // the fresh `appSettings` row below — see the note on `lastSyncedAt` in
+      // this method's own doc comment for what that means for the next sync.
       await delete(syncTombstones).go();
       await into(appSettings).insert(const AppSettingsCompanion(id: Value(0)));
     });

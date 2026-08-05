@@ -47,4 +47,21 @@ void main() {
 
     expect(await repo.getTombstones(), isEmpty);
   });
+
+  test(
+      'deleteAllData drops pending tombstones, so they cannot be pushed under '
+      'whichever account signs in next on this device', () async {
+    final day = DateTime(2026, 5, 13);
+    await repo.upsert(date: day, flow: FlowIntensity.light, symptomsJson: '{}');
+    await repo.deleteForDate(day);
+    expect(await repo.getTombstones(), hasLength(1));
+
+    await db.deleteAllData();
+
+    // A tombstone is a not-yet-pushed "delete this day" intent. Surviving a
+    // full local wipe, it would be pushed into the NEXT account's own
+    // `users/{uid}/deletions` — a deletion marker for a day that account
+    // never tracked. See the trade-off recorded on `deleteAllData` itself.
+    expect(await repo.getTombstones(), isEmpty);
+  });
 }

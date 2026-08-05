@@ -1214,6 +1214,63 @@ void main() {
     });
   });
 
+  group('what a local "delete all my data" does and does not do', () {
+    test(
+        'it does NOT erase the account: the next sync pulls the whole cloud '
+        'history straight back down', () async {
+      await logs.upsert(
+        date: DateTime(2026, 8, 20),
+        flow: FlowIntensity.medium,
+        symptomsJson: '{}',
+      );
+      await logs.upsert(
+        date: DateTime(2026, 8, 21),
+        flow: FlowIntensity.light,
+        symptomsJson: '{}',
+      );
+      await sync.syncNow();
+
+      await db.deleteAllData();
+      expect(await logs.getAll(), isEmpty);
+
+      await sync.syncNow();
+
+      // `deleteAllData` nulls `lastSyncedAt`, which makes the next run a FULL
+      // sweep. This is characterisation, not an endorsement: the doc comment
+      // on `deleteAllData` says exactly this, because the previous wording
+      // ("clears the device") read as an erasure it never was.
+      expect(await logs.getAll(), hasLength(2));
+    });
+
+    test(
+        'it drops pending tombstones, so a day deleted just before the wipe '
+        'survives in the cloud and comes back', () async {
+      final day = DateTime(2026, 8, 22);
+      await logs.upsert(
+        date: day,
+        flow: FlowIntensity.medium,
+        symptomsJson: '{}',
+      );
+      await sync.syncNow();
+      expect(await remoteDay('2026-08-22'), isNotNull);
+
+      // The user deletes the day, then — before it is ever pushed — taps
+      // "delete all my data".
+      await logs.deleteForDate(day);
+      await db.deleteAllData();
+
+      await sync.syncNow();
+
+      // The deletion intent is gone with the tombstone, so the cloud copy
+      // survives and the full sweep restores it. This is the cost of clearing
+      // tombstones in `deleteAllData`; the benefit is that they cannot be
+      // pushed into a DIFFERENT account signed in on this device afterwards.
+      // Both halves are recorded on `deleteAllData`'s doc comment.
+      expect(await remoteDay('2026-08-22'), isNotNull);
+      expect(await logs.getForDate(day), isNotNull);
+    });
+  });
+
   test('signing out does not wipe local data', () async {
     // Design spec §7.3: sign-out must never delete the device's logs — a user
     // switching accounts would otherwise lose everything.
