@@ -4,6 +4,16 @@ import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
 import 'lock_screen.dart';
 
+/// A plain mutable box for "is the app lock up right now", read by
+/// `_LockRouteGuard` in `main.dart` and written by [AppLock].
+///
+/// Deliberately NOT a [ValueNotifier]/[Listenable]: see the doc comment on
+/// [AppLock.lockNotifier] for why listenability itself is the hazard this
+/// avoids, rather than something to warn about after the fact.
+class LockFlag {
+  bool value = false;
+}
+
 /// The app lock, installed ABOVE the [Navigator] through `MaterialApp.builder`
 /// so that it covers every route.
 ///
@@ -21,9 +31,12 @@ import 'lock_screen.dart';
 /// app's `Theme`/`ScaffoldMessenger` and the `Navigator`, so wrapping there
 /// covers the navigator, its overlay, and therefore every route at once.
 ///
-/// While locked the app is kept MOUNTED but [Offstage]: it is not laid out, not
-/// painted, not hit-testable and not in the semantics tree (so a screen reader
-/// cannot read it either), yet every `State`, scroll position and open route
+/// While locked the app is kept MOUNTED but [Offstage]: it is still laid out
+/// (`RenderOffstage.performLayout` calls `child.layout` regardless of
+/// offstage-ness — only `sizedByParent`/paint/hit-test/semantics are
+/// suppressed), but not painted, not hit-testable and not in the semantics
+/// tree (so a screen reader cannot read it either), yet every `State`, scroll
+/// position and open route
 /// survives — unlocking puts the user back exactly where they were, including
 /// inside a sheet or a pushed screen. Replacing the tree instead would lose all
 /// of that. `find` in a widget test skips offstage subtrees by default, so
@@ -51,24 +64,42 @@ class AppLock extends StatefulWidget {
   /// refusal has to be registered by something that is itself an ANCESTOR of
   /// `MaterialApp`.
   ///
-  /// [AppLock] only ever WRITES to this — [build] is the one place "locked"
-  /// is computed (`_locked && enabled`), and that exact value is fed here,
-  /// not a second hand-rolled expression for the same question. `null` in
-  /// every harness that doesn't need back-button coverage — several tests
-  /// call `AppLock.wrap` directly (the claim-prompt and deletion-notice
-  /// suites), and a write to a null notifier is just skipped.
-  final ValueNotifier<bool>? lockNotifier;
+  /// [AppLock] only ever WRITES to this — [build] and [_AppLockState._lock]
+  /// are the only two places "locked" is computed (`_locked && enabled`, and
+  /// the definitionally-`true` write from `_lock` — see its doc comment), and
+  /// that exact value is fed here, not a second hand-rolled expression for
+  /// the same question. `null` in every harness that doesn't need
+  /// back-button coverage — [wrap] defaults to it, and a write to a null
+  /// flag is just skipped.
+  ///
+  /// Deliberately a plain mutable box, not a [ValueNotifier] or any other
+  /// `Listenable`: this is written to from inside `build` (see [build]
+  /// below), and a `ValueNotifier` would call `notifyListeners()` on that
+  /// write. Nothing subscribes to it today, which is the only reason that
+  /// would be harmless — but it is a structural landmine, not a rule someone
+  /// has to remember: the first `ValueListenableBuilder` (or `addListener`
+  /// call) anywhere below [AppLock] would get "setState() called during
+  /// build" the moment it listened. [LockFlag] cannot be listened to at all,
+  /// so that failure mode does not exist rather than being merely
+  /// undocumented.
+  final LockFlag? lockNotifier;
 
-  /// The exact expression `main.dart` hands to `MaterialApp.builder` in every
-  /// harness that isn't specifically exercising the back-button fix.
+  /// The exact expression `main.dart` hands to `MaterialApp.builder`.
   ///
   /// Exposed as a named function so the app and every widget-test harness pass
   /// the SAME thing; a harness that hand-rolled its own wrapper would be testing
-  /// a lock the app does not have. `main.dart` itself does not use this
-  /// directly — it needs to hand in a [lockNotifier] owned by `_LockRouteGuard`
-  /// — but constructs `AppLock` the same way otherwise.
-  static Widget wrap(BuildContext context, Widget? child) =>
-      AppLock(child: child ?? const SizedBox.shrink());
+  /// a lock the app does not have. [lockNotifier] is optional and defaults to
+  /// `null` (no back-button coverage) — the claim-prompt and deletion-notice
+  /// test suites call `AppLock.wrap` directly with the default, and
+  /// `main.dart` calls it with the [LockFlag] `_LockRouteGuard` owns, so both
+  /// genuinely go through the same function rather than two different
+  /// constructions of [AppLock] that happen to look similar.
+  static Widget wrap(BuildContext context, Widget? child,
+          [LockFlag? lockNotifier]) =>
+      AppLock(
+        lockNotifier: lockNotifier,
+        child: child ?? const SizedBox.shrink(),
+      );
 
   /// Whether the lock is currently covering the app.
   ///

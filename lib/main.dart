@@ -217,14 +217,16 @@ class LunaTrackApp extends StatelessWidget {
                 // `AppGate.build` (what this replaces) left every one of those
                 // rendering on top of the lock. See `screens/lock/app_lock.dart`.
                 //
-                // Constructed directly rather than via `AppLock.wrap` so the
-                // `lockNotifier` from `_LockRouteGuard` above can be threaded
-                // through — `wrap` stays a plain `(context, child) => Widget`
-                // for the harnesses that don't need back-button coverage.
-                builder: (context, child) => AppLock(
-                  lockNotifier: lockNotifier,
-                  child: child ?? const SizedBox.shrink(),
-                ),
+                // Goes through `AppLock.wrap` — the SAME function every
+                // widget-test harness that builds a lock calls — passing the
+                // `lockNotifier` `_LockRouteGuard` owns as `wrap`'s optional
+                // third argument. Harnesses that don't need back-button
+                // coverage call `wrap` with just the first two and get `null`,
+                // which `AppLock` treats as "skip the write"; this call is not
+                // a second, hand-built construction of `AppLock` that merely
+                // resembles what `wrap` does.
+                builder: (context, child) =>
+                    AppLock.wrap(context, child, lockNotifier),
                 home: const HomeWidgetSync(child: AppGate()),
               ),
             );
@@ -248,15 +250,16 @@ class LunaTrackApp extends StatelessWidget {
 /// register an observer somewhere that mounts BEFORE `MaterialApp` does,
 /// i.e. an ancestor of it. This widget is that ancestor.
 ///
-/// It reads "is locked" from a single [ValueNotifier] it owns and hands down
-/// to [builder] — the SAME notifier [AppLock] writes to on every build (see
-/// `AppLock.lockNotifier`). That is the one and only place "is the lock up"
-/// is computed; this widget never re-derives it.
+/// It reads "is locked" from a single [LockFlag] it owns and hands down to
+/// [builder] — the SAME flag [AppLock] writes to, both from `build` and, as
+/// of the fix this class's `didPopRoute` doc describes, from the moment the
+/// lock engages (see `AppLock.lockNotifier` and `_AppLockState._lock`). That
+/// is the one and only place "is the lock up" is computed; this widget never
+/// re-derives it.
 class _LockRouteGuard extends StatefulWidget {
   const _LockRouteGuard({required this.builder});
 
-  final Widget Function(BuildContext context, ValueNotifier<bool> lockNotifier)
-      builder;
+  final Widget Function(BuildContext context, LockFlag lockNotifier) builder;
 
   @override
   State<_LockRouteGuard> createState() => _LockRouteGuardState();
@@ -264,7 +267,7 @@ class _LockRouteGuard extends StatefulWidget {
 
 class _LockRouteGuardState extends State<_LockRouteGuard>
     with WidgetsBindingObserver {
-  final ValueNotifier<bool> _lockNotifier = ValueNotifier<bool>(false);
+  final LockFlag _lockNotifier = LockFlag();
 
   @override
   void initState() {
@@ -277,15 +280,29 @@ class _LockRouteGuardState extends State<_LockRouteGuard>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _lockNotifier.dispose();
     super.dispose();
   }
 
-  /// Swallows the Android back button while the lock is up. The app's
+  /// Swallows the Android back BUTTON while the lock is up. The app's
   /// Navigator is still there behind the lock, just offstage, and the system
   /// back button would otherwise reach and pop its hidden route stack —
   /// navigating an app the presser is not allowed to see, only deferred
   /// (not blocked) by the muted `TickerMode` until the lock next lifts.
+  ///
+  /// What this does NOT cover: Android 13+'s predictive-back GESTURE. The app
+  /// targets SDK 36 (`android/app/build.gradle.kts`) with no
+  /// `android:enableOnBackInvokedCallback="false"` opt-out
+  /// (`AndroidManifest.xml`), and this class implements only [didPopRoute] —
+  /// not `handleStartBackGesture`/`handleCommitBackGesture`
+  /// (`widgets/binding.dart:993+`), which is the callback pair the predictive
+  /// gesture actually drives. `_WidgetsAppState` derives
+  /// `SystemNavigator.setFrameworkHandlesBack` from the Navigator's own route
+  /// stack, independent of this observer, so on a device where the predictive
+  /// gesture is live, a swipe-back while locked may bypass this guard
+  /// entirely. SUSPECTED, not confirmed here — it needs a real API 36 device
+  /// to observe, and is explicitly out of scope for this fix (the hardware/
+  /// 3-button back button — [didPopRoute] — is what regressed and is what
+  /// this class fixes).
   @override
   Future<bool> didPopRoute() async => _lockNotifier.value;
 
