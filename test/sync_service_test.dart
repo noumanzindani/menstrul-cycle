@@ -8,6 +8,7 @@ import 'package:menstrul_track/data/daily_log_repository.dart';
 import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/models/enums.dart';
+import 'package:menstrul_track/services/account_deletion_service.dart';
 import 'package:menstrul_track/services/sync_service.dart';
 
 void main() {
@@ -1140,6 +1141,76 @@ void main() {
       final backOnA = await logs.getForDate(day);
       expect(backOnA, isNotNull);
       expect(backOnA!.flow, FlowIntensity.medium);
+    });
+  });
+
+  group('an account with a pending deletion request is invisible to sync', () {
+    Future<void> requestDeletion() =>
+        AccountDeletionService(firestore: firestore, uid: 'uid-1')
+            .requestDeletion(now: DateTime(2026, 8, 5));
+
+    test('nothing is pushed out of it', () async {
+      await logs.upsert(
+        date: DateTime(2026, 8, 16),
+        flow: FlowIntensity.light,
+        symptomsJson: '{}',
+      );
+      await requestDeletion();
+
+      await sync.syncNow();
+
+      // The user asked for this account to be erased. A log written (or
+      // merely still present) on this device afterwards must not land in the
+      // subtree the purge already has a work order for -- it would survive
+      // the sweep as orphaned health data.
+      expect(await remoteDay('2026-08-16'), isNull);
+    });
+
+    test('nothing is pulled into it', () async {
+      await firestore.collection('users/uid-1/dailyLogs').doc('2026-08-16').set({
+        'date': '2026-08-16',
+        'flow': FlowIntensity.medium.index,
+        'symptoms': <String, dynamic>{},
+        'updatedAt': DateTime(2026, 8, 16).millisecondsSinceEpoch,
+      });
+      await requestDeletion();
+
+      await sync.syncNow();
+
+      // Signing back in during the grace window must not silently restore the
+      // health data the user just erased from this device.
+      expect(await logs.getAll(), isEmpty);
+    });
+
+    test('cancelling the request makes the account syncable again', () async {
+      await logs.upsert(
+        date: DateTime(2026, 8, 16),
+        flow: FlowIntensity.light,
+        symptomsJson: '{}',
+      );
+      await requestDeletion();
+      await sync.syncNow();
+      expect(await remoteDay('2026-08-16'), isNull);
+
+      await AccountDeletionService(firestore: firestore, uid: 'uid-1')
+          .cancelDeletion();
+      await sync.syncNow();
+
+      expect(await remoteDay('2026-08-16'), isNotNull);
+    });
+
+    test('another account\'s pending request does not gate this one', () async {
+      await AccountDeletionService(firestore: firestore, uid: 'someone-else')
+          .requestDeletion(now: DateTime(2026, 8, 5));
+      await logs.upsert(
+        date: DateTime(2026, 8, 16),
+        flow: FlowIntensity.light,
+        symptomsJson: '{}',
+      );
+
+      await sync.syncNow();
+
+      expect(await remoteDay('2026-08-16'), isNotNull);
     });
   });
 

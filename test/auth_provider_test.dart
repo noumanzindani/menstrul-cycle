@@ -104,4 +104,24 @@ void main() {
 
     expect(provider.busy, isFalse);
   });
+
+  group('requireSignedIn (the guard FirebaseAuthService.deleteAccount uses)',
+      () {
+    test('a missing user is a failure, never a silent success', () {
+      // `_auth.currentUser?.delete()` returned normally when currentUser was
+      // null, so the whole delete pipeline reported success while the account
+      // was still alive. Whatever the caller does next -- wipe the device,
+      // tell the user "deleted" -- is then a lie.
+      expect(
+        () => requireSignedIn<Object>(null),
+        throwsA(isA<AuthFailure>()
+            .having((e) => e.code, 'code', AuthErrorCode.notSignedIn)),
+      );
+    });
+
+    test('a present user passes straight through', () {
+      const user = AppUser(uid: 'uid-1');
+      expect(requireSignedIn(user), same(user));
+    });
+  });
 }

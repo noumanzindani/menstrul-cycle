@@ -19,6 +19,8 @@ String messageForAuthError(AuthErrorCode code) {
       return 'No connection. Check your network and try again.';
     case AuthErrorCode.requiresRecentLogin:
       return 'Please sign in again to continue.';
+    case AuthErrorCode.notSignedIn:
+      return "You're not signed in any more. Sign in and try again.";
     case AuthErrorCode.unknown:
       return 'Something went wrong. Please try again.';
   }

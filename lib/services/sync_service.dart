@@ -5,6 +5,7 @@ import '../data/daily_log_repository.dart';
 import '../data/settings_repository.dart';
 import '../db/database.dart';
 import '../models/enums.dart';
+import 'account_deletion_service.dart';
 import 'sync_mapper.dart';
 import 'sync_merge.dart';
 
@@ -113,6 +114,33 @@ class SyncService {
     if (_running) return; // overlapping runs would fight over the same window
     _running = true;
     try {
+      // An account with a deletion request on record is invisible to sync in
+      // BOTH directions, for the whole grace window.
+      //
+      // Out: `AccountDeletionService.deleteFirestoreData` (the purge) sweeps
+      // the subtree collection by collection with no atomicity, so anything
+      // pushed after the request survives as orphaned health data under a uid
+      // whose auth user is about to be deleted -- unreachable but still on the
+      // server, the exact thing "delete my account" exists to prevent.
+      //
+      // In: the request erases the device immediately. Signing back in during
+      // the window would otherwise pull the entire cloud history straight back
+      // down onto a device the user just wiped.
+      //
+      // This is the check that does NOT depend on the requesting device's own
+      // in-memory state: it holds on every other device, on this one after a
+      // relaunch, and regardless of whether `SyncTrigger.suspend()` really
+      // stopped the run it was asked to stop (at the time of writing it does
+      // not reliably await an in-flight run -- see the task-11 report). It
+      // costs one small document read per sync run; the marker holds a uid and
+      // two timestamps, no health data. `firestore.rules` will enforce the
+      // same thing server-side -- see the task-11 report -- but a rule that is
+      // deployed later cannot protect a build shipped now, and a denied write
+      // would only surface here as a swallowed exception.
+      final deletionRequested = await _firestore
+          .doc(AccountDeletionService.requestPath(uid))
+          .get();
+      if (deletionRequested.exists) return;
       // Captured BEFORE any push/pull work, and committed as `lastSyncedAt`
       // below — NOT a fresh `DateTime.now()` taken after the run. `_pushLogs`
       // snapshots rows near the top of this run; any local write that lands

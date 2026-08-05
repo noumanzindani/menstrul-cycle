@@ -18,6 +18,7 @@ enum AuthErrorCode {
   wrongCredentials,
   networkError,
   requiresRecentLogin,
+  notSignedIn,
   unknown,
 }
 
@@ -27,6 +28,23 @@ class AuthFailure implements Exception {
 
   @override
   String toString() => 'AuthFailure($code)';
+}
+
+/// Returns [value], or throws [AuthFailure] when there is no signed-in user.
+///
+/// Extracted from [FirebaseAuthService.deleteAccount] so the guard itself is
+/// testable: constructing a `FirebaseAuth` requires a real Firebase app, and
+/// this project has no auth mocking package (adding one needs the owner's
+/// sign-off), so the call site cannot be unit-tested — the rule it enforces
+/// can.
+///
+/// The rule matters because the alternative is silent: `currentUser?.delete()`
+/// returns normally when `currentUser` is null, so a caller awaiting it is
+/// told the account was deleted when nothing happened at all. On this app that
+/// reads as "your account is gone" while the account is very much alive.
+T requireSignedIn<T>(T? value) {
+  if (value == null) throw AuthFailure(AuthErrorCode.notSignedIn);
+  return value;
 }
 
 abstract class AuthService {
@@ -88,7 +106,7 @@ class FirebaseAuthService implements AuthService {
 
   @override
   Future<void> deleteAccount() =>
-      _run(() async => _auth.currentUser?.delete());
+      _run(() => requireSignedIn(_auth.currentUser).delete());
 
   Future<void> _run(Future<void> Function() action) async {
     try {
