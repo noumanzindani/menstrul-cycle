@@ -102,6 +102,16 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     }
   }
 
+  /// Whether [build] would currently be returning [LockScreen] — the one thing
+  /// nothing in this widget may render on top of.
+  ///
+  /// Deliberately the SAME expression the lock branch in [build] evaluates, so
+  /// the two cannot drift apart. `appLockEnabled` is re-read rather than assumed
+  /// from [_locked]: a sync can land a settings document that turns app lock
+  /// off, and "locked" without "enabled" is not a gate [build] would honour.
+  bool _lockGateShowing(BuildContext context) =>
+      _locked && context.read<SettingsProvider>().appLockEnabled;
+
   /// Offers to upload pre-existing local logs the first time an account signs
   /// in on this device. Runs after the frame so it can show a modal sheet.
   void _maybePromptClaim(BuildContext context, String? uid) {
@@ -145,6 +155,20 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       }
       if (record?.uid == uid) return;
       if (!context.mounted) return;
+      // The lock can engage BETWEEN this callback being scheduled and this
+      // line: every `await` above is a suspension point, and
+      // `didChangeAppLifecycleState` sets `_locked` when the app is backgrounded
+      // in between. `build`'s ordering cannot cover that on its own, because
+      // this sheet is a Navigator ROUTE — it renders above whatever `build`
+      // returned, `LockScreen` included. Forget the uid so the question is
+      // raised again from `build` the moment the gate stops rendering the lock;
+      // dropping it silently would leave the account gated with no way to be
+      // asked, and persisting anything here would be a decision the user never
+      // made.
+      if (_lockGateShowing(context)) {
+        _claimPromptShownFor = null;
+        return;
+      }
       final upload = await showClaimLocalDataSheet(context, dayCount: count);
       // null is NOT "declined". The sheet returns null only when it was
       // dismissed without an answer (the Android system back button is not
@@ -236,8 +260,6 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       _pendingDeletion = null;
       return const SignInScreen();
     }
-    _maybePromptClaim(context, auth.user?.uid);
-    _maybeCheckDeletion(auth.user?.uid);
 
     final settings = context.watch<SettingsProvider>();
 
@@ -268,6 +290,26 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     if (enabled && _locked) {
       return LockScreen(onUnlocked: () => setState(() => _locked = false));
     }
+
+    // Both of these are registered BELOW the lock branch, and that placement is
+    // the fix. `_maybePromptClaim` raises a Navigator route, which renders above
+    // whatever this method returned — so while it was registered at the top of
+    // `build`, the claim sheet appeared over `LockScreen`, handing whoever holds
+    // the locked phone, with no PIN: the disclosure that this device holds N
+    // days of menstrual-health logs, and a one-tap "Add to my account" that
+    // uploads them. Everything the lock was put in front of, on top of it.
+    //
+    // Registering them here instead means they are reached only on a build that
+    // is NOT rendering the lock, so an unlock (PIN or biometric — both land on
+    // the same `setState`) is what raises the prompt, and a locked session that
+    // is backgrounded never raises it at all. With app lock off, `enabled` is
+    // false and control arrives here on the same build it always did.
+    //
+    // Their relative order and per-uid keying are unchanged and load-bearing:
+    // see `_maybePromptClaim` (the pre-consent upload race lives in exactly this
+    // sequencing) and `_maybeCheckDeletion`.
+    _maybePromptClaim(context, auth.user?.uid);
+    _maybeCheckDeletion(auth.user?.uid);
 
     // A pending deletion outranks onboarding, and that ordering IS the fix:
     // `deleteAllData()` resets `onboardingComplete`, so a user who requested
