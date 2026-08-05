@@ -190,4 +190,36 @@ void main() {
     expect(find.text('Sign in'), findsWidgets);
     expect(find.byKey(const Key('account.syncUnavailable')), findsNothing);
   });
+
+  testWidgets(
+      'with Firebase unavailable and NO injected auth service, the app '
+      'still builds -- UnavailableAuthService, not FirebaseAuthService',
+      (tester) async {
+    // Every other test in this file injects `authService`, which short-
+    // circuits `main.dart`'s `authService ?? (firebaseAvailable ?
+    // FirebaseAuthService() : UnavailableAuthService())` before the
+    // `firebaseAvailable` branch is ever reached. Omitting it here is the
+    // only way to actually exercise that ternary: revert it to the pre-fix
+    // `authService ?? FirebaseAuthService()` and this constructs a real
+    // `FirebaseAuthService`, which touches `FirebaseAuth.instance` ->
+    // `Firebase.app()` with no app registered and throws `[core/no-app]`
+    // during `create:` -- the exact crash this whole task exists to fix.
+    final db = await _dbPastOnboarding();
+    addTearDown(db.close);
+
+    await tester.pumpWidget(
+      LunaTrackApp(
+        database: db,
+        firebaseAvailable: false,
+        syncTrigger: _testSyncTrigger(db),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    // UnavailableAuthService reports permanently signed out, so AppGate
+    // shows the sign-in wall -- same observable shape as the signed-out
+    // case above, but reached via the real, un-injected ternary.
+    expect(find.text('Sign in'), findsWidgets);
+  });
 }
