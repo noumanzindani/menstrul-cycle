@@ -359,6 +359,20 @@ void main() {
     gate.complete();
     await tester.pumpAndSettle();
 
+    // `claimSheet` (like `find` in general) skips offstage subtrees, so it
+    // cannot tell "never pushed" apart from "pushed, but hidden by
+    // `AppLock`'s Offstage" -- and the sheet route sits ABOVE the lock in the
+    // navigator, so a route pushed here would become visible the instant the
+    // lock lifts with no new question asked, exactly the false negative
+    // `test/app_lock_back_button_test.dart` already documents for the back
+    // button ("a pop that reaches the hidden Navigator is only DEFERRED …
+    // not blocked"). `skipOffstage: false` is the only way to tell the two
+    // apart: it must find NOTHING, proving the guard actually stopped the
+    // push rather than merely leaving it invisible for now.
+    expect(
+        find.byKey(const Key('claim.upload'), skipOffstage: false),
+        findsNothing,
+        reason: 'the sheet must not be PUSHED behind the lock, only hidden');
     expect(claimSheet, findsNothing);
     expect(disclosure, findsNothing);
     expect(claimStore, isNull);
