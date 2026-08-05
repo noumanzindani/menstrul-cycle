@@ -531,6 +531,34 @@ void main() {
       expect(find.byKey(const Key('account.deletionPending')), findsNothing);
       expect(find.byKey(const Key('account.delete')), findsOneWidget);
     });
+
+    testWidgets(
+        'cancelling actually brings the data back -- resume() returns at its '
+        'first line in a session that never suspended', (tester) async {
+      await AccountDeletionService(firestore: firestore, uid: 'uid-1')
+          .requestDeletion(now: DateTime(2026, 8, 5));
+      await firestore
+          .collection('users/uid-1/dailyLogs')
+          .doc('2026-01-01')
+          .set({'date': '2026-01-01', 'flow': 3, 'updatedAt': 1767225600000});
+      storedClaim = const ClaimRecord(uid: 'uid-1', declined: false);
+
+      // The realistic session: the user signed back in AFTER the request, so
+      // this trigger has never suspended and `resume()` is a no-op for it.
+      final trigger = buildTrigger();
+      await trigger.setUser('uid-1');
+      expect(await DailyLogRepository(db).getAll(), isEmpty,
+          reason: 'precondition: the marker gate keeps the wiped device empty');
+
+      await tester.pumpWidget(wrap(trigger: trigger));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('account.cancelDeletion')));
+      await tester.pumpAndSettle();
+
+      // Without an explicit sync the user reads "Not synced yet" on an empty
+      // device until they background and foreground the app.
+      expect(await DailyLogRepository(db).getAll(), hasLength(1));
+    });
   });
 
   group('the cloud-sync status tile', () {

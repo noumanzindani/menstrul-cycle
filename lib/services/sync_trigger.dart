@@ -72,9 +72,17 @@ class SyncTrigger extends ChangeNotifier {
   /// suspend that has already returned.
   int _epoch = 0;
 
-  /// The run [syncNow] currently has in flight, so [suspend] can wait for it
-  /// to land instead of returning while a push is still on the wire.
+  /// The run [syncNow] currently has in flight, and the [SyncService] it was
+  /// started for. Coalescing joins the existing run ONLY when that service is
+  /// still the current one — see [syncNow].
   Future<void>? _inFlight;
+  SyncService? _inFlightService;
+
+  /// EVERY run not yet complete, including ones started for a service that has
+  /// since been replaced. [suspend]'s guarantee is "this device is provably not
+  /// writing to Firestore any more", which has to cover all of them, not just
+  /// the newest — a run started for the previous account is still a run.
+  final List<Future<void>> _outstanding = [];
 
   /// Set by [suspend]: hard-stops every path into [SyncService] until [resume]
   /// or a uid change. See [suspend] for why an account deletion needs this.
@@ -291,6 +299,15 @@ class SyncTrigger extends ChangeNotifier {
     // callbacks that can outlive a sign-out.)
     if (uid == null) return;
     await _writeClaim(ClaimRecord(uid: uid, declined: !upload));
+    // The same guard [setUser] carries, for the same reason, at the one other
+    // place `_pendingClaim` is mutated across an `await`. The storage write is
+    // slow (keystore), and the account can change while it is in flight: the
+    // continuation would then clear the gate and sync for whoever is signed in
+    // NOW, pushing this device's local health rows into an account that
+    // consented to nothing. Reproduced against the epoch fix, which does not
+    // cover this method. The record written above is uid-scoped, so it is
+    // correct either way and does not need undoing.
+    if (_uid != uid) return;
     if (!upload) return;
     _pendingClaim = false;
     await syncNow();
@@ -320,7 +337,11 @@ class SyncTrigger extends ChangeNotifier {
     _debounce?.cancel();
     _debounce = null;
     _service = null;
-    await _inFlight;
+    // Every outstanding run, not just the newest: since [syncNow] no longer
+    // coalesces across a service change, two can genuinely be in flight at
+    // once, and a run started for the previous account is writing to Firestore
+    // just the same. `_syncNow` swallows its own errors, so this cannot throw.
+    await Future.wait(_outstanding.toList());
   }
 
   /// Lifts [suspend] for the still-signed-in account — e.g. a deletion that
@@ -361,17 +382,34 @@ class SyncTrigger extends ChangeNotifier {
   ///
   /// Returning the canonical future instead means [_inFlight] always refers to
   /// the run that is actually writing, and every caller's `await` waits for it.
+  ///
+  /// The coalescing is per-SERVICE, not per-trigger. Joining any in-flight run
+  /// meant a new account's sign-in sync silently joined the PREVIOUS account's
+  /// run and was dropped: [setUser] awaits its own [syncNow], so it returned
+  /// believing it had synced, and `_enableSync` then reported success off a
+  /// `lastSyncedAt` the other account's run had advanced. It self-heals on the
+  /// next resume, which is exactly what makes it hard to see.
   Future<void> syncNow() {
     // No consent (yet) to push this device's history.
     if (_pendingClaim) return Future<void>.value();
     // Account deletion in progress — see [suspend].
     if (_suspended) return Future<void>.value();
     final existing = _inFlight;
-    if (existing != null) return existing;
+    // `identical`, not `==`: the question is whether the run already going is
+    // one THIS service started, and a `SyncService` has no value identity.
+    if (existing != null && identical(_inFlightService, _service)) {
+      return existing;
+    }
     final run = _syncNow();
     _inFlight = run;
+    _inFlightService = _service;
+    _outstanding.add(run);
     return run.whenComplete(() {
-      if (identical(_inFlight, run)) _inFlight = null;
+      _outstanding.remove(run);
+      if (identical(_inFlight, run)) {
+        _inFlight = null;
+        _inFlightService = null;
+      }
     });
   }
 

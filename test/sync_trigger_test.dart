@@ -105,6 +105,43 @@ void main() {
     });
 
     test(
+        'a resolveClaim continuation that resumes AFTER the account changed '
+        'cannot reopen the gate or push into the account signed in now',
+        () async {
+      // The BLOCKER's leak, reachable through the one mutation of
+      // `_pendingClaim` across an `await` that the epoch guard does not cover.
+      // `_writeClaim` is keystore-backed and genuinely slow, and the claim
+      // sheet's answer is an unawaited UI callback that can outlive a sign-out.
+      await seedLog(DateTime(2026, 1, 5));
+      final storageWrite = Completer<void>();
+      final t = SyncTrigger(
+        db,
+        firestore: () => firestore,
+        deviceId: () async => 'device-1',
+        readClaim: () async => claimStore,
+        writeClaim: (record) async {
+          claimStore = record;
+          await storageWrite.future;
+        },
+      );
+
+      await t.setUser('uid-1'); // local data, no record -> gated, prompt shown
+      final answered = t.resolveClaim(upload: true); // blocks in storage
+      await Future<void>.delayed(Duration.zero);
+      // A different account signs in on this device while that write is still
+      // on the wire. It has local data and no record of its own, so it is
+      // correctly gated and has consented to nothing.
+      claimStore = null;
+      await t.setUser('uid-2');
+
+      storageWrite.complete();
+      await answered;
+
+      expect(await remoteDay(DateTime(2026, 1, 5), uid: 'uid-2'), isNull);
+      expect(t.isPendingClaim, isTrue);
+    });
+
+    test(
         'the gate is closed from setUser\'s first synchronous instant: a '
         'syncNow racing a slow first database read pushes nothing', () async {
       // In production the database opens through a `LazyDatabase` (documents
@@ -514,6 +551,47 @@ void main() {
       await t.suspend();
 
       expect(await remoteDay(DateTime(2026, 1, 5)), isNotNull);
+      await signIn;
+    });
+
+    test(
+        "a new account's sign-in sync does not silently JOIN the previous "
+        "account's in-flight run and get dropped", () async {
+      // `syncNow`'s coalescing was per-trigger. So while uid-1's run was still
+      // on the wire, uid-2's `setUser` handed back uid-1's future, awaited it,
+      // and returned believing it had synced -- uid-2's own push never
+      // happened, and `_enableSync` would then report success off a
+      // `lastSyncedAt` that uid-1's run had advanced. It self-heals on the next
+      // resume, which is exactly why it is easy to miss.
+      final dir = await Directory.systemTemp.createTemp('luna_join_other');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/luna.db');
+
+      final seed = AppDatabase.forTesting(NativeDatabase(file));
+      await DailyLogRepository(seed).upsert(
+        date: DateTime(2026, 1, 5),
+        flow: FlowIntensity.medium,
+        symptomsJson: '{}',
+      );
+      await seed.close();
+
+      claimStore = const ClaimRecord(uid: 'uid-1', declined: false);
+      final slow = AppDatabase.forTesting(LazyDatabase(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        return NativeDatabase(file);
+      }));
+      addTearDown(slow.close);
+
+      final t = trigger(slow);
+      final signIn = t.setUser('uid-1'); // syncs; its first query blocks
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // uid-2 signs in while that run is still going, with its own claim on
+      // record so it is past the gate and expected to sync immediately.
+      claimStore = const ClaimRecord(uid: 'uid-2', declined: false);
+      await t.setUser('uid-2');
+
+      expect(await remoteDay(DateTime(2026, 1, 5), uid: 'uid-2'), isNotNull);
       await signIn;
     });
 

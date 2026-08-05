@@ -43,9 +43,20 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> signOut() => _guard(_service.signOut);
 
-  /// Deletes the Firebase Auth user. Callers (the Account section in
-  /// Settings) MUST delete the Firestore subtree and local data first — see
-  /// `AuthService.deleteAccount`'s own doc comment for why.
+  /// Deletes the Firebase Auth user.
+  ///
+  /// **Dead client code, kept deliberately.** Nothing in the app calls this any
+  /// more: `AccountSection` records a cancellable deletion REQUEST and signs
+  /// out, because `User.delete()` needs a recent sign-in and failed with
+  /// `requires-recent-login` for a restored session — after the local wipe had
+  /// already run. Deleting the auth user is the purge job's last step, not the
+  /// app's.
+  ///
+  /// It stays, with `AccountDeletionService.deleteFirestoreData` and
+  /// `AuthService.requireSignedIn`, as the executable specification of what
+  /// that purge must do and in what order: the Firestore subtree first (every
+  /// subcollection, root document last), then the auth user. Delete this only
+  /// together with those.
   Future<void> deleteAccount() => _guard(_service.deleteAccount);
 
   /// Runs an action with busy/error bookkeeping. `busy` is always cleared, so a

@@ -80,8 +80,26 @@ class AccountDeletionService {
 
   /// Records the deletion request. Cloud data is left completely intact.
   ///
+  /// **Create-only.** An existing marker is left exactly as it is, and this
+  /// returns without writing. Two reasons, and they agree:
+  ///
+  /// - `firestore.rules` will allow `create` and deny `update` on this
+  ///   document (see the task-11 report's rules list), and a bare `set()` on an
+  ///   an existing document IS an update in rules terms. That path is reachable
+  ///   — `AccountSection._readPendingDeletion` fails open to `null`, so offline
+  ///   or on permission-denied the pending panel is hidden and "Request account
+  ///   deletion" is offered again — and it would have been denied.
+  /// - Re-requesting must not slide the deadline. `purgeAfter` is the date the
+  ///   user was promised; a second request writing a fresh one would silently
+  ///   extend the window they are already inside.
+  ///
+  /// The read narrows but cannot close the race (two devices requesting at the
+  /// same instant still both see "absent"). The rule is the actual guarantee;
+  /// this makes the client agree with it.
+  ///
   /// [now] is injectable for tests only; production passes nothing.
   Future<void> requestDeletion({DateTime? now}) async {
+    if ((await _requestDoc.get()).exists) return;
     final requestedAt = now ?? DateTime.now();
     await _requestDoc.set({
       'uid': uid,

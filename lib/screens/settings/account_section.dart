@@ -272,12 +272,13 @@ class _AccountSectionState extends State<AccountSection> {
       // trigger (`logs.load()` notifies LogProvider, which main.dart turns
       // into a scheduleSync), so this has to come first.
       //
-      // It is NOT, on its own, a guarantee that the device has stopped
-      // writing: at the time of writing `suspend()` does not reliably await a
-      // run already in flight (a second `syncNow()` overwrites the future it
-      // tracks with a no-op). The durable guard is the marker itself —
-      // `SyncService.syncNow` refuses to run for an account with a request on
-      // record, from any device, in any session.
+      // It DOES await the runs already in flight — `suspend()` waits on every
+      // outstanding one, so when this returns the device is provably not
+      // writing to Firestore. (That was not true when this flow was written;
+      // Task 10 fixed it, and the reviewer verified it by execution.) The
+      // durable guard is still the marker itself — `SyncService.syncNow`
+      // refuses to run for an account with a request on record, from any
+      // device, in any session, including after a relaunch.
       await trigger.suspend();
 
       try {
@@ -396,6 +397,9 @@ class _AccountSectionState extends State<AccountSection> {
     if (_busy) return;
     final messenger = ScaffoldMessenger.of(context);
     final trigger = context.read<SyncTrigger>();
+    final settings = context.read<SettingsProvider>();
+    final logs = context.read<LogProvider>();
+    final meds = context.read<MedicationProvider>();
     setState(() => _busy = true);
     try {
       await widget
@@ -416,6 +420,18 @@ class _AccountSectionState extends State<AccountSection> {
     // the claim gate from scratch, so a resumed trigger is never less gated
     // than a freshly signed-in one).
     await trigger.resume();
+    // And `resume()` IS a no-op in the common case — the user cancels after
+    // signing back in, in a session that never suspended, so it returns at its
+    // first line. Nothing else would then trigger a sync, leaving the user on
+    // the device the request wiped, reading "Not synced yet", until they
+    // background and foreground the app. The provider reloads follow because
+    // `SyncService` writes straight to drift; nothing tells the in-memory
+    // providers to re-read what the pull just landed.
+    await trigger.syncNow();
+    if (!mounted) return;
+    await settings.load();
+    await logs.load();
+    await meds.load();
     if (!mounted) return;
     setState(() {
       _futuresUid = uid;

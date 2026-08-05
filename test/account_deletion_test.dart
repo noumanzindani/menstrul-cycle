@@ -126,6 +126,26 @@ void main() {
       expect(pending!.purgeAfter, isNull);
     });
 
+    test(
+        'a re-request is CREATE-ONLY: it leaves an existing marker untouched, '
+        'so the rule denying update never sees an update, and the deadline the '
+        'user was promised cannot slide', () async {
+      // Reachable, not theoretical: `AccountSection._readPendingDeletion` fails
+      // open to null, so offline (or on permission-denied) the pending panel is
+      // hidden and "Request account deletion" is offered a second time.
+      final service = AccountDeletionService(firestore: firestore, uid: 'uid-1');
+      await service.requestDeletion(now: DateTime(2026, 8, 5));
+      final promised = (await service.pendingRequest())!.purgeAfter;
+
+      await service.requestDeletion(now: DateTime(2026, 8, 25));
+
+      expect((await service.pendingRequest())!.purgeAfter, promised);
+      expect(
+        promised,
+        DateTime(2026, 8, 5).add(AccountDeletionService.graceWindow),
+      );
+    });
+
     test('cancelDeletion removes the marker, and is safe to re-run', () async {
       final service = AccountDeletionService(firestore: firestore, uid: 'uid-1');
       await service.requestDeletion(now: DateTime(2026, 8, 5));

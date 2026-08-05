@@ -129,9 +129,9 @@ class SyncService {
       //
       // This is the check that does NOT depend on the requesting device's own
       // in-memory state: it holds on every other device, on this one after a
-      // relaunch, and regardless of whether `SyncTrigger.suspend()` really
-      // stopped the run it was asked to stop (at the time of writing it does
-      // not reliably await an in-flight run -- see the task-11 report). It
+      // relaunch, and independently of `SyncTrigger.suspend()` -- which does
+      // now genuinely await every outstanding run, but is per-process and
+      // per-session and so can never be the durable guarantee. It
       // costs one small document read per sync run; the marker holds a uid and
       // two timestamps, no health data. `firestore.rules` will enforce the
       // same thing server-side -- see the task-11 report -- but a rule that is
