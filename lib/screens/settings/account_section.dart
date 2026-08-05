@@ -10,6 +10,7 @@ import '../../providers/medication_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/account_deletion_service.dart';
 import '../../services/claim_preference.dart';
+import '../../services/firebase_availability.dart';
 import '../../services/firestore_ref.dart';
 import '../../services/lock_service.dart';
 import '../../services/notification_service.dart';
@@ -496,7 +497,32 @@ class _AccountSectionState extends State<AccountSection> {
     );
   }
 
+  /// Distinct from the normal sync-off state below: this is a DEVICE fact
+  /// (`Firebase.initializeApp()` failed in `main()` -- see
+  /// `FirebaseAvailability`'s doc comment), not a user choice, so it must not
+  /// read as "you turned this off". A user staring at "Cloud sync is off" with
+  /// no way to ever turn it on would reasonably assume they missed a step;
+  /// this tells them the device itself cannot reach sync at all. No trailing
+  /// action -- there is nothing this tap could do that main()'s own
+  /// `Firebase.initializeApp()` didn't already try.
+  Widget _syncUnavailableTile(BuildContext context) => ListTile(
+        key: const Key('account.syncUnavailable'),
+        leading: Icon(
+          Icons.cloud_off,
+          color: Theme.of(context).colorScheme.error,
+        ),
+        title: const Text('Cloud sync unavailable on this device'),
+        subtitle: const Text(
+          "This device can't reach cloud sync right now. Your logs stay "
+          'private and safe on this device either way.',
+        ),
+      );
+
   Widget _syncTile(BuildContext context, String uid) {
+    final firebaseAvailable =
+        context.watch<FirebaseAvailability?>()?.available ?? true;
+    if (!firebaseAvailable) return _syncUnavailableTile(context);
+
     final settings = context.watch<SettingsProvider>();
     return FutureBuilder<bool>(
       future: _syncEnabled,
