@@ -245,19 +245,36 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     if (!settings.loaded) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    final enabled = settings.appLockEnabled;
+
+    // Lock once on the first build where app lock is known to be enabled.
+    if (enabled && !_initialLockApplied) {
+      _initialLockApplied = true;
+      _locked = true;
+    }
+
+    // The lock outranks EVERYTHING below it, deletion notice included. An
+    // earlier revision put the notice first, reasoning that a deletion request
+    // clears the PIN and resets settings so app lock must be off — true only on
+    // the REQUESTING device. On a second device signed into the same account
+    // the PIN and settings are untouched, so the notice would replace this
+    // screen and hand whoever holds the locked phone, with no PIN: the fact and
+    // date of the deletion, the ability to cancel it (which pulls the whole
+    // cloud history back onto the device), and a sign-out — a pre-lock exit
+    // that chains into the claim sheet under a different account.
+    //
+    // This costs the notice nothing on the device the notice exists for: there,
+    // `appLockEnabled` is false, so the branch below still precedes onboarding.
+    if (enabled && _locked) {
+      return LockScreen(onUnlocked: () => setState(() => _locked = false));
+    }
+
     // A pending deletion outranks onboarding, and that ordering IS the fix:
     // `deleteAllData()` resets `onboardingComplete`, so a user who requested
     // deletion and signs back in inside the grace window would otherwise walk
     // the whole first-run flow for an account scheduled for erasure and never
     // be told — Settings → Account, the only other disclosure, is somewhere
     // they have no reason to go.
-    //
-    // It sits ahead of the lock branch below as a consequence, which is
-    // consistent with what this gate already does (the sign-in screen and the
-    // claim sheet both precede the lock too) and cannot expose anything: both
-    // actions on that screen are non-destructive, and after a deletion request
-    // the app-lock PIN is cleared and settings are reset to defaults, so app
-    // lock is off in the state this branch exists for.
     final pendingDeletion = _pendingDeletion;
     final uid = auth.user?.uid;
     if (pendingDeletion != null && uid != null) {
@@ -273,17 +290,6 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       return const OnboardingScreen();
     }
 
-    final enabled = settings.appLockEnabled;
-
-    // Lock once on the first build where app lock is known to be enabled.
-    if (enabled && !_initialLockApplied) {
-      _initialLockApplied = true;
-      _locked = true;
-    }
-
-    if (enabled && _locked) {
-      return LockScreen(onUnlocked: () => setState(() => _locked = false));
-    }
     return const AppShell();
   }
 }

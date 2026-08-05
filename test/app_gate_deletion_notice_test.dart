@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import 'package:menstrul_track/providers/auth_provider.dart';
 import 'package:menstrul_track/providers/log_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/screens/app_gate.dart';
+import 'package:menstrul_track/screens/lock/lock_screen.dart';
 import 'package:menstrul_track/screens/onboarding/onboarding_screen.dart';
 import 'package:menstrul_track/services/account_deletion_service.dart';
 import 'package:menstrul_track/services/auth_service.dart';
@@ -322,4 +324,31 @@ void main() {
     // uid-2 has no request; a latched verdict would have shown it the notice.
     expect(notice, findsNothing);
   });
+
+  testWidgets(
+      'app lock outranks the notice: on a SECOND device the PIN was never '
+      'cleared, and the notice must not become a pre-lock way past it',
+      (tester) async {
+    // The second-device state. `deleteAllData()` ran on the OTHER device, so
+    // here the PIN, the settings and the history are all still in place — and
+    // the marker read still succeeds, because it is per-account.
+    await SettingsRepository(db).update(const AppSettingsCompanion(
+      appLockEnabled: Value(true),
+      onboardingComplete: Value(true),
+    ));
+
+    await signIn(tester, pendingDeletion: (_) async => pendingRequest);
+
+    expect(find.byType(LockScreen), findsOneWidget);
+    expect(notice, findsNothing);
+    // Each of these is an action the holder of a locked phone must not have:
+    // learning the account is scheduled for deletion, cancelling it (which
+    // pulls the entire cloud history down onto the device), and signing out —
+    // a pre-lock exit that leads to the claim sheet under another account.
+    expect(find.textContaining('scheduled to be permanently deleted'),
+        findsNothing);
+    expect(find.byKey(const Key('gate.cancelDeletion')), findsNothing);
+    expect(find.byKey(const Key('gate.signOut')), findsNothing);
+  });
+
 }
