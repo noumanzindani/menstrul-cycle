@@ -193,29 +193,102 @@ class LunaTrackApp extends StatelessWidget {
         },
         child: Consumer<SettingsProvider>(
           builder: (context, settings, _) {
-            return MaterialApp(
-              onGenerateTitle: (context) => context.l10n.appTitle,
-              debugShowCheckedModeBanner: false,
-              theme: AppTheme.light(),
-              darkTheme: AppTheme.dark(),
-              themeMode: settings.themeMode,
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              locale: settings.language == 'system'
-                  ? null
-                  : Locale(settings.language),
-              // The app lock goes HERE, not inside `home:`. `builder` wraps the
-              // Navigator, so `AppLock` covers every route — bottom sheets,
-              // dialogs, pushed screens, snackbars — instead of only the
-              // contents of the home route. Returning `LockScreen` from
-              // `AppGate.build` (what this replaces) left every one of those
-              // rendering on top of the lock. See `screens/lock/app_lock.dart`.
-              builder: AppLock.wrap,
-              home: const HomeWidgetSync(child: AppGate()),
+            // `_LockRouteGuard` wraps `MaterialApp` — deliberately an
+            // ANCESTOR of it, not a descendant — so its `WidgetsBindingObserver`
+            // registers with the binding before `WidgetsApp`'s does. See its
+            // doc comment for why that ordering is the whole fix for the
+            // Android back button.
+            return _LockRouteGuard(
+              builder: (context, lockNotifier) => MaterialApp(
+                onGenerateTitle: (context) => context.l10n.appTitle,
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.light(),
+                darkTheme: AppTheme.dark(),
+                themeMode: settings.themeMode,
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                locale: settings.language == 'system'
+                    ? null
+                    : Locale(settings.language),
+                // The app lock goes HERE, not inside `home:`. `builder` wraps
+                // the Navigator, so `AppLock` covers every route — bottom
+                // sheets, dialogs, pushed screens, snackbars — instead of only
+                // the contents of the home route. Returning `LockScreen` from
+                // `AppGate.build` (what this replaces) left every one of those
+                // rendering on top of the lock. See `screens/lock/app_lock.dart`.
+                //
+                // Constructed directly rather than via `AppLock.wrap` so the
+                // `lockNotifier` from `_LockRouteGuard` above can be threaded
+                // through — `wrap` stays a plain `(context, child) => Widget`
+                // for the harnesses that don't need back-button coverage.
+                builder: (context, child) => AppLock(
+                  lockNotifier: lockNotifier,
+                  child: child ?? const SizedBox.shrink(),
+                ),
+                home: const HomeWidgetSync(child: AppGate()),
+              ),
             );
           },
         ),
       ),
     );
   }
+}
+
+/// An observer registered ABOVE `MaterialApp`, purely so its `didPopRoute` is
+/// consulted before `WidgetsApp`'s own.
+///
+/// `WidgetsBinding.handlePopRoute` walks its observers in REGISTRATION order
+/// and stops at the first one that returns `true` (see the doc comment at
+/// `widgets/binding.dart:949` — it explicitly is NOT newest-first).
+/// `_WidgetsAppState.initState` (inside `MaterialApp`) registers itself
+/// before any of its descendants ever mount — `AppLock` included, since it
+/// only exists inside `MaterialApp.builder`. So the only way to get first
+/// refusal on the Android back button while the app lock is up is to
+/// register an observer somewhere that mounts BEFORE `MaterialApp` does,
+/// i.e. an ancestor of it. This widget is that ancestor.
+///
+/// It reads "is locked" from a single [ValueNotifier] it owns and hands down
+/// to [builder] — the SAME notifier [AppLock] writes to on every build (see
+/// `AppLock.lockNotifier`). That is the one and only place "is the lock up"
+/// is computed; this widget never re-derives it.
+class _LockRouteGuard extends StatefulWidget {
+  const _LockRouteGuard({required this.builder});
+
+  final Widget Function(BuildContext context, ValueNotifier<bool> lockNotifier)
+      builder;
+
+  @override
+  State<_LockRouteGuard> createState() => _LockRouteGuardState();
+}
+
+class _LockRouteGuardState extends State<_LockRouteGuard>
+    with WidgetsBindingObserver {
+  final ValueNotifier<bool> _lockNotifier = ValueNotifier<bool>(false);
+
+  @override
+  void initState() {
+    super.initState();
+    // Must happen here, in an ancestor of `MaterialApp` — see the class doc
+    // comment for why the registration ORDER is the entire point.
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _lockNotifier.dispose();
+    super.dispose();
+  }
+
+  /// Swallows the Android back button while the lock is up. The app's
+  /// Navigator is still there behind the lock, just offstage, and the system
+  /// back button would otherwise reach and pop its hidden route stack —
+  /// navigating an app the presser is not allowed to see, only deferred
+  /// (not blocked) by the muted `TickerMode` until the lock next lifts.
+  @override
+  Future<bool> didPopRoute() async => _lockNotifier.value;
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _lockNotifier);
 }

@@ -29,16 +29,44 @@ import 'lock_screen.dart';
 /// of that. `find` in a widget test skips offstage subtrees by default, so
 /// `findsNothing` there means the same thing it means to the user.
 class AppLock extends StatefulWidget {
-  const AppLock({super.key, required this.child});
+  const AppLock({super.key, required this.child, this.lockNotifier});
 
   /// The whole app below `MaterialApp.builder` — in practice the [Navigator].
   final Widget child;
 
-  /// The exact expression `main.dart` hands to `MaterialApp.builder`.
+  /// Mirrors "is the lock up" out to an observer registered ABOVE
+  /// `MaterialApp` (`_LockRouteGuard` in `main.dart`), so the Android back
+  /// button can be swallowed before it ever reaches the root `Navigator`.
+  ///
+  /// This can't be done with a `didPopRoute` override living on [AppLock]
+  /// itself — that was tried, and it doesn't work:
+  /// `WidgetsBinding.handlePopRoute` consults its observers in REGISTRATION
+  /// order (not newest-first — see the doc comment at
+  /// `widgets/binding.dart:949`) and stops at the first one that returns
+  /// `true`. `_WidgetsAppState` registers itself in `initState`, which the
+  /// framework runs before any widget below `MaterialApp` — this one
+  /// included — ever mounts, so `_WidgetsAppState`'s own `didPopRoute` (which
+  /// calls `navigator.maybePop()`) is always consulted first and always wins
+  /// while there is a route to pop. An observer that actually wants first
+  /// refusal has to be registered by something that is itself an ANCESTOR of
+  /// `MaterialApp`.
+  ///
+  /// [AppLock] only ever WRITES to this — [build] is the one place "locked"
+  /// is computed (`_locked && enabled`), and that exact value is fed here,
+  /// not a second hand-rolled expression for the same question. `null` in
+  /// every harness that doesn't need back-button coverage — several tests
+  /// call `AppLock.wrap` directly (the claim-prompt and deletion-notice
+  /// suites), and a write to a null notifier is just skipped.
+  final ValueNotifier<bool>? lockNotifier;
+
+  /// The exact expression `main.dart` hands to `MaterialApp.builder` in every
+  /// harness that isn't specifically exercising the back-button fix.
   ///
   /// Exposed as a named function so the app and every widget-test harness pass
   /// the SAME thing; a harness that hand-rolled its own wrapper would be testing
-  /// a lock the app does not have.
+  /// a lock the app does not have. `main.dart` itself does not use this
+  /// directly — it needs to hand in a [lockNotifier] owned by `_LockRouteGuard`
+  /// — but constructs `AppLock` the same way otherwise.
   static Widget wrap(BuildContext context, Widget? child) =>
       AppLock(child: child ?? const SizedBox.shrink());
 
@@ -101,24 +129,20 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
     }
   }
 
-  /// Swallows the Android back button while the lock is up.
-  ///
-  /// The app's Navigator is still there behind the lock, just offstage, and the
-  /// system back button routes to it. Without this, back presses from a locked
-  /// phone would pop the hidden route stack — navigating an app the presser is
-  /// not allowed to see. Observers are consulted newest-first and this one is
-  /// registered below `WidgetsApp`, so returning true here consumes the press
-  /// before it reaches the root navigator.
-  @override
-  Future<bool> didPopRoute() async =>
-      _locked && (mounted && context.read<SettingsProvider>().appLockEnabled);
+  // The Android back button is handled by `_LockRouteGuard` in `main.dart`,
+  // an observer registered ABOVE `MaterialApp` — see the doc comment on
+  // [AppLock.lockNotifier] for why a `didPopRoute` override living here
+  // (which this class used to have) is never actually consulted.
 
   void _lock() {
     if (_locked) return;
-    // Drop focus BEFORE the app goes offstage. An offstage subtree is never
-    // laid out, and a focused `EditableText` asks its render object for a size
-    // it would not have; it also stops the software keyboard from sitting on
-    // top of the lock. `ExcludeFocus` below keeps focus out while it is up.
+    // Drop focus BEFORE the app goes offstage. This is NOT about layout —
+    // `RenderOffstage.performLayout` calls `child.layout` regardless of
+    // whether it's offstage (only `sizedByParent`/paint/hit-test/semantics
+    // are suppressed), so a focused `EditableText` would still be laid out
+    // fine. This is about the NATIVE soft keyboard: without dropping focus
+    // first, it would stay open and sit visually on top of the lock.
+    // `ExcludeFocus` below keeps focus out while the lock is up.
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _locked = true);
   }
@@ -137,7 +161,12 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
       _initialLockApplied = true;
       _locked = true;
     }
+    // The ONE expression for "is the lock actually up right now". Feed it to
+    // every consumer below rather than letting any of them re-derive it — a
+    // second hand-rolled copy of this exact question is what made the old
+    // `didPopRoute` override silently drift out of sync with this one.
     final locked = _locked && enabled;
+    widget.lockNotifier?.value = locked;
 
     return _LockScope(
       locked: locked,
