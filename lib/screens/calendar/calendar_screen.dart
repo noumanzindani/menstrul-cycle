@@ -86,6 +86,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        // See `home_screen.dart`: both FABs live in the same route subtree via
+        // `AppShell`'s `IndexedStack`, so neither may use the default tag.
+        heroTag: 'calendar.logToday',
         onPressed: () => _selectDay(today),
         icon: const Icon(Icons.add),
         label: const Text('Log today'),

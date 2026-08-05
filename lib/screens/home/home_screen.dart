@@ -40,6 +40,11 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('LunaTrack')),
       floatingActionButton: FloatingActionButton.extended(
+        // Explicit tag because `AppShell` keeps every tab alive in an
+        // `IndexedStack`: Home's and Calendar's FABs are BOTH in the route
+        // subtree at once, and two default-tagged heroes there make the hero
+        // controller assert on any push out of the shell.
+        heroTag: 'home.logToday',
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => DayLogScreen(date: today)),
         ),
