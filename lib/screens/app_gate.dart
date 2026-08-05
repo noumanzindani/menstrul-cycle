@@ -5,6 +5,7 @@ import '../data/daily_log_repository.dart';
 import '../db/database.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/claim_preference.dart';
 import '../services/sync_trigger.dart';
 import 'app_shell.dart';
 import 'auth/claim_local_data_sheet.dart';
@@ -24,7 +25,13 @@ class AppGate extends StatefulWidget {
 class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   bool _locked = false;
   bool _initialLockApplied = false;
-  bool _claimPromptShown = false;
+
+  /// The uid the claim prompt has already been raised for this session, NOT a
+  /// bare "shown once" bool: a bool latched forever, so after uid-1 answered,
+  /// uid-2 signing in on the same device (Settings now has a sign-out button)
+  /// was never asked — and, because `SyncTrigger.setUser` leaves the gate set
+  /// for an unanswered account, uid-2 then got no sync at all, silently.
+  String? _claimPromptShownFor;
 
   @override
   void initState() {
@@ -57,35 +64,51 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   /// Offers to upload pre-existing local logs the first time an account signs
   /// in on this device. Runs after the frame so it can show a modal sheet.
   void _maybePromptClaim(BuildContext context, String? uid) {
-    if (_claimPromptShown) return;
-    _claimPromptShown = true;
+    if (uid == null || _claimPromptShownFor == uid) return;
+    _claimPromptShownFor = uid;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final db = context.read<AppDatabase>();
-      final settings = context.read<SettingsProvider>();
       final trigger = context.read<SyncTrigger>();
-      // Only ask when there is local data that predates this account.
-      if (settings.lastSyncedAt != null) return;
+      // Only ask when there is local data to ask about. Checked first because
+      // it is a fast local read and it rules the prompt out for most signed-in
+      // rebuilds (a fresh account with an empty device), which then never
+      // reach `ClaimPreference`'s secure-storage read below.
       final count = (await DailyLogRepository(db).getAll()).length;
       if (count == 0 || !context.mounted) return;
-      // Scoped to the signed-in account: a decline recorded for a DIFFERENT
-      // uid must not suppress this genuinely new question for `uid` — that
-      // account has never been offered this device's data. Checked AFTER
-      // `count`, not before: this touches `ClaimPreference`'s secure-storage
-      // read, and most signed-in rebuilds have nothing to claim at all (a
-      // fresh account, or one already synced) — no reason to touch storage
-      // on every one of those when a fast, already-in-hand local read already
-      // rules the prompt out.
-      if (uid != null && await trigger.declinedUidOnRecord() == uid) return;
+      // "Already answered" is per-ACCOUNT, not per-device: a record belonging
+      // to a DIFFERENT uid must not suppress this genuinely new question, and
+      // `AppSettings.lastSyncedAt` (device-global — it stays non-null once ANY
+      // account has synced here) must not be consulted at all.
+      //
+      // Wrapped because this is the one secure-storage call on this path that
+      // isn't already inside `SyncTrigger.setUser`'s try/catch, and an
+      // exception escaping an `addPostFrameCallback` closure is an unhandled
+      // async error: the prompt would never appear while the sync gate stayed
+      // set, i.e. sync silently off with no way to turn it on. Failing toward
+      // SHOWING the prompt costs at most a repeated question.
+      ClaimRecord? record;
+      try {
+        record = await trigger.claimOnRecord();
+      } catch (_) {
+        record = null;
+      }
+      if (record?.uid == uid) return;
       if (!context.mounted) return;
       final upload = await showClaimLocalDataSheet(context, dayCount: count);
-      if (!context.mounted) return;
-      // `resolveClaim` (not a bare `syncNow`) either way: `upload == true`
+      // null is NOT "declined". The sheet returns null only when it was
+      // dismissed without an answer (the Android system back button is not
+      // blocked by `isDismissible: false`; `PopScope` now blocks it, but a
+      // dismissal must still be safe). Collapsing that to `false` wrote a
+      // durable, uid-scoped decline the user never made, and they would never
+      // be asked again. Persist nothing and leave the sync gate set: the
+      // question comes back next launch.
+      if (upload == null || !context.mounted) return;
+      // `resolveClaim` (not a bare `syncNow`): `true` records the claim,
       // clears SyncTrigger's pending-claim gate and runs the deferred sync;
-      // `upload == false` (or a dismissal, though the sheet itself is
-      // non-dismissible) persists the decline for this uid and leaves the
-      // gate set so nothing pushes this session's declined history later.
-      await trigger.resolveClaim(upload: upload == true);
+      // `false` records the decline for this uid and leaves the gate set so
+      // nothing pushes the declined history later.
+      await trigger.resolveClaim(upload: upload);
     });
   }
 
@@ -101,6 +124,9 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     }
     // An account is required (design spec §7.1).
     if (auth.state == AuthState.signedOut) {
+      // Forget which account was asked: whoever signs in next — including the
+      // same account, if it never answered — gets the question again.
+      _claimPromptShownFor = null;
       return const SignInScreen();
     }
     _maybePromptClaim(context, auth.user?.uid);

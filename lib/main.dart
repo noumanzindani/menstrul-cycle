@@ -48,7 +48,12 @@ Future<void> main() async {
 }
 
 class LunaTrackApp extends StatelessWidget {
-  const LunaTrackApp({super.key, required this.database, this.authService});
+  const LunaTrackApp({
+    super.key,
+    required this.database,
+    this.authService,
+    this.syncTrigger,
+  });
 
   final AppDatabase database;
 
@@ -58,6 +63,15 @@ class LunaTrackApp extends StatelessWidget {
   /// here instead.
   final AuthService? authService;
 
+  /// Overridable for tests, for the same class of reason: the default
+  /// [SyncTrigger]'s claim-decision storage is `flutter_secure_storage`, whose
+  /// platform channel has no handler under `flutter_tester` (it hangs rather
+  /// than throwing). Injecting the whole trigger — rather than adding a
+  /// storage parameter here — also lets a test observe [SyncTrigger] calls,
+  /// which is how `test/sync_wiring_test.dart` proves the debounced-write
+  /// provider below actually fires.
+  final SyncTrigger? syncTrigger;
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -66,7 +80,9 @@ class LunaTrackApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AuthProvider(authService ?? FirebaseAuthService()),
         ),
-        ChangeNotifierProvider(create: (_) => SyncTrigger(database)),
+        ChangeNotifierProvider(
+          create: (_) => syncTrigger ?? SyncTrigger(database),
+        ),
         ChangeNotifierProvider(
           create: (_) => LogProvider(DailyLogRepository(database))..load(),
         ),
@@ -154,7 +170,16 @@ class LunaTrackApp extends StatelessWidget {
         // Local writes schedule a debounced sync. Returns void because nothing
         // consumes it; it exists purely for the side effect of reacting to a
         // LogProvider change.
+        //
+        // `lazy: false` is load-bearing, not a tweak: a lazy provider builds
+        // its value on first read, and nothing anywhere reads a `void`, so
+        // `update` was NEVER called and local edits never triggered a sync at
+        // all (they rode along on the next resume or launch). Sync is still
+        // gated: `SyncTrigger.setUser` sets the claim gate before its first
+        // `await`, and the debounce is 2 seconds, so the eager first call
+        // cannot slip a push in ahead of the claim decision.
         ProxyProvider2<LogProvider, SyncTrigger, void>(
+          lazy: false,
           update: (_, log, trigger, _) => trigger.scheduleSync(),
         ),
       ],

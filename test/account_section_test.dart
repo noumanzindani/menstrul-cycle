@@ -14,6 +14,7 @@ import 'package:menstrul_track/providers/medication_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/screens/settings/account_section.dart';
 import 'package:menstrul_track/services/auth_service.dart';
+import 'package:menstrul_track/services/claim_preference.dart';
 import 'package:menstrul_track/services/sync_trigger.dart';
 import 'package:provider/provider.dart';
 
@@ -63,7 +64,7 @@ void main() {
 
   Widget wrap({
     FirebaseFirestore Function()? deletionFirestore,
-    Future<String?> Function()? readDeclinedUid,
+    Future<ClaimRecord?> Function()? readClaim,
   }) {
     return MultiProvider(
       providers: [
@@ -83,9 +84,8 @@ void main() {
             db,
             firestore: () => firestore,
             deviceId: () async => 'device-1',
-            readDeclinedUid: readDeclinedUid ?? (() async => null),
-            writeDeclinedUid: (_) async {},
-            clearDeclinedUid: () async {},
+            readClaim: readClaim ?? (() async => null),
+            writeClaim: (_) async {},
           ),
         ),
       ],
@@ -198,7 +198,9 @@ void main() {
       symptomsJson: '{}',
     );
 
-    await tester.pumpWidget(wrap(readDeclinedUid: () async => 'uid-1'));
+    await tester.pumpWidget(wrap(
+      readClaim: () async => const ClaimRecord(uid: 'uid-1', declined: true),
+    ));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('account.enableSync')), findsOneWidget);
@@ -215,7 +217,10 @@ void main() {
       'a decline on record for a DIFFERENT uid does not show the '
       '"turn on sync" control for this uid -- scoping is per-account',
       (tester) async {
-    await tester.pumpWidget(wrap(readDeclinedUid: () async => 'some-other-uid'));
+    await tester.pumpWidget(wrap(
+      readClaim: () async =>
+          const ClaimRecord(uid: 'some-other-uid', declined: true),
+    ));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('account.enableSync')), findsNothing);

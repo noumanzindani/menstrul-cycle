@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/main.dart';
 import 'package:menstrul_track/services/auth_service.dart';
+import 'package:menstrul_track/services/sync_trigger.dart';
 
 /// A fake that reports an already-signed-in user immediately. These tests
 /// pump the real [LunaTrackApp] (not just [AppGate]), so the default
@@ -31,13 +32,28 @@ class _FakeSignedInAuthService implements AuthService {
   Future<void> deleteAccount() async {}
 }
 
+/// The default [SyncTrigger] persists the claim decision through
+/// `flutter_secure_storage`, whose platform channel has no handler under
+/// `flutter_tester` (on this host it hangs rather than throwing). Injecting
+/// the storage is what keeps that off this path — NOT the fact that these
+/// tests happen to seed no local logs.
+SyncTrigger _testSyncTrigger(AppDatabase db) => SyncTrigger(
+      db,
+      readClaim: () async => null,
+      writeClaim: (_) async {},
+    );
+
 void main() {
   testWidgets('First run shows onboarding', (tester) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 
     await tester.pumpWidget(
-      LunaTrackApp(database: db, authService: _FakeSignedInAuthService()),
+      LunaTrackApp(
+        database: db,
+        authService: _FakeSignedInAuthService(),
+        syncTrigger: _testSyncTrigger(db),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -57,7 +73,11 @@ void main() {
         .write(const AppSettingsCompanion(onboardingComplete: Value(true)));
 
     await tester.pumpWidget(
-      LunaTrackApp(database: db, authService: _FakeSignedInAuthService()),
+      LunaTrackApp(
+        database: db,
+        authService: _FakeSignedInAuthService(),
+        syncTrigger: _testSyncTrigger(db),
+      ),
     );
     await tester.pumpAndSettle();
 

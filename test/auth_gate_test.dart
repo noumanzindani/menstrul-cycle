@@ -54,7 +54,15 @@ void main() {
           ChangeNotifierProvider(
             create: (_) => SettingsProvider(SettingsRepository(db))..load(),
           ),
-          ChangeNotifierProvider(create: (_) => SyncTrigger(db)),
+          // Claim storage injected: the default is `flutter_secure_storage`,
+          // whose platform channel hangs under `flutter_tester` on this host.
+          ChangeNotifierProvider(
+            create: (_) => SyncTrigger(
+              db,
+              readClaim: () async => null,
+              writeClaim: (_) async {},
+            ),
+          ),
         ],
         child: const MaterialApp(home: AppGate()),
       );

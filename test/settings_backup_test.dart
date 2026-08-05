@@ -69,9 +69,8 @@ void main() {
         ChangeNotifierProvider(
           create: (_) => SyncTrigger(
             db,
-            readDeclinedUid: () async => null,
-            writeDeclinedUid: (_) async {},
-            clearDeclinedUid: () async {},
+            readClaim: () async => null,
+            writeClaim: (_) async {},
           ),
         ),
       ],

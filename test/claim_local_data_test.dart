@@ -38,6 +38,22 @@ void main() {
     expect(find.byKey(const Key('claim.upload')), findsNothing);
   });
 
+  testWidgets('the Android system back button does not dismiss the sheet',
+      (tester) async {
+    await show(tester, 3);
+    expect(find.byKey(const Key('claim.upload')), findsOneWidget);
+
+    // `isDismissible: false` / `enableDrag: false` block the barrier tap and
+    // the drag, but NOT the system back button, which pops the route and
+    // returns null. A null result must never be read as a decline (see
+    // `AppGate._maybePromptClaim`), and `PopScope(canPop: false)` stops it
+    // happening in the first place.
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('claim.upload')), findsOneWidget);
+  });
+
   testWidgets('keeping data on the device offers a non-destructive choice',
       (tester) async {
     await show(tester, 3);
