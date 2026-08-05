@@ -11,15 +11,24 @@ import '../../services/account_deletion_service.dart';
 /// an account that is queued for erasure, and learns nothing about it unless
 /// they happen to open Settings → Account.
 ///
-/// Both actions are non-destructive. "Cancel deletion" withdraws the request
-/// and nothing is deleted; "Sign out" leaves the request standing and, per the
-/// local-first rule, never touches local data.
+/// All three actions are non-destructive. "Cancel deletion" withdraws the
+/// request and nothing is deleted; "Sign out" leaves the request standing and,
+/// per the local-first rule, never touches local data; "Continue to LunaTrack"
+/// dismisses the notice for this session only.
+///
+/// That third action is not optional politeness. Without it this screen is a
+/// wall for the whole 30-day grace window whose only ways past are cancelling
+/// the deletion or signing out of an app that requires an account — and on a
+/// SECOND device, which was never wiped and still holds the full history, that
+/// is a month-long outage of a health tracker nobody asked for. The request is
+/// about the server copy.
 class DeletionPendingScreen extends StatefulWidget {
   const DeletionPendingScreen({
     super.key,
     required this.request,
     required this.onCancel,
     required this.onSignOut,
+    required this.onDismiss,
   });
 
   final DeletionRequest request;
@@ -31,6 +40,10 @@ class DeletionPendingScreen extends StatefulWidget {
   final Future<void> Function() onCancel;
 
   final VoidCallback onSignOut;
+
+  /// Dismisses the notice and lets the user into the app. Session-only — the
+  /// notice is shown again on the next launch.
+  final VoidCallback onDismiss;
 
   @override
   State<DeletionPendingScreen> createState() => _DeletionPendingScreenState();
@@ -104,6 +117,12 @@ class _DeletionPendingScreenState extends State<DeletionPendingScreen> {
                   'restored and your logs sync back to this device.',
                   style: text.bodyMedium,
                 ),
+                const SizedBox(height: 12),
+                Text(
+                  'The logs already on this device are untouched, and you can '
+                  'keep using LunaTrack while the request stands.',
+                  style: text.bodyMedium,
+                ),
                 if (_failed) ...[
                   const SizedBox(height: 16),
                   Text(
@@ -124,6 +143,12 @@ class _DeletionPendingScreenState extends State<DeletionPendingScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text('Cancel deletion'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  key: const Key('gate.dismissDeletionNotice'),
+                  onPressed: _busy ? null : widget.onDismiss,
+                  child: const Text('Continue to LunaTrack'),
                 ),
                 const SizedBox(height: 8),
                 TextButton(

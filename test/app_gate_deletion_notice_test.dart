@@ -101,6 +101,7 @@ void main() {
     SyncTrigger trigger, {
     required Future<DeletionRequest?> Function(String uid) pendingDeletion,
     Future<void> Function(String uid)? cancelDeletion,
+    Key? gateKey,
   }) =>
       MultiProvider(
         providers: [
@@ -125,6 +126,7 @@ void main() {
             builder: (context, a, _) {
               context.read<SyncTrigger>().setUser(a.user?.uid);
               return AppGate(
+                key: gateKey,
                 pendingDeletion: pendingDeletion,
                 cancelDeletion: cancelDeletion ??
                     (uid) async {
@@ -141,6 +143,7 @@ void main() {
     WidgetTester tester, {
     required Future<DeletionRequest?> Function(String uid) pendingDeletion,
     Future<void> Function(String uid)? cancelDeletion,
+    Key? gateKey,
   }) async {
     final trigger = buildTrigger();
     addTearDown(trigger.dispose);
@@ -148,6 +151,7 @@ void main() {
       trigger,
       pendingDeletion: pendingDeletion,
       cancelDeletion: cancelDeletion,
+      gateKey: gateKey,
     ));
     auth.emit(const AppUser(uid: 'uid-1', email: 'a@b.com'));
     await tester.pumpAndSettle();
@@ -351,4 +355,37 @@ void main() {
     expect(find.byKey(const Key('gate.signOut')), findsNothing);
   });
 
+  testWidgets(
+      'the notice is dismissible: a pending request must not lock the user out '
+      'of their own LOCAL tracker for the whole grace window', (tester) async {
+    await signIn(
+      tester,
+      pendingDeletion: (_) async => pendingRequest,
+      gateKey: const ValueKey('launch-1'),
+    );
+    expect(notice, findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('gate.dismissDeletionNotice')));
+    await tester.pumpAndSettle();
+
+    // Past the notice and into the app, WITHOUT cancelling the deletion and
+    // without signing out — the two exits the screen used to offer.
+    expect(notice, findsNothing);
+    expect(find.byType(OnboardingScreen), findsOneWidget);
+    expect(cancelled, isEmpty);
+    expect(auth.signOutCalled, isFalse);
+
+    // Session-only: a fresh gate (a relaunch) re-reads the marker and warns
+    // again, so dismissing is not a durable "don't tell me".
+    final trigger = buildTrigger();
+    addTearDown(trigger.dispose);
+    await tester.pumpWidget(wrap(
+      trigger,
+      pendingDeletion: (_) async => pendingRequest,
+      gateKey: const ValueKey('launch-2'),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(notice, findsOneWidget);
+  });
 }

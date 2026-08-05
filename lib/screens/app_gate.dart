@@ -275,6 +275,16 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     // the whole first-run flow for an account scheduled for erasure and never
     // be told — Settings → Account, the only other disclosure, is somewhere
     // they have no reason to go.
+    //
+    // Dismissible, and that is not a weakening of the disclosure. An
+    // unconditional early return locked the user out of their own LOCAL tracker
+    // for the entire grace window unless they cancelled the deletion — worst on
+    // the second device, which was never wiped, still holds the full history in
+    // drift, and whose owner never asked for anything to happen to it. The
+    // request is about the SERVER copy; nothing promised the device stops
+    // working. Dismissal is session-only (`_deletionCheckedFor` keeps the read
+    // from re-issuing, but a fresh gate re-reads), so the notice comes back on
+    // the next launch.
     final pendingDeletion = _pendingDeletion;
     final uid = auth.user?.uid;
     if (pendingDeletion != null && uid != null) {
@@ -282,6 +292,7 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
         request: pendingDeletion,
         onCancel: () => _cancelPendingDeletion(context, uid),
         onSignOut: () => context.read<AuthProvider>().signOut(),
+        onDismiss: () => setState(() => _pendingDeletion = null),
       );
     }
 
