@@ -1255,8 +1255,15 @@ void main() {
       expect(await remoteDay('2026-08-22'), isNotNull);
 
       // The user deletes the day, then — before it is ever pushed — taps
-      // "delete all my data".
+      // "delete all my data". `forceTombstoneWins` is essential, not
+      // incidental: without it the upsert, the push and the delete all land
+      // in the same whole SECOND (drift's storage resolution), the tombstone
+      // ties with the remote `updatedAt`, and the tie-break keeps the remote
+      // day anyway — so the assertion below would hold for a reason that has
+      // nothing to do with the tombstone being cleared, and the test would
+      // pass with the fix reverted.
       await logs.deleteForDate(day);
+      await forceTombstoneWins(day);
       await db.deleteAllData();
 
       await sync.syncNow();

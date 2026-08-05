@@ -412,8 +412,10 @@ void main() {
         find.byKey(const Key('account.delete')),
         warnIfMissed: false,
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
+      // It must not even reach the confirmation, let alone a second write.
+      expect(find.byKey(const Key('account.confirmDelete')), findsNothing);
       expect(calls.where((c) => c == 'request'), hasLength(1));
 
       // Let the request's own timeout fire so no timer outlives the test.
