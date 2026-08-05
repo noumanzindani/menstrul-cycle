@@ -64,21 +64,33 @@ class AppDatabase extends _$AppDatabase {
 
   /// Wipes all LOCAL user data and resets settings to defaults.
   ///
-  /// **This is not an erasure, and for a signed-in user it is not even
-  /// permanent.** Logs also live in Firestore under `users/{uid}`, and this
-  /// method resets `lastSyncedAt` to null, which makes the next sync a FULL
-  /// sweep: the entire cloud history is pulled straight back down onto the
-  /// device. So the in-app "delete all my data" control empties the device
-  /// *now*, and — while the account is still syncing — the next sync refills
-  /// it. `test/sync_service_test.dart` ("what a local 'delete all my data'
-  /// does and does not do") pins that behaviour.
+  /// **This method alone does not make a wipe stick.** Logs also live in
+  /// Firestore under `users/{uid}`, and this resets `lastSyncedAt` to null,
+  /// which makes the next sync a FULL sweep: the entire cloud history is
+  /// pulled straight back down onto the device. That refill is still exactly
+  /// what happens if anything calls this without first closing the sync gate —
+  /// `test/sync_service_test.dart` ("what a local 'delete all my data' does
+  /// and does not do") pins it deliberately, as a characterisation of this
+  /// method, not of the UI control.
   ///
-  /// Erasing the server copy is a separate act: Settings → Account →
-  /// "Request account deletion" records `deletionRequests/{uid}`, which stops
-  /// sync in both directions (`SyncService.syncNow`) and queues the account
-  /// for a purge after `AccountDeletionService.graceWindow`. Whether the local
-  /// control should ALSO stop the refill is a real open question, flagged in
-  /// the task-11 report rather than decided here.
+  /// **Both callers now close that gate themselves**, and neither one is a
+  /// cloud deletion:
+  ///
+  /// - Settings → "Delete all my data" (`settings_screen.dart`) wraps this in
+  ///   `SyncTrigger.suspend()` + `resolveClaim(upload: false)` +
+  ///   `clearLunaFirestoreCache()` + `resume()`. The device stays empty and
+  ///   sync stays off for that account here until the user turns it back on;
+  ///   the account keeps its cloud copy.
+  /// - Settings → Account → "Request account deletion"
+  ///   (`account_section.dart`) records `deletionRequests/{uid}`, which stops
+  ///   sync in both directions from every device (`SyncService.syncNow`) and
+  ///   queues the account for a purge after
+  ///   `AccountDeletionService.graceWindow`.
+  ///
+  /// This method also does not touch Firestore's own on-device cache, which is
+  /// unencrypted and holds the same health documents — see
+  /// `clearLunaFirestoreCache` (`services/firestore_ref.dart`), which both
+  /// callers invoke.
   Future<void> deleteAllData() async {
     await transaction(() async {
       await delete(dailyLogs).go();

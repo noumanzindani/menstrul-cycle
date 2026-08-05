@@ -475,7 +475,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDeleteSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Permanently erase everything on this device'**
+  /// **'Erase this device and turn cloud sync off here'**
   String get settingsDeleteSubtitle;
 
   /// No description provided for @settingsDeleteDialogTitle.
@@ -487,19 +487,19 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDeleteDialogBody.
   ///
   /// In en, this message translates to:
-  /// **'This permanently erases every period, symptom, medication, reminder, and setting on this device. This cannot be undone.'**
+  /// **'This permanently erases every period, symptom, medication, reminder and setting on this device, and turns cloud sync off for your account on this device — so nothing is downloaded back. This cannot be undone.\n\nYour account and the copy of your logs on our server are kept. You can turn sync back on any time under Account. To delete the server copy too, use Account → Request account deletion.'**
   String get settingsDeleteDialogBody;
 
   /// No description provided for @settingsDeleteConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Delete everything'**
+  /// **'Erase this device'**
   String get settingsDeleteConfirm;
 
   /// No description provided for @settingsDeleteDone.
   ///
   /// In en, this message translates to:
-  /// **'All data deleted.'**
+  /// **'This device is erased and cloud sync is off here. Your account still has your logs.'**
   String get settingsDeleteDone;
 
   /// No description provided for @settingsSectionBackup.

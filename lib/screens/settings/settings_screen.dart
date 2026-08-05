@@ -6,6 +6,7 @@ import '../../common/l10n.dart';
 import '../../data/daily_log_repository.dart';
 import '../../db/database.dart';
 import '../../models/enums.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/log_provider.dart';
 import '../../providers/medication_provider.dart';
 import '../../providers/premium_provider.dart';
@@ -15,6 +16,7 @@ import '../../services/firestore_ref.dart';
 import '../../services/health_import_service.dart';
 import '../../services/lock_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/sync_trigger.dart';
 import '../../widgets/ad_banner.dart';
 import '../lock/setup_lock_screen.dart';
 import '../medications/medications_screen.dart';
@@ -81,8 +83,30 @@ class SettingsScreen extends StatelessWidget {
     final settings = context.read<SettingsProvider>();
     final logs = context.read<LogProvider>();
     final meds = context.read<MedicationProvider>();
+    final trigger = context.read<SyncTrigger>();
+    final uid = context.read<AuthProvider>().user?.uid;
     final messenger = ScaffoldMessenger.of(context);
     final deletedMsg = context.l10n.settingsDeleteDone;
+
+    // FIRST, before anything is deleted. Without this the control undid
+    // itself: `deleteAllData` nulls `lastSyncedAt`, a null `since` makes the
+    // next run a FULL sweep, and the wipe itself ARMS that run (`logs.load()`
+    // below notifies `LogProvider`, which `main.dart` turns into a
+    // `scheduleSync`). A reviewer executed it: local 0, then local 2 and
+    // cloud 2. `suspend()` also awaits any run already in flight, so when it
+    // returns this device is provably not writing.
+    await trigger.suspend();
+    // The durable half. `suspend()` lasts one session; this is the same
+    // uid-scoped record the claim prompt writes, so the decision survives a
+    // relaunch and `SyncTrigger.setUser` re-applies the gate on every future
+    // sign-in until the user reverses it from Settings → Account.
+    //
+    // This is deliberately NOT a cloud deletion. The account keeps its copy —
+    // erasing that is what "Request account deletion" is for, and that path
+    // has a 30-day cancellable window precisely because an irreversible cloud
+    // wipe must not hang off a control that historically only touched the
+    // device. The dialog copy states both halves.
+    if (uid != null) await trigger.resolveClaim(upload: false);
 
     await db.deleteAllData();
     await clearPin();
@@ -105,6 +129,15 @@ class SettingsScreen extends StatelessWidget {
     try {
       await clearFirestoreCache();
     } catch (_) {}
+
+    // Lifts the session-scoped hold, and ONLY that: `resume()` re-runs
+    // `setUser`'s evaluation from scratch, which reads the decline recorded
+    // above and leaves the sync gate closed. Without it the trigger would stay
+    // suspended, and Settings → Account's "Turn on" would record consent while
+    // `syncNow()` silently refused to run. Deliberately after the cache clear,
+    // so the fresh `SyncService` is built against a client that has already
+    // been terminated and restarted rather than a dead one.
+    await trigger.resume();
 
     messenger.showSnackBar(
       SnackBar(content: Text(deletedMsg)),
