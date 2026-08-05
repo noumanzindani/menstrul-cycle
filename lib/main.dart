@@ -19,6 +19,7 @@ import 'providers/premium_provider.dart';
 import 'providers/reminder_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/app_gate.dart';
+import 'screens/lock/app_lock.dart';
 import 'services/ad_service.dart';
 import 'services/auth_service.dart';
 import 'services/bbt_service.dart';
@@ -203,6 +204,13 @@ class LunaTrackApp extends StatelessWidget {
               locale: settings.language == 'system'
                   ? null
                   : Locale(settings.language),
+              // The app lock goes HERE, not inside `home:`. `builder` wraps the
+              // Navigator, so `AppLock` covers every route — bottom sheets,
+              // dialogs, pushed screens, snackbars — instead of only the
+              // contents of the home route. Returning `LockScreen` from
+              // `AppGate.build` (what this replaces) left every one of those
+              // rendering on top of the lock. See `screens/lock/app_lock.dart`.
+              builder: AppLock.wrap,
               home: const HomeWidgetSync(child: AppGate()),
             );
           },

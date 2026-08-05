@@ -8,6 +8,7 @@ import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/providers/auth_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/screens/app_gate.dart';
+import 'package:menstrul_track/screens/lock/app_lock.dart';
 import 'package:menstrul_track/screens/auth/sign_in_screen.dart';
 import 'package:menstrul_track/services/auth_service.dart';
 import 'package:menstrul_track/services/sync_trigger.dart';
@@ -64,7 +65,12 @@ void main() {
             ),
           ),
         ],
-        child: const MaterialApp(home: AppGate()),
+        // `builder: AppLock.wrap` mirrors `main.dart`: the app lock is
+        // installed ABOVE the Navigator so it covers every route, not just the
+        // contents of `home:`. App lock is off in these tests, so it is a
+        // pass-through here — it is present so this harness is the same shape
+        // as the app.
+        child: MaterialApp(builder: AppLock.wrap, home: const AppGate()),
       );
 
   testWidgets('shows a splash, not the sign-in form, before auth is known',

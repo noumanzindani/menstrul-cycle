@@ -11,6 +11,7 @@ import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/providers/auth_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/screens/app_gate.dart';
+import 'package:menstrul_track/screens/lock/app_lock.dart';
 import 'package:menstrul_track/services/auth_service.dart';
 import 'package:menstrul_track/services/claim_preference.dart';
 import 'package:menstrul_track/services/sync_trigger.dart';
@@ -100,6 +101,11 @@ void main() {
           ChangeNotifierProvider<SyncTrigger>.value(value: trigger),
         ],
         child: MaterialApp(
+          // Mirrors `main.dart`: the app lock is installed by
+          // `MaterialApp.builder`, ABOVE the Navigator, so it covers every
+          // route rather than only the contents of `home:`. A harness that
+          // omitted this would be testing a lock the app does not have.
+          builder: AppLock.wrap,
           home: Consumer<AuthProvider>(
             builder: (context, a, _) {
               context.read<SyncTrigger>().setUser(a.user?.uid);

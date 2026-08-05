@@ -14,11 +14,17 @@ import 'account/deletion_pending_screen.dart';
 import 'app_shell.dart';
 import 'auth/claim_local_data_sheet.dart';
 import 'auth/sign_in_screen.dart';
-import 'lock/lock_screen.dart';
+import 'lock/app_lock.dart';
 import 'onboarding/onboarding_screen.dart';
 
-/// Wraps the app in the lock gate. When app lock is enabled, shows [LockScreen]
-/// on cold start and again whenever the app returns from the background.
+/// Decides which top-level surface the signed-in state calls for: splash,
+/// sign-in, the deletion notice, onboarding, or the app itself.
+///
+/// It does NOT render the app lock. That is [AppLock], installed above the
+/// Navigator by `MaterialApp.builder` so it covers every route rather than only
+/// this one — see `screens/lock/app_lock.dart`. This gate only *consults* it,
+/// through [AppLock.isLocked], to avoid raising a modal question at a moment the
+/// user can neither see nor answer.
 class AppGate extends StatefulWidget {
   const AppGate({
     super.key,
@@ -48,9 +54,6 @@ class AppGate extends StatefulWidget {
 }
 
 class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
-  bool _locked = false;
-  bool _initialLockApplied = false;
-
   /// The uid the claim prompt has already been raised for this session, NOT a
   /// bare "shown once" bool: a bool latched forever, so after uid-1 answered,
   /// uid-2 signing in on the same device (Settings now has a sign-out button)
@@ -63,6 +66,18 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   /// reason: a bare bool would latch across a sign-out and sign-in.
   String? _deletionCheckedFor;
   DeletionRequest? _pendingDeletion;
+
+  /// Whether this gate has ever rendered the app for an UNLOCKED session.
+  ///
+  /// It decides what sits under the lock, and both directions matter. Before
+  /// the first unlock — a cold start behind the lock — there is nothing to
+  /// preserve, so the gate renders a bare placeholder and the shell, its
+  /// providers and its side effects are simply not started underneath a lock
+  /// the user has never been past. After it, the tree is never torn down again:
+  /// keeping it mounted (offstage, under [AppLock]) is exactly what puts the
+  /// user back on the same screen, in the same open sheet, at the same scroll
+  /// offset when they unlock. Rebuilding it would silently lose all of that.
+  bool _appEverRendered = false;
 
   /// The marker read is a network round-trip, and it must not become one the
   /// user waits on. Nothing here blocks a build: the read is issued from a
@@ -86,15 +101,10 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  /// Engaging the lock on background lives in [AppLock] now, because the lock
+  /// is rendered there; this observer is left with the resume-sync half.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
-      if (!mounted) return;
-      if (context.read<SettingsProvider>().appLockEnabled) {
-        setState(() => _locked = true);
-      }
-    }
     if (state == AppLifecycleState.resumed) {
       if (!mounted) return;
       // Pull anything logged on another device while we were away.
@@ -102,15 +112,23 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     }
   }
 
-  /// Whether [build] would currently be returning [LockScreen] — the one thing
-  /// nothing in this widget may render on top of.
+  /// Whether the app lock is currently covering the app — the one thing nothing
+  /// in this widget may raise a route on top of.
   ///
-  /// Deliberately the SAME expression the lock branch in [build] evaluates, so
-  /// the two cannot drift apart. `appLockEnabled` is re-read rather than assumed
-  /// from [_locked]: a sync can land a settings document that turns app lock
-  /// off, and "locked" without "enabled" is not a gate [build] would honour.
+  /// A single read of [AppLock], which owns that state, rather than a local
+  /// re-derivation from a `_locked` flag and a fresh `appLockEnabled` read. Two
+  /// expressions for one question is two things that can drift, and this is the
+  /// question a security fix depends on. (The earlier comment here justified the
+  /// re-read by claiming "a sync can land a settings document that turns app
+  /// lock off" — that is false: `SyncService` never sends or applies
+  /// `appLockEnabled`, which is deliberately device-local. The guard was right;
+  /// only its stated reason was wrong, and a wrong rationale in a
+  /// security-critical comment is what the next author reasons from.)
+  ///
+  /// Not listening: this is sampled from an `await` resumption, not rendered
+  /// from. [build] does the listening read.
   bool _lockGateShowing(BuildContext context) =>
-      _locked && context.read<SettingsProvider>().appLockEnabled;
+      AppLock.isLocked(context, listen: false);
 
   /// Offers to upload pre-existing local logs the first time an account signs
   /// in on this device. Runs after the frame so it can show a modal sheet.
@@ -156,15 +174,13 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       if (record?.uid == uid) return;
       if (!context.mounted) return;
       // The lock can engage BETWEEN this callback being scheduled and this
-      // line: every `await` above is a suspension point, and
-      // `didChangeAppLifecycleState` sets `_locked` when the app is backgrounded
-      // in between. `build`'s ordering cannot cover that on its own, because
-      // this sheet is a Navigator ROUTE — it renders above whatever `build`
-      // returned, `LockScreen` included. Forget the uid so the question is
-      // raised again from `build` the moment the gate stops rendering the lock;
-      // dropping it silently would leave the account gated with no way to be
-      // asked, and persisting anything here would be a decision the user never
-      // made.
+      // line: every `await` above is a suspension point, and the app can be
+      // backgrounded in between. [AppLock] would keep the sheet out of sight
+      // even so, but a modal question must not be *asked* of a session that
+      // cannot answer it. Forget the uid so the question is raised again from
+      // `build` the moment the lock lifts; dropping it silently would leave the
+      // account gated with no way to be asked, and persisting anything here
+      // would be a decision the user never made.
       if (_lockGateShowing(context)) {
         _claimPromptShownFor = null;
         return;
@@ -267,49 +283,45 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     if (!settings.loaded) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final enabled = settings.appLockEnabled;
-
-    // Lock once on the first build where app lock is known to be enabled.
-    if (enabled && !_initialLockApplied) {
-      _initialLockApplied = true;
-      _locked = true;
-    }
-
-    // The lock outranks EVERYTHING below it, deletion notice included. An
-    // earlier revision put the notice first, reasoning that a deletion request
-    // clears the PIN and resets settings so app lock must be off — true only on
-    // the REQUESTING device. On a second device signed into the same account
-    // the PIN and settings are untouched, so the notice would replace this
-    // screen and hand whoever holds the locked phone, with no PIN: the fact and
-    // date of the deletion, the ability to cancel it (which pulls the whole
-    // cloud history back onto the device), and a sign-out — a pre-lock exit
-    // that chains into the claim sheet under a different account.
+    // The lock is rendered by [AppLock], above the Navigator, so it covers
+    // whatever this method returns AND every route pushed on top of it. Nothing
+    // here returns `LockScreen` any more. Once the user has been past the lock
+    // once, nothing here tears the app down for it either: the tree stays
+    // MOUNTED (offstage) while locked, which is what puts them back on the same
+    // screen, in the same sheet, at the same scroll position on unlock.
     //
-    // This costs the notice nothing on the device the notice exists for: there,
-    // `appLockEnabled` is false, so the branch below still precedes onboarding.
-    if (enabled && _locked) {
-      return LockScreen(onUnlocked: () => setState(() => _locked = false));
-    }
-
-    // Both of these are registered BELOW the lock branch, and that placement is
-    // the fix. `_maybePromptClaim` raises a Navigator route, which renders above
-    // whatever this method returned — so while it was registered at the top of
-    // `build`, the claim sheet appeared over `LockScreen`, handing whoever holds
-    // the locked phone, with no PIN: the disclosure that this device holds N
-    // days of menstrual-health logs, and a one-tap "Add to my account" that
-    // uploads them. Everything the lock was put in front of, on top of it.
+    // What is still gated on the lock is the two REGISTRATIONS below, and that
+    // gating is the ordering three fix rounds converged on. `_maybePromptClaim`
+    // raises a Navigator route and `_maybeCheckDeletion` issues a network read;
+    // neither should happen to a session that cannot see or answer either. An
+    // unlock (PIN or biometric — both land on the same `setState` in [AppLock])
+    // rebuilds this widget through `AppLock.isLocked`'s dependency and raises
+    // the prompt then. With app lock off, control arrives here on the same
+    // build it always did.
     //
-    // Registering them here instead means they are reached only on a build that
-    // is NOT rendering the lock, so an unlock (PIN or biometric — both land on
-    // the same `setState`) is what raises the prompt, and a locked session that
-    // is backgrounded never raises it at all. With app lock off, `enabled` is
-    // false and control arrives here on the same build it always did.
+    // The deletion notice being BELOW this is the same ordering, for the same
+    // reason: an earlier revision put it first, reasoning that a deletion
+    // request clears the PIN and resets settings so app lock must be off — true
+    // only on the REQUESTING device. On a second device signed into the same
+    // account the PIN and settings are untouched, and the notice would hand
+    // whoever holds the locked phone the fact and date of the deletion, a
+    // cancel button that pulls the whole cloud history back onto the device,
+    // and a sign-out — a pre-lock exit that chains into the claim sheet under a
+    // different account.
     //
     // Their relative order and per-uid keying are unchanged and load-bearing:
     // see `_maybePromptClaim` (the pre-consent upload race lives in exactly this
     // sequencing) and `_maybeCheckDeletion`.
-    _maybePromptClaim(context, auth.user?.uid);
-    _maybeCheckDeletion(auth.user?.uid);
+    final locked = AppLock.isLocked(context);
+    // Nothing of the app starts up behind a lock it has never been past; after
+    // that first unlock the tree stays mounted so it can be restored. See
+    // [_appEverRendered]. The placeholder is never seen — [AppLock] is over it.
+    if (locked && !_appEverRendered) return const Scaffold();
+    if (!locked) {
+      _appEverRendered = true;
+      _maybePromptClaim(context, auth.user?.uid);
+      _maybeCheckDeletion(auth.user?.uid);
+    }
 
     // A pending deletion outranks onboarding, and that ordering IS the fix:
     // `deleteAllData()` resets `onboardingComplete`, so a user who requested
