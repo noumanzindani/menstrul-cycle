@@ -140,3 +140,49 @@ class FirebaseAuthService implements AuthService {
     }
   }
 }
+
+/// Used in place of [FirebaseAuthService] whenever this build has no usable
+/// Firebase app -- see `main.dart`'s `initializeFirebase()`, the single place
+/// that decides.
+///
+/// [FirebaseAuthService]'s constructor touches `FirebaseAuth.instance`, which
+/// touches `Firebase.app()`, which THROWS with no default app: the entire
+/// documented crash this class exists to avoid ever reaching. This class
+/// never constructs a `FirebaseAuth`, so it is always safe to build.
+///
+/// Reports permanently signed out (there is no session to restore without
+/// Firebase), and every mutating call fails with [AuthErrorCode.unknown]
+/// rather than reaching for a client that cannot exist -- `_guard` in
+/// `AuthProvider` already turns that into a normal, on-screen "something went
+/// wrong" instead of a crash, so no new UI plumbing is needed for it.
+/// [signOut] is the one exception: it is a no-op rather than a failure,
+/// because on a build with no auth at all "sign out" can only ever mean
+/// "already signed out".
+class UnavailableAuthService implements AuthService {
+  const UnavailableAuthService();
+
+  @override
+  Stream<AppUser?> authStateChanges() => Stream.value(null);
+
+  @override
+  AppUser? get currentUser => null;
+
+  @override
+  Future<void> signUp({required String email, required String password}) =>
+      _unavailable();
+
+  @override
+  Future<void> signIn({required String email, required String password}) =>
+      _unavailable();
+
+  @override
+  Future<void> signOut() async {}
+
+  @override
+  Future<void> sendPasswordReset(String email) => _unavailable();
+
+  @override
+  Future<void> deleteAccount() => _unavailable();
+
+  Future<Never> _unavailable() async => throw AuthFailure(AuthErrorCode.unknown);
+}

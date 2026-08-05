@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,6 +25,7 @@ import 'services/ad_service.dart';
 import 'services/auth_service.dart';
 import 'services/bbt_service.dart';
 import 'services/cycle_check_in.dart';
+import 'services/firebase_availability.dart';
 import 'services/insights_narrator.dart';
 import 'services/month_ring_builder.dart';
 import 'services/notification_actions.dart';
@@ -35,6 +37,11 @@ import 'widgets/home_widget_sync.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // The ONE place this app decides whether Firebase is usable -- see
+  // [initializeFirebase] and `FirebaseAvailability`'s doc comment. Everything
+  // downstream (AuthProvider's construction, AccountSection's notice) reads
+  // this single value; nothing re-derives it.
+  final firebaseAvailable = await initializeFirebase();
   // Register the notification action handlers. The background one runs the
   // one-tap check-in write in a killed-app isolate; the foreground one handles a
   // tap while the app is open. Both route through handleCheckInResponse.
@@ -45,7 +52,38 @@ Future<void> main() async {
   // Ads init is fire-and-forget: the UI must not block on the network.
   unawaited(AdService.instance.initialize());
   final db = AppDatabase();
-  runApp(LunaTrackApp(database: db));
+  runApp(LunaTrackApp(database: db, firebaseAvailable: firebaseAvailable));
+}
+
+/// Initializes the default Firebase app, tolerating a build with no native
+/// config (no `google-services.json` / `GoogleService-Info.plist`, and no
+/// generated `lib/firebase_options.dart` -- neither exists at this HEAD; a
+/// `flutterfire configure` pass to add them is tracked separately) and any
+/// other runtime failure to reach Firebase. Returns whether it succeeded.
+///
+/// Deliberately calls the NO-OPTIONS form. Passing no `name`/`options` is what
+/// lets this survive both today (no options file to import -- importing one
+/// that doesn't exist would break the build outright) and after
+/// `firebase_options.dart` lands, without this function needing to change:
+/// `Firebase.initializeApp` forwards straight to the platform channel with
+/// `options: null` (`firebase_core-4.13.0/lib/src/firebase.dart:79-82`), which
+/// on Android falls back to reading the native `google-services.json` --
+/// exactly the case that throws `[core/no-app]` when that file is absent,
+/// which is the failure this function exists to survive rather than prevent.
+///
+/// This is the ONLY place in the app that calls `Firebase.initializeApp()`.
+/// Every other Firebase touch point (`FirebaseAuthService`, `lunaFirestore()`,
+/// `SyncTrigger.setUser`) either runs after this has already decided
+/// [FirebaseAvailability], or independently tolerates `Firebase.app()`
+/// throwing on its own (see their doc comments) -- this function does not
+/// change or duplicate either of those existing guards.
+Future<bool> initializeFirebase() async {
+  try {
+    await Firebase.initializeApp();
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 class LunaTrackApp extends StatelessWidget {
@@ -54,6 +92,7 @@ class LunaTrackApp extends StatelessWidget {
     required this.database,
     this.authService,
     this.syncTrigger,
+    this.firebaseAvailable = true,
   });
 
   final AppDatabase database;
@@ -63,6 +102,20 @@ class LunaTrackApp extends StatelessWidget {
   /// that pump this widget directly (see `test/widget_test.dart`) inject a fake
   /// here instead.
   final AuthService? authService;
+
+  /// Whether `main()`'s `initializeFirebase()` succeeded -- the single fact
+  /// this widget bases its degrade-gracefully behaviour on. See
+  /// `FirebaseAvailability`'s doc comment for why this must not be re-derived
+  /// anywhere else.
+  ///
+  /// Defaults to `true` because this widget cannot detect Firebase's real
+  /// state on its own (only `main()` calls `Firebase.initializeApp()`); it can
+  /// only be told. Most tests inject [authService] directly and never reach
+  /// the `FirebaseAuthService()` this flag would otherwise gate, so the
+  /// default is unobserved by them. Tests that specifically exercise the
+  /// unavailable path set this explicitly (see
+  /// `test/firebase_unavailable_test.dart`).
+  final bool firebaseAvailable;
 
   /// Overridable for tests, for the same class of reason: the default
   /// [SyncTrigger]'s claim-decision storage is `flutter_secure_storage`, whose
@@ -78,8 +131,20 @@ class LunaTrackApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<AppDatabase>.value(value: database),
+        // Read by `AccountSection` to show "Cloud sync unavailable on this
+        // device" instead of the normal sync on/off tile -- the SAME value
+        // that picks the AuthProvider's service just below, not a second
+        // derivation of it.
+        Provider<FirebaseAvailability>.value(
+          value: FirebaseAvailability(firebaseAvailable),
+        ),
         ChangeNotifierProvider(
-          create: (_) => AuthProvider(authService ?? FirebaseAuthService()),
+          create: (_) => AuthProvider(
+            authService ??
+                (firebaseAvailable
+                    ? FirebaseAuthService()
+                    : const UnavailableAuthService()),
+          ),
         ),
         ChangeNotifierProvider(
           create: (_) => syncTrigger ?? SyncTrigger(database),
