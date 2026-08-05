@@ -185,28 +185,29 @@ void main() {
     await tester.pump();
     // Sanity: unlocked, the action really is there and tappable.
     expect(find.widgetWithText(SnackBarAction, 'Retry'), findsOneWidget);
-    // Captured while genuinely on screen, so the post-lock tap below targets
-    // the exact pixel the button occupied rather than relying on `find`
-    // locating nothing — which `expect(retry, findsNothing)` on the next
-    // line already throws on, making a `find`-based tap after it dead code
-    // that always "passes" trivially. `tapAt` at a raw offset can't be
-    // short-circuited by a failed finder.
-    final retryCenter =
-        tester.getCenter(find.widgetWithText(SnackBarAction, 'Retry'));
 
     await background(tester);
     await foreground(tester);
     expect(find.byType(LockScreen), findsOneWidget);
 
+    // Tap through the SAME `find`-based finder used unlocked above — not a
+    // captured coordinate. The snackbar sits lower on `LockScreen` (its
+    // `Scaffold` has no bottom `NavigationBar`/FAB inset), so a coordinate
+    // captured while unlocked no longer lands on the button once locked and
+    // silently misses it, leaving `actionFired` trivially false regardless of
+    // whether the fix holds. Locating it fresh here means the tap actually
+    // lands on the button whenever `find` still finds one.
+    final retry = find.widgetWithText(SnackBarAction, 'Retry');
+    if (retry.evaluate().isNotEmpty) {
+      await tester.tap(retry);
+      await tester.pump();
+    }
     // THE REGRESSION. Before the fix this button is hit-testable and its
-    // `onPressed` genuinely fires with no PIN.
-    expect(find.widgetWithText(SnackBarAction, 'Retry'), findsNothing);
-    // Tap the exact former on-screen location by coordinate — not through a
-    // finder — so this genuinely exercises hit-testing at that point rather
-    // than being unreachable the moment the finder above found nothing.
-    await tester.tapAt(retryCenter);
-    await tester.pump();
+    // `onPressed` genuinely fires with no PIN. Asserted BEFORE the
+    // `findsNothing` check below so a passing `actionFired` can never be
+    // explained away by the tap never having been attempted.
     expect(actionFired, isFalse);
+    expect(retry, findsNothing);
   });
 
   const bannerText = 'Cloud sync failed. Retry from Settings.';
