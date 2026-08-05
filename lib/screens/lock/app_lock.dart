@@ -145,6 +145,35 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
     // `ExcludeFocus` below keeps focus out while the lock is up.
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _locked = true);
+    // Publish to `_LockRouteGuard` HERE, not only from `build` below.
+    //
+    // This runs from `didChangeAppLifecycleState(paused)`, and
+    // `SchedulerBinding.handleAppLifecycleStateChanged`
+    // (scheduler/binding.dart:414-428) disables frames for
+    // `hidden`/`paused`/`detached` by calling `_setFramesEnabledState(false)`
+    // — after which `scheduleFrame()` (:947) early-returns
+    // (`if (_hasScheduledFrame || !framesEnabled) return;`) without ever
+    // setting `_hasScheduledFrame`. `setState` above therefore does not
+    // result in a drawn frame: the `markNeedsBuild` it triggers requests one,
+    // but that request is exactly the no-op `scheduleFrame()` call just
+    // described. No frame runs — so `build` does not run, and the
+    // `lockNotifier` write down in `build` does not run either — until the
+    // FIRST FRAME AFTER RESUME, whenever the engine gets around to producing
+    // one. In that entire window the guard in `main.dart` would keep
+    // consulting a stale `false` and decline to swallow the back button,
+    // letting `_WidgetsAppState` pop the hidden route instead
+    // (`test/app_lock_back_button_test.dart`'s
+    // "before the first post-resume frame" case is the regression test for
+    // exactly this).
+    //
+    // Writing here does not introduce a second expression for "am I locked":
+    // `_lock` is only ever reached with `appLockEnabled == true` (guarded in
+    // `didChangeAppLifecycleState` above), so `locked` is definitionally
+    // `true` at this call site — this is the same value `build` would
+    // compute, published earlier rather than re-derived. `build` remains the
+    // one place "locked" is COMPUTED (`_locked && enabled`); this is only an
+    // earlier PUBLISH of a value already known here.
+    widget.lockNotifier?.value = true;
   }
 
   @override

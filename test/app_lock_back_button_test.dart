@@ -107,6 +107,34 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// The same three-state transition as [foreground], but with NO `pump`
+  /// afterwards.
+  ///
+  /// `SchedulerBinding.handleAppLifecycleStateChanged`
+  /// (scheduler/binding.dart:414-428) calls `_setFramesEnabledState(false)`
+  /// for `hidden`/`paused`/`detached` and `_setFramesEnabledState(true)` for
+  /// `resumed`/`inactive`; the latter, on a true->false->true edge, calls
+  /// `scheduleFrame()` (:947), which only sets `_hasScheduledFrame = true` —
+  /// it does not draw one. `AutomatedTestWidgetsFlutterBinding.pump` (the
+  /// binding `flutter test` uses) only actually runs `handleBeginFrame` /
+  /// `handleDrawFrame` — and therefore `AppLock.build` — when `pump` is next
+  /// called AND `hasScheduledFrame` is true (flutter_test/binding.dart:1948
+  /// -1965). So immediately after this returns, exactly one frame is
+  /// scheduled-but-undrawn: the state on screen (and everything `build`
+  /// would have written, including the pre-fix `lockNotifier`) is still
+  /// whatever the LAST drawn frame left it as. That is the real-device race
+  /// this closes: the OS can deliver a back press in that same undrawn-frame
+  /// gap, before Flutter has rendered anything reflecting the resume.
+  Future<void> foregroundBeforeFirstFrame(WidgetTester tester) async {
+    for (final state in const [
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(state);
+    }
+  }
+
   testWidgets(
       'the Android back button does not pop a route hidden behind the lock — '
       'the route survives AFTER unlock, not just while still hidden',
@@ -141,6 +169,44 @@ void main() {
     // pushed route must still be there. If the guard didn't run, the back
     // press already popped it while hidden, and this is `NavigationBar`
     // instead.
+    expect(find.byType(LockScreen), findsNothing);
+    expect(find.byType(DayLogScreen), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+  });
+
+  testWidgets(
+      'a back press that lands before the first post-resume frame is still '
+      'swallowed — the pushed route survives AFTER unlock',
+      (tester) async {
+    await seedSettings(appLock: true);
+    await launch(tester);
+    await unlockWithPin(tester);
+    expect(find.byType(NavigationBar), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FloatingActionButton, 'Log today'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DayLogScreen), findsOneWidget);
+
+    await background(tester);
+    // Deliberately `foregroundBeforeFirstFrame`, NOT `foreground`: no frame
+    // has been drawn since the app paused, so nothing below has rebuilt yet
+    // — `find.byType(LockScreen)` would find nothing here, not because the
+    // lock failed to engage, but because the tree hasn't caught up. That is
+    // exactly the window under test, so there is deliberately no "is the
+    // lock visible yet" sanity check here the way the sibling test has one.
+    await foregroundBeforeFirstFrame(tester);
+
+    // The Android back button, landing in the undrawn-frame gap.
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    await unlockWithPin(tester);
+
+    // THE REGRESSION. Pre-fix, `AppLock.lockNotifier` is only written from
+    // `build`, which has not run since the app paused — so the guard above
+    // `MaterialApp` reads a stale `false`, declines, and `_WidgetsAppState`
+    // pops the hidden route instead. The pop is invisible while offstage and
+    // only shows up here, after unlock.
     expect(find.byType(LockScreen), findsNothing);
     expect(find.byType(DayLogScreen), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
