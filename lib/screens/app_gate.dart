@@ -74,8 +74,17 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       // it is a fast local read and it rules the prompt out for most signed-in
       // rebuilds (a fresh account with an empty device), which then never
       // reach `ClaimPreference`'s secure-storage read below.
+      //
+      // Deliberately `SyncTrigger.hasLocalDataToClaim()` and NOT a daily-log
+      // count: `SyncService` pushes the settings document too, so a device
+      // with no logged days but real health settings (pregnancy state among
+      // them) has something to consent to. This MUST stay the same predicate
+      // `SyncTrigger.setUser` gates on — if the two disagree, the account is
+      // either gated and never prompted (sync silently off forever) or
+      // prompted about nothing. The count below is only for the sheet's copy.
+      if (!await trigger.hasLocalDataToClaim() || !context.mounted) return;
       final count = (await DailyLogRepository(db).getAll()).length;
-      if (count == 0 || !context.mounted) return;
+      if (!context.mounted) return;
       // "Already answered" is per-ACCOUNT, not per-device: a record belonging
       // to a DIFFERENT uid must not suppress this genuinely new question, and
       // `AppSettings.lastSyncedAt` (device-global — it stays non-null once ANY

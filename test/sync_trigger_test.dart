@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show LazyDatabase, Value;
@@ -5,6 +6,7 @@ import 'package:drift/native.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/data/daily_log_repository.dart';
+import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/services/claim_preference.dart';
@@ -137,6 +139,109 @@ void main() {
       await signIn;
 
       expect(await remoteDay(DateTime(2026, 1, 5)), isNull);
+    });
+
+    test(
+        'a setUser continuation that resumes AFTER the account changed cannot '
+        'reopen the gate or push into the account it was started for',
+        () async {
+      // `setUser` mutates `_uid`, `_service` and `_pendingClaim` across awaits.
+      // Setting the gate synchronously closes the race against an interleaving
+      // CALLER, but an older invocation of setUser itself can still resume and
+      // undo it. In production the blocking await is `DeviceId.get()` --
+      // flutter_secure_storage, i.e. the OS keystore -- which is exactly the
+      // kind of call that can take hundreds of milliseconds on a cold start,
+      // and a sign-out/sign-in is reachable from Settings at any moment.
+      final firstDeviceIdCall = Completer<void>();
+      var deviceIdCalls = 0;
+
+      // uid-2 has already claimed this device, so ITS continuation would
+      // happily clear the gate and sync.
+      claimStore = const ClaimRecord(uid: 'uid-2', declined: false);
+      await seedLog(DateTime(2026, 1, 5));
+
+      final t = SyncTrigger(
+        db,
+        firestore: () => firestore,
+        deviceId: () async {
+          deviceIdCalls++;
+          if (deviceIdCalls == 1) await firstDeviceIdCall.future;
+          return 'device-1';
+        },
+        readClaim: () async => claimStore,
+        writeClaim: (record) async => claimStore = record,
+      );
+
+      final stale = t.setUser('uid-2'); // blocks inside the device-id read
+      await Future<void>.delayed(Duration.zero);
+      final current = t.setUser('uid-1'); // the account actually signed in now
+      await current;
+      expect(t.isPendingClaim, isTrue, reason: 'uid-1 has never been asked');
+
+      firstDeviceIdCall.complete(); // uid-2's continuation resumes
+      await stale;
+
+      expect(t.isPendingClaim, isTrue);
+      expect(await remoteDay(DateTime(2026, 1, 5), uid: 'uid-1'), isNull);
+      expect(await remoteDay(DateTime(2026, 1, 5), uid: 'uid-2'), isNull);
+    });
+
+    test(
+        'health SETTINGS with no logged days are gated too -- dailyLogs is not '
+        'the only collection a first sync pushes', () async {
+      // Reachable: a local-only user in pregnancy mode who has not logged
+      // days. `SyncService._pushSettings` uploads `users/{uid}/settings/current`
+      // including `pregnancyStartDate`, so keying the gate on dailyLogs alone
+      // pushed the most sensitive field in the app with no prompt at all -- and
+      // recorded an `uploaded` consent the user never gave.
+      await SettingsRepository(db).update(
+        AppSettingsCompanion(pregnancyStartDate: Value(DateTime(2026, 1, 1))),
+      );
+
+      final t = trigger();
+      await t.setUser('uid-1');
+      await t.syncNow(); // the app-resume hook
+
+      expect(t.isPendingClaim, isTrue);
+      expect(claimStore, isNull, reason: 'no consent was given to record');
+      expect(
+        (await firestore.doc('users/uid-1/settings/current').get()).exists,
+        isFalse,
+      );
+    });
+
+    test('resolveClaim(upload: true) pushes the deferred health settings',
+        () async {
+      await SettingsRepository(db).update(
+        AppSettingsCompanion(pregnancyStartDate: Value(DateTime(2026, 1, 1))),
+      );
+
+      final t = trigger();
+      await t.setUser('uid-1');
+      await t.resolveClaim(upload: true);
+
+      expect(
+        (await firestore.doc('users/uid-1/settings/current').get()).exists,
+        isTrue,
+      );
+    });
+
+    test('a pending deletion tombstone is local data worth claiming too',
+        () async {
+      // `_pushTombstones` publishes one marker per deleted date into
+      // `users/{uid}/deletions`; a date this person tracked and then removed is
+      // still a statement about their cycle.
+      await seedLog(DateTime(2026, 1, 5));
+      await logs.deleteForDate(DateTime(2026, 1, 5));
+      expect(await logs.getAll(), isEmpty);
+
+      final t = trigger();
+      expect(await t.hasLocalDataToClaim(), isTrue);
+
+      await t.setUser('uid-1');
+
+      expect(t.isPendingClaim, isTrue);
+      expect(claimStore, isNull);
     });
   });
 
@@ -368,6 +473,50 @@ void main() {
       await signIn;
     });
 
+    test(
+        'suspend() waits for the run that is actually WRITING, even when a '
+        'second syncNow has landed on top of it', () async {
+      // `SyncService.syncNow()` silently drops an overlapping call (its own
+      // `_running` guard) and returns an already-complete future. Tracking only
+      // the MOST RECENT call therefore replaced the real run's future with that
+      // no-op, whose completion then cleared it -- so suspend() awaited nothing
+      // and returned while a push was still on the wire, straight into the
+      // deletion sweep. Both overlapping callers are routine: AppGate's
+      // unawaited `resumed` hook and the 2-second scheduleSync debounce.
+      final dir = await Directory.systemTemp.createTemp('luna_suspend_overlap');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/luna.db');
+
+      final seed = AppDatabase.forTesting(NativeDatabase(file));
+      await DailyLogRepository(seed).upsert(
+        date: DateTime(2026, 1, 5),
+        flow: FlowIntensity.medium,
+        symptomsJson: '{}',
+      );
+      await seed.close();
+
+      claimStore = const ClaimRecord(uid: 'uid-1', declined: false);
+      final slow = AppDatabase.forTesting(LazyDatabase(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        return NativeDatabase(file);
+      }));
+      addTearDown(slow.close);
+
+      final t = trigger(slow);
+      final signIn = t.setUser('uid-1'); // syncs; its first query blocks
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // The app comes back to the foreground, and a local edit's debounce
+      // fires, while that first push is still mid-run.
+      unawaited(t.syncNow());
+      unawaited(t.syncNow());
+
+      await t.suspend();
+
+      expect(await remoteDay(DateTime(2026, 1, 5)), isNotNull);
+      await signIn;
+    });
+
     test('resume() restores sync for the same account (an aborted deletion)',
         () async {
       claimStore = const ClaimRecord(uid: 'uid-1', declined: false);
@@ -415,6 +564,7 @@ void main() {
     test('is true only for the account that claimed this device', () async {
       claimStore = const ClaimRecord(uid: 'uid-1', declined: false);
       final t = trigger();
+      await t.setUser('uid-1');
 
       expect(await t.isSyncEnabledFor('uid-1'), isTrue);
       expect(await t.isSyncEnabledFor('uid-2'), isFalse);
@@ -422,16 +572,75 @@ void main() {
 
     test('is false for a declined account', () async {
       claimStore = const ClaimRecord(uid: 'uid-1', declined: true);
+      final t = trigger();
+      await t.setUser('uid-1');
 
-      expect(await trigger().isSyncEnabledFor('uid-1'), isFalse);
+      expect(await t.isSyncEnabledFor('uid-1'), isFalse);
     });
 
     test('is false while the claim question is still unanswered -- unanswered '
         'is not the same as declined', () async {
+      await seedLog(DateTime(2026, 1, 5));
       final t = trigger();
+      await t.setUser('uid-1');
 
       expect(await t.isSyncEnabledFor('uid-1'), isFalse);
       expect(await t.declinedUidOnRecord(), isNull);
+    });
+
+    test(
+        'is false on a build with no Firebase app, even after the user chose '
+        '"Add to my account" and a claim was recorded', () async {
+      // This is the CURRENT state of every build of this app: the Firebase
+      // console setup (task 1b) has not landed, so `lunaFirestore()` throws,
+      // `setUser` catches, and no SyncService is ever built. The user is still
+      // prompted, still taps "Add to my account", and `resolveClaim` still
+      // records `uploaded` -- but `syncNow()` has nothing to run. Reporting
+      // "Cloud sync is on" there is a false privacy statement in the direction
+      // that matters most: it tells someone their health data is backed up when
+      // not one byte has left the device.
+      await seedLog(DateTime(2026, 1, 5));
+      final t = SyncTrigger(
+        db,
+        firestore: () => throw StateError('no Firebase app'),
+        deviceId: () async => 'device-1',
+        readClaim: () async => claimStore,
+        writeClaim: (record) async => claimStore = record,
+      );
+      await t.setUser('uid-1');
+
+      await t.resolveClaim(upload: true);
+
+      expect(claimStore, const ClaimRecord(uid: 'uid-1', declined: false));
+      expect(await t.isSyncEnabledFor('uid-1'), isFalse);
+    });
+
+    test('is false while setUser is still evaluating the claim decision',
+        () async {
+      // Mid-`setUser`: the record already says "uploaded", but the gate is set
+      // and `syncNow` is refusing to run, so nothing is syncing yet.
+      final release = Completer<void>();
+      claimStore = const ClaimRecord(uid: 'uid-1', declined: false);
+      final t = SyncTrigger(
+        db,
+        firestore: () => firestore,
+        deviceId: () async {
+          await release.future;
+          return 'device-1';
+        },
+        readClaim: () async => claimStore,
+        writeClaim: (record) async => claimStore = record,
+      );
+
+      final signIn = t.setUser('uid-1');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(await t.isSyncEnabledFor('uid-1'), isFalse);
+
+      release.complete();
+      await signIn;
+
+      expect(await t.isSyncEnabledFor('uid-1'), isTrue);
     });
 
     test('is false while sync is suspended, even for the claiming account',

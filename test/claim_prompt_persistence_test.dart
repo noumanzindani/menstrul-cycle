@@ -82,7 +82,19 @@ void main() {
         providers: [
           Provider<AppDatabase>.value(value: db),
           ChangeNotifierProvider(create: (_) => AuthProvider(auth)),
+          // `lazy: false` is load-bearing for the DISCRIMINATION of the tests
+          // below, not for the app. A lazy SettingsProvider is not created
+          // until `AppGate.build` reaches its `context.watch`, which happens
+          // AFTER `_maybePromptClaim` has already scheduled its post-frame
+          // callback -- so `load()` had not completed when that callback ran,
+          // and any gate keyed on settings (e.g. the old device-global
+          // `lastSyncedAt` check) read null and was never taken. The file then
+          // passed 9/9 with the pre-fix AppGate body restored verbatim. Eager
+          // creation makes the settings genuinely loaded by then, so a
+          // reintroduced device-global gate really does suppress the prompt and
+          // the test really does fail.
           ChangeNotifierProvider(
+            lazy: false,
             create: (_) => SettingsProvider(SettingsRepository(db))..load(),
           ),
           ChangeNotifierProvider<SyncTrigger>.value(value: trigger),
@@ -163,6 +175,39 @@ void main() {
     await signIn(tester, 'uid-2');
 
     expect(claimSheet, findsOneWidget);
+  });
+
+  testWidgets(
+      'asks about health SETTINGS on a device with no logged days at all -- '
+      'the settings document syncs too', (tester) async {
+    // Without this the gate and the prompt both keyed on `dailyLogs` alone,
+    // so a local-only user in pregnancy mode who had not logged days synced
+    // `users/{uid}/settings/current` -- `pregnancyStartDate` included -- with
+    // no prompt, and recorded an `uploaded` consent they were never asked for.
+    await db.delete(db.dailyLogs).go();
+    await SettingsRepository(db).update(
+      AppSettingsCompanion(pregnancyStartDate: Value(DateTime(2026, 1, 1))),
+    );
+
+    await signIn(tester, 'uid-1');
+
+    expect(claimSheet, findsOneWidget);
+    // The copy must not claim "0 days logged" -- that misdescribes exactly
+    // the data being offered up.
+    expect(find.textContaining('0 days'), findsNothing);
+    expect(find.textContaining('health settings'), findsOneWidget);
+  });
+
+  testWidgets('a device with nothing local at all is not asked', (tester) async {
+    // The other half of the settings case: broadening the gate must not start
+    // interrogating a brand-new user who has nothing to claim. `settingsUpdatedAt`
+    // is stamped only by a real `SettingsRepository.update`, and this row has
+    // never had one.
+    await db.delete(db.dailyLogs).go();
+
+    await signIn(tester, 'uid-2');
+
+    expect(claimSheet, findsNothing);
   });
 
   testWidgets(

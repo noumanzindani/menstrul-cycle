@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../data/daily_log_repository.dart';
+import '../data/settings_repository.dart';
 import '../db/database.dart';
 import 'claim_preference.dart';
 import 'device_id.dart';
@@ -48,6 +49,28 @@ class SyncTrigger extends ChangeNotifier {
   String? _uid;
   SyncService? _service;
   Timer? _debounce;
+
+  /// Generation counter for [setUser], bumped at its entry (and by [suspend]).
+  ///
+  /// [setUser] mutates [_uid], [_service] and [_pendingClaim] across `await`
+  /// boundaries — the device id, the claim record, a local database read.
+  /// Setting the gate before the first `await` closes the race against an
+  /// interleaving CALLER, but NOT against an interleaving CONTINUATION of an
+  /// earlier [setUser]. Reproduced: uid-2 has an `uploaded` record and its
+  /// `setUser` blocks on a slow first `DeviceId.get()` (secure storage +
+  /// keystore); the user signs in as uid-1, which is correctly gated; uid-2's
+  /// continuation then resumes, assigns `_service` (still bound to uid-2),
+  /// matches its own record, clears `_pendingClaim` and syncs — putting this
+  /// device's local health rows into `users/uid-2/dailyLogs` while uid-1 is
+  /// signed in and has consented to nothing, and leaving `_service` bound to
+  /// uid-2 so every later resume/debounce keeps writing there.
+  ///
+  /// So every invocation captures this counter at entry and returns at each
+  /// resumption point where it no longer matches, BEFORE any assignment. Only
+  /// the newest invocation may touch this object's state. [suspend] bumps it
+  /// too, so an evaluation already in flight cannot re-arm sync behind a
+  /// suspend that has already returned.
+  int _epoch = 0;
 
   /// The run [syncNow] currently has in flight, so [suspend] can wait for it
   /// to land instead of returning while a push is still on the wire.
@@ -117,27 +140,73 @@ class SyncTrigger extends ChangeNotifier {
   /// or the reverse — is a false privacy statement on a health app, so this
   /// answers the question the surface actually means.
   ///
+  /// The persisted record alone is not that signal either, and the state where
+  /// it lies is not exotic — it is every build that has no initialized Firebase
+  /// app (which is this app today, until the console setup lands). [setUser]
+  /// catches and leaves `_service` null; the user is still prompted, taps "Add
+  /// to my account", [resolveClaim] durably records `uploaded`, its [syncNow]
+  /// no-ops, and a record-only check then reports "Cloud sync is on" when
+  /// nothing has been or can be uploaded. `_service == null` is what rules that
+  /// out; [_pendingClaim] rules out the mid-[setUser] window, where the record
+  /// may already say `uploaded` while [syncNow] is still refusing to run.
+  ///
   /// Uid-scoped and read fresh from storage for the same reason
   /// [claimOnRecord] is: it must not race [setUser]'s async continuation.
   Future<bool> isSyncEnabledFor(String uid) async {
-    if (_suspended) return false;
+    if (_suspended || _pendingClaim || _service == null) return false;
     final record = await _readClaim();
     return record != null && record.uid == uid && !record.declined;
+  }
+
+  /// Whether this device holds local state a first sync would upload — the
+  /// question the claim prompt actually exists to ask, and the predicate BOTH
+  /// gates (this class's own and `AppGate._maybePromptClaim`'s) must share.
+  ///
+  /// Deliberately not "are there daily logs". `SyncService` also pushes
+  /// `users/{uid}/settings/current`, which carries `pregnancyStartDate` —
+  /// arguably the most sensitive field in the app. Keying only on `dailyLogs`
+  /// meant a device with zero logged days but real health settings (reachable:
+  /// an existing local-only user in pregnancy mode who has not logged days)
+  /// auto-synced with no prompt at all — and, since the per-uid claim record
+  /// landed, durably recorded an `uploaded` consent that was never given.
+  /// Tombstones count for the same reason: `_pushTombstones` publishes one
+  /// marker per deleted date, which is itself a statement about days this
+  /// person tracked.
+  ///
+  /// `settingsUpdatedAt != null` is the test rather than "does the row differ
+  /// from the defaults": it is stamped only by `SettingsRepository.update`,
+  /// i.e. by a real user edit, and it is exactly what
+  /// `SyncService._pushSettings` gates on — so this is true precisely when
+  /// something would leave the device, no more and no less. A brand-new user
+  /// who has not edited anything is still not prompted; anyone else is, and
+  /// over-prompting is the only direction that is safe here.
+  Future<bool> hasLocalDataToClaim() async {
+    final repository = DailyLogRepository(_db);
+    if ((await repository.getAll()).isNotEmpty) return true;
+    if ((await repository.getTombstones()).isNotEmpty) return true;
+    return (await SettingsRepository(_db).get()).settingsUpdatedAt != null;
   }
 
   /// Called when the signed-in user changes. A null uid tears sync down without
   /// touching local data — signing out must never wipe the device.
   Future<void> setUser(String? uid) async {
     if (uid == _uid) return;
+    // Captured before anything is mutated; re-checked after every `await`
+    // below. See [_epoch] — without it an older invocation's continuation
+    // overwrites `_service` and `_pendingClaim` for an account that is no
+    // longer signed in.
+    final epoch = ++_epoch;
     _uid = uid;
     // A different account is a new situation: whatever [suspend] was holding
     // back belonged to the previous one. (An aborted deletion, where the uid
     // does NOT change, is what [resume] is for.)
     _suspended = false;
     // Both assignments are synchronous, before any `await`, and both fail
-    // closed: no interleaving caller can observe the previous account's
+    // closed, so no interleaving CALLER can observe the previous account's
     // service, or this account's service with the gate open. See
-    // [_pendingClaim].
+    // [_pendingClaim]. That is necessary but NOT sufficient on its own: an
+    // interleaving continuation of an earlier `setUser` can still resume and
+    // undo both, which is what the [_epoch] checks below exist for.
     _service = null;
     _pendingClaim = uid != null;
     if (uid == null) return;
@@ -152,6 +221,7 @@ class SyncTrigger extends ChangeNotifier {
       // never reaches secure storage at all.
       final firestore = _firestore();
       final deviceId = await _deviceId();
+      if (epoch != _epoch) return; // a newer setUser owns this object now
       _service = SyncService(
         db: _db,
         firestore: firestore,
@@ -159,6 +229,7 @@ class SyncTrigger extends ChangeNotifier {
         deviceId: deviceId,
       );
     } catch (_) {
+      if (epoch != _epoch) return;
       _service = null;
       return; // gate stays set; with no service there is nothing to push anyway
     }
@@ -170,6 +241,7 @@ class SyncTrigger extends ChangeNotifier {
     // on the same device skipped the question and auto-pushed A's local
     // history into `users/B/dailyLogs`.
     final record = await _readClaim();
+    if (epoch != _epoch) return;
     if (record != null && record.uid == uid) {
       if (record.declined) return; // stays gated until AccountSection reverses it
       _pendingClaim = false;
@@ -178,19 +250,22 @@ class SyncTrigger extends ChangeNotifier {
     }
 
     // No decision on record for this account. A device with existing local
-    // logs is exactly the upgrade scenario `claim_local_data_sheet.dart` exists
-    // for: `SyncService`'s first run pushes EVERY local row unconditionally
-    // (`since == null` skips the `updatedAt` gate in `_pushLogs`), so
-    // auto-syncing here — before the user has been asked anything — would
-    // silently upload months of health data the instant they sign in. Defer to
-    // the claim prompt instead; see [resolveClaim].
-    final hasLocalLogs = (await DailyLogRepository(_db).getAll()).isNotEmpty;
-    if (hasLocalLogs) return; // gate stays set; `AppGate` shows the prompt
+    // health state is exactly the upgrade scenario `claim_local_data_sheet.dart`
+    // exists for: `SyncService`'s first run pushes EVERY local row
+    // unconditionally (`since == null` skips the `updatedAt` gate in
+    // `_pushLogs`) and pushes the settings document too, so auto-syncing here —
+    // before the user has been asked anything — would silently upload months of
+    // health data (and their pregnancy state) the instant they sign in. Defer
+    // to the claim prompt instead; see [resolveClaim].
+    final hasLocalData = await hasLocalDataToClaim();
+    if (epoch != _epoch) return;
+    if (hasLocalData) return; // gate stays set; `AppGate` shows the prompt
 
     // Nothing to claim, so there is nothing to consent to. Record the pairing
     // so this account is not asked to "claim" its OWN synced data later (e.g.
     // after signing out and back in, once rows exist locally).
     await _writeClaim(ClaimRecord(uid: uid, declined: false));
+    if (epoch != _epoch) return;
     _pendingClaim = false;
     await syncNow();
   }
@@ -239,6 +314,9 @@ class SyncTrigger extends ChangeNotifier {
   /// the signed-in uid changes (which is what deleting the account produces).
   Future<void> suspend() async {
     _suspended = true;
+    // Abandon any [setUser] evaluation still in flight, so its continuation
+    // cannot rebuild `_service` or clear the claim gate after this returns.
+    _epoch++;
     _debounce?.cancel();
     _debounce = null;
     _service = null;
@@ -267,16 +345,34 @@ class SyncTrigger extends ChangeNotifier {
     _debounce = Timer(const Duration(seconds: 2), syncNow);
   }
 
-  Future<void> syncNow() async {
-    if (_pendingClaim) return; // no consent (yet) to push this device's history
-    if (_suspended) return; // account deletion in progress — see [suspend]
+  /// Runs one sync, or JOINS the one already running.
+  ///
+  /// The coalescing is not an optimisation — it is what makes [suspend]'s wait
+  /// correct, and therefore what keeps an account deletion's Firestore sweep
+  /// from being outlived by a push. `SyncService.syncNow()` silently DROPS an
+  /// overlapping call (its own `_running` guard) and hands back an
+  /// already-complete future. Recording that no-op as [_inFlight] — which an
+  /// earlier version did, because it tracked only the most recent call —
+  /// overwrote the real run's future and then nulled it in its own `finally`,
+  /// so a later [suspend] awaited nothing and returned while a push was still
+  /// on the wire. Both overlapping callers are routine, and one was made live
+  /// by this same round of work: `AppGate.didChangeAppLifecycleState`'s
+  /// unawaited resume hook, and the now-eager 2-second [scheduleSync] debounce.
+  ///
+  /// Returning the canonical future instead means [_inFlight] always refers to
+  /// the run that is actually writing, and every caller's `await` waits for it.
+  Future<void> syncNow() {
+    // No consent (yet) to push this device's history.
+    if (_pendingClaim) return Future<void>.value();
+    // Account deletion in progress — see [suspend].
+    if (_suspended) return Future<void>.value();
+    final existing = _inFlight;
+    if (existing != null) return existing;
     final run = _syncNow();
     _inFlight = run;
-    try {
-      await run;
-    } finally {
+    return run.whenComplete(() {
       if (identical(_inFlight, run)) _inFlight = null;
-    }
+    });
   }
 
   Future<void> _syncNow() async {

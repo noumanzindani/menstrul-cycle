@@ -28,14 +28,27 @@ Future<bool?> showClaimLocalDataSheet(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Add your existing logs?',
+              dayCount > 0
+                  ? 'Add your existing logs?'
+                  : 'Add your existing data?',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
+            // `dayCount == 0` is reachable and is NOT a "nothing to ask"
+            // case: the settings document syncs too, and it carries the
+            // pregnancy state, so a device with health settings but no logged
+            // days still has something to consent to. Saying "0 days logged"
+            // there would misdescribe exactly the data being offered up.
             Text(
-              'You have $dayCount days logged on this device. Add them to this '
-              'account so they sync to your other devices? If you skip, they '
-              'stay on this device and nothing is deleted.',
+              dayCount > 0
+                  ? 'You have $dayCount days logged on this device. Add them '
+                      'to this account so they sync to your other devices? If '
+                      'you skip, they stay on this device and nothing is '
+                      'deleted.'
+                  : 'You have health settings saved on this device. Add them '
+                      'to this account so they sync to your other devices? If '
+                      'you skip, they stay on this device and nothing is '
+                      'deleted.',
             ),
             const SizedBox(height: 24),
             FilledButton(
