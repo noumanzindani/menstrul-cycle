@@ -20,6 +20,15 @@ enum AuthErrorCode {
   requiresRecentLogin,
   notSignedIn,
   unknown,
+
+  /// This build has no usable Firebase app at all -- see
+  /// [UnavailableAuthService] -- so no auth operation can ever succeed on
+  /// this device, not just this attempt. Distinct from [unknown] (a
+  /// transient/unexplained failure that might well succeed on retry) so a
+  /// caller can tell "try again" apart from "this device can't do this",
+  /// without either code being conflated with a genuine wrong-password or
+  /// network failure.
+  serviceUnavailable,
 }
 
 class AuthFailure implements Exception {
@@ -151,10 +160,14 @@ class FirebaseAuthService implements AuthService {
 /// never constructs a `FirebaseAuth`, so it is always safe to build.
 ///
 /// Reports permanently signed out (there is no session to restore without
-/// Firebase), and every mutating call fails with [AuthErrorCode.unknown]
-/// rather than reaching for a client that cannot exist -- `_guard` in
-/// `AuthProvider` already turns that into a normal, on-screen "something went
-/// wrong" instead of a crash, so no new UI plumbing is needed for it.
+/// Firebase), and every mutating call fails with
+/// [AuthErrorCode.serviceUnavailable] rather than reaching for a client that
+/// cannot exist -- `_guard` in `AuthProvider` already turns that into a
+/// normal, on-screen message instead of a crash, so no new UI plumbing is
+/// needed for it. Deliberately its own code, not [AuthErrorCode.unknown]: a
+/// user permanently signed out on this build who taps "Sign in" would
+/// otherwise be told to retry an operation that can never succeed on this
+/// device, indistinguishable from a genuine transient failure that might.
 /// [signOut] is the one exception: it is a no-op rather than a failure,
 /// because on a build with no auth at all "sign out" can only ever mean
 /// "already signed out".
@@ -184,5 +197,6 @@ class UnavailableAuthService implements AuthService {
   @override
   Future<void> deleteAccount() => _unavailable();
 
-  Future<Never> _unavailable() async => throw AuthFailure(AuthErrorCode.unknown);
+  Future<Never> _unavailable() async =>
+      throw AuthFailure(AuthErrorCode.serviceUnavailable);
 }

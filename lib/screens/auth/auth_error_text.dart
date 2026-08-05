@@ -23,5 +23,7 @@ String messageForAuthError(AuthErrorCode code) {
       return "You're not signed in any more. Sign in and try again.";
     case AuthErrorCode.unknown:
       return 'Something went wrong. Please try again.';
+    case AuthErrorCode.serviceUnavailable:
+      return "Cloud sync isn't available on this device right now.";
   }
 }
