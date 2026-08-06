@@ -4,12 +4,27 @@ Guidance for Claude Code (and human contributors) working in this repository.
 
 ## Project overview
 
-**LunaTrack** is a private, on-device menstrual/period tracker built with Flutter.
+**LunaTrack** is a menstrual/period tracker built with Flutter, with an account and
+cross-device sync.
 
-Core thesis: **"$0 running cost" and "privacy" are the same decision** → 100% on-device
-data, no backend, no account, no network sync. Everything (logs, cycles, predictions,
-reports) is computed and stored locally.
+The original thesis was "$0 running cost" and "privacy" are the same decision → 100%
+on-device, no backend, no account. **That is no longer the whole picture:** accounts and
+Firestore sync landed on `feat/firebase-auth-sync`. What survives of it is the
+*local-first* half — everything (logs, cycles, predictions, reports) is still computed
+and stored locally, and the app is fully usable offline.
 
+- **Accounts are required** (Firebase Auth, email/password). `AppGate` walls the app
+  behind `SignInScreen` when signed out. The one exception is the **local-only hatch**
+  (see the key-design bullet below).
+- **Daily logs and preference settings sync to Firestore in plaintext** under
+  `users/{uid}`. It is not end-to-end encrypted; the service operator can read it. Say
+  so anywhere it is disclosed — see `PRIVACY_POLICY.md`.
+- **Drift remains the single source of truth.** The UI never reads from or writes to
+  Firestore; `SyncService` mirrors drift ⇄ Firestore alongside the existing read/write
+  path, never in front of it.
+- **Reminders, the medications table and `PeriodEntries` are deliberately NOT synced.**
+  (Per-day `med_` intake marks DO travel — they ride the day-tags blob inside the daily
+  log.)
 - **Platform:** Android-first (Play one-time $25). iOS deferred (the $99/yr Apple fee is
   the only real running cost).
 - **Monetization:** AdMob (non-personalized ads, **banned from the logging and insights
@@ -42,7 +57,11 @@ lib/
   models/        enums + hand-written model classes (prediction, cycle, insights)
   providers/     ChangeNotifier state (LogProvider, SettingsProvider, PremiumProvider, …)
   services/      pure logic (PredictionService, CycleCalculator, InsightsService, PdfReportService, AdService)
-  screens/       app_shell + home / calendar / forecast / insights / settings / log / onboarding
+                 + the sync/auth layer (AuthService, SyncService, SyncTrigger, SyncMapper,
+                   AccountDeletionService, firestore_ref.dart, FirebaseAvailability, DeviceId)
+  screens/       app_gate + app_shell + home / calendar / forecast / insights / settings / log
+                 / onboarding / auth (sign in, sign up, forgot password, claim sheet)
+                 / account (deletion_pending_screen)
   widgets/       shared widgets (DayEntryForm, AdBanner, disclaimer_banner, …)
   common/        catalog (symptom/mood/sex options), date_utils, theme
 ```
@@ -72,14 +91,20 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   Numeric metrics (`pain`, `water`, `sleep`, `energy`, `stress`, `sleep_quality`, `weight`)
   ride the same blob as real JSON numbers, so they never satisfy the `== true` symptom check
   and need no key prefix. **`0` means "unset" for every numeric metric**, weight included.
-- **Schema & migrations.** `schemaVersion` is **4**. `onUpgrade` uses independent additive
+- **Schema & migrations.** `schemaVersion` is **5**. `onUpgrade` uses independent additive
   `if (from < n)` branches (not else-if), one nullable column each, so a user on any old
   version runs every intervening branch and existing rows need no backfill: v1→v2 added
   `AppSettings.pregnancyStartDate`; v2→v3 added `AppSettings.trackingCategories`; v3→v4
-  added `AppSettings.weightUnit`. A committed JSON snapshot per version lives in
-  `drift_schemas/` and `test/generated_migrations/` (both `drift_schema_v4.json` and
-  `schema_v4.dart` are committed); `test/db_migration_v4_test.dart` uses drift's
-  `SchemaVerifier` to run the REAL `onUpgrade` against a v3 DB seeded with non-default rows.
+  added `AppSettings.weightUnit`; **v4→v5 added the `SyncTombstones` table plus
+  `AppSettings.lastSyncedAt` and `AppSettings.settingsUpdatedAt`** (the only branch that
+  creates a table rather than adding a column). Note the two `SettingsRepository` entry
+  points that write those columns: **`update()` stamps `settingsUpdatedAt`** (a user
+  edit, so it pushes on the next sync), **`updateSyncState()` deliberately does not** —
+  it is sync bookkeeping, and stamping it would make every sync look like a settings
+  change and push forever. A committed JSON snapshot per version lives in
+  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v5.json` /
+  `schema_v5.dart`); `test/db_migration_v5_test.dart` uses drift's `SchemaVerifier` to run
+  the REAL `onUpgrade` against a v4 DB seeded with non-default rows.
   In-memory `AppDatabase.forTesting` runs `onCreate` at the current schema and NEVER
   exercises `onUpgrade`, so every new migration needs a snapshot dumped BEFORE the version
   bump (only derivable while that version is current) and its own SchemaVerifier test.
@@ -126,6 +151,74 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   no-ops on stock sqlite3 and the file stays plaintext while the app believes otherwise.
   Tests can't catch it (in-memory DBs skip the cipher) — re-verify on a device with
   `databaseIsEncryptedAtRest()` if you touch `connection.dart` or the pubspec hook.
+  **Firestore's own on-device persistence is a SEPARATE, unencrypted store** holding
+  every document the SDK has read or written; `clearLunaFirestoreCache()`
+  (`firestore_ref.dart`) is what makes "everything on this device is erased" true, and it
+  must be the LAST Firestore call in whatever flow runs it (`terminate()` leaves the
+  client accepting nothing but `clearPersistence()`).
+- **Never `FirebaseFirestore.instance` — always `lunaFirestore()`**
+  (`lib/services/firestore_ref.dart`). `.instance` targets `(default)`, and a `(default)`
+  database carries ONE ruleset for every app in the project, so a permissive rule written
+  for an unrelated app would expose menstrual logs. LunaTrack uses the **named** database
+  `lunatrack` (`kLunaDatabaseId`), which has its own independent ruleset. `grep -rn
+  "FirebaseFirestore.instance" lib/` must return nothing.
+  **TODO — the Firebase project id is NOT settled.** `firestore_ref.dart`'s doc comment
+  names one project; the untracked `firebase.json` / `lib/firebase_options.dart` name a
+  different one; the owner has an open decision about moving LunaTrack to a dedicated
+  project. Whether the named `lunatrack` database has actually been created is also
+  unverified. Do not hardcode a project id anywhere until that lands.
+- **`firestore.rules` is the entire privacy boundary, and it is NOT deployed.** The API
+  key ships inside the APK, so every in-app consent gate (`ClaimPreference`, `AppGate`'s
+  ordering, `SyncTrigger`) governs only this app's behaviour and has zero authority over a
+  raw REST call. Rules therefore key on **identity** (`request.auth.uid` vs the uid in the
+  path), never on `request.auth != null` — in a shared project every other app's users
+  hold a valid token against this database, so "is signed in" is no boundary at all.
+  29 emulator tests in `firebase_test/rules.test.mjs` cover it (`firebase_test/run.sh`,
+  local `demo-lunatrack` emulator only). Nothing is live until someone deploys.
+- **Only preference settings sync.** `SyncService._pushSettings` sends mode, cycle/period
+  defaults, theme, language, gender-neutral language, pregnancy start date, tracking
+  categories and weight unit. `premium` (a Play-account IAP entitlement), `appLockEnabled`
+  (a per-device security choice), `onboardingComplete`, `lastSyncedAt` and `id` are
+  deliberately device-local. Syncing `premium` would unlock ads on every device signed
+  into the account, which is not what was purchased.
+- **Conflicts resolve last-write-wins per WHOLE DAY** on `DailyLogs.updatedAt`
+  (`sync_merge.dart`'s `decideMerge`, used by every path so two paths can never decide the
+  same inputs differently). Field-level merge is deliberately avoided: `encodeDayTags` is
+  a full REPLACE, so merging tags across devices would fabricate entries the user never
+  made. Push is gated on `lastSyncedAt`, pull on server-stamped cursors — never the same
+  clock (see the long comments in `sync_service.dart`; ties always resolve toward
+  over-pushing, because over-pushing is redundant work and under-pushing is data loss).
+- **Deletions propagate through the `SyncTombstones` table**, not a soft-delete flag — a
+  flag would require `where(deleted == false)` on every existing read path. A pull only
+  ever iterates documents that EXIST, so an absence is never observable; the tombstone is
+  pushed as a positive marker under `users/{uid}/deletions/{date}` (dates only, no health
+  content), pruned after 180 days.
+- **Account deletion is a cancellable SOFT delete, and the purge does not exist yet.**
+  "Request account deletion" wipes the device immediately and writes a marker at
+  top-level `deletionRequests/{uid}` (`uid`, server-stamped `requestedAt`, client-computed
+  `purgeAfter` = +30 days, rules-bounded to 29–31 days). Cloud data is left **intact**;
+  `SyncService.syncNow` refuses to run in either direction while the marker exists, and
+  the user can cancel from `AccountSection` or from `DeletionPendingScreen` (which
+  `AppGate` shows AHEAD of onboarding, because `deleteAllData()` resets
+  `onboardingComplete`). Nothing calls `User.delete()` — it needs a recent sign-in and
+  failed AFTER the local wipe. **No Cloud Function has been written; there is no
+  `functions/` directory,** so nothing is ever actually erased from the server today.
+  `AccountDeletionService.deleteFirestoreData` is kept, tested and public as the
+  executable spec for that job. Do not write copy anywhere claiming cloud data IS deleted
+  until it ships — see the blockers in `README.md`.
+- **Settings → "Delete all my data" is device-only.** It erases the device AND records a
+  uid-scoped decline (`resolveClaim(upload: false)`) so the next sync does not pull the
+  cloud copy straight back down — but the account keeps its data. Deleting the server copy
+  is the separate deletion-request flow above. The dialog copy states both halves.
+- **Local-only hatch.** If `Firebase.initializeApp()` fails in `main()`
+  (`FirebaseAvailability`, decided exactly once per process), `SignInScreen` offers
+  "Continue without syncing" and the tracker is fully usable with no account, under a
+  persistent `CloudSyncUnavailableBanner`. It is gated on `FirebaseAvailability` ONLY,
+  never on an `AuthErrorCode` — a code cannot tell an outage from a mistyped password, and
+  gating on it would hand everyone a bypass of the required-account design. `AppGate`
+  synthesizes no uid, so `SyncTrigger` stays torn down; the flag is in-memory and never
+  persisted. Data logged that way goes through the normal claim-consent sheet on a later
+  sign-in.
 
 ### Guardrails (hold these regardless of product pressure)
 
@@ -133,11 +226,16 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   disclaimer (`widgets/disclaimer_banner.dart`) stays on every fertility surface.
 - **No false precision** — fertility is qualitative, no synthesized %.
 - **Ads never co-render with logging or insights.** `test/ad_placement_test.dart` guards
-  this structurally. The interstitial only fires on switching into Home.
+  this structurally. The interstitial only fires on switching into Home. (Banners live on
+  Home, Calendar, Forecast and Settings.)
+- **User-facing copy must describe what the code does today, not what is planned.** The
+  purge job and the rules deployment are both outstanding; any wording that implies cloud
+  data is already being erased, or already protected server-side, is false. See
+  `PRIVACY_POLICY.md` and `docs/account-deletion.md`, which both carry the gap explicitly.
 
 ## Feature status
 
-### Shipped (v1 + v2 migration-free; v3 = customizable tracking, first real migration; v4 = weight unit)
+### Shipped (v1 + v2 migration-free; v3 = customizable tracking, first real migration; v4 = weight unit; v5 = accounts + sync)
 
 - Daily logging (flow, symptoms, mood, sex, notes) + "Period ended" toggle
 - Combined calendar + entry, predictions + Home, reminders, insights + doctor PDF export
@@ -258,6 +356,15 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   `pdf` package compresses text streams, so a byte search finds nothing even for headings
   that ARE present, and `generatedOn` is injected rather than read from the clock, making the
   output byte-deterministic.
+- **Accounts + cloud sync (`feat/firebase-auth-sync`)** — Firebase Auth email/password
+  (`AuthService`/`AuthProvider`, sign-up / sign-in / forgot-password), `AppGate` as the
+  top-level surface chooser (splash → sign-in → deletion notice → onboarding → shell),
+  a claim-consent sheet before any pre-existing local data is uploaded, `SyncService`
+  mirroring drift ⇄ `users/{uid}` (daily logs + preference settings only),
+  `SyncTrigger` owning the debounce/suspend/claim gates, `SyncTombstones` for deletions,
+  the local-only hatch, and the cancellable account-deletion request. Every non-obvious
+  rule about all of it is in "Key design decisions" above. **Two things are written but
+  not live: `firestore.rules` is undeployed, and the deletion purge job does not exist.**
 
 **Calendar day entry is a bottom sheet, not an inline panel.** Tapping a day opens
 `DayEntrySheet` / `showDayEntrySheet()` (`lib/widgets/day_entry_sheet.dart`, shared by the
@@ -293,14 +400,27 @@ in tests sits above the pumped providers) but deliberately does NOT re-provide a
 
 ## Pre-store-submission checklist (needs the project owner's accounts)
 
+The full list with rationale is in `README.md` → "Before publishing". The ones that block
+on accounts/infrastructure:
+
+- **Ship the account-deletion purge job.** Until it exists, Google Play's in-app
+  account-deletion requirement is **UNMET** and both disclosure documents have to say the
+  erasure is not automatic.
+- **Deploy `firestore.rules`** to the named `lunatrack` database. Nothing is enforced
+  server-side today.
+- **Settle which Firebase project LunaTrack belongs in** and commit a correct
+  `firebase.json`. See the TODO in "Key design decisions".
 - Real upload keystore (release is debug-signed today).
 - Real AdMob app + unit IDs (currently Google **test** IDs — flip `AdConfig.useTestAds`,
   fill `_prod*` + manifest `APPLICATION_ID`).
 - Real Play in-app product id for Premium.
 - ✅ **DONE** — `kDatabaseEncryptionEnabled` is on and device-verified (2026-07-16).
-- Host the privacy policy at a URL; declare **sexual-activity** (and later pregnancy) data
-  in Play Data Safety / Apple privacy nutrition label + tick "Data is encrypted at rest"
-  (now true, and backed by the on-device header check).
+- Host `PRIVACY_POLICY.md` and `docs/account-deletion.md` at public URLs; put the
+  deletion URL in the Play listing's data-deletion field.
+- Play Data Safety: health data is **collected AND transmitted**, tied to user identity.
+  Declare **sexual-activity** and pregnancy data. "Encrypted at rest" applies to the
+  on-device drift database; the **cloud copy is plaintext and readable by the operator**,
+  so do not claim end-to-end encryption.
 
 ## Package gotchas (all currently resolved)
 
@@ -318,3 +438,18 @@ TDD is the norm (RED → GREEN → REFACTOR). Tests use
 assert the **positive** (the thing appears) as well as the negative — see
 `test/calendar_inline_entry_test.dart`, which exists because an earlier ad-placement test
 only checked that the ad hid, not that the entry form actually rendered.
+
+Two suites, and `flutter test` does not cover the second:
+
+- `flutter test` — **531** Dart tests (baseline at `4c62dea`).
+- `firebase_test/run.sh` — **29** Firestore rules tests against a LOCAL emulator
+  (`demo-lunatrack`; firebase-tools treats any `demo-*` id as emulator-only, and there is
+  deliberately no `.firebaserc`, so no command here can fall into a real project). Needs
+  Node 18+, a JDK 21+, and a `firebase.json` at the repo root — which is untracked, so it
+  does not run on a fresh clone. `run.sh --mutants` additionally proves each test
+  discriminates.
+
+Firebase-touching code is injected through seams everywhere (`AccountSection`, `AppGate`,
+`SyncTrigger` all take an overridable Firestore/`AccountDeletionService` factory) because
+`lunaFirestore()` throws with no initialized Firebase app — the state of every test
+harness. Do not remove those seams to "simplify".
