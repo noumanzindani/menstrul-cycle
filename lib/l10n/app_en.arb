@@ -61,7 +61,7 @@
 
   "settingsTrackingTitle": "Customize tracking",
   "settingsTrackingSubtitle": "Choose what appears when you log a day",
-  "settingsTrackingNote": "Turning a category off only hides it from the day editor. Anything you've already logged is kept on this device.",
+  "settingsTrackingNote": "Turning a category off only hides it from the day editor. Anything you've already logged is kept, not deleted.",
 
   "settingsSectionHealth": "Health & wearables",
   "settingsHealthImportTitle": "Import temperature",
@@ -114,5 +114,5 @@
   "backupRestoreWrongPass": "Wrong passphrase, or the file isn't a valid LunaTrack backup.",
 
   "settingsSectionAbout": "About",
-  "settingsAboutBody": "LunaTrack stores all your data privately on this device. Predictions are estimates and are not a contraceptive method or a substitute for medical advice."
+  "settingsAboutBody": "LunaTrack stores your data in an encrypted database on this device and syncs it to your account. The synced copy is not end-to-end encrypted. Predictions are estimates and are not a contraceptive method or a substitute for medical advice."
 }

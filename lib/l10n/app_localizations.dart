@@ -391,7 +391,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsTrackingNote.
   ///
   /// In en, this message translates to:
-  /// **'Turning a category off only hides it from the day editor. Anything you\'ve already logged is kept on this device.'**
+  /// **'Turning a category off only hides it from the day editor. Anything you\'ve already logged is kept, not deleted.'**
   String get settingsTrackingNote;
 
   /// No description provided for @settingsSectionHealth.
@@ -631,7 +631,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAboutBody.
   ///
   /// In en, this message translates to:
-  /// **'LunaTrack stores all your data privately on this device. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.'**
+  /// **'LunaTrack stores your data in an encrypted database on this device and syncs it to your account. The synced copy is not end-to-end encrypted. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.'**
   String get settingsAboutBody;
 }
 

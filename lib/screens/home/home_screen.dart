@@ -726,7 +726,8 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Log the days of your period and LunaTrack will start predicting '
-              'your next one — all stored privately on this device.',
+              'your next one — stored on this device and synced to your '
+              'account.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),

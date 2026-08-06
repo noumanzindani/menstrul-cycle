@@ -165,7 +165,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsTrackingNote =>
-      'Turning a category off only hides it from the day editor. Anything you\'ve already logged is kept on this device.';
+      'Turning a category off only hides it from the day editor. Anything you\'ve already logged is kept, not deleted.';
 
   @override
   String get settingsSectionHealth => 'Health & wearables';
@@ -309,5 +309,5 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAboutBody =>
-      'LunaTrack stores all your data privately on this device. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.';
+      'LunaTrack stores your data in an encrypted database on this device and syncs it to your account. The synced copy is not end-to-end encrypted. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.';
 }
