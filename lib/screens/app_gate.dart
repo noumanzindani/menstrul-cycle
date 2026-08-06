@@ -8,8 +8,10 @@ import '../providers/log_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/account_deletion_service.dart';
 import '../services/claim_preference.dart';
+import '../services/firebase_availability.dart';
 import '../services/firestore_ref.dart';
 import '../services/sync_trigger.dart';
+import '../widgets/cloud_sync_unavailable_banner.dart';
 import 'account/deletion_pending_screen.dart';
 import 'app_shell.dart';
 import 'auth/claim_local_data_sheet.dart';
@@ -78,6 +80,46 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   /// user back on the same screen, in the same open sheet, at the same scroll
   /// offset when they unlock. Rebuilding it would silently lose all of that.
   bool _appEverRendered = false;
+
+  /// Whether the user has chosen "Continue without syncing" on the sign-in
+  /// screen's cloud-outage hatch.
+  ///
+  /// The owner's ruling (2026-08-06): a missing/failed Firebase app must never
+  /// lock someone out of their own local encrypted health data, so the
+  /// sign-in wall offers this way past itself -- but ONLY then. It is offered
+  /// by `SignInScreen` (see `showContinueWithoutSync` there) purely off
+  /// [FirebaseAvailability], read fresh in [build] below, never off an
+  /// [AuthErrorCode]: an error code cannot tell a genuine outage apart from a
+  /// mistyped password, and gating on it would hand every user a local-only
+  /// bypass of the required-account design the moment they fat-finger their
+  /// credentials.
+  ///
+  /// This is local-only mode, and it stays signed out in every sense that
+  /// matters: nothing here ever calls anything on [AuthProvider], so
+  /// `auth.user` and `auth.state` are untouched, and in particular
+  /// `main.dart`'s `trigger.setUser(auth.user?.uid)` keeps being called with
+  /// `null` -- there is deliberately no synthesized uid anywhere on this path,
+  /// which is what keeps `SyncTrigger` fully torn down (see its `setUser`
+  /// doc) and every existing consent gate untouched. Setting this to `true`
+  /// does not return early; [build] falls through to the SAME gate order a
+  /// signed-in session runs (settings load, the lock gate, the two per-uid
+  /// registrations -- which simply no-op for a null uid -- then onboarding),
+  /// so the app lock still covers this session exactly as it covers any
+  /// other, and [_appEverRendered] still guards it. Only the final content is
+  /// different: it is wrapped in [CloudSyncUnavailableBanner], persistently,
+  /// for as long as this field is true.
+  ///
+  /// Deliberately in-memory and NOT persisted to disk, so it cannot outlive
+  /// this process, let alone this widget: [FirebaseAvailability] itself is
+  /// decided exactly once per process and never re-evaluated (see its doc
+  /// comment), so a genuine recovery is only ever observed on the NEXT
+  /// launch, which constructs a fresh `_AppGateState` and starts this back at
+  /// `false` -- there is no scenario in which persisting it across launches
+  /// could do anything but make a hatch that is meant to be unreachable when
+  /// Firebase is fine into one that momentarily still is, on stale
+  /// information. Re-offering the choice every launch is the safe direction;
+  /// the cost is a repeated tap during a long outage, not a bypass.
+  bool _localOnly = false;
 
   /// The marker read is a network round-trip, and it must not become one the
   /// user waits on. Nothing here blocks a build: the read is issued from a
@@ -265,8 +307,11 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     if (auth.state == AuthState.unknown) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    // An account is required (design spec §7.1).
-    if (auth.state == AuthState.signedOut) {
+    // An account is required (design spec §7.1) -- UNLESS [_localOnly] is
+    // already set, in which case this is not a fresh signed-out state to wall
+    // off but the local-only session itself continuing; fall through to the
+    // same gate order every other state runs, below.
+    if (auth.state == AuthState.signedOut && !_localOnly) {
       // Forget which account was asked: whoever signs in next — including the
       // same account, if it never answered — gets the question again.
       _claimPromptShownFor = null;
@@ -274,7 +319,20 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       // different question, and a stale answer must not carry over.
       _deletionCheckedFor = null;
       _pendingDeletion = null;
-      return const SignInScreen();
+      // The ONLY place that decides whether the "continue without syncing"
+      // hatch is offered -- see [_localOnly]'s doc comment for why this reads
+      // [FirebaseAvailability] and nothing else. Nullable + defaulted `true`
+      // for the same reason `AccountSection` reads it the same way: harnesses
+      // that build `AppGate` without planting the provider (most of this
+      // file's own test suite) must see the ordinary, hatch-free sign-in
+      // wall, not an unintentionally-open escape hatch.
+      final firebaseAvailable =
+          context.watch<FirebaseAvailability?>()?.available ?? true;
+      return SignInScreen(
+        showContinueWithoutSync: !firebaseAvailable,
+        onContinueWithoutSync:
+            firebaseAvailable ? null : () => setState(() => _localOnly = true),
+      );
     }
 
     final settings = context.watch<SettingsProvider>();
@@ -350,11 +408,26 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       );
     }
 
-    // First run: onboarding before anything else.
-    if (!settings.onboardingComplete) {
-      return const OnboardingScreen();
+    // First run: onboarding before anything else. A brand-new local-only user
+    // (no account, Firebase down) walks this exactly like anyone else — the
+    // banner below covers it too, so onboarding is never a moment where the
+    // reduced-functionality state goes unmentioned.
+    final content =
+        settings.onboardingComplete ? const AppShell() : const OnboardingScreen();
+    if (_localOnly) {
+      // Persistent, not a one-off snackbar: it must stay on screen for the
+      // whole local-only session, across every tab, exactly as long as
+      // [_localOnly] is true (i.e. until the next launch — see its doc
+      // comment). Wraps [content] rather than living inside `AppShell`, which
+      // would need a change to a file this task does not touch and would tie
+      // a device-availability concern into the tab shell's own widget tree.
+      return Column(
+        children: [
+          const CloudSyncUnavailableBanner(),
+          Expanded(child: content),
+        ],
+      );
     }
-
-    return const AppShell();
+    return content;
   }
 }

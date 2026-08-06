@@ -2,12 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../widgets/cloud_sync_unavailable_banner.dart';
 import 'auth_error_text.dart';
 import 'forgot_password_screen.dart';
 import 'sign_up_screen.dart';
 
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key});
+  const SignInScreen({
+    super.key,
+    this.showContinueWithoutSync = false,
+    this.onContinueWithoutSync,
+  });
+
+  /// Whether to offer the "Continue without syncing" hatch below the form.
+  ///
+  /// Set by `AppGate`, and ONLY by it, from `FirebaseAvailability` — never
+  /// from an [AuthErrorCode] (a wrong password is indistinguishable from a
+  /// genuine outage by error code alone, and gating on it would hand a
+  /// local-only bypass to anyone who mistypes a password). See `AppGate`'s
+  /// `_localOnly` doc comment for the full ruling this implements.
+  final bool showContinueWithoutSync;
+
+  /// Enters local-only mode. Null (and the hatch not rendered at all) unless
+  /// [showContinueWithoutSync] is true — see `AppGate.build`.
+  final VoidCallback? onContinueWithoutSync;
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
@@ -52,6 +70,20 @@ class _SignInScreenState extends State<SignInScreen> {
                     style: Theme.of(context).textTheme.headlineMedium,
                     textAlign: TextAlign.center,
                   ),
+                  // Only reachable when `AppGate` was told this build has no
+                  // usable Firebase app at all — see [showContinueWithoutSync].
+                  // Placed above the form: signing in can never succeed on a
+                  // device in this state, so the way past it comes first.
+                  if (widget.showContinueWithoutSync) ...[
+                    const SizedBox(height: 20),
+                    const CloudSyncUnavailableBanner(),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      key: const Key('signIn.continueWithoutSync'),
+                      onPressed: widget.onContinueWithoutSync,
+                      child: const Text('Continue without syncing'),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   TextFormField(
                     key: const Key('signIn.email'),
