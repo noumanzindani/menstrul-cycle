@@ -1,0 +1,135 @@
+rules_version = '2';
+
+// LunaTrack — ruleset for the NAMED Firestore database `lunatrack`.
+//
+// ## Why this file is the entire privacy boundary
+//
+// The Firebase API key ships compiled inside the APK and is trivially
+// extractable. Every consent gate the app implements — the claim prompt, the
+// per-account claim record, `AppGate`'s ordering, `SyncTrigger`'s gates —
+// governs the app's own behaviour and has ZERO authority over a raw HTTPS
+// request to the Firestore REST API made with that key and any valid ID token.
+// These rules are the only check that runs server-side, so they are written as
+// if the client is hostile, because for this threat model it is.
+//
+// ## Why `request.auth != null` is NOT a security boundary here
+//
+// The Firebase project is shared with unrelated apps (see
+// `lib/services/firestore_ref.dart`), so every one of THEIR users holds a valid
+// `request.auth` token against this database. A bare "is signed in" check would
+// hand one user's menstrual history to every account in the shared Auth pool.
+// Every rule below therefore matches on IDENTITY — `request.auth.uid` against
+// the uid in the document path — never merely on being signed in. That is also
+// the correct rule in a dedicated project, so it stays either way.
+//
+// ## Default deny
+//
+// There is deliberately no `match /{document=**}` catch-all. Anything not
+// matched below is denied, which is what keeps the ruleset to exactly the paths
+// `SyncService` and `AccountDeletionService` actually use.
+//
+// Covered paths (verified against the code, not from notes):
+//   users/{uid}                        AccountDeletionService.deleteFirestoreData (final delete)
+//   users/{uid}/dailyLogs/{date}       SyncService._remoteLogs      (get/list/set/delete)
+//   users/{uid}/settings/current       SyncService._remoteSettings  (get/set)
+//   users/{uid}/deletions/{date}       SyncService._remoteDeletions (get/list/set/delete)
+//   users/{uid}/devices/{deviceId}     SyncService._deviceDoc       (get/set-merge)
+//   deletionRequests/{uid}             AccountDeletionService       (get/create/delete)
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // The one identity check. Both halves matter: `request.auth != null` alone
+    // is the single most common Firestore vulnerability, and the uid comparison
+    // alone would throw on an unauthenticated request.
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Everything the sync layer stores lives under the signed-in user's own
+    // uid. `deleteFirestoreData` also deletes the `users/{uid}` document itself
+    // after sweeping the subcollections, and `/users/{userId}/{document=**}`
+    // does NOT match that parent document — hence the outer rule as well as the
+    // recursive one.
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      match /{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // The purge job's work queue: one tiny marker per account that has asked to
+    // be deleted. Top-level on purpose (see the class doc on
+    // `AccountDeletionService`) — a flag under `users/{uid}` would force the
+    // purge into a collection-group scan whose read path goes THROUGH menstrual
+    // logs.
+    match /deletionRequests/{userId} {
+
+      // Exactly the three fields `AccountDeletionService.requestDeletion`
+      // writes, and nothing else. `hasOnly` blocks a smuggled extra field (this
+      // document is the one place an attacker could park data outside their own
+      // subtree); `hasAll` blocks a partial marker that would read back as a
+      // request with no deadline.
+      function validRequest(uid) {
+        return request.resource != null
+               && request.resource.data.keys().hasOnly(['uid', 'requestedAt', 'purgeAfter'])
+               && request.resource.data.keys().hasAll(['uid', 'requestedAt', 'purgeAfter'])
+               && request.resource.data.uid == uid
+               // Server-stamped, never client-chosen: the audit trail of WHEN
+               // the request was made must not depend on a device clock. The
+               // client writes `FieldValue.serverTimestamp()`, which resolves
+               // to exactly `request.time`.
+               && request.resource.data.requestedAt == request.time
+               // `purgeAfter` IS computed from the client clock
+               // (`requestedAt.add(graceWindow)`), so it is bounded here.
+               // Unbounded, a client could set a purge date in the past (an
+               // immediate purge — data destroyed with no grace window, the
+               // cancel path never reachable) or centuries away (a marker that
+               // suppresses sync forever and is never collected).
+               // `AccountDeletionService.graceWindow` is 30 days; ±1 day
+               // absorbs clock skew without letting the window be chosen.
+               && request.resource.data.purgeAfter is timestamp
+               && request.resource.data.purgeAfter > request.time + duration.value(29, 'd')
+               && request.resource.data.purgeAfter < request.time + duration.value(31, 'd');
+      }
+
+      // Single-document read only — `SyncService.syncNow`'s gate and
+      // `AccountSection`/`AppGate`'s pending-request panel.
+      allow get: if isOwner(userId);
+
+      // NEVER enumerable, not even by an owner. A `list` permission turns this
+      // collection into a roster of every account pending deletion — a
+      // membership list of this app's users, which for a menstrual tracker is
+      // itself sensitive, plus the uid list needed to target them.
+      allow list: if false;
+
+      allow create: if isOwner(userId) && validRequest(userId);
+
+      // Create-only. Re-requesting must not slide the deadline the user was
+      // promised, and a bare `set()` on an existing document is an `update` in
+      // rules terms — the client's own read-before-write narrows that race but
+      // cannot close it, so this is the actual guarantee.
+      allow update: if false;
+
+      // The cancel path. `AccountSection._cancelDeletion` and
+      // `AppGate`'s deletion-pending screen both call
+      // `AccountDeletionService.cancelDeletion()`, which is a plain
+      // `delete()` — denying deletes here would strand every user who
+      // changed their mind inside the grace window, which is the whole point
+      // of a soft delete. Deleting a missing document is not an error in
+      // Firestore, so the documented idempotent double-cancel still works.
+      allow delete: if isOwner(userId);
+
+      // Defence in depth, required by review: whatever a client's SDK or a raw
+      // REST call classifies a write as, it must still be a FIRST write. This
+      // grants nothing the `create` rule above does not already grant (allow
+      // rules union, and a write to a non-existent document IS a create) — it
+      // exists so that no future edit to the create/update pair can
+      // accidentally open an overwrite path. `request.resource != null` inside
+      // `validRequest` keeps it out of the way of `delete`.
+      allow write: if isOwner(userId)
+                   && validRequest(userId)
+                   && !exists(/databases/$(database)/documents/deletionRequests/$(userId));
+    }
+  }
+}
