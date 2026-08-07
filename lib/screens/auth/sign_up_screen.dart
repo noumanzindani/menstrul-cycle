@@ -25,12 +25,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
+  /// Signs up and, on success, POPS.
+  ///
+  /// The pop is load-bearing and not cosmetic. This screen is pushed as a route
+  /// by `SignInScreen`, whereas `AppGate` *returns* `SignInScreen` from its
+  /// `build`. So a successful sign-up does swap what `home:` holds over to
+  /// `AppShell` — underneath a route that nothing else will ever remove. The
+  /// user was left on this form, with the button re-enabled by `AuthProvider`'s
+  /// `finally`, every honest signal saying the tap failed; tapping again then
+  /// answered "An account already exists for that email", which is the exact
+  /// opposite of what happened. Only the system back button escaped, and it
+  /// reads like abandoning the sign-up.
+  ///
+  /// Gated on [AuthProvider.lastError], NOT on the future completing:
+  /// `AuthProvider._guard` catches `AuthFailure` and records the code rather
+  /// than rethrowing, so `await` returns normally on failure too. An
+  /// unconditional pop would throw the error message away before it is read.
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    await context.read<AuthProvider>().signUp(
-          email: _email.text,
-          password: _password.text,
-        );
+    // Read before the await: `context` must not be used across an async gap.
+    final auth = context.read<AuthProvider>();
+    final navigator = Navigator.of(context);
+    await auth.signUp(email: _email.text, password: _password.text);
+    if (!mounted || auth.lastError != null) return;
+    navigator.pop();
   }
 
   @override

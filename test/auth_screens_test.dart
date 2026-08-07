@@ -124,6 +124,72 @@ void main() {
     expect(fake.lastPassword, isNull);
   });
 
+  // `SignUpScreen` is PUSHED (`sign_in_screen.dart`), unlike `SignInScreen`,
+  // which `AppGate` returns from `build`. That difference is the whole reason
+  // these two tests exist: swapping the auth state re-renders what `home:`
+  // holds, but has no authority over a route sitting on top of it. So the
+  // screen has to get out of the way itself.
+  Widget pushedSignUp(FakeAuthService fake) => ChangeNotifierProvider(
+        create: (_) => AuthProvider(fake),
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const SignUpScreen()),
+                ),
+                // Stands in for the app AppGate renders underneath. Asserting
+                // it is visible again is what proves the route actually left,
+                // rather than merely that some SignUpScreen finder missed.
+                child: const Text('the app below'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+  Future<void> fillAndSubmitSignUp(WidgetTester tester) async {
+    await tester.enterText(find.byKey(const Key('signUp.email')), 'a@b.com');
+    await tester.enterText(
+        find.byKey(const Key('signUp.password')), 'secret123');
+    await tester.enterText(
+        find.byKey(const Key('signUp.confirm')), 'secret123');
+    await tester.tap(find.byKey(const Key('signUp.submit')));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+      'REGRESSION: a successful sign-up pops its pushed route so the app is '
+      'revealed instead of staying hidden behind the form', (tester) async {
+    await tester.pumpWidget(pushedSignUp(fake));
+    await tester.tap(find.text('the app below'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SignUpScreen), findsOneWidget);
+
+    await fillAndSubmitSignUp(tester);
+
+    // The account really was created — otherwise "the form went away" would
+    // pass for a sign-up that silently did nothing.
+    expect(fake.lastEmail, 'a@b.com');
+    expect(find.byType(SignUpScreen), findsNothing);
+    expect(find.text('the app below'), findsOneWidget);
+  });
+
+  testWidgets(
+      'a FAILED sign-up stays put, so the error is not popped away unread',
+      (tester) async {
+    fake.nextFailure = AuthFailure(AuthErrorCode.emailInUse);
+    await tester.pumpWidget(pushedSignUp(fake));
+    await tester.tap(find.text('the app below'));
+    await tester.pumpAndSettle();
+
+    await fillAndSubmitSignUp(tester);
+
+    expect(find.byType(SignUpScreen), findsOneWidget);
+    expect(find.text('An account already exists for that email.'),
+        findsOneWidget);
+  });
+
   testWidgets(
       'forgot-password treats wrongCredentials as success so an '
       'unregistered address cannot be distinguished from a registered one',
