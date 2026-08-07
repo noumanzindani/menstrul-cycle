@@ -51,16 +51,18 @@ class HomeScreen extends StatelessWidget {
         icon: const Icon(Icons.add),
         label: const Text('Log today'),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: prediction.hasPrediction
-                ? _PredictionBody(prediction: prediction, today: today)
-                : const _EmptyState(),
-          ),
-          const SafeArea(top: false, child: AdBanner()),
-        ],
-      ),
+      // `bottomNavigationBar`, NOT a trailing child of a body Column. A
+      // Scaffold lifts its floatingActionButton clear of this slot and of
+      // nothing else, so a banner in the body sat UNDER the FAB — an app
+      // control covering an ad, which is both an accidental-click hazard and
+      // an AdMob placement violation. Matches Forecast and Settings, which
+      // already use this slot. `AdBanner` collapses to `SizedBox.shrink()`
+      // when there is no ad (premium, pre-consent, still loading), so this
+      // reserves no space and shifts nothing in those states.
+      bottomNavigationBar: const SafeArea(top: false, child: AdBanner()),
+      body: prediction.hasPrediction
+          ? _PredictionBody(prediction: prediction, today: today)
+          : const _EmptyState(),
     );
   }
 }
