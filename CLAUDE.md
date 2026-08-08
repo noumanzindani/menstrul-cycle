@@ -233,6 +233,41 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   data is already being erased, or already protected server-side, is false. See
   `PRIVACY_POLICY.md` and `docs/account-deletion.md`, which both carry the gap explicitly.
 
+#### Change-timer guardrails (the feature nearest a real medical emergency)
+
+Enforced structurally by `test/product_timer_guardrails_test.dart`. A failure there is a
+question about whether the ruling changed — not about how to make the test pass.
+
+- **The card is the primary surface; the notification is an accessory that may never
+  arrive.** Every alarm here is `inexactAllowWhileIdle`, and an OEM battery manager can
+  drop one outright. The app therefore never promises delivery, and past the target by 30
+  minutes the card *says* the reminder may not have arrived. That disclosure is the
+  structural defeat of inference-from-silence — the harm where a missing notification reads
+  as "not time yet." It needs no wrong words to occur, and no other copy fixes it.
+- **Never "safe", "you're fine", "still good", "no rush", "overdue", "danger", "urgent".**
+  Elapsed counts **UP**; the app never shows time remaining and never draws a progress bar
+  (a bar is a countdown in pixels). The only permitted framing for a passed target is
+  *"past the Nh **you set**"* — the target is the user's, so the app is never the one
+  calling it late.
+- **LunaTrack never authors a duration.** Caps are *attributed* ("Tampon packaging
+  generally says…"), never asserted. A duration presented as the app's opinion is a medical
+  claim; the same duration attributed to the box is not. Caps are a **refusal** (the stepper
+  stops), not a silent clamp.
+- **Duration is a pure function of `(productType, userSetting)`.** Never `f(flow)`,
+  `f(cycleDay)` or `f(phase)` — inference from cycle data turns a timer into a synthesized
+  clinical recommendation.
+- **No TSS symptom checker, no triage, no emergency affordance, no gamification.** The
+  first is a medical-device function (the ground that vetoed LH-strip auto-interpretation);
+  the last is a shame mechanic aimed partly at teenagers.
+- **No exact alarms, no foreground service, no full-screen intent, no DND bypass.**
+  `USE_EXACT_ALARM` is Play-restricted to alarm/calendar apps and would not buy reliability
+  anyway (a force-stop drops alarms regardless of exactness) — it would only make a
+  best-effort channel *look* guaranteed. A foreground service means a permanent status-bar
+  icon: continuous self-disclosure, the exact threat `secret` visibility prevents.
+- **Session state never touches the day-tags blob, Firestore, the doctor PDF, or the
+  home-screen widget.** `DailyLogs.symptoms` syncs as a real Firestore map to a project
+  whose rules are undeployed; the launcher widget renders outside `AppLock`.
+
 ## Feature status
 
 ### Shipped (v1 + v2 migration-free; v3 = customizable tracking, first real migration; v4 = weight unit; v5 = accounts + sync)
@@ -261,6 +296,22 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   Surfaces: a "Your patterns" section on Insights (inline, no phase), a Home highlight card
   (shared `ProxyProvider2` → `List<CycleNarrative>`, top non-phase narrative), and a "Cycle
   patterns" section in the doctor PDF. Branded "insights," not "AI."
+- **Product-change timer** — a live "how long has this been in" card on Home for a pad,
+  tampon, cup/disc or period underwear, plus two best-effort reminders (ids 5000/5001) and
+  a "Changed" notification action. **Zero migration:** the single in-progress session rides
+  one dormant `Reminders` row of the appended `ReminderType.productChange`, with its state
+  in the free-form `payload` column (`ProductSessionRepository`). That choice is what buys
+  the sync exclusion, the `deleteAllData()` coverage and the one-row-per-type invariant for
+  free — the day-tags blob was rejected precisely because it *does* sync. The session is
+  **ephemeral**: ending it leaves no record, which is what removes the retention, PDF and
+  export questions a history table would have created. Filtered out of `.lunabak` export
+  (`backup_service.dart`) so a restored backup cannot resurrect a 71-hour timer.
+  **This is the app's first and only repeating `Timer`** — a 60-second boundary-aligned
+  one-shot chain in a leaf widget, gated on a session existing. That gate is load-bearing:
+  ~50 test files call `pumpAndSettle`, which never settles while a `Timer` keeps calling
+  `setState`. Elapsed time is always recomputed from the stored timestamp, never
+  accumulated, because `app_lock.dart` freezes `Ticker`s but not `Timer`s. Free, never
+  premium. See the change-timer guardrails above.
 - **Local backup & restore** (`services/backup_service.dart`) — Settings → "Backup &
   restore". Serializes all tables (drift `toJson`/`fromJson`) → **AES-256-GCM + PBKDF2**
   passphrase encryption (`BackupCrypto`) → `.lunabak` file shared via `share_plus`. Restore
