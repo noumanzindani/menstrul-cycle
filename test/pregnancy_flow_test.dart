@@ -4,9 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:menstrul_track/data/settings_repository.dart';
+import 'package:menstrul_track/data/product_session_repository.dart';
+import 'package:menstrul_track/data/reminder_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/models/prediction.dart';
+import 'package:menstrul_track/providers/product_session_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/screens/home/home_screen.dart';
 import 'package:menstrul_track/services/prediction_service.dart';
@@ -44,6 +47,12 @@ void main() {
     await tester.pumpWidget(MultiProvider(
       providers: [
         ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+        // Pregnancy home carries a running session through rather than
+        // orphaning it. No fixture here starts one.
+        ChangeNotifierProvider<ProductSessionProvider>(
+          create: (_) => ProductSessionProvider(
+              ProductSessionRepository(ReminderRepository(db))),
+        ),
         Provider<PredictionResult>.value(
             value: PredictionService.predict(const [])),
       ],

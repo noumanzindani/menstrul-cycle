@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'data/daily_log_repository.dart';
 import 'data/medication_repository.dart';
+import 'data/product_session_repository.dart';
 import 'data/reminder_repository.dart';
 import 'data/settings_repository.dart';
 import 'common/l10n.dart';
@@ -17,6 +18,7 @@ import 'providers/auth_provider.dart';
 import 'providers/log_provider.dart';
 import 'providers/medication_provider.dart';
 import 'providers/premium_provider.dart';
+import 'providers/product_session_provider.dart';
 import 'providers/reminder_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/app_gate.dart';
@@ -161,6 +163,15 @@ class LunaTrackApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) =>
               MedicationProvider(MedicationRepository(database))..load(),
+        ),
+        // The in-progress product-change session. Separate from ReminderProvider
+        // even though it shares the table: a session is not a clock reminder,
+        // and Home should rebuild on a session change without rebuilding on
+        // every reminder edit.
+        ChangeNotifierProvider(
+          create: (_) => ProductSessionProvider(
+              ProductSessionRepository(ReminderRepository(database)))
+            ..load(),
         ),
         ChangeNotifierProvider(
           create: (_) =>

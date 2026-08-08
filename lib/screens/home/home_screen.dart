@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../common/catalog.dart';
 import '../../common/date_utils.dart';
 import '../../common/insights_text.dart';
 import '../../models/enums.dart';
@@ -9,6 +10,7 @@ import '../../models/insights.dart';
 import '../../models/month_ring.dart';
 import '../../models/prediction.dart';
 import '../../providers/log_provider.dart';
+import '../../providers/product_session_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/cycle_check_in.dart';
 import '../../services/prediction_service.dart';
@@ -17,6 +19,8 @@ import '../../theme/app_theme.dart';
 import '../../widgets/ad_banner.dart';
 import '../../widgets/disclaimer_banner.dart';
 import '../../widgets/month_ring.dart';
+import '../../widgets/product_timer_card.dart';
+import '../../widgets/product_timer_start_card.dart';
 import '../log/day_log_screen.dart';
 import '../pregnancy/pregnancy_screen.dart';
 
@@ -81,11 +85,21 @@ class _PregnancyHome extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
 
+    // This screen replaces the whole dashboard, so a session running when the
+    // user switched into pregnancy mode would be orphaned — invisible, but
+    // still scheduled. Carry it through rather than silently ending something
+    // that is physically still in place. No new card ever starts here.
+    final session = context.watch<ProductSessionProvider>().session;
+
     return Scaffold(
       appBar: AppBar(title: const Text('LunaTrack')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
+          if (session != null) ...[
+            ProductTimerCard(session: session),
+            const SizedBox(height: 12),
+          ],
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -329,15 +343,34 @@ class _PredictionBody extends StatelessWidget {
     // ended (it's run to typical length)? Shown in every non-pregnancy mode.
     final checkIn = context.watch<CheckInPrompt>();
 
+    // A product in use right now is the most time-sensitive thing on this
+    // screen, so it sits above the ring. Gating the card on a session existing
+    // also gates the app's only repeating Timer: without this `if`, every
+    // widget test that calls pumpAndSettle would never settle.
+    final session = context.watch<ProductSessionProvider>().session;
+    final todayFlow = context.watch<LogProvider>().logForDate(today)?.flow;
+    final bleedingToday = todayFlow?.isBleeding ?? false;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       children: [
         _PhaseCard(prediction: prediction),
         const SizedBox(height: 12),
+        if (session != null) ...[
+          ProductTimerCard(session: session),
+          const SizedBox(height: 12),
+        ],
         const _CycleRingCard(),
         const SizedBox(height: 12),
         if (checkIn != CheckInPrompt.none) ...[
           _CheckInCard(prompt: checkIn, today: today),
+          const SizedBox(height: 12),
+        ],
+        // Offer to start a timer only on days with logged bleeding. The other
+        // ~25 days of the month it would be dead weight, and a menstrual
+        // product prompt on a non-period day is noise.
+        if (session == null && bleedingToday) ...[
+          const ProductTimerStartCard(),
           const SizedBox(height: 12),
         ],
         if (topInsight != null) ...[
