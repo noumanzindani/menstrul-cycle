@@ -46,6 +46,14 @@ class ReminderRepository {
     }
   }
 
+  /// Removes every row of [type]. Used by the product-change session, which is
+  /// deleted rather than disabled when it ends — a session that is over should
+  /// leave no row at all, so nothing can resurrect it.
+  Future<void> deleteByType(ReminderType type) async {
+    await (_db.delete(_db.reminders)..where((t) => t.type.equalsValue(type)))
+        .go();
+  }
+
   // --- Custom reminders (many rows of ReminderType.custom, each user-titled).
   // These use the dormant `title`/`recurrence` columns and, unlike the smart
   // reminders, are not one-per-type — so they have their own CRUD.

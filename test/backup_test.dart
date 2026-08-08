@@ -4,9 +4,13 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:menstrul_track/data/product_session_repository.dart';
 import 'package:menstrul_track/data/daily_log_repository.dart';
+import 'package:menstrul_track/data/reminder_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/models/enums.dart';
+import 'package:menstrul_track/models/product_session.dart';
+import 'package:menstrul_track/models/product_type.dart';
 import 'package:menstrul_track/services/backup_service.dart';
 
 /// Local backup is encrypted with a user passphrase (AES-GCM + PBKDF2) so a file
@@ -107,6 +111,40 @@ void main() {
       // The decrypt fails before any write, so the pre-existing day survives.
       final logs = await dst.select(dst.dailyLogs).get();
       expect(logs.single.date, DateTime(2026, 9, 9));
+      await dst.close();
+    });
+  });
+
+  group('in-progress product session', () {
+    test('an exported in-progress session does not restore as a running timer',
+        () async {
+      final src = AppDatabase.forTesting(NativeDatabase.memory());
+      final reminders = ReminderRepository(src);
+      // A real reminder that SHOULD survive the round-trip, so this proves the
+      // filter is selective rather than just dropping the table.
+      await reminders.addCustom(title: 'Water', hour: 9, minute: 0);
+      await ProductSessionRepository(reminders).start(ProductSession(
+        insertedAt: DateTime(2026, 8, 8, 9, 14),
+        product: ProductType.tampon,
+        interval: const Duration(hours: 4),
+      ));
+
+      final bytes = await BackupService.exportEncrypted(src, 'pw');
+      await src.close();
+
+      final dst = AppDatabase.forTesting(NativeDatabase.memory());
+      await BackupService.importEncrypted(dst, bytes, 'pw');
+
+      // Restoring a backup taken mid-session must not claim something has been
+      // in use since whenever the export happened to be taken.
+      // `isNull` is ambiguous here — drift exports one too.
+      final restoredSession =
+          await ProductSessionRepository(ReminderRepository(dst)).get();
+      expect(restoredSession, null);
+      final restored = await dst.select(dst.reminders).get();
+      expect(restored.map((r) => r.type),
+          isNot(contains(ReminderType.productChange)));
+      expect(restored.single.title, 'Water');
       await dst.close();
     });
   });

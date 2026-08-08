@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:drift/drift.dart';
@@ -10,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../db/database.dart';
+import '../models/enums.dart';
 
 /// Passphrase-based authenticated encryption for a LunaTrack backup file.
 ///
@@ -100,7 +100,13 @@ class BackupService {
     DateTime? exportedAt,
   }) async {
     final logs = await db.select(db.dailyLogs).get();
-    final reminders = await db.select(db.reminders).get();
+    // The in-progress product-change session is deliberately NOT exported. It
+    // is a live "something is in use right now" fact, not a preference: a
+    // backup taken mid-session and restored three days later would resurrect it
+    // and claim the product had been in for 71 hours.
+    final reminders = await (db.select(db.reminders)
+          ..where((t) => t.type.equalsValue(ReminderType.productChange).not()))
+        .get();
     final medications = await db.select(db.medications).get();
     final settings = await (db.select(db.appSettings)
           ..where((t) => t.id.equals(0)))
