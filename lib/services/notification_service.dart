@@ -6,6 +6,7 @@ import 'package:timezone/timezone.dart' as tz;
 import '../db/database.dart';
 import '../models/prediction.dart';
 import 'check_in_notifications.dart';
+import 'product_timer_plan.dart';
 
 /// Thin wrapper over flutter_local_notifications. Everything is local — no FCM,
 /// no server. Uses INEXACT alarms (a few minutes' drift is fine for cycle
@@ -36,6 +37,11 @@ class NotificationService {
   /// single generic action title) is registered once at init.
   static const String _checkInCategory = 'checkin';
 
+  /// The iOS category carrying the "Changed" action on a product-change
+  /// notification. Darwin categories are registered ONCE at [init] — omit this
+  /// and the iOS button silently does not exist, with no error to notice.
+  static const String _productChangeCategory = 'product_change';
+
   static Future<void> init({
     void Function(NotificationResponse)? onForegroundResponse,
     void Function(NotificationResponse)? onBackgroundResponse,
@@ -55,6 +61,13 @@ class NotificationService {
           _checkInCategory,
           actions: [
             DarwinNotificationAction.plain(kCheckInNoBleedingAction, 'Confirm'),
+          ],
+        ),
+        DarwinNotificationCategory(
+          _productChangeCategory,
+          actions: [
+            DarwinNotificationAction.plain(
+                kProductChangedAction, kProductChangedLabel),
           ],
         ),
       ],
@@ -103,16 +116,63 @@ class NotificationService {
     iOS: DarwinNotificationDetails(),
   );
 
+  // The channel id carries a `_v2` suffix because Android freezes a channel's
+  // visibility and description at creation: editing them in place would leave
+  // every existing install on the old, leaky channel. The cost of the new id is
+  // that a user who customised the old channel starts over — worth it to get
+  // medication and birth-control state off the lock screen.
   static const _medDetails = NotificationDetails(
     android: AndroidNotificationDetails(
-      'medication_reminders',
+      'medication_reminders_v2',
       'Medication reminders',
-      channelDescription: 'Reminders to take your medication or birth control',
+      // Was "Reminders to take your medication or birth control" — which the OS
+      // renders in Settings -> Notifications, where "birth control" is exactly
+      // the disclosure the rest of this file works to prevent.
+      channelDescription: 'Reminders you set yourself',
       importance: Importance.high,
       priority: Priority.high,
+      // Same reasoning as _details: what a person takes is no more suitable for
+      // a lock screen than when they are bleeding.
+      visibility: NotificationVisibility.secret,
     ),
     iOS: DarwinNotificationDetails(),
   );
+
+  /// Test seam for [_medDetails]. Reading the value object needs no platform
+  /// channel, so the privacy properties above are assertable off-device.
+  static NotificationDetails medicationDetails() => _medDetails;
+
+  // The product-change timer gets its own channel so it can be silenced without
+  // silencing cycle reminders, and vice versa. Name and description are
+  // deliberately generic: both are rendered by the OS in Settings ->
+  // Notifications, on a phone that may be shared or parent-supervised.
+  static final _productTimerDetails = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'product_change',
+      'Timed reminders',
+      channelDescription: 'Reminders you set yourself',
+      importance: Importance.high,
+      priority: Priority.high,
+      // Load-bearing twice: it keeps an intimate reminder off the lock screen,
+      // and it means the action cannot be tapped before unlock — so the
+      // keystore is always available when the background writer runs.
+      visibility: NotificationVisibility.secret,
+      actions: [
+        AndroidNotificationAction(
+          kProductChangedAction,
+          kProductChangedLabel,
+          // Dismiss only after a successful write; a failed one leaves the
+          // prompt standing as its own retry affordance.
+          cancelNotification: false,
+          showsUserInterface: false,
+        ),
+      ],
+    ),
+    iOS: DarwinNotificationDetails(categoryIdentifier: _productChangeCategory),
+  );
+
+  /// Test seam for [_productTimerDetails]; see [medicationDetails].
+  static NotificationDetails productTimerDetails() => _productTimerDetails;
 
   // Every plugin-touching method is a no-op until [init] has run. On device
   // main() awaits init() before runApp (and the background isolate awaits it in
@@ -295,6 +355,63 @@ class NotificationService {
       notificationDetails: _details,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
+  }
+
+  /// A one-shot at an absolute instant. [scheduleOneShot] takes a date plus a
+  /// wall-clock hour and minute, so it cannot express "four hours from now" —
+  /// this can.
+  ///
+  /// Uses `tz.TZDateTime.from`, NOT the `tz.TZDateTime(local, y, m, d, h, min)`
+  /// constructor the rest of this file uses: that one silently drops seconds,
+  /// which would round every relative timer to a minute boundary.
+  static Future<void> scheduleAt({
+    required int id,
+    required DateTime when,
+    required String title,
+    required String body,
+    String? payload,
+    NotificationDetails? details,
+  }) async {
+    if (!_ready) return;
+    await cancel(id);
+    final scheduled = tz.TZDateTime.from(when, tz.local);
+    if (!scheduled.isAfter(tz.TZDateTime.now(tz.local))) return;
+    await _plugin.zonedSchedule(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: scheduled,
+      notificationDetails: details ?? _details,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      payload: payload,
+    );
+  }
+
+  /// Hands a [ProductTimerPlan] to the platform. Cancels every slot first, so
+  /// an empty plan (timer off, session ended, or every slot already past)
+  /// leaves nothing scheduled — the plan can never resurrect a reminder the
+  /// user ended.
+  static Future<void> applyProductTimerPlan(
+    List<ProductTimerNotification> plan, {
+    String? payload,
+  }) async {
+    await cancelProductTimer();
+    for (final slot in plan) {
+      await scheduleAt(
+        id: slot.id,
+        when: slot.when,
+        title: slot.title,
+        body: slot.body,
+        payload: payload,
+        details: _productTimerDetails,
+      );
+    }
+  }
+
+  static Future<void> cancelProductTimer() async {
+    for (final id in ProductTimerPlan.allIds) {
+      await cancel(id);
+    }
   }
 
   static tz.TZDateTime _nextInstanceOf(int hour, int minute) {
