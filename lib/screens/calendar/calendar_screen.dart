@@ -12,6 +12,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/ad_banner.dart';
 import '../../widgets/day_entry_sheet.dart';
 import '../diary/diary_screen.dart';
+import '../media/media_route.dart';
 import '../../widgets/disclaimer_banner.dart';
 
 /// Month calendar. Logged bleeding days are filled (deeper = heavier); the
@@ -83,6 +84,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
               MaterialPageRoute(builder: (_) => const DiaryScreen()),
             ),
           ),
+          // Same reasoning as the Diary action above. Hides itself when there
+          // is no Firebase — media is cloud-only.
+          const MediaAppBarAction(),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

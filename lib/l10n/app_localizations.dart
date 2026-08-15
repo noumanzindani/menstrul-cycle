@@ -466,6 +466,18 @@ abstract class AppLocalizations {
   /// **'Require a PIN or biometrics to open'**
   String get settingsAppLockSubtitle;
 
+  /// No description provided for @settingsPhotoDescriptionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe photos'**
+  String get settingsPhotoDescriptionsTitle;
+
+  /// No description provided for @settingsPhotoDescriptionsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sends a photo to Google when you tap Describe'**
+  String get settingsPhotoDescriptionsSubtitle;
+
   /// No description provided for @settingsDeleteTitle.
   ///
   /// In en, this message translates to:

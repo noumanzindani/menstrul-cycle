@@ -27,7 +27,7 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('v2 -> v5 adds every intervening column and preserves existing data',
+  test('v2 -> current adds every intervening column and preserves existing data',
       () async {
     // schemaAt() hands out multiple connections over ONE underlying database,
     // so rows seeded through the v2 database class are still there when the
@@ -48,7 +48,7 @@ void main() {
     await oldDb.close();
 
     final db = AppDatabase.forTesting(schema.newConnection());
-    await verifier.migrateAndValidate(db, 5);
+    await verifier.migrateAndValidate(db, 7);
 
     final settings = await db.getSettings();
     expect(settings.defaultCycleLength, 31);

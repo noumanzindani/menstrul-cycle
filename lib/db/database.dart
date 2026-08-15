@@ -16,6 +16,7 @@ part 'database.g.dart';
     Medications,
     AppSettings,
     SyncTombstones,
+    MediaItems,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -25,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -42,8 +43,15 @@ class AppDatabase extends _$AppDatabase {
         //   v2 → v3: customizable tracking adds AppSettings.trackingCategories.
         //   v3 → v4: weight tracking adds AppSettings.weightUnit.
         //   v4 → v5: sync adds the SyncTombstones table + AppSettings.lastSyncedAt.
+        //   v5 → v6: the media timeline adds the MediaItems table.
+        //   v6 → v7: photo descriptions add AppSettings.analysisConsentUid
+        //            plus the two daily-cap columns.
         // Branches are independent `if (from < n)` checks, not else-if, so a
         // user upgrading straight from v1 runs all of them.
+        //
+        // v4→v5 and v5→v6 are the only branches that create a table rather than
+        // adding a nullable column. Both are still additive: no existing row is
+        // read, rewritten or backfilled.
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(appSettings, appSettings.pregnancyStartDate);
@@ -58,6 +66,14 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(syncTombstones);
             await m.addColumn(appSettings, appSettings.lastSyncedAt);
             await m.addColumn(appSettings, appSettings.settingsUpdatedAt);
+          }
+          if (from < 6) {
+            await m.createTable(mediaItems);
+          }
+          if (from < 7) {
+            await m.addColumn(appSettings, appSettings.analysisConsentUid);
+            await m.addColumn(appSettings, appSettings.analysisCountDay);
+            await m.addColumn(appSettings, appSettings.analysisCountToday);
           }
         },
       );
@@ -120,6 +136,20 @@ class AppDatabase extends _$AppDatabase {
       // the fresh `appSettings` row below — see the note on `lastSyncedAt` in
       // this method's own doc comment for what that means for the next sync.
       await delete(syncTombstones).go();
+      // Media rows AND their cached thumbnail blobs. The thumbnails are the
+      // only decoded bodily imagery this database holds, so leaving them would
+      // make "everything on this device is erased" false in the most visible
+      // way possible.
+      //
+      // This clears the local replica only. The Storage objects and the
+      // Firestore metadata documents are untouched, exactly as `dailyLogs`
+      // leaves the cloud copy untouched — erasing those is the separate
+      // account-deletion flow. Note the two things drift cannot reach and the
+      // CALLERS must: the downloaded-media file cache (`MediaCache.clear()`,
+      // which is plain file I/O and has no place inside a drift transaction)
+      // and Firestore's own unencrypted on-device cache
+      // (`clearLunaFirestoreCache`).
+      await delete(mediaItems).go();
       await into(appSettings).insert(const AppSettingsCompanion(id: Value(0)));
     });
   }

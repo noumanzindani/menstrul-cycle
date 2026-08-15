@@ -124,6 +124,7 @@ void main() {
           // `SettingsScreen`'s parameters.
           clearPin: () async => calls.add('clearPin'),
           cancelNotifications: () async => calls.add('cancelNotifications'),
+          clearMediaCache: () async => calls.add('clearMediaCache'),
           clearFirestoreCache: () async => calls.add('clearCache'),
         ),
       ),
@@ -268,6 +269,7 @@ void main() {
         home: SettingsScreen(
           clearPin: () async => calls.add('clearPin'),
           cancelNotifications: () async => calls.add('cancelNotifications'),
+          clearMediaCache: () async => calls.add('clearMediaCache'),
           clearFirestoreCache: () async => calls.add('clearCache'),
         ),
       ),
@@ -322,6 +324,7 @@ void main() {
         home: SettingsScreen(
           clearPin: () async => calls.add('clearPin'),
           cancelNotifications: () async => calls.add('cancelNotifications'),
+          clearMediaCache: () async => calls.add('clearMediaCache'),
           clearFirestoreCache: () async => calls.add('clearCache'),
         ),
       ),

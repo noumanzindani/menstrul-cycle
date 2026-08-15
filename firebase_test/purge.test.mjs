@@ -95,7 +95,19 @@ function dartSpec() {
   );
   assert.ok(graceMatch, 'could not find `graceWindow` in the Dart spec');
 
-  return { subcollections, graceWindowDays: Number(graceMatch[1]) };
+  // Storage is a SECOND service the Dart client cannot sweep, so this prefix is
+  // the part of the contract Dart can only state. Parsed for the same reason
+  // the list above is: the JS side necessarily restates it.
+  const prefixMatch = source.match(
+    /static String storagePrefix\(String uid\) => '([^']+)'/,
+  );
+  assert.ok(prefixMatch, 'could not find `storagePrefix` in the Dart spec');
+
+  return {
+    subcollections,
+    graceWindowDays: Number(graceMatch[1]),
+    storagePrefixTemplate: prefixMatch[1],
+  };
 }
 
 const SPEC = dartSpec();
@@ -149,11 +161,24 @@ async function seedExpiredAccount(uid, options = {}) {
   await createAuthUser(uid);
 }
 
+/**
+ * Prefixes handed to the bucket deleter, newest last.
+ *
+ * Cloud Storage has no emulator arm in this harness, so the bucket is a
+ * recorder. That is enough for what must be proved here: that the sweep is
+ * ATTEMPTED, that it runs before the metadata that would otherwise be the only
+ * way to find the objects, and that a bucket failure retains the marker.
+ */
+let storageDeletions = [];
+
 /** Runs the sweep with the production wiring unless a test overrides a part. */
 const run = (overrides = {}) =>
   purge.purgeExpiredRequests({
     firestore,
     deleteAuthUser,
+    deleteStoragePrefix: async (prefix) => {
+      storageDeletions.push(prefix);
+    },
     logger: recordingLogger(),
     ...overrides,
   });
@@ -200,6 +225,11 @@ async function assertAccountErased(uid) {
     false,
     'the Firebase Auth user survived the purge',
   );
+  assert.ok(
+    storageDeletions.includes(SPEC.storagePrefixTemplate.replace('uid-1', uid)) ||
+      storageDeletions.includes(`users/${uid}/media/`),
+    `the media bucket prefix for ${uid} was never swept`,
+  );
 }
 
 before(async () => {
@@ -209,6 +239,7 @@ before(async () => {
 beforeEach(async () => {
   await clearData();
   await clearAuth();
+  storageDeletions = [];
 });
 afterEach(async () => {
   await clearData();
@@ -732,7 +763,85 @@ describe('logging', () => {
   });
 });
 
+describe('uploaded media', () => {
+  test('the bucket prefix is swept BEFORE the metadata that indexes it', async () => {
+    // Ordering is the whole point. The prefix is derived from the uid alone, so
+    // it survives any partial prior run; the metadata does not. Sweeping
+    // Firestore first means a crash in between leaves unreferenced bytes with
+    // nothing left to find them by — unencrypted media belonging to somebody
+    // who asked for it to be gone.
+    const order = [];
+    await seedExpiredAccount('uid-1');
+    await run({
+      deleteStoragePrefix: async (prefix) => {
+        order.push('storage');
+        storageDeletions.push(prefix);
+      },
+      // Scoped to `users/...` deliberately: the sweep also reads the marker
+      // QUEUE through this same handle, before any deletion, so an
+      // unqualified probe records "firestore" first and the test passes or
+      // fails for the wrong reason.
+      firestore: new Proxy(firestore, {
+        get(target, prop, receiver) {
+          const value = Reflect.get(target, prop, receiver);
+          if (prop === 'collection') {
+            return (path, ...rest) => {
+              if (String(path).startsWith('users/') &&
+                  order.at(-1) !== 'firestore') {
+                order.push('firestore');
+              }
+              return value.call(target, path, ...rest);
+            };
+          }
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      }),
+    });
+    assert.deepEqual(order.slice(0, 2), ['storage', 'firestore']);
+  });
+
+  test('a bucket failure retains the marker for the next run', async () => {
+    // The same fail-closed rule every other step here follows: an account is
+    // only reported purged when every irreversible step succeeded.
+    await seedExpiredAccount('uid-1');
+    const summary = await run({
+      deleteStoragePrefix: async () => {
+        throw new Error('bucket unavailable');
+      },
+    });
+
+    assert.equal(summary.purged, 0);
+    assert.equal(summary.failed.length, 1);
+    assert.equal(
+      await docExists('deletionRequests/uid-1'),
+      true,
+      'the marker was consumed despite the media surviving',
+    );
+  });
+
+  test('a MISSING bucket deleter is an error, never a silent skip', async () => {
+    // The tempting alternative — treat an unconfigured bucket as "nothing to
+    // do" — produces silent retention of intimate media past an erasure
+    // request. It must fail loudly instead.
+    await seedExpiredAccount('uid-1');
+    const summary = await run({ deleteStoragePrefix: undefined });
+
+    assert.equal(summary.purged, 0);
+    assert.equal(summary.failed.length, 1);
+    assert.equal(await docExists('deletionRequests/uid-1'), true);
+  });
+});
+
 describe('agreement with the Dart executable spec', () => {
+  test('the storage prefix matches AccountDeletionService.storagePrefix', async () => {
+    // The second duplicated literal in the design, guarded the same way the
+    // subcollection list is.
+    assert.equal(
+      purge.storagePrefix('uid-1'),
+      SPEC.storagePrefixTemplate.replace('$uid', 'uid-1'),
+    );
+  });
+
   test('the subcollection list matches AccountDeletionService.subcollections', async () => {
     // The JS purge cannot import Dart, so it restates this list. That is the
     // one duplicated literal in the design, and this is the guard on it: adding

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'data/daily_log_repository.dart';
+import 'data/media_repository.dart';
 import 'data/medication_repository.dart';
 import 'data/product_session_repository.dart';
 import 'data/reminder_repository.dart';
@@ -16,6 +17,7 @@ import 'models/month_ring.dart';
 import 'models/prediction.dart';
 import 'providers/auth_provider.dart';
 import 'providers/log_provider.dart';
+import 'providers/media_provider.dart';
 import 'providers/medication_provider.dart';
 import 'providers/premium_provider.dart';
 import 'providers/product_session_provider.dart';
@@ -177,6 +179,14 @@ class LunaTrackApp extends StatelessWidget {
           create: (_) =>
               PremiumProvider(SettingsRepository(database))..load(),
         ),
+        // The media timeline's local replica. Deliberately NOT `..load()`d
+        // here: it holds no rows until an account is known, and which account
+        // is the whole key it files rows under. `AppGate` calls `setUid` from
+        // the same place it drives `SyncTrigger.setUser`, so the two can never
+        // disagree about who is signed in.
+        ChangeNotifierProvider(
+          create: (_) => MediaProvider(MediaRepository(database)),
+        ),
         // Derived, recomputed whenever logs or settings change.
         ProxyProvider2<LogProvider, SettingsProvider, PredictionResult>(
           // The whole recompute (incl. the pregnancy/perimenopause suppressions
@@ -265,6 +275,13 @@ class LunaTrackApp extends StatelessWidget {
           // Fire-and-forget: the UI never blocks on sync. A null uid tears sync
           // down and leaves local data alone.
           trigger.setUser(auth.user?.uid);
+          // Driven from the SAME value in the SAME place, deliberately. Media
+          // rows are filed under a uid and every read filters on it, so a
+          // second derivation of "who is signed in" that could lag or disagree
+          // is precisely how one account ends up seeing another's photographs.
+          // Unlike sync, this one also ERASES the previous account's rows —
+          // see `MediaProvider.setUid`.
+          context.read<MediaProvider>().setUid(auth.user?.uid);
           return child!;
         },
         child: Consumer<SettingsProvider>(

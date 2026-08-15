@@ -3,12 +3,31 @@ import 'package:firebase_core/firebase_core.dart';
 
 /// The named Firestore database LunaTrack owns.
 ///
-/// The Firebase project (`hbgapp-c3c88`) is shared with four unrelated apps.
+/// The Firebase project (`teddy-2-20649`) is shared with unrelated apps.
 /// Firestore's `(default)` database has exactly ONE ruleset for the whole
 /// project, so a permissive rule written for any of those apps would expose
 /// LunaTrack's menstrual logs. A NAMED database carries its own independent
 /// ruleset, which is the only isolation available without a new project.
-const String kLunaDatabaseId = 'lunatrack';
+///
+/// ## Why `-db`, and why this is not cosmetic
+///
+/// The first attempt used the id `lunatrack`, created with `gcloud firestore
+/// databases create`. That database never bound to its ruleset: the release
+/// `cloud.firestore/lunatrack` existed and pointed at the compiled rules, yet
+/// the database denied EVERY request — including one deployed under a literal
+/// `allow read: if true`. It was running deny-all and ignoring the release, so
+/// no rules edit could ever have fixed it. A database created through Firebase
+/// itself does bind. Compare Cloud Storage, where the same thing is explicit:
+/// a gcloud-created bucket needs a `buckets:addFirebase` call before Firebase
+/// governs it. Firestore has no public equivalent, so the creation path IS the
+/// registration, and it cannot be repaired after the fact.
+///
+/// If this id ever needs changing again, note that it is pinned in five other
+/// places — `test/firestore_ref_test.dart`, `functions/index.js`
+/// (`LUNA_DATABASE_ID`, asserted equal to this constant by
+/// `firebase_test/purge.test.mjs`), `firebase_test/emulator.mjs`,
+/// `firebase_test/purge_mutation_check.mjs`, and `firebase.json`.
+const String kLunaDatabaseId = 'lunatrack-db';
 
 /// The ONLY Firestore handle the app may use.
 ///

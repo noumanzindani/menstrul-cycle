@@ -134,6 +134,7 @@ void main() {
   late ClaimRecord? storedClaim;
   late bool pinCleared;
   late bool notificationsCancelled;
+  late bool mediaCacheCleared;
   late bool claimPreferenceCleared;
 
   /// Captured INSIDE the injected cache-clear so the ordering is provable, not
@@ -152,6 +153,7 @@ void main() {
     storedClaim = null;
     pinCleared = false;
     notificationsCancelled = false;
+    mediaCacheCleared = false;
     claimPreferenceCleared = false;
     signedOutWhenCacheCleared = false;
   });
@@ -212,6 +214,9 @@ void main() {
             clearDeclinedPreference: () async => claimPreferenceCleared = true,
             clearPin: () async => pinCleared = true,
             cancelNotifications: () async => notificationsCancelled = true,
+            // path_provider HANGS under flutter_tester rather than throwing,
+            // so pumpAndSettle times out instead of failing usefully.
+            clearMediaCache: () async => mediaCacheCleared = true,
             // Injected for a second reason beyond the platform channel:
             // `FakeFirebaseFirestore.clearPersistence()` wipes the ENTIRE fake
             // database, server side included, so letting the real call through
@@ -346,6 +351,10 @@ void main() {
       expect(await DailyLogRepository(db).getAll(), isEmpty);
       expect(pinCleared, isTrue);
       expect(notificationsCancelled, isTrue);
+      // Downloaded photos and videos live in the cache directory, outside
+      // both drift and Firestore's SDK store, so nothing else in this flow
+      // reaches them.
+      expect(mediaCacheCleared, isTrue);
       expect(claimPreferenceCleared, isTrue);
       expect(authService.signOutCalled, isTrue);
       expect(authService.deleteAccountCalled, isFalse);
@@ -411,6 +420,7 @@ void main() {
       expect(await DailyLogRepository(db).getAll(), hasLength(1));
       expect(pinCleared, isFalse);
       expect(notificationsCancelled, isFalse);
+      expect(mediaCacheCleared, isFalse);
       expect(authService.signOutCalled, isFalse);
       expect(find.textContaining("Couldn't"), findsOneWidget);
       expect(calls, ['suspend', 'request', 'resume']);

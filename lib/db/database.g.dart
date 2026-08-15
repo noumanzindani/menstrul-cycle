@@ -1978,6 +1978,38 @@ class $AppSettingsTable extends AppSettings
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _analysisConsentUidMeta =
+      const VerificationMeta('analysisConsentUid');
+  @override
+  late final GeneratedColumn<String> analysisConsentUid =
+      GeneratedColumn<String>(
+        'analysis_consent_uid',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _analysisCountDayMeta = const VerificationMeta(
+    'analysisCountDay',
+  );
+  @override
+  late final GeneratedColumn<String> analysisCountDay = GeneratedColumn<String>(
+    'analysis_count_day',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _analysisCountTodayMeta =
+      const VerificationMeta('analysisCountToday');
+  @override
+  late final GeneratedColumn<int> analysisCountToday = GeneratedColumn<int>(
+    'analysis_count_today',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1996,6 +2028,9 @@ class $AppSettingsTable extends AppSettings
     weightUnit,
     lastSyncedAt,
     settingsUpdatedAt,
+    analysisConsentUid,
+    analysisCountDay,
+    analysisCountToday,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2123,6 +2158,33 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('analysis_consent_uid')) {
+      context.handle(
+        _analysisConsentUidMeta,
+        analysisConsentUid.isAcceptableOrUnknown(
+          data['analysis_consent_uid']!,
+          _analysisConsentUidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('analysis_count_day')) {
+      context.handle(
+        _analysisCountDayMeta,
+        analysisCountDay.isAcceptableOrUnknown(
+          data['analysis_count_day']!,
+          _analysisCountDayMeta,
+        ),
+      );
+    }
+    if (data.containsKey('analysis_count_today')) {
+      context.handle(
+        _analysisCountTodayMeta,
+        analysisCountToday.isAcceptableOrUnknown(
+          data['analysis_count_today']!,
+          _analysisCountTodayMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2198,6 +2260,18 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.dateTime,
         data['${effectivePrefix}settings_updated_at'],
       ),
+      analysisConsentUid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}analysis_consent_uid'],
+      ),
+      analysisCountDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}analysis_count_day'],
+      ),
+      analysisCountToday: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}analysis_count_today'],
+      ),
     );
   }
 
@@ -2227,6 +2301,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final String? weightUnit;
   final DateTime? lastSyncedAt;
   final DateTime? settingsUpdatedAt;
+  final String? analysisConsentUid;
+  final String? analysisCountDay;
+  final int? analysisCountToday;
   const AppSetting({
     required this.id,
     required this.mode,
@@ -2244,6 +2321,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.weightUnit,
     this.lastSyncedAt,
     this.settingsUpdatedAt,
+    this.analysisConsentUid,
+    this.analysisCountDay,
+    this.analysisCountToday,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2278,6 +2358,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || settingsUpdatedAt != null) {
       map['settings_updated_at'] = Variable<DateTime>(settingsUpdatedAt);
     }
+    if (!nullToAbsent || analysisConsentUid != null) {
+      map['analysis_consent_uid'] = Variable<String>(analysisConsentUid);
+    }
+    if (!nullToAbsent || analysisCountDay != null) {
+      map['analysis_count_day'] = Variable<String>(analysisCountDay);
+    }
+    if (!nullToAbsent || analysisCountToday != null) {
+      map['analysis_count_today'] = Variable<int>(analysisCountToday);
+    }
     return map;
   }
 
@@ -2311,6 +2400,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       settingsUpdatedAt: settingsUpdatedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(settingsUpdatedAt),
+      analysisConsentUid: analysisConsentUid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(analysisConsentUid),
+      analysisCountDay: analysisCountDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(analysisCountDay),
+      analysisCountToday: analysisCountToday == null && nullToAbsent
+          ? const Value.absent()
+          : Value(analysisCountToday),
     );
   }
 
@@ -2348,6 +2446,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       settingsUpdatedAt: serializer.fromJson<DateTime?>(
         json['settingsUpdatedAt'],
       ),
+      analysisConsentUid: serializer.fromJson<String?>(
+        json['analysisConsentUid'],
+      ),
+      analysisCountDay: serializer.fromJson<String?>(json['analysisCountDay']),
+      analysisCountToday: serializer.fromJson<int?>(json['analysisCountToday']),
     );
   }
   @override
@@ -2372,6 +2475,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'weightUnit': serializer.toJson<String?>(weightUnit),
       'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
       'settingsUpdatedAt': serializer.toJson<DateTime?>(settingsUpdatedAt),
+      'analysisConsentUid': serializer.toJson<String?>(analysisConsentUid),
+      'analysisCountDay': serializer.toJson<String?>(analysisCountDay),
+      'analysisCountToday': serializer.toJson<int?>(analysisCountToday),
     };
   }
 
@@ -2392,6 +2498,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<String?> weightUnit = const Value.absent(),
     Value<DateTime?> lastSyncedAt = const Value.absent(),
     Value<DateTime?> settingsUpdatedAt = const Value.absent(),
+    Value<String?> analysisConsentUid = const Value.absent(),
+    Value<String?> analysisCountDay = const Value.absent(),
+    Value<int?> analysisCountToday = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     mode: mode ?? this.mode,
@@ -2415,6 +2524,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     settingsUpdatedAt: settingsUpdatedAt.present
         ? settingsUpdatedAt.value
         : this.settingsUpdatedAt,
+    analysisConsentUid: analysisConsentUid.present
+        ? analysisConsentUid.value
+        : this.analysisConsentUid,
+    analysisCountDay: analysisCountDay.present
+        ? analysisCountDay.value
+        : this.analysisCountDay,
+    analysisCountToday: analysisCountToday.present
+        ? analysisCountToday.value
+        : this.analysisCountToday,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -2456,6 +2574,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       settingsUpdatedAt: data.settingsUpdatedAt.present
           ? data.settingsUpdatedAt.value
           : this.settingsUpdatedAt,
+      analysisConsentUid: data.analysisConsentUid.present
+          ? data.analysisConsentUid.value
+          : this.analysisConsentUid,
+      analysisCountDay: data.analysisCountDay.present
+          ? data.analysisCountDay.value
+          : this.analysisCountDay,
+      analysisCountToday: data.analysisCountToday.present
+          ? data.analysisCountToday.value
+          : this.analysisCountToday,
     );
   }
 
@@ -2477,7 +2604,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('trackingCategories: $trackingCategories, ')
           ..write('weightUnit: $weightUnit, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
-          ..write('settingsUpdatedAt: $settingsUpdatedAt')
+          ..write('settingsUpdatedAt: $settingsUpdatedAt, ')
+          ..write('analysisConsentUid: $analysisConsentUid, ')
+          ..write('analysisCountDay: $analysisCountDay, ')
+          ..write('analysisCountToday: $analysisCountToday')
           ..write(')'))
         .toString();
   }
@@ -2500,6 +2630,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     weightUnit,
     lastSyncedAt,
     settingsUpdatedAt,
+    analysisConsentUid,
+    analysisCountDay,
+    analysisCountToday,
   );
   @override
   bool operator ==(Object other) =>
@@ -2520,7 +2653,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.trackingCategories == this.trackingCategories &&
           other.weightUnit == this.weightUnit &&
           other.lastSyncedAt == this.lastSyncedAt &&
-          other.settingsUpdatedAt == this.settingsUpdatedAt);
+          other.settingsUpdatedAt == this.settingsUpdatedAt &&
+          other.analysisConsentUid == this.analysisConsentUid &&
+          other.analysisCountDay == this.analysisCountDay &&
+          other.analysisCountToday == this.analysisCountToday);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -2540,6 +2676,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<String?> weightUnit;
   final Value<DateTime?> lastSyncedAt;
   final Value<DateTime?> settingsUpdatedAt;
+  final Value<String?> analysisConsentUid;
+  final Value<String?> analysisCountDay;
+  final Value<int?> analysisCountToday;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.mode = const Value.absent(),
@@ -2557,6 +2696,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.weightUnit = const Value.absent(),
     this.lastSyncedAt = const Value.absent(),
     this.settingsUpdatedAt = const Value.absent(),
+    this.analysisConsentUid = const Value.absent(),
+    this.analysisCountDay = const Value.absent(),
+    this.analysisCountToday = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -2575,6 +2717,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.weightUnit = const Value.absent(),
     this.lastSyncedAt = const Value.absent(),
     this.settingsUpdatedAt = const Value.absent(),
+    this.analysisConsentUid = const Value.absent(),
+    this.analysisCountDay = const Value.absent(),
+    this.analysisCountToday = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -2593,6 +2738,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<String>? weightUnit,
     Expression<DateTime>? lastSyncedAt,
     Expression<DateTime>? settingsUpdatedAt,
+    Expression<String>? analysisConsentUid,
+    Expression<String>? analysisCountDay,
+    Expression<int>? analysisCountToday,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2615,6 +2763,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (weightUnit != null) 'weight_unit': weightUnit,
       if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
       if (settingsUpdatedAt != null) 'settings_updated_at': settingsUpdatedAt,
+      if (analysisConsentUid != null)
+        'analysis_consent_uid': analysisConsentUid,
+      if (analysisCountDay != null) 'analysis_count_day': analysisCountDay,
+      if (analysisCountToday != null)
+        'analysis_count_today': analysisCountToday,
     });
   }
 
@@ -2635,6 +2788,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<String?>? weightUnit,
     Value<DateTime?>? lastSyncedAt,
     Value<DateTime?>? settingsUpdatedAt,
+    Value<String?>? analysisConsentUid,
+    Value<String?>? analysisCountDay,
+    Value<int?>? analysisCountToday,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -2654,6 +2810,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       weightUnit: weightUnit ?? this.weightUnit,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
       settingsUpdatedAt: settingsUpdatedAt ?? this.settingsUpdatedAt,
+      analysisConsentUid: analysisConsentUid ?? this.analysisConsentUid,
+      analysisCountDay: analysisCountDay ?? this.analysisCountDay,
+      analysisCountToday: analysisCountToday ?? this.analysisCountToday,
     );
   }
 
@@ -2714,6 +2873,15 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (settingsUpdatedAt.present) {
       map['settings_updated_at'] = Variable<DateTime>(settingsUpdatedAt.value);
     }
+    if (analysisConsentUid.present) {
+      map['analysis_consent_uid'] = Variable<String>(analysisConsentUid.value);
+    }
+    if (analysisCountDay.present) {
+      map['analysis_count_day'] = Variable<String>(analysisCountDay.value);
+    }
+    if (analysisCountToday.present) {
+      map['analysis_count_today'] = Variable<int>(analysisCountToday.value);
+    }
     return map;
   }
 
@@ -2735,7 +2903,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('trackingCategories: $trackingCategories, ')
           ..write('weightUnit: $weightUnit, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
-          ..write('settingsUpdatedAt: $settingsUpdatedAt')
+          ..write('settingsUpdatedAt: $settingsUpdatedAt, ')
+          ..write('analysisConsentUid: $analysisConsentUid, ')
+          ..write('analysisCountDay: $analysisCountDay, ')
+          ..write('analysisCountToday: $analysisCountToday')
           ..write(')'))
         .toString();
   }
@@ -2992,6 +3163,805 @@ class SyncTombstonesCompanion extends UpdateCompanion<SyncTombstone> {
   }
 }
 
+class $MediaItemsTable extends MediaItems
+    with TableInfo<$MediaItemsTable, MediaItem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MediaItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _uidMeta = const VerificationMeta('uid');
+  @override
+  late final GeneratedColumn<String> uid = GeneratedColumn<String>(
+    'uid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _storagePathMeta = const VerificationMeta(
+    'storagePath',
+  );
+  @override
+  late final GeneratedColumn<String> storagePath = GeneratedColumn<String>(
+    'storage_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _thumbPathMeta = const VerificationMeta(
+    'thumbPath',
+  );
+  @override
+  late final GeneratedColumn<String> thumbPath = GeneratedColumn<String>(
+    'thumb_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bytesMeta = const VerificationMeta('bytes');
+  @override
+  late final GeneratedColumn<int> bytes = GeneratedColumn<int>(
+    'bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _widthMeta = const VerificationMeta('width');
+  @override
+  late final GeneratedColumn<int> width = GeneratedColumn<int>(
+    'width',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _heightMeta = const VerificationMeta('height');
+  @override
+  late final GeneratedColumn<int> height = GeneratedColumn<int>(
+    'height',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMsMeta = const VerificationMeta(
+    'durationMs',
+  );
+  @override
+  late final GeneratedColumn<int> durationMs = GeneratedColumn<int>(
+    'duration_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _captionMeta = const VerificationMeta(
+    'caption',
+  );
+  @override
+  late final GeneratedColumn<String> caption = GeneratedColumn<String>(
+    'caption',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _capturedAtMeta = const VerificationMeta(
+    'capturedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> capturedAt = GeneratedColumn<DateTime>(
+    'captured_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _thumbnailMeta = const VerificationMeta(
+    'thumbnail',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> thumbnail = GeneratedColumn<Uint8List>(
+    'thumbnail',
+    aliasedName,
+    true,
+    type: DriftSqlType.blob,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    uid,
+    kind,
+    storagePath,
+    thumbPath,
+    bytes,
+    width,
+    height,
+    durationMs,
+    caption,
+    capturedAt,
+    createdAt,
+    updatedAt,
+    thumbnail,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'media_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MediaItem> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('uid')) {
+      context.handle(
+        _uidMeta,
+        uid.isAcceptableOrUnknown(data['uid']!, _uidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uidMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('storage_path')) {
+      context.handle(
+        _storagePathMeta,
+        storagePath.isAcceptableOrUnknown(
+          data['storage_path']!,
+          _storagePathMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_storagePathMeta);
+    }
+    if (data.containsKey('thumb_path')) {
+      context.handle(
+        _thumbPathMeta,
+        thumbPath.isAcceptableOrUnknown(data['thumb_path']!, _thumbPathMeta),
+      );
+    }
+    if (data.containsKey('bytes')) {
+      context.handle(
+        _bytesMeta,
+        bytes.isAcceptableOrUnknown(data['bytes']!, _bytesMeta),
+      );
+    }
+    if (data.containsKey('width')) {
+      context.handle(
+        _widthMeta,
+        width.isAcceptableOrUnknown(data['width']!, _widthMeta),
+      );
+    }
+    if (data.containsKey('height')) {
+      context.handle(
+        _heightMeta,
+        height.isAcceptableOrUnknown(data['height']!, _heightMeta),
+      );
+    }
+    if (data.containsKey('duration_ms')) {
+      context.handle(
+        _durationMsMeta,
+        durationMs.isAcceptableOrUnknown(data['duration_ms']!, _durationMsMeta),
+      );
+    }
+    if (data.containsKey('caption')) {
+      context.handle(
+        _captionMeta,
+        caption.isAcceptableOrUnknown(data['caption']!, _captionMeta),
+      );
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+        _capturedAtMeta,
+        capturedAt.isAcceptableOrUnknown(data['captured_at']!, _capturedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('thumbnail')) {
+      context.handle(
+        _thumbnailMeta,
+        thumbnail.isAcceptableOrUnknown(data['thumbnail']!, _thumbnailMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MediaItem map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MediaItem(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      uid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uid'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      storagePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}storage_path'],
+      )!,
+      thumbPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}thumb_path'],
+      ),
+      bytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}bytes'],
+      )!,
+      width: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}width'],
+      ),
+      height: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}height'],
+      ),
+      durationMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_ms'],
+      ),
+      caption: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}caption'],
+      ),
+      capturedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}captured_at'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      thumbnail: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}thumbnail'],
+      ),
+    );
+  }
+
+  @override
+  $MediaItemsTable createAlias(String alias) {
+    return $MediaItemsTable(attachedDatabase, alias);
+  }
+}
+
+class MediaItem extends DataClass implements Insertable<MediaItem> {
+  final String id;
+  final String uid;
+  final String kind;
+  final String storagePath;
+  final String? thumbPath;
+  final int bytes;
+  final int? width;
+  final int? height;
+  final int? durationMs;
+  final String? caption;
+  final DateTime capturedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final Uint8List? thumbnail;
+  const MediaItem({
+    required this.id,
+    required this.uid,
+    required this.kind,
+    required this.storagePath,
+    this.thumbPath,
+    required this.bytes,
+    this.width,
+    this.height,
+    this.durationMs,
+    this.caption,
+    required this.capturedAt,
+    required this.createdAt,
+    required this.updatedAt,
+    this.thumbnail,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['uid'] = Variable<String>(uid);
+    map['kind'] = Variable<String>(kind);
+    map['storage_path'] = Variable<String>(storagePath);
+    if (!nullToAbsent || thumbPath != null) {
+      map['thumb_path'] = Variable<String>(thumbPath);
+    }
+    map['bytes'] = Variable<int>(bytes);
+    if (!nullToAbsent || width != null) {
+      map['width'] = Variable<int>(width);
+    }
+    if (!nullToAbsent || height != null) {
+      map['height'] = Variable<int>(height);
+    }
+    if (!nullToAbsent || durationMs != null) {
+      map['duration_ms'] = Variable<int>(durationMs);
+    }
+    if (!nullToAbsent || caption != null) {
+      map['caption'] = Variable<String>(caption);
+    }
+    map['captured_at'] = Variable<DateTime>(capturedAt);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || thumbnail != null) {
+      map['thumbnail'] = Variable<Uint8List>(thumbnail);
+    }
+    return map;
+  }
+
+  MediaItemsCompanion toCompanion(bool nullToAbsent) {
+    return MediaItemsCompanion(
+      id: Value(id),
+      uid: Value(uid),
+      kind: Value(kind),
+      storagePath: Value(storagePath),
+      thumbPath: thumbPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(thumbPath),
+      bytes: Value(bytes),
+      width: width == null && nullToAbsent
+          ? const Value.absent()
+          : Value(width),
+      height: height == null && nullToAbsent
+          ? const Value.absent()
+          : Value(height),
+      durationMs: durationMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMs),
+      caption: caption == null && nullToAbsent
+          ? const Value.absent()
+          : Value(caption),
+      capturedAt: Value(capturedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      thumbnail: thumbnail == null && nullToAbsent
+          ? const Value.absent()
+          : Value(thumbnail),
+    );
+  }
+
+  factory MediaItem.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MediaItem(
+      id: serializer.fromJson<String>(json['id']),
+      uid: serializer.fromJson<String>(json['uid']),
+      kind: serializer.fromJson<String>(json['kind']),
+      storagePath: serializer.fromJson<String>(json['storagePath']),
+      thumbPath: serializer.fromJson<String?>(json['thumbPath']),
+      bytes: serializer.fromJson<int>(json['bytes']),
+      width: serializer.fromJson<int?>(json['width']),
+      height: serializer.fromJson<int?>(json['height']),
+      durationMs: serializer.fromJson<int?>(json['durationMs']),
+      caption: serializer.fromJson<String?>(json['caption']),
+      capturedAt: serializer.fromJson<DateTime>(json['capturedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      thumbnail: serializer.fromJson<Uint8List?>(json['thumbnail']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'uid': serializer.toJson<String>(uid),
+      'kind': serializer.toJson<String>(kind),
+      'storagePath': serializer.toJson<String>(storagePath),
+      'thumbPath': serializer.toJson<String?>(thumbPath),
+      'bytes': serializer.toJson<int>(bytes),
+      'width': serializer.toJson<int?>(width),
+      'height': serializer.toJson<int?>(height),
+      'durationMs': serializer.toJson<int?>(durationMs),
+      'caption': serializer.toJson<String?>(caption),
+      'capturedAt': serializer.toJson<DateTime>(capturedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'thumbnail': serializer.toJson<Uint8List?>(thumbnail),
+    };
+  }
+
+  MediaItem copyWith({
+    String? id,
+    String? uid,
+    String? kind,
+    String? storagePath,
+    Value<String?> thumbPath = const Value.absent(),
+    int? bytes,
+    Value<int?> width = const Value.absent(),
+    Value<int?> height = const Value.absent(),
+    Value<int?> durationMs = const Value.absent(),
+    Value<String?> caption = const Value.absent(),
+    DateTime? capturedAt,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<Uint8List?> thumbnail = const Value.absent(),
+  }) => MediaItem(
+    id: id ?? this.id,
+    uid: uid ?? this.uid,
+    kind: kind ?? this.kind,
+    storagePath: storagePath ?? this.storagePath,
+    thumbPath: thumbPath.present ? thumbPath.value : this.thumbPath,
+    bytes: bytes ?? this.bytes,
+    width: width.present ? width.value : this.width,
+    height: height.present ? height.value : this.height,
+    durationMs: durationMs.present ? durationMs.value : this.durationMs,
+    caption: caption.present ? caption.value : this.caption,
+    capturedAt: capturedAt ?? this.capturedAt,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    thumbnail: thumbnail.present ? thumbnail.value : this.thumbnail,
+  );
+  MediaItem copyWithCompanion(MediaItemsCompanion data) {
+    return MediaItem(
+      id: data.id.present ? data.id.value : this.id,
+      uid: data.uid.present ? data.uid.value : this.uid,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      storagePath: data.storagePath.present
+          ? data.storagePath.value
+          : this.storagePath,
+      thumbPath: data.thumbPath.present ? data.thumbPath.value : this.thumbPath,
+      bytes: data.bytes.present ? data.bytes.value : this.bytes,
+      width: data.width.present ? data.width.value : this.width,
+      height: data.height.present ? data.height.value : this.height,
+      durationMs: data.durationMs.present
+          ? data.durationMs.value
+          : this.durationMs,
+      caption: data.caption.present ? data.caption.value : this.caption,
+      capturedAt: data.capturedAt.present
+          ? data.capturedAt.value
+          : this.capturedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      thumbnail: data.thumbnail.present ? data.thumbnail.value : this.thumbnail,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MediaItem(')
+          ..write('id: $id, ')
+          ..write('uid: $uid, ')
+          ..write('kind: $kind, ')
+          ..write('storagePath: $storagePath, ')
+          ..write('thumbPath: $thumbPath, ')
+          ..write('bytes: $bytes, ')
+          ..write('width: $width, ')
+          ..write('height: $height, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('caption: $caption, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('thumbnail: $thumbnail')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    uid,
+    kind,
+    storagePath,
+    thumbPath,
+    bytes,
+    width,
+    height,
+    durationMs,
+    caption,
+    capturedAt,
+    createdAt,
+    updatedAt,
+    $driftBlobEquality.hash(thumbnail),
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MediaItem &&
+          other.id == this.id &&
+          other.uid == this.uid &&
+          other.kind == this.kind &&
+          other.storagePath == this.storagePath &&
+          other.thumbPath == this.thumbPath &&
+          other.bytes == this.bytes &&
+          other.width == this.width &&
+          other.height == this.height &&
+          other.durationMs == this.durationMs &&
+          other.caption == this.caption &&
+          other.capturedAt == this.capturedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          $driftBlobEquality.equals(other.thumbnail, this.thumbnail));
+}
+
+class MediaItemsCompanion extends UpdateCompanion<MediaItem> {
+  final Value<String> id;
+  final Value<String> uid;
+  final Value<String> kind;
+  final Value<String> storagePath;
+  final Value<String?> thumbPath;
+  final Value<int> bytes;
+  final Value<int?> width;
+  final Value<int?> height;
+  final Value<int?> durationMs;
+  final Value<String?> caption;
+  final Value<DateTime> capturedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<Uint8List?> thumbnail;
+  final Value<int> rowid;
+  const MediaItemsCompanion({
+    this.id = const Value.absent(),
+    this.uid = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.storagePath = const Value.absent(),
+    this.thumbPath = const Value.absent(),
+    this.bytes = const Value.absent(),
+    this.width = const Value.absent(),
+    this.height = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.caption = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.thumbnail = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MediaItemsCompanion.insert({
+    required String id,
+    required String uid,
+    required String kind,
+    required String storagePath,
+    this.thumbPath = const Value.absent(),
+    this.bytes = const Value.absent(),
+    this.width = const Value.absent(),
+    this.height = const Value.absent(),
+    this.durationMs = const Value.absent(),
+    this.caption = const Value.absent(),
+    required DateTime capturedAt,
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.thumbnail = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       uid = Value(uid),
+       kind = Value(kind),
+       storagePath = Value(storagePath),
+       capturedAt = Value(capturedAt);
+  static Insertable<MediaItem> custom({
+    Expression<String>? id,
+    Expression<String>? uid,
+    Expression<String>? kind,
+    Expression<String>? storagePath,
+    Expression<String>? thumbPath,
+    Expression<int>? bytes,
+    Expression<int>? width,
+    Expression<int>? height,
+    Expression<int>? durationMs,
+    Expression<String>? caption,
+    Expression<DateTime>? capturedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<Uint8List>? thumbnail,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (uid != null) 'uid': uid,
+      if (kind != null) 'kind': kind,
+      if (storagePath != null) 'storage_path': storagePath,
+      if (thumbPath != null) 'thumb_path': thumbPath,
+      if (bytes != null) 'bytes': bytes,
+      if (width != null) 'width': width,
+      if (height != null) 'height': height,
+      if (durationMs != null) 'duration_ms': durationMs,
+      if (caption != null) 'caption': caption,
+      if (capturedAt != null) 'captured_at': capturedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (thumbnail != null) 'thumbnail': thumbnail,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MediaItemsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? uid,
+    Value<String>? kind,
+    Value<String>? storagePath,
+    Value<String?>? thumbPath,
+    Value<int>? bytes,
+    Value<int?>? width,
+    Value<int?>? height,
+    Value<int?>? durationMs,
+    Value<String?>? caption,
+    Value<DateTime>? capturedAt,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<Uint8List?>? thumbnail,
+    Value<int>? rowid,
+  }) {
+    return MediaItemsCompanion(
+      id: id ?? this.id,
+      uid: uid ?? this.uid,
+      kind: kind ?? this.kind,
+      storagePath: storagePath ?? this.storagePath,
+      thumbPath: thumbPath ?? this.thumbPath,
+      bytes: bytes ?? this.bytes,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      durationMs: durationMs ?? this.durationMs,
+      caption: caption ?? this.caption,
+      capturedAt: capturedAt ?? this.capturedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      thumbnail: thumbnail ?? this.thumbnail,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (uid.present) {
+      map['uid'] = Variable<String>(uid.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (storagePath.present) {
+      map['storage_path'] = Variable<String>(storagePath.value);
+    }
+    if (thumbPath.present) {
+      map['thumb_path'] = Variable<String>(thumbPath.value);
+    }
+    if (bytes.present) {
+      map['bytes'] = Variable<int>(bytes.value);
+    }
+    if (width.present) {
+      map['width'] = Variable<int>(width.value);
+    }
+    if (height.present) {
+      map['height'] = Variable<int>(height.value);
+    }
+    if (durationMs.present) {
+      map['duration_ms'] = Variable<int>(durationMs.value);
+    }
+    if (caption.present) {
+      map['caption'] = Variable<String>(caption.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<DateTime>(capturedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (thumbnail.present) {
+      map['thumbnail'] = Variable<Uint8List>(thumbnail.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MediaItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('uid: $uid, ')
+          ..write('kind: $kind, ')
+          ..write('storagePath: $storagePath, ')
+          ..write('thumbPath: $thumbPath, ')
+          ..write('bytes: $bytes, ')
+          ..write('width: $width, ')
+          ..write('height: $height, ')
+          ..write('durationMs: $durationMs, ')
+          ..write('caption: $caption, ')
+          ..write('capturedAt: $capturedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('thumbnail: $thumbnail, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3001,6 +3971,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $MedicationsTable medications = $MedicationsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $SyncTombstonesTable syncTombstones = $SyncTombstonesTable(this);
+  late final $MediaItemsTable mediaItems = $MediaItemsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3012,6 +3983,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     medications,
     appSettings,
     syncTombstones,
+    mediaItems,
   ];
 }
 
@@ -3953,6 +4925,9 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<String?> weightUnit,
       Value<DateTime?> lastSyncedAt,
       Value<DateTime?> settingsUpdatedAt,
+      Value<String?> analysisConsentUid,
+      Value<String?> analysisCountDay,
+      Value<int?> analysisCountToday,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -3972,6 +4947,9 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<String?> weightUnit,
       Value<DateTime?> lastSyncedAt,
       Value<DateTime?> settingsUpdatedAt,
+      Value<String?> analysisConsentUid,
+      Value<String?> analysisCountDay,
+      Value<int?> analysisCountToday,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -4061,6 +5039,21 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<DateTime> get settingsUpdatedAt => $composableBuilder(
     column: $table.settingsUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get analysisConsentUid => $composableBuilder(
+    column: $table.analysisConsentUid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get analysisCountDay => $composableBuilder(
+    column: $table.analysisCountDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get analysisCountToday => $composableBuilder(
+    column: $table.analysisCountToday,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4153,6 +5146,21 @@ class $$AppSettingsTableOrderingComposer
     column: $table.settingsUpdatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get analysisConsentUid => $composableBuilder(
+    column: $table.analysisConsentUid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get analysisCountDay => $composableBuilder(
+    column: $table.analysisCountDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get analysisCountToday => $composableBuilder(
+    column: $table.analysisCountToday,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -4233,6 +5241,21 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.settingsUpdatedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get analysisConsentUid => $composableBuilder(
+    column: $table.analysisConsentUid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get analysisCountDay => $composableBuilder(
+    column: $table.analysisCountDay,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get analysisCountToday => $composableBuilder(
+    column: $table.analysisCountToday,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -4282,6 +5305,9 @@ class $$AppSettingsTableTableManager
                 Value<String?> weightUnit = const Value.absent(),
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
                 Value<DateTime?> settingsUpdatedAt = const Value.absent(),
+                Value<String?> analysisConsentUid = const Value.absent(),
+                Value<String?> analysisCountDay = const Value.absent(),
+                Value<int?> analysisCountToday = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 mode: mode,
@@ -4299,6 +5325,9 @@ class $$AppSettingsTableTableManager
                 weightUnit: weightUnit,
                 lastSyncedAt: lastSyncedAt,
                 settingsUpdatedAt: settingsUpdatedAt,
+                analysisConsentUid: analysisConsentUid,
+                analysisCountDay: analysisCountDay,
+                analysisCountToday: analysisCountToday,
               ),
           createCompanionCallback:
               ({
@@ -4318,6 +5347,9 @@ class $$AppSettingsTableTableManager
                 Value<String?> weightUnit = const Value.absent(),
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
                 Value<DateTime?> settingsUpdatedAt = const Value.absent(),
+                Value<String?> analysisConsentUid = const Value.absent(),
+                Value<String?> analysisCountDay = const Value.absent(),
+                Value<int?> analysisCountToday = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 mode: mode,
@@ -4335,6 +5367,9 @@ class $$AppSettingsTableTableManager
                 weightUnit: weightUnit,
                 lastSyncedAt: lastSyncedAt,
                 settingsUpdatedAt: settingsUpdatedAt,
+                analysisConsentUid: analysisConsentUid,
+                analysisCountDay: analysisCountDay,
+                analysisCountToday: analysisCountToday,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -4519,6 +5554,380 @@ typedef $$SyncTombstonesTableProcessedTableManager =
       SyncTombstone,
       PrefetchHooks Function()
     >;
+typedef $$MediaItemsTableCreateCompanionBuilder =
+    MediaItemsCompanion Function({
+      required String id,
+      required String uid,
+      required String kind,
+      required String storagePath,
+      Value<String?> thumbPath,
+      Value<int> bytes,
+      Value<int?> width,
+      Value<int?> height,
+      Value<int?> durationMs,
+      Value<String?> caption,
+      required DateTime capturedAt,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<Uint8List?> thumbnail,
+      Value<int> rowid,
+    });
+typedef $$MediaItemsTableUpdateCompanionBuilder =
+    MediaItemsCompanion Function({
+      Value<String> id,
+      Value<String> uid,
+      Value<String> kind,
+      Value<String> storagePath,
+      Value<String?> thumbPath,
+      Value<int> bytes,
+      Value<int?> width,
+      Value<int?> height,
+      Value<int?> durationMs,
+      Value<String?> caption,
+      Value<DateTime> capturedAt,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<Uint8List?> thumbnail,
+      Value<int> rowid,
+    });
+
+class $$MediaItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $MediaItemsTable> {
+  $$MediaItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uid => $composableBuilder(
+    column: $table.uid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get storagePath => $composableBuilder(
+    column: $table.storagePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get thumbPath => $composableBuilder(
+    column: $table.thumbPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get width => $composableBuilder(
+    column: $table.width,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get height => $composableBuilder(
+    column: $table.height,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get caption => $composableBuilder(
+    column: $table.caption,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get thumbnail => $composableBuilder(
+    column: $table.thumbnail,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MediaItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MediaItemsTable> {
+  $$MediaItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uid => $composableBuilder(
+    column: $table.uid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get storagePath => $composableBuilder(
+    column: $table.storagePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get thumbPath => $composableBuilder(
+    column: $table.thumbPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get width => $composableBuilder(
+    column: $table.width,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get height => $composableBuilder(
+    column: $table.height,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get caption => $composableBuilder(
+    column: $table.caption,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get thumbnail => $composableBuilder(
+    column: $table.thumbnail,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MediaItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MediaItemsTable> {
+  $$MediaItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get uid =>
+      $composableBuilder(column: $table.uid, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get storagePath => $composableBuilder(
+    column: $table.storagePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get thumbPath =>
+      $composableBuilder(column: $table.thumbPath, builder: (column) => column);
+
+  GeneratedColumn<int> get bytes =>
+      $composableBuilder(column: $table.bytes, builder: (column) => column);
+
+  GeneratedColumn<int> get width =>
+      $composableBuilder(column: $table.width, builder: (column) => column);
+
+  GeneratedColumn<int> get height =>
+      $composableBuilder(column: $table.height, builder: (column) => column);
+
+  GeneratedColumn<int> get durationMs => $composableBuilder(
+    column: $table.durationMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get caption =>
+      $composableBuilder(column: $table.caption, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<Uint8List> get thumbnail =>
+      $composableBuilder(column: $table.thumbnail, builder: (column) => column);
+}
+
+class $$MediaItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MediaItemsTable,
+          MediaItem,
+          $$MediaItemsTableFilterComposer,
+          $$MediaItemsTableOrderingComposer,
+          $$MediaItemsTableAnnotationComposer,
+          $$MediaItemsTableCreateCompanionBuilder,
+          $$MediaItemsTableUpdateCompanionBuilder,
+          (
+            MediaItem,
+            BaseReferences<_$AppDatabase, $MediaItemsTable, MediaItem>,
+          ),
+          MediaItem,
+          PrefetchHooks Function()
+        > {
+  $$MediaItemsTableTableManager(_$AppDatabase db, $MediaItemsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MediaItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MediaItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MediaItemsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> uid = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> storagePath = const Value.absent(),
+                Value<String?> thumbPath = const Value.absent(),
+                Value<int> bytes = const Value.absent(),
+                Value<int?> width = const Value.absent(),
+                Value<int?> height = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<String?> caption = const Value.absent(),
+                Value<DateTime> capturedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<Uint8List?> thumbnail = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MediaItemsCompanion(
+                id: id,
+                uid: uid,
+                kind: kind,
+                storagePath: storagePath,
+                thumbPath: thumbPath,
+                bytes: bytes,
+                width: width,
+                height: height,
+                durationMs: durationMs,
+                caption: caption,
+                capturedAt: capturedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                thumbnail: thumbnail,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String uid,
+                required String kind,
+                required String storagePath,
+                Value<String?> thumbPath = const Value.absent(),
+                Value<int> bytes = const Value.absent(),
+                Value<int?> width = const Value.absent(),
+                Value<int?> height = const Value.absent(),
+                Value<int?> durationMs = const Value.absent(),
+                Value<String?> caption = const Value.absent(),
+                required DateTime capturedAt,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<Uint8List?> thumbnail = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MediaItemsCompanion.insert(
+                id: id,
+                uid: uid,
+                kind: kind,
+                storagePath: storagePath,
+                thumbPath: thumbPath,
+                bytes: bytes,
+                width: width,
+                height: height,
+                durationMs: durationMs,
+                caption: caption,
+                capturedAt: capturedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                thumbnail: thumbnail,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MediaItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MediaItemsTable,
+      MediaItem,
+      $$MediaItemsTableFilterComposer,
+      $$MediaItemsTableOrderingComposer,
+      $$MediaItemsTableAnnotationComposer,
+      $$MediaItemsTableCreateCompanionBuilder,
+      $$MediaItemsTableUpdateCompanionBuilder,
+      (MediaItem, BaseReferences<_$AppDatabase, $MediaItemsTable, MediaItem>),
+      MediaItem,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4535,4 +5944,6 @@ class $AppDatabaseManager {
       $$AppSettingsTableTableManager(_db, _db.appSettings);
   $$SyncTombstonesTableTableManager get syncTombstones =>
       $$SyncTombstonesTableTableManager(_db, _db.syncTombstones);
+  $$MediaItemsTableTableManager get mediaItems =>
+      $$MediaItemsTableTableManager(_db, _db.mediaItems);
 }

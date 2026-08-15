@@ -88,7 +88,25 @@ const REQUESTS_COLLECTION = 'deletionRequests';
  * DART list before sweeping, so a subcollection added there and forgotten here
  * fails the suite instead of surviving an erasure request.
  */
-const SUBCOLLECTIONS = ['dailyLogs', 'settings', 'deletions', 'devices'];
+const SUBCOLLECTIONS = ['dailyLogs', 'settings', 'deletions', 'devices', 'media'];
+
+/**
+ * The Cloud Storage prefix holding one account's uploaded photos and videos.
+ *
+ * Mirrors `AccountDeletionService.storagePrefix`.
+ *
+ * Storage is a SECOND service, so `deleteFirestoreData` cannot reach it and the
+ * `media` entry above only removes the index. The bytes are unencrypted, and an
+ * object left behind after an erasure request is unreferenced, unreachable
+ * through any UI, and belongs to somebody who explicitly asked for it to be
+ * gone — strictly worse than leaving the metadata, because nothing remains to
+ * find it by.
+ *
+ * Prefix-based, deliberately not driven off the metadata documents: an object
+ * whose document was already deleted (by the user, or by a partial earlier run)
+ * must still be swept, and the uid alone reconstructs where to look.
+ */
+const storagePrefix = (uid) => `users/${uid}/media/`;
 
 /**
  * Documents deleted per batch inside one subcollection. Matches the page size
@@ -173,6 +191,27 @@ async function deleteFirestoreData(firestore, uid) {
 }
 
 /**
+ * Deletes every uploaded object belonging to `uid`.
+ *
+ * Injected like everything else here, so this file still has no dependencies
+ * and the fault-injection tests can make the bucket fail on demand.
+ *
+ * A missing deleter is treated as a HARD ERROR rather than a skip. The
+ * temptation is to make it optional so the job keeps working if Storage is not
+ * configured — but the failure that produces is silent retention of intimate
+ * media past an erasure request, which is precisely the outcome this whole
+ * subsystem exists to prevent. Failing loudly leaves the marker in place and
+ * the account in the queue.
+ */
+async function deleteStorageData(deleteStoragePrefix, uid) {
+  if (typeof deleteStoragePrefix !== 'function') {
+    throw new Error('purge: no storage deleter supplied; refusing to report an '
+      + 'account as purged while its media may remain');
+  }
+  await deleteStoragePrefix(storagePrefix(uid));
+}
+
+/**
  * Deletes the Firebase Auth account, tolerating one that is already gone.
  *
  * "Already gone" is the expected state on any re-run after a crash between the
@@ -194,6 +233,9 @@ async function deleteAuthAccount(deleteAuthUser, uid) {
  * @param {object} options
  * @param {object} options.firestore      Admin Firestore for the NAMED database.
  * @param {(uid: string) => Promise<void>} options.deleteAuthUser
+ * @param {(prefix: string) => Promise<void>} options.deleteStoragePrefix
+ *        Deletes every object under a prefix. Required — see
+ *        [deleteStorageData] for why a missing one is an error, not a skip.
  * @param {Date}   [options.now]          Injectable clock, for tests.
  * @param {number} [options.limit]        Markers per invocation.
  * @param {object} [options.logger]       `{info, warn, error}`.
@@ -204,6 +246,7 @@ async function deleteAuthAccount(deleteAuthUser, uid) {
 async function purgeExpiredRequests({
   firestore,
   deleteAuthUser,
+  deleteStoragePrefix,
   now,
   limit = DEFAULT_LIMIT,
   logger = console,
@@ -245,6 +288,14 @@ async function purgeExpiredRequests({
       }
 
       // --- the irreversible part, in the one order that is resumable -------
+      //
+      // Storage FIRST, and that ordering is deliberate. Its input is the
+      // prefix, derived from the uid alone, so it survives any partial prior
+      // run — unlike the metadata, which a half-finished sweep may already have
+      // removed. Running it after Firestore would mean a crash in between
+      // leaves bytes with nothing pointing at them and no cheap way to find
+      // them again. Marker still last, so any crash re-queues the account.
+      await deleteStorageData(deleteStoragePrefix, uid);
       await deleteFirestoreData(firestore, uid);
       await deleteAuthAccount(deleteAuthUser, uid);
       await marker.ref.delete();
@@ -293,5 +344,7 @@ module.exports = {
   DEFAULT_LIMIT,
   accountLabel,
   deleteFirestoreData,
+  deleteStorageData,
+  storagePrefix,
   purgeExpiredRequests,
 };

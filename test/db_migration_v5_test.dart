@@ -19,7 +19,8 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('v4 -> v5 adds sync bookkeeping and preserves existing data', () async {
+  test('v4 -> current adds sync bookkeeping and preserves existing data',
+      () async {
     final schema = await verifier.schemaAt(4);
 
     final oldDb = DatabaseAtV4(schema.newConnection());
@@ -36,7 +37,7 @@ void main() {
     await oldDb.close();
 
     final db = AppDatabase.forTesting(schema.newConnection());
-    await verifier.migrateAndValidate(db, 5);
+    await verifier.migrateAndValidate(db, 7);
 
     final settings = await db.getSettings();
     expect(settings.defaultCycleLength, 30);

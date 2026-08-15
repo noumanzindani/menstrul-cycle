@@ -109,10 +109,37 @@ const MUTANTS = [
     ],
   },
 
+  // --- uploaded media (a SECOND service) -----------------------------------
+  {
+    name: 'the bucket sweep dropped entirely',
+    from: '      await deleteStorageData(deleteStoragePrefix, uid);\n',
+    to: '',
+    expect: [
+      'a marker past its deadline erases the whole account',
+      'the bucket prefix is swept BEFORE the metadata that indexes it',
+    ],
+  },
+  {
+    name: 'the bucket swept AFTER the metadata that indexes it',
+    from:
+      '      await deleteStorageData(deleteStoragePrefix, uid);\n' +
+      '      await deleteFirestoreData(firestore, uid);',
+    to:
+      '      await deleteFirestoreData(firestore, uid);\n' +
+      '      await deleteStorageData(deleteStoragePrefix, uid);',
+    expect: ['the bucket prefix is swept BEFORE the metadata that indexes it'],
+  },
+  {
+    name: 'a missing bucket deleter downgraded to a silent skip',
+    from: "    throw new Error('purge: no storage deleter supplied; refusing to report an '\n      + 'account as purged while its media may remain');",
+    to: '    return;',
+    expect: ['a MISSING bucket deleter is an error, never a silent skip'],
+  },
+
   // --- the subtree sweep ---------------------------------------------------
   {
     name: 'the subcollection list truncated to dailyLogs',
-    from: "const SUBCOLLECTIONS = ['dailyLogs', 'settings', 'deletions', 'devices'];",
+    from: "const SUBCOLLECTIONS = ['dailyLogs', 'settings', 'deletions', 'devices', 'media'];",
     to: "const SUBCOLLECTIONS = ['dailyLogs'];",
     expect: [
       'the subcollection list matches AccountDeletionService.subcollections',
@@ -289,7 +316,7 @@ const WIRING_MUTANTS = [
   },
   {
     name: 'the named database id changed out from under the app',
-    from: "const LUNA_DATABASE_ID = 'lunatrack';",
+    from: "const LUNA_DATABASE_ID = 'lunatrack-db';",
     to: "const LUNA_DATABASE_ID = 'default';",
     expect: ['the deployable wiring targets the NAMED lunatrack database'],
   },

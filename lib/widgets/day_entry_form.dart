@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../common/catalog.dart';
+import '../common/option_art.dart';
 import '../common/tracking_categories.dart';
 import '../models/enums.dart';
 import '../providers/log_provider.dart';
 import '../providers/medication_provider.dart';
 import '../providers/settings_provider.dart';
+import '../theme/app_theme.dart';
+import 'track_art.dart';
 
 /// The set of selectors for one day. Extracted so it can be hosted both by the
 /// full-screen [DayLogScreen] and inline on the calendar. Call
@@ -224,6 +227,14 @@ class DayEntryFormState extends State<DayEntryForm> {
 
   @override
   Widget build(BuildContext context) {
+    // NULLABLE, and never `!`. Hosts that pump this form with a bare
+    // `MaterialApp` (most of its own test suite) carry no `PhaseColors`, and a
+    // null check here took the WHOLE form down — not just the flow tint — so
+    // every test asserting on weight, medications or OPK failed on a decorative
+    // code path. Same reasoning as [DayEntryForm.categories] being nullable:
+    // this form stays buildable without its ambient dependencies. Null means
+    // the drop simply inherits the chip's label colour.
+    final phases = Theme.of(context).extension<PhaseColors>();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       shrinkWrap: widget.shrinkWrap,
@@ -237,7 +248,22 @@ class DayEntryFormState extends State<DayEntryForm> {
             for (final f in FlowIntensity.values)
               if (f != FlowIntensity.none)
                 ChoiceChip(
-                  label: Text(f.label),
+                  // The one place the art departs from the label colour.
+                  //
+                  // A CONSTANT red, deliberately not the graduated
+                  // `FlowIntensityUi.color` ramp: the drop already encodes
+                  // intensity in how much of it is filled, so fading the colour
+                  // as well encodes the same thing twice — and on device that
+                  // double-fade made Spotting and Light nearly invisible in
+                  // dark mode, because the ramp reaches its lighter steps with
+                  // alpha and low-alpha rose over a dark surface is barely
+                  // there. Fill fraction carries the ordinal; the colour just
+                  // says "this is flow".
+                  label: chipLabel(
+                    f.label,
+                    kFlowArt[f],
+                    artColor: phases?.menstrual,
+                  ),
                   selected: _flow == f,
                   onSelected: (sel) => setState(() => _flow = sel ? f : null),
                 ),
@@ -461,7 +487,7 @@ class _FilterChips extends StatelessWidget {
       children: [
         for (final o in options)
           FilterChip(
-            label: Text(o.label),
+            label: chipLabel(o.label, artFor(o.key)),
             selected: isSelected(o.key),
             onSelected: (sel) => onToggle(o.key, sel),
           ),
@@ -490,7 +516,7 @@ class _SingleChips extends StatelessWidget {
       children: [
         for (final o in options)
           ChoiceChip(
-            label: Text(o.label),
+            label: chipLabel(o.label, artFor(o.key)),
             selected: selected == o.key,
             onSelected: (sel) => onSelect(sel ? o.key : null),
           ),

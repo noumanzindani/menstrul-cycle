@@ -34,6 +34,7 @@ rules_version = '2';
 //   users/{uid}/settings/current       SyncService._remoteSettings  (get/set)
 //   users/{uid}/deletions/{date}       SyncService._remoteDeletions (get/list/set/delete)
 //   users/{uid}/devices/{deviceId}     SyncService._deviceDoc       (get/set-merge)
+//   users/{uid}/media/{mediaId}        MediaSyncService             (get/list/set/delete)
 //   deletionRequests/{uid}             AccountDeletionService       (get/create/delete)
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -53,8 +54,72 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if isOwner(userId);
 
-      match /{document=**} {
+      // ENUMERATED, not `match /{document=**}`.
+      //
+      // The recursive wildcard was correct while every subcollection held the
+      // same kind of data under the same rule. It stopped being correct when
+      // media landed, for two reasons:
+      //
+      // 1. A wildcard match UNIONS with a specific one, so any validation
+      //    written for `media` below would be dead — a write denied there is
+      //    still allowed by the wildcard. Field validation on media is not
+      //    decoration: it is what stops a download URL being stored.
+      // 2. The wildcard also permits writing to a subcollection that does not
+      //    exist in the code — and the purge sweeps a fixed list, so anything
+      //    parked outside it survives "delete my account" forever.
+      //
+      // Adding a subcollection now means adding it here, to
+      // `AccountDeletionService.subcollections`, and to `functions/purge.js`.
+      // That is three places on purpose: each one is a promise about the data.
+      match /dailyLogs/{date} {
         allow read, write: if isOwner(userId);
+      }
+      match /settings/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /deletions/{date} {
+        allow read, write: if isOwner(userId);
+      }
+      match /devices/{deviceId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Metadata for uploaded photos and videos. The BYTES live in Cloud
+      // Storage under `storage.rules`; this is the index.
+      match /media/{mediaId} {
+
+        // A live item, or a tombstone. Both shapes are enumerated so nothing
+        // else can be smuggled into a document the owner controls.
+        function validMedia() {
+          return request.resource.data.keys().hasOnly([
+                   'id', 'kind', 'storagePath', 'thumbPath', 'bytes',
+                   'width', 'height', 'durationMs', 'caption',
+                   'capturedAt', 'createdAt', 'updatedAt', 'deviceId',
+                   'syncedAt', 'deletedAt'
+                 ])
+              && request.resource.data.id == mediaId
+              // The single most important clause in this block. A Firebase
+              // download URL carries a token that security rules never
+              // evaluate, does not expire, and works for anyone holding the
+              // string — so one stored URL replicated into the (unencrypted)
+              // Firestore SDK cache is a permanent public link to an intimate
+              // photograph. The client is built never to call
+              // `getDownloadURL()`; this is the half an attacker cannot skip.
+              // Covered by `hasOnly` above, and stated separately because it is
+              // a rule about MEANING, not shape — do not "simplify" it away.
+              && !request.resource.data.keys().hasAny(['downloadUrl', 'downloadURL', 'url', 'token'])
+              // Objects can only ever be claimed inside the writer's own
+              // Storage prefix, so a document cannot point at another
+              // account's bytes.
+              && (!('storagePath' in request.resource.data)
+                  || request.resource.data.storagePath is string
+                     && request.resource.data.storagePath.matches('^users/' + userId + '/media/.*'))
+              && (!('kind' in request.resource.data)
+                  || request.resource.data.kind in ['image', 'video']);
+        }
+
+        allow get, list, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validMedia();
       }
     }
 

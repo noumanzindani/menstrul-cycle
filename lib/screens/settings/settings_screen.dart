@@ -15,6 +15,8 @@ import '../../services/backup_service.dart';
 import '../../services/firestore_ref.dart';
 import '../../services/health_import_service.dart';
 import '../../services/lock_service.dart';
+import '../../services/media_analyzer.dart' show analysisAvailable;
+import '../../services/media_cache.dart';
 import '../../services/notification_service.dart';
 import '../../services/sync_trigger.dart';
 import '../../widgets/ad_banner.dart';
@@ -34,7 +36,22 @@ class SettingsScreen extends StatelessWidget {
     this.clearFirestoreCache = clearLunaFirestoreCache,
     this.clearPin = LockService.clearPin,
     this.cancelNotifications = NotificationService.cancelAll,
+    this.clearMediaCache = _clearMediaCache,
   });
+
+  /// Deletes downloaded photos and videos from the on-disk cache.
+  ///
+  /// Not part of `AppDatabase.deleteAllData()` on purpose: that is a pure drift
+  /// transaction, run against in-memory databases in tests where
+  /// `path_provider` has no platform-channel handler. Injectable for the same
+  /// reason [clearPin] is.
+  ///
+  /// Without this, "delete all my data" wipes the media ROWS and leaves the
+  /// full-size files sitting in the cache directory — the most visible possible
+  /// way for that promise to be false.
+  final Future<void> Function() clearMediaCache;
+
+  static Future<void> _clearMediaCache() => MediaCache().clear();
 
   /// Wipes Firestore's unencrypted on-device cache as part of "delete all my
   /// data" — see [clearLunaFirestoreCache].
@@ -109,6 +126,14 @@ class SettingsScreen extends StatelessWidget {
     if (uid != null) await trigger.resolveClaim(upload: false);
 
     await db.deleteAllData();
+    // Before the Firestore cache clear below, which must stay the LAST
+    // Firestore call in this flow. This one is plain file I/O with no ordering
+    // constraint of its own, so it goes here where it cannot be skipped by an
+    // early return further down. Swallowed for the same reason: a cache that
+    // cannot be read is a cache with nothing to lose.
+    try {
+      await clearMediaCache();
+    } catch (_) {}
     await clearPin();
     // Cancel every scheduled notification — cycle reminders AND the dynamic
     // per-medication ones (whose ids we no longer know after the wipe).
@@ -307,6 +332,9 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
     final premium = context.watch<PremiumProvider>();
+    // Nullable read: `AuthProvider` is absent from several settings test
+    // harnesses, and its absence means the same thing a signed-out user does.
+    final uid = context.watch<AuthProvider?>()?.user?.uid;
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.settingsTitle)),
@@ -515,6 +543,31 @@ class SettingsScreen extends StatelessWidget {
               }
             },
           ),
+          // Photo descriptions. Off unless the CURRENT account turned it on —
+          // `analysisConsentUid` holds a uid, not a bool, so another account's
+          // consent on this device reads as off here and cannot be withdrawn
+          // from the wrong account either.
+          //
+          // Rendered only when a key was compiled in: with no backend the
+          // switch would toggle a preference that does nothing, which is worse
+          // than its absence.
+          if (analysisAvailable)
+            SwitchListTile(
+              key: const Key('settings.imageAnalysis'),
+              secondary: const Icon(Icons.auto_awesome_outlined),
+              title: Text(context.l10n.settingsPhotoDescriptionsTitle),
+              subtitle: Text(context.l10n.settingsPhotoDescriptionsSubtitle),
+              value: uid != null && settings.analysisConsentUid == uid,
+              onChanged: uid == null
+                  ? null
+                  : (v) async {
+                      if (v) {
+                        await settings.setAnalysisConsent(uid);
+                      } else {
+                        await settings.clearAnalysisConsent();
+                      }
+                    },
+            ),
           ListTile(
             leading: Icon(Icons.delete_forever_outlined,
                 color: Theme.of(context).colorScheme.error),

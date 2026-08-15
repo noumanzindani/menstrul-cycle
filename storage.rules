@@ -1,0 +1,172 @@
+rules_version = '2';
+
+// LunaTrack — ruleset for the DEDICATED media bucket.
+//
+// ## Why this file exists separately from firestore.rules
+//
+// Cloud Storage has its own rules service and its own default. A Firebase
+// project's default bucket ships with a console template that is commonly
+// `allow read, write: if request.auth != null` — and this project is shared
+// with unrelated apps (see `lib/services/firestore_ref.dart`), so every one of
+// THEIR users holds a valid token. Under that default, any of them could read
+// every LunaTrack user's photographs. This file is the only thing between those
+// two facts.
+//
+// ## Bucket, not database
+//
+// `firestore.rules` gets its isolation from a NAMED DATABASE
+// (`kLunaDatabaseId`). Storage has no equivalent: rulesets are per-BUCKET. This
+// ruleset MUST be bound to a bucket only LunaTrack writes to, declared in
+// firebase.json alongside `kLunaStorageBucket` in `lib/services/storage_ref.dart`.
+// Deploying it over the project's DEFAULT bucket would both break the other
+// apps and leave LunaTrack's media governed by their rules too.
+//
+// ## What this file CANNOT do — say it out loud
+//
+//  - It cannot enforce a per-account quota. Rules see one request; they cannot
+//    count objects or sum bytes. The per-object ceiling below, times an
+//    unbounded object count, is unbounded. That is a product decision (no quota
+//    in v1), and App Check plus a billing budget alert are the compensating
+//    controls, not this file.
+//  - It cannot verify that bytes match the declared contentType. `contentType`
+//    is a client-supplied header. The allowlist constrains what this bucket
+//    will SERVE a file back as, which is what stops it hosting an HTML phishing
+//    page on the operator's own domain — it is not a sniffer.
+//  - It does not apply to the Admin SDK, the Firebase console, `gsutil`, or any
+//    IAM principal with object access on the project. Rules are a CLIENT
+//    boundary only. The purge job (`functions/purge.js`) runs as admin and is
+//    deliberately outside everything here.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // The one identity check — the exact shape of `firestore.rules`' isOwner,
+    // for the exact same reason. Both halves matter: `request.auth != null`
+    // alone is no boundary in a shared project, and the uid comparison alone
+    // throws on an unauthenticated request.
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Anchored (^...$) so a contentType like "text/html;image/jpeg" or
+    // "image/jpeg.evil" cannot slip a partial match. These two lists are the
+    // same ones `kAllowedImageTypes` / `kAllowedVideoTypes` carry in
+    // `lib/services/media_limits.dart`; change one, change the other.
+    //
+    // heic/heif are included because they are the iPhone camera default — an
+    // allowlist without them rejects most real uploads from iOS.
+    function isImage() {
+      return request.resource.contentType.matches('^image/(jpeg|png|webp|heic|heif)$');
+    }
+    function isVideo() {
+      return request.resource.contentType.matches('^video/(mp4|quicktime)$');
+    }
+
+    // Split by kind because one number cannot serve both: a ceiling generous
+    // enough for a capped video would let an image slot hold 150 MB, and one
+    // tight enough for a photo rejects every video the app accepts. These
+    // mirror kMaxImageBytes / kMaxVideoBytes, and THIS is the enforcing copy —
+    // the client's caps are a UX refusal, and the API key ships in the APK.
+    function underSizeCap() {
+      return isImage()
+          ? request.resource.size <= 12 * 1024 * 1024
+          : request.resource.size <= 150 * 1024 * 1024;
+    }
+
+    // Custom object metadata is refused outright.
+    //
+    // WHAT THIS DOES: blocks arbitrary client-written fields on the object.
+    // The real metadata belongs in Firestore under a validated shape, and two
+    // places to put a filename is one too many.
+    //
+    // WHAT IT DOES **NOT** DO — verified, not assumed. This clause was written
+    // to stop a client minting `firebaseStorageDownloadTokens` at upload time,
+    // which would create a permanent, rules-bypassing bearer URL for the
+    // object. It does not: the service lifts that key OUT of the metadata map
+    // before rules are evaluated, so `request.resource.metadata` is already
+    // empty by the time this function sees it and the upload is allowed.
+    // `firebase_test/storage.test.mjs` pins that behaviour rather than the
+    // guarantee, so nobody re-derives the wrong conclusion from this file.
+    //
+    // The actual defence against download-URL leakage therefore lives in three
+    // other places, none of which are optional:
+    //   1. the app never calls `getDownloadURL()` (structural test over lib/),
+    //   2. `firestore.rules` refuses to store a URL field on a media document,
+    //   3. reads go through the authenticated SDK, which mints no token.
+    // `request.resource.metadata == null` rather than
+    // `!('metadata' in request.resource)`: the `in` operator against the
+    // resource object is not reliable here and an evaluation error is a DENY,
+    // which showed up as the owner being unable to upload at all.
+    function noClientMetadata() {
+      return request.resource.metadata == null
+          || request.resource.metadata.keys().size() == 0;
+    }
+
+    // Only the two names the uploader writes. Blocks an arbitrary filename —
+    // which would otherwise appear in access logs, audit logs and billing
+    // exports, where "IMG_ultrasound_12wk.heic" is health data.
+    function isKnownName(fileName) {
+      return fileName.matches('^(original|thumb)\\.[a-z0-9]+$');
+    }
+
+    // READS, including listings.
+    //
+    // Separate from the write rule below because a LIST is evaluated against
+    // the PREFIX being listed, not against a full object path — so a rule that
+    // only matches `.../{mediaId}/{fileName}` never matches
+    // `users/{uid}/media/`, and the owner's own sweep is denied. (Found exactly
+    // that way: every deny test passed while every owner test failed.)
+    //
+    // Granting only `get` and `list` here is what keeps it safe. Rules UNION,
+    // so a recursive match that also granted writes would make every validation
+    // below dead code — the same trap that the recursive wildcard in
+    // `firestore.rules` turned out to be.
+    match /users/{userId}/media/{allPaths=**} {
+      allow get, list: if isOwner(userId);
+    }
+
+    match /users/{userId}/media/{mediaId}/{fileName} {
+
+      // NOTE — this deliberately differs from the first draft of this ruleset,
+      // which denied `list` outright to prevent enumeration.
+      //
+      // The owner MUST be able to list their own prefix: it is what
+      // `MediaSyncService.sweepOrphans` diffs against Firestore to find objects
+      // whose metadata write never landed. Without it, a crash between "bytes
+      // uploaded" and "document written" leaves unencrypted media in the bucket
+      // that nothing can ever find or delete — including the account purge.
+      //
+      // The enumeration threat the draft was aimed at is a listing at `users/`
+      // or `users/{uid}/media`, which would reveal WHICH accounts hold media
+      // and how much. Neither path matches any rule in this file, so both are
+      // denied by default deny. `list` is scoped to one owner's own items and
+      // is granted by the read-only match above.
+      allow create: if isOwner(userId)
+                    && (isImage() || isVideo())
+                    && underSizeCap()
+                    && noClientMetadata()
+                    && isKnownName(fileName);
+
+      // Intent: objects are immutable, so a validated JPEG cannot later be
+      // swapped for other bytes behind a path something already points at.
+      //
+      // CAVEAT, verified against the emulator: this does not actually prevent
+      // an overwrite. A re-upload to an existing path is evaluated as a CREATE
+      // (a new object generation), not an update, so it goes through the
+      // `create` rule above and succeeds. `update` appears to govern metadata
+      // changes rather than content replacement.
+      //
+      // Left in place because it is correct for what it does govern and costs
+      // nothing — but do NOT read it as an immutability guarantee. What makes
+      // overwrites a non-issue in practice is that `newMediaId()` is random per
+      // upload, so the app never reuses a path; and a client that overwrites
+      // its own object harms only itself, since every path is uid-scoped.
+      allow update: if false;
+
+      allow delete: if isOwner(userId);
+    }
+
+    // No catch-all, mirroring `firestore.rules`. Anything not matched above is
+    // denied — including any listing at a level that would reveal which
+    // accounts have uploaded media at all.
+  }
+}

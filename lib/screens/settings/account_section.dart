@@ -13,6 +13,7 @@ import '../../services/claim_preference.dart';
 import '../../services/firebase_availability.dart';
 import '../../services/firestore_ref.dart';
 import '../../services/lock_service.dart';
+import '../../services/media_cache.dart';
 import '../../services/notification_service.dart';
 import '../../services/sync_trigger.dart';
 import '../auth/auth_error_text.dart';
@@ -42,8 +43,10 @@ class AccountSection extends StatefulWidget {
     Future<void> Function()? clearPin,
     Future<void> Function()? cancelNotifications,
     Future<void> Function()? clearFirestoreCache,
+    Future<void> Function()? clearMediaCache,
     this.requestTimeout = const Duration(seconds: 20),
   })  : deletionService = deletionService ?? _liveDeletionService,
+        clearMediaCache = clearMediaCache ?? _clearMediaCache,
         clearDeclinedPreference =
             clearDeclinedPreference ?? ClaimPreference.clear,
         clearPin = clearPin ?? LockService.clearPin,
@@ -53,6 +56,15 @@ class AccountSection extends StatefulWidget {
 
   static AccountDeletionService _liveDeletionService(String uid) =>
       AccountDeletionService(firestore: lunaFirestore(), uid: uid);
+
+  static Future<void> _clearMediaCache() => MediaCache().clear();
+
+  /// Deletes downloaded photos and videos from the on-disk cache.
+  ///
+  /// Injectable for the same reason [clearPin] is — `path_provider` has no
+  /// platform-channel handler under `flutter_tester`. Cannot live inside
+  /// `AppDatabase.deleteAllData()`, which is a pure drift transaction.
+  final Future<void> Function() clearMediaCache;
 
   /// Overridable so tests can inject a fake instead of touching the real
   /// `Firebase.app()` singleton — mirrors `SyncTrigger`'s identical seam (see
@@ -319,6 +331,14 @@ class _AccountSectionState extends State<AccountSection> {
       // schedule can therefore resurrect health data days after the user
       // erased everything.
       await widget.clearPin();
+      // Full-size media downloaded for viewing lives in the cache directory,
+      // outside both the drift database and Firestore's SDK store — so neither
+      // `deleteAllData` above nor `clearFirestoreCache` below touches it.
+      // Swallowed: an unreadable cache is a cache with nothing to lose, and
+      // this must not be what stops a deletion request from completing.
+      try {
+        await widget.clearMediaCache();
+      } catch (_) {}
       await widget.cancelNotifications();
       // The providers cache what they last loaded and are not refreshed by a
       // direct database write, so without this the just-erased data would

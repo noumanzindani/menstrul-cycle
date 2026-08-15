@@ -218,6 +218,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAppLockSubtitle => 'Require a PIN or biometrics to open';
 
   @override
+  String get settingsPhotoDescriptionsTitle => 'Describe photos';
+
+  @override
+  String get settingsPhotoDescriptionsSubtitle =>
+      'Sends a photo to Google when you tap Describe';
+
+  @override
   String get settingsDeleteTitle => 'Delete all my data';
 
   @override

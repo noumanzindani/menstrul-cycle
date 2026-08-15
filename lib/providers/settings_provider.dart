@@ -36,6 +36,17 @@ class SettingsProvider extends ChangeNotifier {
   /// Display unit for weight. Stored values are always canonical kg; null in the
   /// column means "never chosen" and reads as kg.
   String get weightUnit => _settings?.weightUnit ?? kWeightUnitKg;
+
+  /// The account that opted in to photo descriptions on THIS device, if any.
+  ///
+  /// Compared against the current uid by the caller rather than reduced to a
+  /// bool here: "someone consented" and "this account consented" are different
+  /// questions, and only the second one may open the feature.
+  String? get analysisConsentUid => _settings?.analysisConsentUid;
+
+  /// Daily-cap bookkeeping for photo descriptions. See `media_analysis.dart`.
+  String? get analysisCountDay => _settings?.analysisCountDay;
+  int? get analysisCountToday => _settings?.analysisCountToday;
   DateTime? get pregnancyStartDate => _settings?.pregnancyStartDate;
   bool get isPregnant =>
       mode == TrackingMode.pregnancy && pregnancyStartDate != null;
@@ -87,6 +98,37 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> update(AppSettingsCompanion changes) async {
     await _repo.update(changes);
+    _settings = await _repo.get();
+    notifyListeners();
+  }
+
+  /// Records that [uid] opted in to sending photos out for description.
+  ///
+  /// A real user edit, so it goes through [update] and stamps
+  /// `settingsUpdatedAt` like any other preference. The column itself is not
+  /// pushed (see `SyncService._pushSettings`) — the stamp is about local
+  /// ordering, not about shipping the consent to another device.
+  Future<void> setAnalysisConsent(String uid) =>
+      update(AppSettingsCompanion(analysisConsentUid: Value(uid)));
+
+  /// Withdraws the opt-in. Absence of a uid is the off state.
+  Future<void> clearAnalysisConsent() =>
+      update(const AppSettingsCompanion(analysisConsentUid: Value(null)));
+
+  /// Advances the daily-cap counter.
+  ///
+  /// Deliberately `updateSyncState`, NOT [update]. This fires on every analysis
+  /// — up to [kMaxAnalysesPerDay] times a day — and stamping `settingsUpdatedAt`
+  /// each time would make every subsequent sync believe the user had edited
+  /// their settings and push them again, forever. That is the exact failure the
+  /// two-write-path split in `SettingsRepository` exists to prevent.
+  Future<void> recordAnalysisUsage(String day, int count) async {
+    await _repo.updateSyncState(
+      AppSettingsCompanion(
+        analysisCountDay: Value(day),
+        analysisCountToday: Value(count),
+      ),
+    );
     _settings = await _repo.get();
     notifyListeners();
   }

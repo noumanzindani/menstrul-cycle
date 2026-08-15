@@ -144,10 +144,43 @@ class AccountDeletionService {
   ///   ever signed into the account; nothing else prunes it, so it belongs to
   ///   the erasure sweep.
   ///
+  /// - `media` — metadata for every photo and video the user uploaded. The
+  ///   documents themselves are paths, sizes and capture dates, but they are an
+  ///   index of the most sensitive content in the account, and deleting them is
+  ///   only HALF the job. See [storagePrefix].
+  ///
   /// Public (not `_`-prefixed) so tests can enumerate this list directly
   /// rather than hand-duplicating it — a duplicated literal in a test is
   /// exactly the kind of copy that silently drifts out of sync with this one.
-  static const subcollections = ['dailyLogs', 'settings', 'deletions', 'devices'];
+  static const subcollections = [
+    'dailyLogs',
+    'settings',
+    'deletions',
+    'devices',
+    'media',
+  ];
+
+  /// The Cloud Storage prefix holding this account's uploaded media bytes.
+  ///
+  /// **This class cannot delete it, and that weakens what it claims to be.**
+  /// [deleteFirestoreData] is the executable specification of the purge, and
+  /// until media landed that specification was complete: every subcollection in
+  /// [subcollections], root document last. Storage is a different service with
+  /// its own lifecycle and its own client, so the full contract now lives in
+  /// exactly one place — `functions/purge.js` — and this constant is the part
+  /// of it that is expressible here.
+  ///
+  /// Deleting the `media` subcollection WITHOUT sweeping this prefix leaves the
+  /// bytes behind: unreferenced, unreachable through any UI, unencrypted, and
+  /// belonging to somebody who explicitly asked for them to be gone. That is a
+  /// worse outcome than not deleting the metadata at all, because nothing is
+  /// left pointing at them to find them by.
+  ///
+  /// Prefix-based, never driven off the metadata documents: an object whose
+  /// document was already deleted (by the user, or by a partial earlier run)
+  /// must still be swept, and the uid alone is enough to reconstruct where to
+  /// look.
+  static String storagePrefix(String uid) => 'users/$uid/media/';
 
   /// The irreversible sweep. **No client path calls this any more** — the app
   /// only ever requests deletion (see [requestDeletion]). It is kept, tested

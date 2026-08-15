@@ -35,6 +35,7 @@
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
+const { getStorage } = require('firebase-admin/storage');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const logger = require('firebase-functions/logger');
 
@@ -50,7 +51,23 @@ const { purgeExpiredRequests } = require('./purge');
  * would silently target `(default)` and this job would then sweep an empty
  * database and report success while every user's data survived.
  */
-const LUNA_DATABASE_ID = 'lunatrack';
+const LUNA_DATABASE_ID = 'lunatrack-db';
+
+/**
+ * The DEDICATED Cloud Storage bucket holding uploaded media —
+ * `kLunaStorageBucket` in `lib/services/storage_ref.dart`.
+ *
+ * Read from the environment, not hardcoded, because a bucket name embeds the
+ * project id and no project id may appear in this directory while the owning
+ * project is unsettled (see the banner at the top of this file).
+ *
+ * Deliberately NOT defaulted to the project's default bucket. A default would
+ * make a misconfigured deploy sweep the wrong bucket and report success while
+ * every user's photographs survived — the same failure `LUNA_DATABASE_ID` above
+ * exists to prevent, with a worse payload. Absent, the purge fails loudly and
+ * the markers are retained for the next run.
+ */
+const LUNA_STORAGE_BUCKET = process.env.LUNA_STORAGE_BUCKET;
 
 const app = initializeApp();
 
@@ -88,6 +105,16 @@ exports.purgeDeletedAccounts = onSchedule(
     const summary = await purgeExpiredRequests({
       firestore: getFirestore(app, LUNA_DATABASE_ID),
       deleteAuthUser: (uid) => getAuth(app).deleteUser(uid),
+      // The DEDICATED media bucket, never the project default — the same
+      // argument as LUNA_DATABASE_ID one line up. Storage rulesets are
+      // per-bucket, and this project's default bucket is shared with unrelated
+      // apps, so LunaTrack's media lives in a bucket it alone governs.
+      // `LUNA_STORAGE_BUCKET` is read from the environment for the same reason
+      // no project id is hardcoded anywhere in this directory.
+      deleteStoragePrefix: (prefix) =>
+        getStorage(app)
+          .bucket(LUNA_STORAGE_BUCKET)
+          .deleteFiles({ prefix, force: true }),
       logger,
     });
 

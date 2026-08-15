@@ -21,7 +21,7 @@ export const PROJECT_ID = 'demo-lunatrack';
  * `lib/services/firestore_ref.dart`. Tests run against the same database id the
  * app uses, so a rule scoped to the wrong database would show up here.
  */
-export const DATABASE_ID = 'lunatrack';
+export const DATABASE_ID = 'lunatrack-db';
 
 /**
  * `firebase emulators:exec` exports `FIRESTORE_EMULATOR_HOST` for its child

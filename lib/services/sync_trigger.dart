@@ -195,6 +195,53 @@ class SyncTrigger extends ChangeNotifier {
     return (await SettingsRepository(_db).get()).settingsUpdatedAt != null;
   }
 
+  /// The signed-in account, or null.
+  ///
+  /// Exposed for `MediaUploadService`, which writes to Firestore and Cloud
+  /// Storage OUTSIDE `SyncService` (see its own doc for why media must not ride
+  /// `syncNow`'s ordering) and therefore has to derive its uid from the same
+  /// place, at the same moment, as everything else here.
+  String? get currentUid => _uid;
+
+  /// The generation counter guarding account changes. See [_epoch].
+  ///
+  /// A media upload spans several `await`s — a thumbnail encode, two uploads, a
+  /// document write — and the account can change under any of them. Capturing
+  /// this at entry and re-checking it before each write gives that path the
+  /// same protection [setUser] has, instead of leaving it to rediscover the
+  /// bug.
+  int get epoch => _epoch;
+
+  /// True while this device must not write to Firestore at all: an account
+  /// deletion is in progress ([suspend]), or the claim question is outstanding
+  /// or was answered "keep on this device only".
+  ///
+  /// The claim half is not incidental to media. A user who chose to keep their
+  /// data on this device has made a consent decision, and uploading their
+  /// photographs to the cloud regardless would be a straightforward violation
+  /// of it — a worse one than the logs that decision was about.
+  bool get writesBlocked => _suspended || _pendingClaim;
+
+  /// Registers a Firestore/Storage write happening outside [SyncService] so
+  /// [suspend] waits for it.
+  ///
+  /// [suspend]'s contract is "when this returns, the device is provably not
+  /// writing to Firestore any more", and both account-deletion flows depend on
+  /// it. A media upload is such a write, so without this it could land during
+  /// or after the deletion sweep and survive it.
+  ///
+  /// The tracked future is error-swallowed on purpose. [suspend] does
+  /// `Future.wait(_outstanding)` and its comment notes that `_syncNow` cannot
+  /// throw — a media upload very much can (offline, denied, cancelled), and an
+  /// unhandled rejection here would make `suspend()` itself throw and abort an
+  /// account deletion partway. The caller still sees the real error from the
+  /// future it passed in; only this bookkeeping copy is neutered.
+  void registerOutstanding(Future<void> run) {
+    final tracked = run.then<void>((_) {}, onError: (_) {});
+    _outstanding.add(tracked);
+    tracked.whenComplete(() => _outstanding.remove(tracked));
+  }
+
   /// Called when the signed-in user changes. A null uid tears sync down without
   /// touching local data — signing out must never wipe the device.
   Future<void> setUser(String? uid) async {

@@ -82,6 +82,8 @@
   "settingsSectionPrivacy": "Privacy",
   "settingsAppLockTitle": "App lock",
   "settingsAppLockSubtitle": "Require a PIN or biometrics to open",
+  "settingsPhotoDescriptionsTitle": "Describe photos",
+  "settingsPhotoDescriptionsSubtitle": "Sends a photo to Google when you tap Describe",
   "settingsDeleteTitle": "Delete all my data",
   "settingsDeleteSubtitle": "Erase this device and turn cloud sync off here",
 

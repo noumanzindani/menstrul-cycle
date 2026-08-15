@@ -66,6 +66,22 @@ const SETTINGS = 'users/alice/settings/current';
 const DELETION_MARKER = 'users/alice/deletions/2026-08-04';
 const DEVICE = 'users/alice/devices/device-1';
 const REQUEST = 'deletionRequests/alice';
+const MEDIA_ID = '0123456789abcdef0123456789abcdef';
+const MEDIA = `users/alice/media/${MEDIA_ID}`;
+
+/** A live media document, exactly as `MediaUploadService` writes it. */
+const mediaDoc = (overrides = {}) => ({
+  id: MEDIA_ID,
+  kind: 'image',
+  storagePath: `users/alice/media/${MEDIA_ID}/original.jpg`,
+  thumbPath: `users/alice/media/${MEDIA_ID}/thumb.jpg`,
+  bytes: 20481,
+  capturedAt: 1780000000000,
+  createdAt: 1780000000000,
+  updatedAt: 1780000000000,
+  deviceId: 'device-1',
+  ...overrides,
+});
 
 // `AccountDeletionService.requestDeletion`'s payload: three fields, `purgeAfter`
 // exactly `graceWindow` (30 days) out, `requestedAt` server-stamped.
@@ -417,6 +433,106 @@ describe('everything else', () => {
     await assertDenied(
       listDocs(alice, 'scratch'),
       'alice listing outside the modelled paths',
+    );
+  });
+});
+
+
+describe('users/{uid}/media — uploaded photos and videos', () => {
+  test('the owner can write, read, list and delete their own media', async () => {
+    await assertAllowed(setDoc(alice, MEDIA, mediaDoc()), 'alice writing media');
+    await assertAllowed(getDoc(alice, MEDIA), 'alice reading her media');
+    await assertAllowed(
+      listDocs(alice, 'users/alice/media'),
+      'alice listing her own media',
+    );
+    await assertAllowed(deleteDoc(alice, MEDIA), 'alice deleting her media');
+  });
+
+  test('the owner can write a deletion tombstone', async () => {
+    await assertAllowed(
+      setDoc(alice, MEDIA, { id: MEDIA_ID, deletedAt: 1780000009000 }),
+      'alice tombstoning her own media',
+    );
+  });
+
+  test('another signed-in user CANNOT read, list, write or delete it', async () => {
+    await seed(MEDIA, mediaDoc());
+    await assertDenied(getDoc(mallory, MEDIA), "mallory reading alice's media");
+    await assertDenied(
+      listDocs(mallory, 'users/alice/media'),
+      "mallory listing alice's media",
+    );
+    await assertDenied(
+      setDoc(mallory, MEDIA, mediaDoc()),
+      "mallory writing into alice's media",
+    );
+    await assertDenied(
+      deleteDoc(mallory, MEDIA),
+      "mallory deleting alice's media",
+    );
+  });
+
+  test('an unauthenticated caller CANNOT read it', async () => {
+    await seed(MEDIA, mediaDoc());
+    await assertDenied(getDoc(nobody, MEDIA), 'anonymous reading media');
+  });
+
+  test('a stored download URL is REFUSED', async () => {
+    // A Firebase download token is a bearer credential no rule evaluates and
+    // that never expires. The client is built never to mint one; this is the
+    // half a compromised or modified client cannot skip.
+    for (const field of ['downloadUrl', 'downloadURL', 'url', 'token']) {
+      await assertDenied(
+        setDoc(alice, MEDIA, mediaDoc({ [field]: 'https://example.test/x' })),
+        `alice storing a ${field}`,
+      );
+    }
+  });
+
+  test('a storagePath pointing at ANOTHER account is refused', async () => {
+    await assertDenied(
+      setDoc(
+        alice,
+        MEDIA,
+        mediaDoc({ storagePath: `users/mallory/media/${MEDIA_ID}/original.jpg` }),
+      ),
+      "alice claiming an object under mallory's prefix",
+    );
+  });
+
+  test('an unknown kind is refused', async () => {
+    await assertDenied(
+      setDoc(alice, MEDIA, mediaDoc({ kind: 'document' })),
+      'alice writing an unrecognised media kind',
+    );
+  });
+
+  test('a document id that disagrees with the id field is refused', async () => {
+    await assertDenied(
+      setDoc(alice, MEDIA, mediaDoc({ id: 'something-else' })),
+      'alice writing a mismatched id',
+    );
+  });
+
+  test('a smuggled extra field is refused', async () => {
+    // `users/{uid}/media` is a collection the owner fully controls, so without
+    // hasOnly it is a place to park arbitrary data that the purge — which
+    // sweeps a fixed field-agnostic list — would delete, but which nothing
+    // validates in the meantime.
+    await assertDenied(
+      setDoc(alice, MEDIA, mediaDoc({ note: 'x'.repeat(64) })),
+      'alice smuggling an extra field',
+    );
+  });
+
+  test('a subcollection outside the enumerated set is refused entirely', async () => {
+    // The regression guard on removing `match /{document=**}`. Anything not
+    // named in the ruleset is denied, so nothing can be written into a path the
+    // purge does not sweep.
+    await assertDenied(
+      setDoc(alice, 'users/alice/scratch/anything', { a: 1 }),
+      'alice writing to an unmodelled subcollection',
     );
   });
 });

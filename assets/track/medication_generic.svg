@@ -1,0 +1,10 @@
+<!-- The ONE icon shared by every user-created medication row. Medications are an
+     unbounded, user-defined set (day_entry_form.dart builds a TrackOption from a
+     DB row), so there can never be per-item art; artFor() maps the whole
+     kMedicationKeyPrefix namespace here. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <g fill="none" stroke="#000" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6.9 6.9a4.1 4.1 0 0 1 5.8 0l4.4 4.4a4.1 4.1 0 0 1-5.8 5.8l-4.4-4.4a4.1 4.1 0 0 1 0-5.8z"/>
+    <path d="M9.8 9.8l4.4 4.4"/>
+  </g>
+</svg>

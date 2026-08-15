@@ -94,10 +94,31 @@ void main() {
       }
     });
 
-    test('no schema migration was introduced', () {
-      // The entire ephemeral design exists so this stays at 5. A bump here
-      // means the session grew a table, and every ruling above needs revisiting.
-      expect(_read('lib/db/database.dart'), contains('schemaVersion => 5'));
+    test('the timer still owns no table of its own', () {
+      // This test used to pin `schemaVersion => 5` outright, because the whole
+      // ephemeral design exists to avoid a migration. The literal went stale at
+      // v6, which the MEDIA TIMELINE introduced (`MediaItems`) — a table with no
+      // relationship to the timer.
+      //
+      // Pinning the version number was always a proxy for the real ruling:
+      // *the product-change session must not grow a table*. Any future feature
+      // bumping the schema would trip it and teach the next reader that the
+      // timer had changed when it had not. So assert the ruling directly, and
+      // note that `productChanges` is also checked above, where the reason it
+      // matters (the free sync exclusion) is written down.
+      final src = _read('lib/db/database.dart');
+      for (final forbidden in [
+        'productChanges',
+        'productSessions',
+        'ProductChanges',
+        'ProductSessions',
+      ]) {
+        expect(src.contains(forbidden), isFalse,
+            reason: 'the timer grew a table: $forbidden');
+      }
+      // The session still rides a Reminders row, so the table it needs is one
+      // that already existed.
+      expect(src, contains('Reminders'));
     });
   });
 
