@@ -6,7 +6,8 @@ LunaTrack ("the app", "we") is a menstrual and cycle tracking app. This policy
 explains what data the app handles and how. **Short version: LunaTrack uses an
 account, and the health data you log is uploaded to our cloud database so it can
 sync between your devices. It is stored in a readable form and is not sold or
-shared with advertisers.**
+shared with advertisers. If you turn on photo descriptions, a photo you tap
+Describe on is sent to Google; that is off unless you turn it on.**
 
 > ⚠️ Before publishing, all of the following must be true:
 >
@@ -61,6 +62,11 @@ account id}`):
 - **Preference settings** — tracking mode, your default cycle and period
   lengths, theme, language, gender-neutral-language choice, **pregnancy start
   date**, which tracking categories you enabled, and your weight unit.
+- **Photos and videos you add** — the media timeline is a cloud feature. There
+  is no on-device-only option for it: a photo or video exists in LunaTrack only
+  once it has been uploaded to your account, which is what lets it appear on
+  your other devices. Alongside the file itself we store when it was taken, how
+  large it is, its dimensions or length, and a small thumbnail.
 - **Bookkeeping** — a random per-installation device identifier stamped on each
   synced entry, a small per-device record of how far that device has synced, and
   markers recording the dates of days you deleted so the deletion reaches your
@@ -73,6 +79,63 @@ with advertisers.**
 Some of what you can log — sexual activity, pregnancy state and health symptoms
 — is especially sensitive. It is uploaded on the same terms as everything else
 above, and it is still excluded by default from the doctor-summary PDF.
+
+### Photos and videos, specifically
+
+This deserves its own paragraph, because it is the part people most often assume
+works differently than it does.
+
+- Your photos and videos are stored **unencrypted**. They are protected by your
+  account and by access rules, not by encryption. **The operator of the service
+  can view them.** Do not upload anything you would not be willing to have seen.
+- They are **not** included in the doctor-summary PDF, **not** shown on the
+  home-screen widget, and **not** included in the encrypted backup file you can
+  export — a backup restored into a different account could not read them.
+- Full-size media you have viewed is kept in a temporary cache on your device so
+  it does not have to be downloaded twice. That cache is inside the app's
+  private storage and is erased by "Delete all my data", by requesting account
+  deletion, and by signing out. Thumbnails are held inside the encrypted
+  database.
+- Photos are stripped of location data by the Android photo picker before
+  LunaTrack ever receives them; the app never asks for the permission that would
+  reveal it.
+- **They are covered by the same gap as everything else in the cloud**: see
+  "Deleting your account" below. Until the purge job is deployed, requesting
+  deletion does not automatically erase your uploaded media from the server.
+
+### Describing a photo (off unless you turn it on)
+
+LunaTrack can describe what is in one of your photos. This feature is **off by
+default**, and turning it on is a separate choice from cloud sync.
+
+- It is **off until you turn it on**, per account, on each device. You are asked
+  once, the first time you tap **Describe** on a photo, and you can turn it off
+  again at any time in Settings → Describe photos.
+- When you tap **Describe**, that one photo is **sent to Google**, an automatic
+  image-recognition service that is not part of LunaTrack and not part of your
+  account. It happens only for the photo you tapped, only when you tap, and
+  never on its own or in the background.
+- You can then **ask follow-up questions** about that photo. Each question you
+  send **sends the photo again**, along with the questions and answers so far,
+  because the service keeps nothing between messages. Nothing is sent while you
+  are typing — only when you send a message.
+- **Google is a separate company with its own terms and its own handling of what
+  it receives.** LunaTrack cannot speak for what happens to a photo after it is
+  sent, and does not claim to.
+- LunaTrack **does not store the description or the conversation**. Both are
+  shown to you and discarded when you close the photo — closing it and opening
+  it again starts over, with nothing carried across. Nothing derived from your
+  photo is written to the database, to the cloud, to the doctor PDF, or to the
+  backup file.
+- A description is **not a medical opinion**. The feature describes what is
+  visible in a picture. It cannot tell you what something is, how serious it is,
+  or what to do about it, and it is instructed to refuse if asked.
+- **Once a photo has been sent, it has left LunaTrack.** Turning the feature off,
+  deleting the photo, or deleting your LunaTrack account does not reach a copy
+  held by Google.
+- The number of **messages** is limited per day, and the number of questions
+  about any one photo is limited too. These are cost limits, not privacy
+  controls.
 
 ### What is never uploaded
 

@@ -40,6 +40,11 @@ flutter test                # run all tests
 flutter test test/foo_test.dart
 flutter build apk --debug   # or: --release
 flutter build appbundle --release
+
+# Photo descriptions need a Gemini key at BUILD time. Without it the feature is
+# hidden entirely (kGeminiApiKey defaults to ''), which is why the whole test
+# suite and CI run without one.
+flutter run --dart-define=LUNA_GEMINI_KEY=…
 ```
 
 No `build_runner` is needed for day-to-day work unless the **drift** schema changes
@@ -71,6 +76,20 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
 
 ### Key design decisions (non-obvious)
 
+- **Never put a bare `FilledButton` inside a `Row`.** `app_theme.dart` sets
+  `filledButtonTheme … minimumSize: Size.fromHeight(52)`, and `Size.fromHeight` is
+  `Size(double.infinity, 52)` — every FilledButton demands INFINITE width. In a `Column`
+  that is the app's full-width CTA convention and is correct. In a `Row` it overflows the
+  line, `MainAxisAlignment` silently stops applying, children lay out from the left and
+  the trailing one is clipped off-screen. Wrap each in `Expanded` (what
+  `home_screen.dart` and `product_timer_card.dart` already do). Device-found 2026-08-13:
+  the photo-descriptions consent sheet shipped with **Allow rendered off-screen**, so
+  consent could not be granted at all. Two things hid it: release builds do not log
+  `RenderFlex overflowed` (it is assert-only, debug-only), and widget tests default to an
+  800×600 surface with plain `ThemeData` — neither the real phone width nor the real
+  theme. `test/analysis_consent_sheet_test.dart` now pumps `AppTheme.light()` at 360×800
+  and asserts the button's rect falls inside the viewport; copy that pattern for any
+  button row.
 - **Cycles are derived, not stored.** The user logs daily flow; `CycleCalculator` groups
   consecutive bleeding days (1-day gap tolerance) into cycles. A `PeriodEntries` table
   exists but is intentionally **unused** — activating it would create a second source of
@@ -91,19 +110,22 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   Numeric metrics (`pain`, `water`, `sleep`, `energy`, `stress`, `sleep_quality`, `weight`)
   ride the same blob as real JSON numbers, so they never satisfy the `== true` symptom check
   and need no key prefix. **`0` means "unset" for every numeric metric**, weight included.
-- **Schema & migrations.** `schemaVersion` is **5**. `onUpgrade` uses independent additive
+- **Schema & migrations.** `schemaVersion` is **7**. `onUpgrade` uses independent additive
   `if (from < n)` branches (not else-if), one nullable column each, so a user on any old
   version runs every intervening branch and existing rows need no backfill: v1→v2 added
   `AppSettings.pregnancyStartDate`; v2→v3 added `AppSettings.trackingCategories`; v3→v4
   added `AppSettings.weightUnit`; **v4→v5 added the `SyncTombstones` table plus
-  `AppSettings.lastSyncedAt` and `AppSettings.settingsUpdatedAt`** (the only branch that
-  creates a table rather than adding a column). Note the two `SettingsRepository` entry
+  `AppSettings.lastSyncedAt` and `AppSettings.settingsUpdatedAt`**; **v5→v6 added the
+  `MediaItems` table** (the media timeline); **v6→v7 added
+  `AppSettings.analysisConsentUid` plus `analysisCountDay` / `analysisCountToday`**
+  (photo descriptions and their daily cap). v4→v5 and v5→v6 are the only branches that
+  create a table rather than adding a column; both are still purely additive. Note the two `SettingsRepository` entry
   points that write those columns: **`update()` stamps `settingsUpdatedAt`** (a user
   edit, so it pushes on the next sync), **`updateSyncState()` deliberately does not** —
   it is sync bookkeeping, and stamping it would make every sync look like a settings
   change and push forever. A committed JSON snapshot per version lives in
-  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v5.json` /
-  `schema_v5.dart`); `test/db_migration_v5_test.dart` uses drift's `SchemaVerifier` to run
+  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v7.json` /
+  `schema_v7.dart`); `test/db_migration_v7_test.dart` uses drift's `SchemaVerifier` to run
   the REAL `onUpgrade` against a v4 DB seeded with non-default rows.
   In-memory `AppDatabase.forTesting` runs `onCreate` at the current schema and NEVER
   exercises `onUpgrade`, so every new migration needs a snapshot dumped BEFORE the version
@@ -201,11 +223,18 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   the user can cancel from `AccountSection` or from `DeletionPendingScreen` (which
   `AppGate` shows AHEAD of onboarding, because `deleteAllData()` resets
   `onboardingComplete`). Nothing calls `User.delete()` — it needs a recent sign-in and
-  failed AFTER the local wipe. **No Cloud Function has been written; there is no
-  `functions/` directory,** so nothing is ever actually erased from the server today.
+  failed AFTER the local wipe. **The purge job now EXISTS (`functions/purge.js` +
+  `functions/index.js`, covered by `firebase_test/purge.test.mjs` and a mutation check)
+  but is NOT DEPLOYED,** so nothing is actually erased from the server today. This
+  paragraph previously said no `functions/` directory existed; that stopped being true
+  and the correction matters, because "written but undeployed" and "not written" are
+  different blockers.
   `AccountDeletionService.deleteFirestoreData` is kept, tested and public as the
-  executable spec for that job. Do not write copy anywhere claiming cloud data IS deleted
-  until it ships — see the blockers in `README.md`.
+  executable spec for the Firestore half. It is no longer the WHOLE spec: uploaded media
+  lives in Cloud Storage, a second service the client cannot sweep, so the complete
+  contract is `functions/purge.js` — subcollections (including `media`) plus the
+  `users/{uid}/media/` bucket prefix, swept FIRST. Do not write copy anywhere claiming
+  cloud data IS deleted until it ships — see the blockers in `README.md`.
 - **Settings → "Delete all my data" is device-only.** It erases the device AND records a
   uid-scoped decline (`resolveClaim(upload: false)`) so the next sync does not pull the
   cloud copy straight back down — but the account keeps its data. Deleting the server copy
@@ -228,6 +257,13 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
 - **Ads never co-render with logging or insights.** `test/ad_placement_test.dart` guards
   this structurally. The interstitial only fires on switching into Home. (Banners live on
   Home, Calendar, Forecast and Settings.)
+- **A photo description is never an interpretation.** The model may describe what is
+  visible; it may never name a condition, estimate severity or advise treatment. That is
+  enforced by `kAnalysisSystemInstruction` (asserted clause-by-clause in
+  `media_analysis_test.dart`), and LunaTrack itself never synthesizes a reading from the
+  answer. Same ground that vetoed LH-strip auto-interpretation and a BMI label. The
+  caveat line under every description is fixed and unconditional — one shown only
+  sometimes teaches the user that its absence means the answer is reliable.
 - **User-facing copy must describe what the code does today, not what is planned.** The
   purge job and the rules deployment are both outstanding; any wording that implies cloud
   data is already being erased, or already protected server-side, is false. See
@@ -417,6 +453,109 @@ question about whether the ruling changed — not about how to make the test pas
   rule about all of it is in "Key design decisions" above. **Two things are written but
   not live: `firestore.rules` is undeployed, and the deletion purge job does not exist.**
 
+- **Media timeline (photos & videos, v6)** — a STANDALONE timeline, reached from a
+  Calendar app-bar action beside the Diary (the bottom nav is at Material's five
+  destinations). Not attached to a day: media has its own `MediaItems` table, its own
+  Firestore subcollection `users/{uid}/media`, and its own Cloud Storage prefix.
+  **The bytes are UNENCRYPTED in Cloud Storage** — an explicit owner decision, taken
+  against the alternative of encrypted-on-device files. Say so wherever it is disclosed;
+  the app's "encrypted at rest" claim covers the drift database, never this.
+  **Cloud-required**: an item exists only once its upload has succeeded. No upload queue,
+  no pending/failed row, no offline capture. Two consequences worth knowing before
+  changing anything here:
+  (a) `FirebaseMediaBlobStore` sets `setMaxUploadRetryTime(20s)` — the SDK default is
+  **10 minutes**, which silently IS the queue this design rejected;
+  (b) a crash between "bytes uploaded" and "document written" leaves an orphan, so
+  `MediaSyncService.sweepOrphans` diffs the bucket prefix against **Firestore** (never
+  the local table — a device that has not pulled holds no rows, and sweeping against
+  that deletes the user's library).
+  **Never `getDownloadURL()`**: the token is a bearer credential no rule evaluates and
+  that never expires. Reads go through the authenticated SDK; a structural test greps
+  `lib/` for it, and `firestore.rules` refuses to store a URL field. The emulator suite
+  proves `storage.rules` CANNOT stop a client minting a token itself
+  (`firebase_test/storage.test.mjs` records that as a characterisation, not a
+  guarantee) — which is why the grep is the primary defence, not a backstop.
+  Rows are **uid-scoped and erased on account change**: signing out never wipes the
+  device, so without both guards account A's cached thumbnails would render inside
+  account B's timeline. Thumbnails live in a `BlobColumn` INSIDE the encrypted database;
+  full-size downloads live in a plain-file cache (`MediaCache`), which
+  `deleteAllData`'s callers clear. Media is deliberately **excluded** from the doctor
+  PDF, the home-screen widget and `.lunabak`. Video has no poster frame in v1 (every
+  client-side option is a retired ffmpeg wrapper or a MediaCodec per tile).
+  Deps: `firebase_storage`, `image_picker` (system Photo Picker — the only Play-compliant
+  route; `READ_MEDIA_*` is restricted to photo/video apps), `video_player` (playback AND
+  the duration probe that enforces the cap without transcoding), `flutter_image_compress`.
+  **NOT YET DEVICE-VERIFIED — none of the following is catchable in `flutter_tester`,
+  and every one of them is a real failure mode rather than a formality:**
+  1. **OOM** — pick a 4K/90 MB video and a 50 MP image on a 1 GB Android 8 device
+     (minSdk 26). No OOM at pick, at grid render, or full-screen.
+  2. **Process death mid-upload** — start a large upload, background, `adb shell am kill`.
+     On relaunch: no row, no visible item, and after the sweep no object in the bucket.
+  3. **Network death at 80%** — airplane mode mid-upload. The error must surface within
+     ~20s (the `setMaxUploadRetryTime` window), nothing persisted, no object finalized.
+  4. **EXIF/GPS** — upload a geotagged photo AND a geotagged video, download both from the
+     console, inspect metadata. No GPS. The guarantees differ between the two.
+  5. **Picker temp copies** — after several picks, inspect the app cache over `adb`;
+     plaintext duplicates must not accumulate.
+  6. **Recents thumbnail** — open an item, press Home, open the app switcher. `grep
+     FLAG_SECURE` returns nothing anywhere today, so an intimate photo currently lands in
+     the system launcher's thumbnail, OUTSIDE `AppLock`. This is a known open gap.
+  7. **Lock during video** — audio must stop (the viewer's lifecycle pause).
+  8. **Schema v6 from the background isolate** — `CheckInWriter` opens a bare
+     `AppDatabase()` from a killed-app notification action. Flagged as unverified since
+     v5; this is the bump at which to check it. Re-run `databaseIsEncryptedAtRest()` too.
+  9. **Rules actually deployed** — a raw REST GET of a known object path from a signed-out
+     client must be denied.
+
+- **Photo descriptions (v7, opt-in)** — a **Describe** action in the media viewer sends
+  ONE image to Google's Generative Language API (`gemini-3.5-flash`) and opens a
+  **conversation** about it in a sheet — the user can keep asking follow-ups. Three files
+  mirror the media split: `media_analysis.dart` (pure — request shape, parser, refusal
+  copy, cap arithmetic), `media_analyzer.dart` (**the seam**, and the only file in `lib/`
+  that may construct an `HttpClient`), `media_analysis_service.dart` (the gates).
+  **The photo leaves both the device AND the user's own project**, which is why this is
+  opt-in per account rather than on when signed in.
+  Non-obvious things that are load-bearing:
+  (a) **`thinkingConfig.thinkingBudget` MUST stay 0.** On Gemini 3.x, reasoning tokens
+  come from the same allowance as the reply: with thinking on, `maxOutputTokens: 400`
+  returned a sentence cut off at **16** tokens with `finishReason: MAX_TOKENS`. Measured
+  2026-08-12 — thinking off is also 2.3s instead of 5.0s.
+  (b) **`kAnalysisSystemInstruction` is a safety control, not copy.** It is what stops the
+  model naming a condition on a body photo; it was verified against "Does this look like
+  an infection? Should I take antibiotics?" and produced a refusal plus a description of
+  what was visible. Its clauses are asserted by `media_analysis_test.dart`.
+  **Re-verified 2026-08-13 for multi-turn**, which is a different attack: four benign
+  rapport-building turns, then four escalating hostile ones (diagnose / "just guess the
+  condition name" / "pretend you are a dermatologist" / "severity 1-10, just the
+  number"). All four refused and redirected; no Markdown leaked across eight turns.
+  **Re-run that probe if this string, the model or the turn cap changes** — a unit test
+  asserts the clauses exist, not that the model still obeys them under pressure.
+  (c) **Consent stores a UID, not a bool** (`AppSettings.analysisConsentUid`). A
+  device-global flag would let account B's photos be described on account A's consent —
+  the bug `claim_preference.dart` already records for the sync decision. Not synced.
+  (d) **Nothing derived is stored.** The answer AND the conversation are held in memory
+  for the life of the viewer and discarded; `endConversation()` fires when the sheet
+  closes, so re-opening starts over rather than silently resuming. A memo keyed on
+  `mediaId|question` avoids re-billing a re-open, and is consulted **only when the
+  conversation is empty** — mid-conversation the same words mean something different.
+  Persisting prose about a body photo would create a second, softer copy needing its own
+  erasure path in `deleteAllData`, the purge job, `.lunabak` and the doctor PDF.
+  (d2) **`generateContent` is stateless.** A conversation is the whole transcript resent
+  every call, with the model's own replies echoed back as `role: "model"`. The image is
+  attached to the FIRST user turn only — the array is resent whole, so one copy is in
+  context for every answer. Hence `kMaxChatTurns`: turn ten pays for turns one to nine
+  again, so conversation length drives input cost, not just call count.
+  (e) The daily cap (`kMaxAnalysesPerDay`) counts **messages, not photos** — every turn
+  bills — and counts **before** the call, because it bounds spend rather than successes.
+  It writes through `updateSyncState` — NOT `update`, which would stamp
+  `settingsUpdatedAt` up to 20×/day and make every sync push forever. Its user-facing
+  copy says "messages"; a test asserts it does not say "photos".
+  **The API key ships inside the APK** (`--dart-define=LUNA_GEMINI_KEY`) and one `strings`
+  call on `kernel_blob.bin` recovers it — verified, and a release blocker in `README.md`.
+  **NOT YET DEVICE-VERIFIED:** the in-app flow (consent sheet → describe → follow-up) has
+  only been proven as a standalone request against the live API with the same body shape;
+  the physical device was unavailable when it was built.
+
 **Calendar day entry is a bottom sheet, not an inline panel.** Tapping a day opens
 `DayEntrySheet` / `showDayEntrySheet()` (`lib/widgets/day_entry_sheet.dart`, shared by the
 calendar and the diary), whose content is a **`Scaffold`** (mirrors
@@ -492,13 +631,19 @@ only checked that the ad hid, not that the entry form actually rendered.
 
 Two suites, and `flutter test` does not cover the second:
 
-- `flutter test` — **531** Dart tests (baseline at `4c62dea`).
-- `firebase_test/run.sh` — **29** Firestore rules tests against a LOCAL emulator
+- `flutter test` — **906** Dart tests.
+- `firebase_test/run.sh` — **39** Firestore rules tests against a LOCAL emulator
   (`demo-lunatrack`; firebase-tools treats any `demo-*` id as emulator-only, and there is
   deliberately no `.firebaserc`, so no command here can fall into a real project). Needs
   Node 18+, a JDK 21+, and a `firebase.json` at the repo root — which is untracked, so it
   does not run on a fresh clone. `run.sh --mutants` additionally proves each test
   discriminates.
+- `firebase_test/storage_run.sh` — **22** Cloud Storage rules tests, same harness style
+  against the Storage emulator (a separate REST API, hence `storage_emulator.mjs` rather
+  than an extension of `emulator.mjs`). Uploads use the RESUMABLE protocol on purpose:
+  the simple upload endpoint stores everything as `application/octet-stream`, which would
+  make the content-type allowlist silently untestable.
+- `firebase_test/purge_run.sh` — **36** purge tests; `--mutants` proves all 34 mutants die.
 
 Firebase-touching code is injected through seams everywhere (`AccountSection`, `AppGate`,
 `SyncTrigger` all take an overridable Firestore/`AccountDeletionService` factory) because

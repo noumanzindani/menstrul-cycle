@@ -52,3 +52,7 @@ app.*.map.json
 *-debug.log
 .firebase/
 firebase_test/node_modules/
+
+# Holds a Firebase API key. Not a credential (rules decide access, not the
+# string), but it identifies the project and does not belong in git.
+lib/firebase_options.dart

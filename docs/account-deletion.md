@@ -64,6 +64,11 @@ Everything stored under your account:
   files you shared or saved — are yours and are outside our reach.
 - **Your Google Play purchase history** for Premium is held by Google, not by
   us.
+- **A photo you sent for description.** If you turned on Settings → Describe
+  photos and tapped Describe on a photo, that photo was sent to Google at that
+  moment. Deleting your LunaTrack account does not reach it — it is outside our
+  systems and outside our control. LunaTrack keeps no description and nothing
+  derived from it, so there is nothing on our side left to erase.
 
 ## Current status
 
