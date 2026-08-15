@@ -30,6 +30,7 @@ const String kCatSleepQuality = 'sleep_quality';
 const String kCatUrine = 'urine';
 const String kCatDigestion = 'digestion';
 const String kCatSkin = 'skin';
+const String kCatWeight = 'weight';
 
 const List<TrackingCategory> kTrackingCategories = [
   TrackingCategory(kCatPhysicalSymptoms, 'Physical symptoms'),
@@ -45,6 +46,7 @@ const List<TrackingCategory> kTrackingCategories = [
   TrackingCategory(kCatUrine, 'Urine', defaultOn: false),
   TrackingCategory(kCatDigestion, 'Digestion', defaultOn: false),
   TrackingCategory(kCatSkin, 'Skin & hair', defaultOn: false),
+  TrackingCategory(kCatWeight, 'Weight', defaultOn: false),
 ];
 
 /// The ids enabled for a user who has never opened Customize tracking.

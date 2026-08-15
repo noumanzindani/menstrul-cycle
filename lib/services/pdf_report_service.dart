@@ -11,6 +11,7 @@ import '../models/enums.dart';
 import '../models/insights.dart';
 import '../models/prediction.dart';
 import 'insights_narrator.dart';
+import 'weight_trend_service.dart';
 
 /// Builds a printable/shareable "for your doctor" PDF from the user's history.
 /// Everything is generated on-device from local data.
@@ -34,6 +35,10 @@ class PdfReportService {
 
     // Most recent cycles first, capped for a tidy one-pager.
     final recent = cycles.reversed.take(12).toList();
+
+    // Weight is reported in kg regardless of the display preference — this is a
+    // clinical document. Descriptive only: no BMI, no classification.
+    final weight = WeightTrendService.compute(logs, asOf: generatedOn);
 
     // Symptom & mood frequency across logged days. Sex activity is deliberately
     // excluded (decodeSymptoms drops sex_ keys) — it never belongs in a doctor
@@ -114,6 +119,26 @@ class PdfReportService {
                 ],
             ],
           ),
+          if (weight != null) ...[
+            pw.SizedBox(height: 16),
+            pw.Text('Weight',
+                style: pw.TextStyle(
+                    fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 6),
+            pw.TableHelper.fromTextArray(
+              headerDecoration:
+                  const pw.BoxDecoration(color: PdfColors.grey200),
+              headers: const ['Readings', 'Latest', 'Change'],
+              data: [
+                [
+                  '${weight.points.length}',
+                  '${weight.points.last.kg.toStringAsFixed(1)} kg',
+                  '${weight.netChangeKg >= 0 ? '+' : ''}'
+                      '${weight.netChangeKg.toStringAsFixed(1)} kg',
+                ],
+              ],
+            ),
+          ],
           if (hasFertility) ...[
             pw.SizedBox(height: 16),
             pw.Text('Estimated fertility (calendar method)',

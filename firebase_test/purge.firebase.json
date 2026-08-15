@@ -1,0 +1,29 @@
+{
+  "//": "Emulator config for the PURGE suite only (firebase_test/purge_run.sh).",
+  "//1": "Separate from the repo-root firebase.json on purpose: the purge sweep",
+  "//2": "deletes Firebase Auth users, so its suite needs the AUTH emulator, which",
+  "//3": "the root firebase.json does not configure — and that file is owned by the",
+  "//4": "app/rules work and is deliberately left byte-identical here.",
+  "//5": "Project id is NEVER set in this file — purge_run.sh passes",
+  "//6": "--project demo-lunatrack, and the demo- prefix is what makes",
+  "//7": "firebase-tools refuse to resolve anything against a real project.",
+  "//8": "No `firestore` block: the purge runs through the Admin SDK, which BYPASSES",
+  "//9": "security rules by design, so a ruleset here would assert nothing. Rules are",
+  "//10": "covered by the separate suite in rules.test.mjs / run.sh.",
+  "//11": "Auth is on 9114, not the 9099 default: something else on this machine",
+  "//12": "already listens on 9099 and the emulator refuses a taken port.",
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8098
+    },
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 9114
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  }
+}

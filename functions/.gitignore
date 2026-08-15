@@ -1,0 +1,7 @@
+# Installed by `npm ci`. `package-lock.json` IS committed, so the emulator suite
+# (firebase_test/purge_run.sh) and a deploy both resolve identical versions.
+node_modules/
+
+# Firebase CLI scratch
+.firebase/
+*.log

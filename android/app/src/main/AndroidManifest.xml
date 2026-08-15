@@ -10,9 +10,43 @@
 
     <!-- Health Connect: READ basal/body temperature only. This is an ON-DEVICE
          permission — reads are local IPC to the Health Connect app, NOT network.
-         DELIBERATELY no android.permission.INTERNET is added: keeping it out of
-         the release manifest is the app's bright-line privacy guarantee. -->
+
+         This block used to claim that INTERNET is deliberately absent and that
+         its absence was "the app's bright-line privacy guarantee". That stopped
+         being true when accounts and Firestore sync landed: firebase_core,
+         firebase_auth, cloud_firestore and google_mobile_ads all merge INTERNET
+         in from their own library manifests, so the merged manifest has it and
+         has had it for some time. Media makes the app's use of the network
+         louder still. The claim is removed rather than softened — a comment
+         that reads as a privacy guarantee must not be one the code disproves. -->
     <uses-permission android:name="android.permission.health.READ_BODY_TEMPERATURE"/>
+
+    <!-- Media picking goes through the Android system Photo Picker
+         (image_picker's pickMultipleMedia), which returns a per-item read grant
+         and needs NO media permission. These removals are a regression guard,
+         not a fix: as of the versions in pubspec.lock, image_picker_android and
+         video_player_android declare no permissions at all — but a future
+         update that added one would ship it silently via manifest merge, and
+         Play SCANS THE MERGED MANIFEST.
+
+         That matters because Google Play restricts READ_MEDIA_IMAGES /
+         READ_MEDIA_VIDEO to apps whose CORE PURPOSE is photo or video, with a
+         declaration form and a review. A period tracker does not qualify, so
+         shipping one of these is a rejection, not a warning.
+
+         ACCESS_MEDIA_LOCATION is removed for a different and sharper reason: it
+         is what UN-REDACTS GPS coordinates in photos returned by the picker.
+         Without it the platform strips location, which is the only thing
+         standing between an intimate photo and the user's home address being
+         uploaded to an operator-readable bucket. Never request it. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
+        tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        tools:node="remove"/>
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION"
+        tools:node="remove"/>
 
     <!-- Strip the advertising-ID permission that google_mobile_ads injects via
          manifest merge. The app ONLY ever requests NON-personalized ads

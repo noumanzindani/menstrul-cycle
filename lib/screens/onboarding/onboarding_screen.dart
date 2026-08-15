@@ -133,10 +133,11 @@ class _PrivacyPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Page(
       icon: Icons.lock_outline,
-      title: 'Your data stays with you',
-      body: 'Everything you log is stored only on this device. There is no '
-          'account, no sign-in, and your health data is never uploaded to a '
-          'server. You can add a PIN or biometric lock any time in Settings.',
+      title: 'Your data, on your terms',
+      body: 'Your logs are stored in an encrypted database on this device, and '
+          'synced to your account so you can move between devices. The synced '
+          'copy is not end-to-end encrypted. You can add a PIN or biometric '
+          'lock any time in Settings.',
     );
   }
 }

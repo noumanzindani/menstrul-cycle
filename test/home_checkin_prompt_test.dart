@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:menstrul_track/common/date_utils.dart';
 import 'package:menstrul_track/data/daily_log_repository.dart';
 import 'package:menstrul_track/data/settings_repository.dart';
+import 'package:menstrul_track/data/product_session_repository.dart';
+import 'package:menstrul_track/data/reminder_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/models/cycle.dart';
@@ -15,6 +17,7 @@ import 'package:menstrul_track/models/month_ring.dart';
 import 'package:menstrul_track/models/prediction.dart';
 import 'package:menstrul_track/providers/log_provider.dart';
 import 'package:menstrul_track/providers/premium_provider.dart';
+import 'package:menstrul_track/providers/product_session_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/screens/home/home_screen.dart';
 import 'package:menstrul_track/services/cycle_check_in.dart';
@@ -57,6 +60,13 @@ void main() {
         ChangeNotifierProvider<LogProvider>.value(value: log),
         ChangeNotifierProvider<PremiumProvider>(
             create: (_) => PremiumProvider(SettingsRepository(db))),
+        // Home reads the in-progress product-change session. No fixture here
+        // starts one, which is what keeps the card's Timer — and therefore
+        // pumpAndSettle — out of this test.
+        ChangeNotifierProvider<ProductSessionProvider>(
+          create: (_) => ProductSessionProvider(
+              ProductSessionRepository(ReminderRepository(db))),
+        ),
         Provider<PredictionResult>.value(value: prediction),
         Provider<List<CycleNarrative>>.value(value: const []),
         Provider<OvulationConfirmation>.value(

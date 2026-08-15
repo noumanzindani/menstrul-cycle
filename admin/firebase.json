@@ -1,0 +1,43 @@
+{
+  "_comment": [
+    "Emulator configuration OWNED BY THE ADMIN PANEL's test suite. The repo's",
+    "root firebase.json is untracked, currently names an unrelated production",
+    "project, and is deliberately not touched by anything here.",
+    "",
+    "Ports differ from the root config so the panel suite and the rules suite",
+    "can run side by side.",
+    "",
+    "There is no 'indexes' key because nothing in the panel needs a composite",
+    "index: every query either aggregates with count() (no ordering) or orders",
+    "and filters on FieldPath.documentId(), which uses the always-present",
+    "__name__ index. If a future metric adds a field filter, declare it in a",
+    "firestore.indexes.json next to this file and point an 'indexes' key here.",
+    "",
+    "No 'rules' key: firebase-tools refuses a rules path outside the config's",
+    "own directory, and copying firestore.rules in here would create a second",
+    "copy that could drift from the real one. The suite instead installs the",
+    "REAL ../firestore.rules into the running emulator at test time, through the",
+    "emulator's own REST endpoint, reusing firebase_test/emulator.mjs's",
+    "loadRules(). The panel itself uses the Admin SDK, which bypasses rules",
+    "entirely and therefore needs no rule of its own."
+  ],
+  "firestore": [
+    {
+      "database": "lunatrack"
+    }
+  ],
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8099
+    },
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 9098
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  }
+}

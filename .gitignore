@@ -47,3 +47,12 @@ app.*.map.json
 # Firebase config — never commit (LunaTrack has no Firebase dependency)
 **/google-services.json
 **/GoogleService-Info.plist
+
+# Firebase emulator artefacts (firebase_test/run.sh)
+*-debug.log
+.firebase/
+firebase_test/node_modules/
+
+# Holds a Firebase API key. Not a credential (rules decide access, not the
+# string), but it identifies the project and does not belong in git.
+lib/firebase_options.dart

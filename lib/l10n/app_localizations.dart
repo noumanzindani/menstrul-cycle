@@ -391,7 +391,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsTrackingNote.
   ///
   /// In en, this message translates to:
-  /// **'Turning a category off only hides it from the day editor. Anything you\'ve already logged is kept on this device.'**
+  /// **'Turning a category off only hides it from the day editor. Anything you\'ve already logged is kept, not deleted.'**
   String get settingsTrackingNote;
 
   /// No description provided for @settingsSectionHealth.
@@ -466,6 +466,18 @@ abstract class AppLocalizations {
   /// **'Require a PIN or biometrics to open'**
   String get settingsAppLockSubtitle;
 
+  /// No description provided for @settingsPhotoDescriptionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe photos'**
+  String get settingsPhotoDescriptionsTitle;
+
+  /// No description provided for @settingsPhotoDescriptionsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sends a photo to Google when you tap Describe'**
+  String get settingsPhotoDescriptionsSubtitle;
+
   /// No description provided for @settingsDeleteTitle.
   ///
   /// In en, this message translates to:
@@ -475,7 +487,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDeleteSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Permanently erase everything on this device'**
+  /// **'Erase this device and turn cloud sync off here'**
   String get settingsDeleteSubtitle;
 
   /// No description provided for @settingsDeleteDialogTitle.
@@ -487,19 +499,19 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDeleteDialogBody.
   ///
   /// In en, this message translates to:
-  /// **'This permanently erases every period, symptom, medication, reminder, and setting on this device. This cannot be undone.'**
+  /// **'This permanently erases every period, symptom, medication, reminder and setting on this device, and turns cloud sync off for your account on this device — so nothing is downloaded back. This cannot be undone.\n\nYour account and the copy of your logs on our server are kept. You can turn sync back on any time under Account. To delete the server copy too, use Account → Request account deletion.'**
   String get settingsDeleteDialogBody;
 
   /// No description provided for @settingsDeleteConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Delete everything'**
+  /// **'Erase this device'**
   String get settingsDeleteConfirm;
 
   /// No description provided for @settingsDeleteDone.
   ///
   /// In en, this message translates to:
-  /// **'All data deleted.'**
+  /// **'This device is erased and cloud sync is off here. Your account still has your logs.'**
   String get settingsDeleteDone;
 
   /// No description provided for @settingsSectionBackup.
@@ -631,7 +643,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAboutBody.
   ///
   /// In en, this message translates to:
-  /// **'LunaTrack stores all your data privately on this device. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.'**
+  /// **'LunaTrack stores your data in an encrypted database on this device and syncs it to your account. The synced copy is not end-to-end encrypted. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.'**
   String get settingsAboutBody;
 }
 

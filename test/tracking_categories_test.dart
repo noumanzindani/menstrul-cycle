@@ -7,17 +7,21 @@ void main() {
     expect(ids.toSet().length, ids.length);
   });
 
-  test('the four new categories default OFF, existing ones default ON', () {
+  test('later-added categories default OFF, original ones default ON', () {
     Set<String> idsWhere(bool on) => kTrackingCategories
         .where((c) => c.defaultOn == on)
         .map((c) => c.id)
         .toSet();
 
+    // Every category added after the original set ships OFF, so no existing
+    // user's day editor grows a section unasked. Add new ids here on purpose —
+    // an accidental `defaultOn: true` should break this test.
     expect(idsWhere(false), {
       kCatSleepQuality,
       kCatUrine,
       kCatDigestion,
       kCatSkin,
+      kCatWeight,
     });
     expect(idsWhere(true), contains(kCatPhysicalSymptoms));
     expect(idsWhere(true), contains(kCatMedications));

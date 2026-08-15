@@ -1,0 +1,8 @@
+<!-- A near-empty battery. This was the one icon of the first five that already
+     read at 16px; only the stroke weight and the cell size changed. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <rect x="1.8" y="7" width="17" height="10" rx="2.4"
+        fill="none" stroke="#000" stroke-width="2.4"/>
+  <rect x="4.6" y="9.8" width="3.4" height="4.4" rx="1" fill="#000"/>
+  <path d="M21.6 10.2v3.6" stroke="#000" stroke-width="2.6" stroke-linecap="round"/>
+</svg>

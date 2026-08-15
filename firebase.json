@@ -1,0 +1,47 @@
+{
+  "firestore": [
+    {
+      "database": "lunatrack-db",
+      "rules": "firestore.rules"
+    }
+  ],
+  "storage": [
+    {
+      "bucket": "teddy-2-20649-lunatrack-media",
+      "rules": "storage.rules"
+    }
+  ],
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8098
+    },
+    "storage": {
+      "host": "127.0.0.1",
+      "port": 9599
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "teddy-2-20649",
+          "appId": "1:454527030179:android:cefb1b772608f98a6cc016",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "teddy-2-20649",
+          "configurations": {
+            "android": "1:454527030179:android:cefb1b772608f98a6cc016"
+          }
+        }
+      }
+    }
+  }
+}

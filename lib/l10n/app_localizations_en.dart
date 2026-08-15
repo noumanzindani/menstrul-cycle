@@ -165,7 +165,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsTrackingNote =>
-      'Turning a category off only hides it from the day editor. Anything you\'ve already logged is kept on this device.';
+      'Turning a category off only hides it from the day editor. Anything you\'ve already logged is kept, not deleted.';
 
   @override
   String get settingsSectionHealth => 'Health & wearables';
@@ -218,24 +218,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAppLockSubtitle => 'Require a PIN or biometrics to open';
 
   @override
+  String get settingsPhotoDescriptionsTitle => 'Describe photos';
+
+  @override
+  String get settingsPhotoDescriptionsSubtitle =>
+      'Sends a photo to Google when you tap Describe';
+
+  @override
   String get settingsDeleteTitle => 'Delete all my data';
 
   @override
   String get settingsDeleteSubtitle =>
-      'Permanently erase everything on this device';
+      'Erase this device and turn cloud sync off here';
 
   @override
   String get settingsDeleteDialogTitle => 'Delete all data?';
 
   @override
   String get settingsDeleteDialogBody =>
-      'This permanently erases every period, symptom, medication, reminder, and setting on this device. This cannot be undone.';
+      'This permanently erases every period, symptom, medication, reminder and setting on this device, and turns cloud sync off for your account on this device — so nothing is downloaded back. This cannot be undone.\n\nYour account and the copy of your logs on our server are kept. You can turn sync back on any time under Account. To delete the server copy too, use Account → Request account deletion.';
 
   @override
-  String get settingsDeleteConfirm => 'Delete everything';
+  String get settingsDeleteConfirm => 'Erase this device';
 
   @override
-  String get settingsDeleteDone => 'All data deleted.';
+  String get settingsDeleteDone =>
+      'This device is erased and cloud sync is off here. Your account still has your logs.';
 
   @override
   String get settingsSectionBackup => 'Backup & restore';
@@ -308,5 +316,5 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAboutBody =>
-      'LunaTrack stores all your data privately on this device. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.';
+      'LunaTrack stores your data in an encrypted database on this device and syncs it to your account. The synced copy is not end-to-end encrypted. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.';
 }

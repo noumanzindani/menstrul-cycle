@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/prediction.dart';
 import '../providers/log_provider.dart';
 import '../providers/reminder_provider.dart';
+import '../providers/product_session_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/home_widget_service.dart';
 import '../services/prediction_service.dart';
@@ -64,8 +65,17 @@ class _HomeWidgetSyncState extends State<HomeWidgetSync>
     final log = context.read<LogProvider>();
     final settings = context.read<SettingsProvider>();
     final reminders = context.read<ReminderProvider>();
+    final timer = context.read<ProductSessionProvider>();
 
     await log.load();
+    if (!mounted) return;
+    // The product-change session gets the same treatment, and needs it more:
+    // a force-stop cancels every pending alarm, and slots that came due while
+    // the app was closed must not be re-armed into the past. Reload first — a
+    // notification action may have restarted the session from its own isolate.
+    await timer.load();
+    if (!mounted) return;
+    await timer.reschedule();
     if (!mounted) return;
     // Recompute from the just-loaded logs (the ProxyProvider's value only
     // refreshes next frame) so the horizon is self-consistent with the reload.

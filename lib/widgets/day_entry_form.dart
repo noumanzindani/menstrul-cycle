@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../common/catalog.dart';
+import '../common/option_art.dart';
 import '../common/tracking_categories.dart';
 import '../models/enums.dart';
 import '../providers/log_provider.dart';
 import '../providers/medication_provider.dart';
 import '../providers/settings_provider.dart';
+import '../theme/app_theme.dart';
+import 'track_art.dart';
 
 /// The set of selectors for one day. Extracted so it can be hosted both by the
 /// full-screen [DayLogScreen] and inline on the calendar. Call
@@ -16,7 +19,8 @@ import '../providers/settings_provider.dart';
 /// All tracking lives in the one day-tags JSON blob (see `common/catalog.dart`):
 /// plain boolean symptoms, namespaced single-select/flag groups (discharge,
 /// vaginal & sexual health, habits — kept out of the doctor PDF by default), and
-/// numeric metrics (pain, water, sleep, energy, stress). No schema/migration.
+/// numeric metrics (pain, water, sleep, energy, stress, and weight in canonical
+/// kilograms). No schema/migration.
 ///
 /// [shrinkWrap] makes it embeddable inside another scroll view (calendar);
 /// standalone it scrolls itself.
@@ -109,6 +113,8 @@ class DayEntryFormState extends State<DayEntryForm> {
   final Map<String, int> _metrics = {}; // includes pain + the lifestyle metrics
   late final TextEditingController _notes;
   late final TextEditingController _bbt; // basal body temperature (°C)
+  late final TextEditingController _weight; // in the DISPLAY unit, not kg
+  String? _weightError;
   String? _opk; // ovulation-test result
   bool _hadExisting = false;
 
@@ -141,6 +147,16 @@ class DayEntryFormState extends State<DayEntryForm> {
     _notes = TextEditingController(text: existing?.notes ?? '');
     _bbt = TextEditingController(
         text: existing?.bbt != null ? '${existing!.bbt}' : '');
+    // Decoded unconditionally too (see the note above): the stored value is
+    // canonical kg, shown in whatever unit was chosen when the editor opened.
+    final unitAtOpen =
+        context.read<SettingsProvider?>()?.weightUnit ?? kWeightUnitKg;
+    final existingKg = decodeNumber(tags, kMetricWeight)?.toDouble();
+    _weight = TextEditingController(
+      text: existingKg == null || existingKg <= 0
+          ? ''
+          : formatWeightFromKg(existingKg, unitAtOpen),
+    );
     _opk = existing?.opk;
   }
 
@@ -148,10 +164,29 @@ class DayEntryFormState extends State<DayEntryForm> {
   void dispose() {
     _notes.dispose();
     _bbt.dispose();
+    _weight.dispose();
     super.dispose();
   }
 
-  Future<void> save() {
+  /// Saves the day. Returns false WITHOUT writing when the typed weight is
+  /// invalid — an inline error is then showing, so hosts must not pop.
+  Future<bool> save() async {
+    final unit =
+        context.read<SettingsProvider?>()?.weightUnit ?? kWeightUnitKg;
+    final raw = _weight.text.trim();
+    double? weightKg;
+    if (raw.isNotEmpty) {
+      weightKg = parseWeightToKg(raw, unit);
+      if (weightKg == null) {
+        final lo = formatWeightFromKg(kMinWeightKg, unit);
+        final hi = formatWeightFromKg(kMaxWeightKg, unit);
+        setState(
+            () => _weightError = 'Enter a weight between $lo and $hi $unit');
+        return false;
+      }
+    }
+    if (_weightError != null) setState(() => _weightError = null);
+
     final flags = <String>{
       ..._symptoms,
       ..._vaginal,
@@ -167,8 +202,11 @@ class DayEntryFormState extends State<DayEntryForm> {
     final numbers = <String, num>{
       for (final e in _metrics.entries)
         if (e.value > 0) e.key: e.value,
+      // Written unconditionally, even when the Weight category is hidden: the
+      // blob is fully REPLACED on save, so omitting it would erase the value.
+      kMetricWeight: ?weightKg,
     };
-    return context.read<LogProvider>().saveDay(
+    await context.read<LogProvider>().saveDay(
           date: widget.date,
           flow: _flow,
           symptomsJson: encodeDayTags(flags: flags, numbers: numbers),
@@ -177,6 +215,7 @@ class DayEntryFormState extends State<DayEntryForm> {
           bbt: double.tryParse(_bbt.text.trim()),
           opk: _opk,
         );
+    return true;
   }
 
   Future<void> clear() => context.read<LogProvider>().clearDay(widget.date);
@@ -188,6 +227,14 @@ class DayEntryFormState extends State<DayEntryForm> {
 
   @override
   Widget build(BuildContext context) {
+    // NULLABLE, and never `!`. Hosts that pump this form with a bare
+    // `MaterialApp` (most of its own test suite) carry no `PhaseColors`, and a
+    // null check here took the WHOLE form down — not just the flow tint — so
+    // every test asserting on weight, medications or OPK failed on a decorative
+    // code path. Same reasoning as [DayEntryForm.categories] being nullable:
+    // this form stays buildable without its ambient dependencies. Null means
+    // the drop simply inherits the chip's label colour.
+    final phases = Theme.of(context).extension<PhaseColors>();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       shrinkWrap: widget.shrinkWrap,
@@ -201,7 +248,22 @@ class DayEntryFormState extends State<DayEntryForm> {
             for (final f in FlowIntensity.values)
               if (f != FlowIntensity.none)
                 ChoiceChip(
-                  label: Text(f.label),
+                  // The one place the art departs from the label colour.
+                  //
+                  // A CONSTANT red, deliberately not the graduated
+                  // `FlowIntensityUi.color` ramp: the drop already encodes
+                  // intensity in how much of it is filled, so fading the colour
+                  // as well encodes the same thing twice — and on device that
+                  // double-fade made Spotting and Light nearly invisible in
+                  // dark mode, because the ramp reaches its lighter steps with
+                  // alpha and low-alpha rose over a dark surface is barely
+                  // there. Fill fraction carries the ordinal; the colour just
+                  // says "this is flow".
+                  label: chipLabel(
+                    f.label,
+                    kFlowArt[f],
+                    artColor: phases?.menstrual,
+                  ),
                   selected: _flow == f,
                   onSelected: (sel) => setState(() => _flow = sel ? f : null),
                 ),
@@ -373,6 +435,22 @@ class DayEntryFormState extends State<DayEntryForm> {
               suffix: m.suffix,
               onChanged: (v) => setState(() => _metrics[m.key] = v),
             ),
+        if (_cats.contains(kCatWeight)) ...[
+          const SizedBox(height: 20),
+          _SectionLabel('Weight'),
+          TextField(
+            key: const Key('weight-field'),
+            controller: _weight,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Weight',
+              suffixText: context.watch<SettingsProvider?>()?.weightUnit ??
+                  kWeightUnitKg,
+              errorText: _weightError,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         _SectionLabel('Notes'),
         TextField(
@@ -409,7 +487,7 @@ class _FilterChips extends StatelessWidget {
       children: [
         for (final o in options)
           FilterChip(
-            label: Text(o.label),
+            label: chipLabel(o.label, artFor(o.key)),
             selected: isSelected(o.key),
             onSelected: (sel) => onToggle(o.key, sel),
           ),
@@ -438,7 +516,7 @@ class _SingleChips extends StatelessWidget {
       children: [
         for (final o in options)
           ChoiceChip(
-            label: Text(o.label),
+            label: chipLabel(o.label, artFor(o.key)),
             selected: selected == o.key,
             onSelected: (sel) => onSelect(sel ? o.key : null),
           ),

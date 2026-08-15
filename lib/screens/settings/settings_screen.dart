@@ -1,21 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../common/catalog.dart';
 import '../../common/l10n.dart';
 import '../../data/daily_log_repository.dart';
 import '../../db/database.dart';
 import '../../models/enums.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/log_provider.dart';
 import '../../providers/medication_provider.dart';
 import '../../providers/premium_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/backup_service.dart';
+import '../../services/firestore_ref.dart';
 import '../../services/health_import_service.dart';
 import '../../services/lock_service.dart';
+import '../../services/media_analyzer.dart' show analysisAvailable;
+import '../../services/media_cache.dart';
 import '../../services/notification_service.dart';
+import '../../services/sync_trigger.dart';
 import '../../widgets/ad_banner.dart';
 import '../lock/setup_lock_screen.dart';
 import '../medications/medications_screen.dart';
+import 'account_section.dart';
 import 'tracking_categories_screen.dart';
 import '../pregnancy/pregnancy_screen.dart';
 import '../premium/premium_screen.dart';
@@ -24,7 +31,45 @@ import '../reminders/reminders_screen.dart';
 /// App settings: appearance, cycle defaults (feed prediction when history is
 /// thin), reminders, and the required disclaimer/about.
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({
+    super.key,
+    this.clearFirestoreCache = clearLunaFirestoreCache,
+    this.clearPin = LockService.clearPin,
+    this.cancelNotifications = NotificationService.cancelAll,
+    this.clearMediaCache = _clearMediaCache,
+  });
+
+  /// Deletes downloaded photos and videos from the on-disk cache.
+  ///
+  /// Not part of `AppDatabase.deleteAllData()` on purpose: that is a pure drift
+  /// transaction, run against in-memory databases in tests where
+  /// `path_provider` has no platform-channel handler. Injectable for the same
+  /// reason [clearPin] is.
+  ///
+  /// Without this, "delete all my data" wipes the media ROWS and leaves the
+  /// full-size files sitting in the cache directory — the most visible possible
+  /// way for that promise to be false.
+  final Future<void> Function() clearMediaCache;
+
+  static Future<void> _clearMediaCache() => MediaCache().clear();
+
+  /// Wipes Firestore's unencrypted on-device cache as part of "delete all my
+  /// data" — see [clearLunaFirestoreCache].
+  ///
+  /// Injectable because `FakeFirebaseFirestore.clearPersistence()` wipes the
+  /// whole fake database (server side included), so a test could not otherwise
+  /// assert that this control leaves the cloud copy alone.
+  final Future<void> Function() clearFirestoreCache;
+
+  /// These two are injectable for the reason `AccountSection`'s identical pair
+  /// is (see its doc comment): `flutter_secure_storage` and the local
+  /// notifications plugin have no platform-channel handler under
+  /// `flutter_tester` on this host, and the former HANGS rather than throwing —
+  /// which `pumpAndSettle` does not detect, because it waits on frames, not on
+  /// a stalled channel call. Without these seams the "delete all my data"
+  /// control could not be tested at all.
+  final Future<void> Function() clearPin;
+  final Future<void> Function() cancelNotifications;
 
   Future<void> _confirmDeleteAll(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -38,6 +83,7 @@ class SettingsScreen extends StatelessWidget {
             child: Text(ctx.l10n.actionCancel),
           ),
           FilledButton(
+            key: const Key('settings.confirmDeleteAll'),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
@@ -54,17 +100,70 @@ class SettingsScreen extends StatelessWidget {
     final settings = context.read<SettingsProvider>();
     final logs = context.read<LogProvider>();
     final meds = context.read<MedicationProvider>();
+    final trigger = context.read<SyncTrigger>();
+    final uid = context.read<AuthProvider>().user?.uid;
     final messenger = ScaffoldMessenger.of(context);
     final deletedMsg = context.l10n.settingsDeleteDone;
 
+    // FIRST, before anything is deleted. Without this the control undid
+    // itself: `deleteAllData` nulls `lastSyncedAt`, a null `since` makes the
+    // next run a FULL sweep, and the wipe itself ARMS that run (`logs.load()`
+    // below notifies `LogProvider`, which `main.dart` turns into a
+    // `scheduleSync`). A reviewer executed it: local 0, then local 2 and
+    // cloud 2. `suspend()` also awaits any run already in flight, so when it
+    // returns this device is provably not writing.
+    await trigger.suspend();
+    // The durable half. `suspend()` lasts one session; this is the same
+    // uid-scoped record the claim prompt writes, so the decision survives a
+    // relaunch and `SyncTrigger.setUser` re-applies the gate on every future
+    // sign-in until the user reverses it from Settings → Account.
+    //
+    // This is deliberately NOT a cloud deletion. The account keeps its copy —
+    // erasing that is what "Request account deletion" is for, and that path
+    // has a 30-day cancellable window precisely because an irreversible cloud
+    // wipe must not hang off a control that historically only touched the
+    // device. The dialog copy states both halves.
+    if (uid != null) await trigger.resolveClaim(upload: false);
+
     await db.deleteAllData();
-    await LockService.clearPin();
+    // Before the Firestore cache clear below, which must stay the LAST
+    // Firestore call in this flow. This one is plain file I/O with no ordering
+    // constraint of its own, so it goes here where it cannot be skipped by an
+    // early return further down. Swallowed for the same reason: a cache that
+    // cannot be read is a cache with nothing to lose.
+    try {
+      await clearMediaCache();
+    } catch (_) {}
+    await clearPin();
     // Cancel every scheduled notification — cycle reminders AND the dynamic
     // per-medication ones (whose ids we no longer know after the wipe).
-    await NotificationService.cancelAll();
+    await cancelNotifications();
     await settings.load();
     await logs.load();
     await meds.load();
+
+    // The other half of "everything on this device": drift is encrypted at
+    // rest, Firestore's own on-device persistence is NOT, and it physically
+    // holds copies of `users/{uid}/dailyLogs` and the settings document. This
+    // control promises erasure, so it has to clear that store too. See
+    // [clearLunaFirestoreCache] for why it can only run once nothing else in
+    // this flow needs Firestore.
+    //
+    // Swallowed: the database is already empty by now, and it throws on a
+    // build with no Firebase app — where there is no cache to clear.
+    try {
+      await clearFirestoreCache();
+    } catch (_) {}
+
+    // Lifts the session-scoped hold, and ONLY that: `resume()` re-runs
+    // `setUser`'s evaluation from scratch, which reads the decline recorded
+    // above and leaves the sync gate closed. Without it the trigger would stay
+    // suspended, and Settings → Account's "Turn on" would record consent while
+    // `syncNow()` silently refused to run. Deliberately after the cache clear,
+    // so the fresh `SyncService` is built against a client that has already
+    // been terminated and restarted rather than a dead one.
+    await trigger.resume();
+
     messenger.showSnackBar(
       SnackBar(content: Text(deletedMsg)),
     );
@@ -95,6 +194,37 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
     if (chosen != null) await settings.setLanguage(chosen);
+  }
+
+  /// Picks the weight DISPLAY unit. Logged values are canonical kg either way,
+  /// so switching is purely cosmetic and never rewrites data.
+  Future<void> _pickWeightUnit(BuildContext context) async {
+    final settings = context.read<SettingsProvider>();
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Weight unit'),
+        children: [
+          RadioGroup<String>(
+            groupValue: settings.weightUnit,
+            onChanged: (v) => Navigator.pop(ctx, v),
+            child: const Column(
+              children: [
+                RadioListTile(
+                  value: kWeightUnitKg,
+                  title: Text('Kilograms (kg)'),
+                ),
+                RadioListTile(
+                  value: kWeightUnitLb,
+                  title: Text('Pounds (lb)'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked != null) await settings.setWeightUnit(picked);
   }
 
   /// Pulls basal body temperature from Health Connect / HealthKit into the log.
@@ -202,12 +332,17 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
     final premium = context.watch<PremiumProvider>();
+    // Nullable read: `AuthProvider` is absent from several settings test
+    // harnesses, and its absence means the same thing a signed-out user does.
+    final uid = context.watch<AuthProvider?>()?.user?.uid;
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.settingsTitle)),
       bottomNavigationBar: const SafeArea(child: AdBanner()),
       body: ListView(
         children: [
+          const AccountSection(),
+          const Divider(),
           _SectionHeader(context.l10n.settingsSectionPremium),
           ListTile(
             leading: Icon(
@@ -337,6 +472,16 @@ class SettingsScreen extends StatelessWidget {
                   builder: (_) => const TrackingCategoriesScreen()),
             ),
           ),
+          ListTile(
+            leading: const Icon(Icons.monitor_weight_outlined),
+            title: const Text('Weight unit'),
+            subtitle: Text(
+              context.watch<SettingsProvider>().weightUnit == kWeightUnitLb
+                  ? 'Pounds (lb)'
+                  : 'Kilograms (kg)',
+            ),
+            onTap: () => _pickWeightUnit(context),
+          ),
           const Divider(),
           _SectionHeader(context.l10n.settingsSectionHealth),
           ListTile(
@@ -398,6 +543,31 @@ class SettingsScreen extends StatelessWidget {
               }
             },
           ),
+          // Photo descriptions. Off unless the CURRENT account turned it on —
+          // `analysisConsentUid` holds a uid, not a bool, so another account's
+          // consent on this device reads as off here and cannot be withdrawn
+          // from the wrong account either.
+          //
+          // Rendered only when a key was compiled in: with no backend the
+          // switch would toggle a preference that does nothing, which is worse
+          // than its absence.
+          if (analysisAvailable)
+            SwitchListTile(
+              key: const Key('settings.imageAnalysis'),
+              secondary: const Icon(Icons.auto_awesome_outlined),
+              title: Text(context.l10n.settingsPhotoDescriptionsTitle),
+              subtitle: Text(context.l10n.settingsPhotoDescriptionsSubtitle),
+              value: uid != null && settings.analysisConsentUid == uid,
+              onChanged: uid == null
+                  ? null
+                  : (v) async {
+                      if (v) {
+                        await settings.setAnalysisConsent(uid);
+                      } else {
+                        await settings.clearAnalysisConsent();
+                      }
+                    },
+            ),
           ListTile(
             leading: Icon(Icons.delete_forever_outlined,
                 color: Theme.of(context).colorScheme.error),

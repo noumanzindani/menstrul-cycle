@@ -67,6 +67,28 @@ dependencies:
   share_plus: ^12.0.2
   file_picker: ^11.0.2
   cryptography: ^2.9.0
+  firebase_core: ^4.13.0
+  firebase_auth: ^6.5.7
+  cloud_firestore: ^6.8.0
+  flutter_svg: ^2.3.0
+  # Media timeline. Only `media_blob_store.dart` may import firebase_storage —
+  # every other file goes through that seam, so widget tests never need a live
+  # Firebase app (a structural test enforces the single import).
+  firebase_storage: ^13.0.4
+  # image_picker, NOT file_picker, for media: on Android 13+ it delegates to the
+  # system Photo Picker, which grants a per-item read and needs no permission.
+  # file_picker's ACTION_GET_CONTENT route pulls READ_EXTERNAL_STORAGE into the
+  # merged manifest, and Play restricts the media permissions to apps whose core
+  # purpose is photo/video — which a period tracker is not.
+  image_picker: ^1.2.0
+  # Playback, and the container-header read that yields a video's duration and
+  # dimensions. That probe is how the duration cap is enforced with no
+  # transcoding library (the ffmpeg_kit Flutter wrapper was retired in 2025).
+  video_player: ^2.10.0
+  # Native JPEG thumbnail encoding. dart:ui can downscale but has no JPEG
+  # encoder, and a 320px photographic PNG is several times the bytes — paid on
+  # every upload, download and stored row.
+  flutter_image_compress: ^2.4.0
 
 dev_dependencies:
   flutter_test:
@@ -81,6 +103,7 @@ dev_dependencies:
   drift_dev: ^2.34.0
   build_runner: ^2.15.0
   flutter_launcher_icons: ^0.14.4
+  fake_cloud_firestore: ^4.2.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -96,10 +119,12 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  # Per-option chip artwork. Monochrome, single-colour SVGs only: TrackArt
+  # recolours them with ColorFilter.mode(..., BlendMode.srcIn), which repaints
+  # every drawn pixel, so a multi-colour file would collapse to one tint and a
+  # light-mode-only palette would be invisible in dark mode.
+  assets:
+    - assets/track/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
