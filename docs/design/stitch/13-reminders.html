@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Reminders - LunaTrack</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface": "#FFFFFF",
+            "on-surface": "#3A2A30",
+            "seed": "#F7A8C4",
+            "surface-variant": "#FDF2F5",
+            "on-surface-variant": "#3A2A30",
+            "outline": "#79747E",
+            "phase-menstrual": "#D64F6E",
+            "phase-follicular": "#6FB3A8",
+            "phase-ovulatory": "#7E9CE8",
+            "phase-luteal": "#D9A15B",
+            "phase-fertile": "#9CCFC6",
+            "phase-predicted": "#B0A8C0",
+            "notification-bg": "#F1F3F4",
+            "text-secondary": "#635D5E"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.5rem",
+            "lg": "1rem",
+            "xl": "1.5rem",
+            "full": "9999px",
+            "card": "20px",
+            "btn": "16px",
+            "chip": "12px"
+          },
+          "spacing": {},
+          "fontFamily": {
+            "headline": [
+              "Public Sans", "sans-serif"
+            ],
+            "display": [
+              "Public Sans", "sans-serif"
+            ],
+            "body": [
+              "Public Sans", "sans-serif"
+            ],
+            "label": [
+              "Public Sans", "sans-serif"
+            ]
+          },
+          "fontSize": {}
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      width: 360px;
+      height: 800px;
+      margin: 0 auto;
+      background-color: #FFFFFF; /* Using hardcoded value for clarity in this restricted environment */
+      position: relative;
+      overflow-x: hidden;
+      overflow-y: auto;
+      border: 1px solid #e0e0e0; /* Just for visualization if viewed on desktop */
+    }
+    
+    /* Material 3 Switch Styles */
+    .m3-switch {
+      position: relative;
+      display: inline-block;
+      width: 52px;
+      height: 32px;
+    }
+
+    .m3-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .m3-switch-track {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #E1DFDD;
+      transition: .4s;
+      border-radius: 16px;
+      border: 2px solid #79747E;
+    }
+
+    .m3-switch-thumb {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 6px;
+      bottom: 6px;
+      background-color: #79747E;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .m3-switch-track {
+      background-color: #F7A8C4;
+      border-color: #F7A8C4;
+    }
+
+    input:checked + .m3-switch-track .m3-switch-thumb {
+      background-color: #FFFFFF;
+      height: 24px;
+      width: 24px;
+      left: 2px;
+      bottom: 2px;
+      transform: translateX(20px);
+    }
+    
+    /* Hide scrollbar for cleaner look */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body antialiased flex flex-col">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-white dark:bg-[#1C1B1F] flex items-center px-4 h-16 w-full flat elevation-0 no-shadows z-10">
+<button class="mr-4 p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:opacity-70 flex items-center justify-center text-[#3A2A30] dark:text-[#E6E1E5]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<h1 class="font-headline text-lg font-medium text-[#3A2A30] dark:text-[#E6E1E5]">Reminders</h1>
+</header>
+<!-- Main Body -->
+<main class="flex-1 px-4 py-2 pb-8 flex flex-col gap-6">
+<!-- Reminders Settings Card -->
+<section class="bg-surface-variant rounded-card p-4 flex flex-col gap-6">
+<!-- Row 1: Daily Log -->
+<div class="flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<div class="flex flex-col pr-4">
+<span class="font-headline font-medium text-base text-on-surface-variant">Daily log reminder</span>
+<span class="font-body text-sm text-text-secondary">A nudge to log today</span>
+</div>
+<label class="m3-switch shrink-0">
+<input checked="" type="checkbox"/>
+<span class="m3-switch-track">
+<span class="m3-switch-thumb"></span>
+</span>
+</label>
+</div>
+<!-- Indented Time Selector -->
+<div class="pl-0 ml-0 flex items-center gap-3">
+<div class="h-8 w-2 bg-seed/20 rounded-r-full -ml-4"></div>
+<button class="bg-white px-4 py-2 rounded-chip flex items-center gap-2 border border-black/5 active:bg-black/5 transition-colors">
+<span class="material-symbols-outlined text-[18px] text-text-secondary" style="font-variation-settings: 'FILL' 0;">schedule</span>
+<span class="font-body font-medium text-sm text-on-surface-variant">20:00</span>
+</button>
+</div>
+</div>
+<div class="h-[1px] w-full bg-black/5"></div>
+<!-- Row 2: Period Coming Soon -->
+<div class="flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<div class="flex flex-col pr-4">
+<span class="font-headline font-medium text-base text-on-surface-variant">Period coming soon</span>
+<span class="font-body text-sm text-text-secondary">Before your next estimated period</span>
+</div>
+<label class="m3-switch shrink-0">
+<input checked="" type="checkbox"/>
+<span class="m3-switch-track">
+<span class="m3-switch-thumb"></span>
+</span>
+</label>
+</div>
+<!-- Indented Stepper -->
+<div class="pl-0 ml-0 flex items-center gap-3">
+<div class="h-8 w-2 bg-seed/20 rounded-r-full -ml-4"></div>
+<div class="bg-white rounded-chip flex items-center border border-black/5 overflow-hidden">
+<button class="p-2 hover:bg-black/5 active:bg-black/10 transition-colors text-text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">remove</span>
+</button>
+<div class="px-3 font-body font-medium text-sm text-on-surface-variant min-w-[100px] text-center">
+                2 days before
+              </div>
+<button class="p-2 hover:bg-black/5 active:bg-black/10 transition-colors text-text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 0;">add</span>
+</button>
+</div>
+</div>
+</div>
+<div class="h-[1px] w-full bg-black/5"></div>
+<!-- Row 3: Fertile Window -->
+<div class="flex justify-between items-center">
+<div class="flex flex-col pr-4">
+<span class="font-headline font-medium text-base text-on-surface-variant">Fertile window</span>
+<span class="font-body text-sm text-text-secondary">When your estimated fertile window opens</span>
+</div>
+<label class="m3-switch shrink-0">
+<input type="checkbox"/>
+<span class="m3-switch-track">
+<span class="m3-switch-thumb"></span>
+</span>
+</label>
+</div>
+</section>
+<!-- Fine Print Disclaimer -->
+<div class="flex items-start gap-2 px-2">
+<span class="material-symbols-outlined text-[16px] text-text-secondary mt-0.5" style="font-variation-settings: 'FILL' 0;">info</span>
+<p class="font-body text-xs text-text-secondary leading-relaxed">
+        Reminders are best-effort. Your phone's battery settings can delay or drop them.
+      </p>
+</div>
+<!-- Lock Screen Section -->
+<section class="mt-4 flex flex-col gap-4">
+<h2 class="font-headline font-medium text-base text-on-surface px-2">What shows on your lock screen</h2>
+<!-- Notification Mock -->
+<div class="bg-notification-bg rounded-[24px] p-4 flex items-center gap-4 shadow-sm border border-black/5">
+<div class="w-10 h-10 rounded-full bg-seed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">nightlight</span>
+</div>
+<div class="flex flex-col flex-1">
+<div class="flex justify-between items-center">
+<span class="font-body text-xs text-text-secondary">LunaTrack • Now</span>
+<span class="material-symbols-outlined text-[16px] text-text-secondary" style="font-variation-settings: 'FILL' 0;">expand_more</span>
+</div>
+<span class="font-headline font-medium text-sm text-on-surface mt-1">Tap to open</span>
+</div>
+</div>
+<p class="font-body text-xs text-text-secondary px-2 text-center">
+        This is all that shows on your lock screen.
+      </p>
+</section>
+</main>
+</body></html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>LunaTrack - Today (first run, no date)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            surface: '#FFFFFF',
+                            text: '#3A2A30',
+                            seed: '#F7A8C4',
+                            menstrual: '#D64F6E',
+                            follicular: '#6FB3A8',
+                            ovulatory: '#7E9CE8',
+                            luteal: '#D9A15B',
+                            fertile: '#9CCFC6',
+                            predicted: '#B0A8C0',
+                            lutealWash: 'rgba(217, 161, 91, 0.15)'
+                        }
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        lg: "1rem",
+                        xl: "1.5rem",
+                        full: "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1;
+        }
+        body {
+            background-color: #FFFFFF;
+            color: #3A2A30;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Custom styles for month ring to match requirements */
+        .month-ring-svg circle {
+            fill: none;
+            stroke-width: 12;
+            stroke-linecap: round;
+        }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="font-body antialiased min-h-screen flex flex-col relative pb-[130px]">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-40 bg-white flat elevation-0 no-shadow">
+<div class="flex items-center h-16 px-4 w-full transition-colors duration-200">
+<button class="p-2 rounded-full hover:bg-[#F7A8C4]/10 text-[#3A2A30] mr-4 flex items-center justify-center">
+<span class="material-symbols-outlined">bubble_chart</span>
+</button>
+<h1 class="font-headline text-lg font-medium text-[#3A2A30]">Today</h1>
+</div>
+</header>
+<main class="flex-1 px-4 space-y-4 max-w-md mx-auto w-full">
+<!-- ============================================================================
+     TODAY - FIRST RUN, "I'm not sure" WAS TAKEN AT SETUP.
+     Composed locally 2026-09-07 from 01-today.html's components (see README).
+     No log was seeded, so lastStart == null and predictFromLogs returns its
+     defaults-only result: cycleDay null, currentPhase unknown, nextPeriodStart null.
+     There is NO estimate to tag, because there is no estimate. Hence: no next-period
+     card, no check-in card, no patterns card, and none of them as a greyed placeholder
+     or a skeleton. Honest emptiness plus ONE call to action.
+============================================================================ -->
+<!-- Phase Card -->
+<section class="bg-black/[0.04] rounded-[20px] p-6 flex flex-col gap-2">
+<div class="flex items-center gap-2">
+<div class="w-2.5 h-2.5 rounded-full bg-brand-text/20"></div>
+<span class="font-label text-sm font-medium text-brand-text">Cycle day</span>
+</div>
+<h2 class="font-display text-4xl font-semibold text-brand-text tracking-tight">—</h2>
+</section>
+<!-- Month Ring Card -->
+<section class="bg-brand-seed/5 rounded-[20px] p-6 flex flex-col items-center gap-6">
+<div class="relative w-[200px] h-[200px] flex items-center justify-center">
+<svg class="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+<!-- FIRST RUN, no date given. Nothing has ever been logged, so there is no cycle to
+     paint: a single flat unbroken outline, deliberately with NO stroke-dasharray and
+     NO dotted "today" segment. An empty ring is the honest picture; a skeleton or a
+     greyed set of fake segments would imply data that does not exist. -->
+<circle cx="50" cy="50" fill="none" r="44" stroke="#B0A8C0" stroke-opacity="0.25" stroke-width="10"></circle>
+</svg>
+<div class="text-center flex flex-col z-10">
+<span class="font-label text-xs uppercase tracking-wider text-brand-text/40">7 September</span>
+</div>
+</div>
+</section>
+<!-- The screen's single call to action. -->
+<section class="flex flex-col items-center text-center gap-3 pt-2 pb-1">
+<h2 class="font-display text-xl font-semibold text-brand-text">Nothing logged yet</h2>
+<p class="font-body text-sm text-brand-text/60 max-w-[260px]">Your cycle picture builds from the days you log</p>
+</section>
+<!-- Single call to action. A filled button in a COLUMN is the app's full-width CTA
+     convention and is correct; the layout bug is a bare FilledButton inside a Row. -->
+<button class="w-full h-[52px] bg-brand-seed text-brand-text font-medium rounded-[16px] flex items-center justify-center">Log today</button>
+<!-- Change Timer -->
+<section class="py-2">
+<h4 class="font-label text-sm font-medium text-brand-text/70 mb-3 px-1">Change timer</h4>
+<div class="flex flex-wrap gap-2">
+<button class="px-4 py-2 rounded-[12px] bg-brand-seed/5 text-sm font-medium hover:bg-brand-seed/10 active:scale-95 transition-transform flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">water_drop</span> Pad
+                </button>
+<button class="px-4 py-2 rounded-[12px] bg-brand-seed/5 text-sm font-medium hover:bg-brand-seed/10 active:scale-95 transition-transform">Tampon</button>
+<button class="px-4 py-2 rounded-[12px] bg-brand-seed/5 text-sm font-medium hover:bg-brand-seed/10 active:scale-95 transition-transform">Cup / disc</button>
+<button class="px-4 py-2 rounded-[12px] bg-brand-seed/5 text-sm font-medium hover:bg-brand-seed/10 active:scale-95 transition-transform">Period underwear</button>
+</div>
+</section>
+<!-- Disclaimer Banner -->
+<div class="flex items-start gap-2 bg-black/5 rounded-lg p-3 mt-6 mb-2">
+<span class="material-symbols-outlined text-[16px] text-brand-text/60 mt-0.5">info</span>
+<p class="text-xs text-brand-text/60 leading-tight">Estimates only — not a contraceptive method.</p>
+</div>
+</main>
+<!-- Ad Banner Slot -->
+<div class="fixed bottom-[80px] left-0 w-full flex justify-center pb-2 z-40 bg-gradient-to-t from-white via-white to-transparent pt-6 pointer-events-none">
+<div class="w-[320px] h-[50px] bg-gray-100 flex items-center justify-center border border-gray-200 pointer-events-auto">
+<span class="text-xs text-gray-400 font-medium tracking-widest uppercase">Advertisement</span>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 h-20 bg-white flat elevation-0 no-shadow pb-safe border-t border-black/5 flex justify-around items-center px-2">
+<button class="scale-95 active:scale-90 transition-transform duration-150 flex flex-col items-center justify-center gap-1 bg-[#F7A8C4] text-[#3A2A30] rounded-full px-5 py-1 w-[72px]">
+<span class="material-symbols-outlined" data-weight="fill">today</span>
+<span class="font-label text-xs font-medium">Today</span>
+</button>
+<button class="scale-95 active:scale-90 transition-transform duration-150 flex flex-col items-center justify-center gap-1 text-[#49454F] hover:bg-[#F7A8C4]/5 rounded-full w-[72px] py-1">
+<span class="material-symbols-outlined">calendar_month</span>
+<span class="font-label text-xs font-medium">Calendar</span>
+</button>
+<button class="scale-95 active:scale-90 transition-transform duration-150 flex flex-col items-center justify-center gap-1 text-[#49454F] hover:bg-[#F7A8C4]/5 rounded-full w-[72px] py-1">
+<span class="material-symbols-outlined">auto_graph</span>
+<span class="font-label text-xs font-medium">Forecast</span>
+</button>
+<button class="scale-95 active:scale-90 transition-transform duration-150 flex flex-col items-center justify-center gap-1 text-[#49454F] hover:bg-[#F7A8C4]/5 rounded-full w-[72px] py-1">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-label text-xs font-medium">Insights</span>
+</button>
+<button class="scale-95 active:scale-90 transition-transform duration-150 flex flex-col items-center justify-center gap-1 text-[#49454F] hover:bg-[#F7A8C4]/5 rounded-full w-[72px] py-1">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label text-xs font-medium">Settings</span>
+</button>
+</nav>
+</body></html>

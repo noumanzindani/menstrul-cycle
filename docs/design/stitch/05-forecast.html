@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Forecast - LunaTrack</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        'surface-pink': '#FDF9FA', // very subtle soft pink tint for dark mode surface parity if needed, keeping white mostly
+                        'primary-text': '#3A2A30',
+                        'seed-pink': '#F7A8C4',
+                        'card-pink': '#FCF1F5', // soft pink tint derived from seed
+                        
+                        // Phase Light
+                        'phase-menstrual': '#D64F6E',
+                        'phase-follicular': '#6FB3A8',
+                        'phase-ovulatory': '#7E9CE8',
+                        'phase-luteal': '#D9A15B',
+                        'phase-fertile': '#9CCFC6',
+                        'phase-predicted': '#B0A8C0',
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        lg: "1rem",
+                        xl: "1.25rem", // 20dp
+                        full: "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    },
+                    spacing: {
+                        'bottom-nav': '5rem', // 80px
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            background-color: #FFFFFF;
+            color: #3A2A30;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-white min-h-screen flex flex-col items-center antialiased">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-white z-40 flat elevation-0 no-shadow flex items-center px-4 h-16 max-w-[360px] mx-auto">
+<h1 class="font-headline text-xl font-semibold text-[#3A2A30] tracking-tight">Forecast</h1>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 w-full max-w-[360px] mx-auto px-4 pb-32 flex flex-col gap-6">
+<!-- Leading Info Card -->
+<div class="bg-zinc-50 rounded-xl p-4 flex gap-3 items-start mt-2">
+<span class="material-symbols-outlined text-zinc-500 text-sm mt-0.5" style="font-variation-settings: 'FILL' 1;">info</span>
+<p class="font-body text-sm text-[#3A2A30] leading-relaxed">These are estimates from the days you've logged. They get better the more you log.</p>
+</div>
+<!-- Forecast Cards List -->
+<div class="flex flex-col gap-3">
+<!-- Card 1 (100% opacity) -->
+<div class="bg-card-pink rounded-xl p-5 flex flex-col gap-4 opacity-100">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-phase-menstrual"></div>
+<span class="font-label text-xs font-medium text-zinc-600 uppercase tracking-wider">Period</span>
+<span class="bg-white/50 text-zinc-500 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-medium ml-1">Estimate</span>
+</div>
+<h2 class="font-display text-lg font-medium text-primary-text">16 – 21 Sep</h2>
+</div>
+</div>
+<div class="h-px bg-primary-text/5 w-full"></div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-phase-fertile"></div>
+<span class="font-label text-xs font-medium text-zinc-600 uppercase tracking-wider">Fertile window</span>
+</div>
+<p class="font-display text-base font-medium text-primary-text">8 – 13 Oct</p>
+</div>
+</div>
+<!-- Card 2 (85% opacity) -->
+<div class="bg-card-pink rounded-xl p-5 flex flex-col gap-4 opacity-85">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-phase-menstrual"></div>
+<span class="font-label text-xs font-medium text-zinc-600 uppercase tracking-wider">Period</span>
+</div>
+<h2 class="font-display text-lg font-medium text-primary-text">14 – 19 Oct</h2>
+</div>
+</div>
+<div class="h-px bg-primary-text/5 w-full"></div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-phase-fertile"></div>
+<span class="font-label text-xs font-medium text-zinc-600 uppercase tracking-wider">Fertile window</span>
+</div>
+<p class="font-display text-base font-medium text-primary-text">5 – 10 Nov</p>
+</div>
+</div>
+<!-- Card 3 (70% opacity) -->
+<div class="bg-card-pink rounded-xl p-5 flex flex-col gap-4 opacity-70">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-phase-menstrual"></div>
+<span class="font-label text-xs font-medium text-zinc-600 uppercase tracking-wider">Period</span>
+</div>
+<h2 class="font-display text-lg font-medium text-primary-text">11 – 16 Nov</h2>
+</div>
+</div>
+<div class="h-px bg-primary-text/5 w-full"></div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-phase-fertile"></div>
+<span class="font-label text-xs font-medium text-zinc-600 uppercase tracking-wider">Fertile window</span>
+</div>
+<p class="font-display text-base font-medium text-primary-text">3 – 8 Dec</p>
+</div>
+</div>
+<!-- Card 4 (55% opacity) -->
+<div class="bg-card-pink rounded-xl p-5 flex flex-col gap-4 opacity-55">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-phase-menstrual"></div>
+<span class="font-label text-xs font-medium text-zinc-600 uppercase tracking-wider">Period</span>
+</div>
+<h2 class="font-display text-lg font-medium text-primary-text">9 – 14 Dec</h2>
+</div>
+</div>
+<div class="h-px bg-primary-text/5 w-full"></div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-phase-fertile"></div>
+<span class="font-label text-xs font-medium text-zinc-600 uppercase tracking-wider">Fertile window</span>
+</div>
+<p class="font-display text-base font-medium text-primary-text">31 Dec – 5 Jan</p>
+</div>
+</div>
+<!-- Card 5 (40% opacity) -->
+<div class="bg-card-pink rounded-xl p-5 flex flex-col gap-4 opacity-40">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-phase-menstrual"></div>
+<span class="font-label text-xs font-medium text-zinc-600 uppercase tracking-wider">Period</span>
+</div>
+<h2 class="font-display text-lg font-medium text-primary-text">6 – 11 Jan</h2>
+</div>
+</div>
+<div class="h-px bg-primary-text/5 w-full"></div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-phase-fertile"></div>
+<span class="font-label text-xs font-medium text-zinc-600 uppercase tracking-wider">Fertile window</span>
+</div>
+<p class="font-display text-base font-medium text-primary-text">28 Jan – 2 Feb</p>
+</div>
+</div>
+</div>
+<!-- Disclaimer Banner -->
+<div class="flex items-center justify-center gap-2 py-4">
+<span class="material-symbols-outlined text-zinc-400 text-sm">info</span>
+<p class="font-body text-xs text-zinc-500">Estimates only — not a contraceptive method.</p>
+</div>
+</main>
+<!-- Ad Banner Slot pinned above nav -->
+<div class="fixed bottom-20 w-full max-w-[360px] mx-auto z-40 bg-zinc-100 flex items-center justify-center h-[50px] border-y border-zinc-200">
+<span class="font-label text-[10px] text-zinc-400 uppercase tracking-widest">Advertisement</span>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full max-w-[360px] mx-auto z-50 bg-white border-t border-zinc-100 flat elevation-0 flex justify-around items-center h-20 px-2 pb-safe">
+<!-- Today -->
+<a class="flex flex-col items-center justify-center gap-1 text-zinc-400 px-4 py-1 hover:bg-zinc-50 rounded-xl transition-colors active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined text-xl">today</span>
+<span class="font-label text-[12px] font-medium tracking-wide">Today</span>
+</a>
+<!-- Calendar -->
+<a class="flex flex-col items-center justify-center gap-1 text-zinc-400 px-4 py-1 hover:bg-zinc-50 rounded-xl transition-colors active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined text-xl">calendar_month</span>
+<span class="font-label text-[12px] font-medium tracking-wide">Calendar</span>
+</a>
+<!-- Forecast (Active) -->
+<a class="flex flex-col items-center justify-center gap-1 text-[#3A2A30] bg-[#F7A8C4]/20 rounded-xl px-4 py-1 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">auto_graph</span>
+<span class="font-label text-[12px] font-medium tracking-wide">Forecast</span>
+</a>
+<!-- Insights -->
+<a class="flex flex-col items-center justify-center gap-1 text-zinc-400 px-4 py-1 hover:bg-zinc-50 rounded-xl transition-colors active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined text-xl">analytics</span>
+<span class="font-label text-[12px] font-medium tracking-wide">Insights</span>
+</a>
+<!-- Settings -->
+<a class="flex flex-col items-center justify-center gap-1 text-zinc-400 px-4 py-1 hover:bg-zinc-50 rounded-xl transition-colors active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined text-xl">settings</span>
+<span class="font-label text-[12px] font-medium tracking-wide">Settings</span>
+</a>
+</nav>
+</body></html>

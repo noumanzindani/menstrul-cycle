@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LunaTrack - Day Log</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#FFFFFF',
+                        primary: '#3A2A30',
+                        accent: '#F7A8C4',
+                        phase: {
+                            menstrual: '#D64F6E',
+                            predicted: '#B0A8C0'
+                        },
+                        surface: '#FFF5F8',
+                        border: '#E8E4EB',
+                        text: {
+                            primary: '#3A2A30',
+                            secondary: '#6B6065',
+                            tertiary: '#9D9398'
+                        }
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        md: "0.75rem",
+                        lg: "1rem",
+                        xl: "1.25rem",
+                        full: "9999px"
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            background-color: #FFFFFF;
+            color: #3A2A30;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .chip {
+            transition: all 0.2s ease;
+        }
+
+        .chip.selected {
+            background-color: #FFF5F8;
+            border-color: #F7A8C4;
+            color: #3A2A30;
+            font-weight: 500;
+        }
+
+        .flow-chip.selected {
+            background-color: #FFF5F8;
+            border-color: #D64F6E;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: #E8E4EB;
+            border-radius: 999px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #F7A8C4;
+            cursor: pointer;
+            border: 2px solid #FFFFFF;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .switch-input:checked + .switch-bg {
+            background-color: #F7A8C4;
+        }
+
+        .switch-input:checked + .switch-bg .switch-handle {
+            transform: translateX(100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col pt-16 pb-24">
+<!-- Top App Bar -->
+<header class="fixed top-0 left-0 right-0 h-16 bg-white z-50 flex items-center px-4" style="box-shadow: 0 1px 0 0 rgba(0,0,0,0.05);">
+<button aria-label="Close" class="p-2 -ml-2 text-primary hover:bg-surface rounded-full transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+<h1 class="ml-2 font-headline text-lg font-medium text-primary">Sunday, 7 September</h1>
+</header>
+<!-- Main Content Form -->
+<main class="flex-1 w-full max-w-lg mx-auto px-5 py-6 space-y-10">
+<!-- FLOW -->
+<section class="space-y-4">
+<h2 class="text-xs font-semibold tracking-wider text-text-secondary uppercase">Flow</h2>
+<div class="flex flex-wrap gap-2">
+<button class="flow-chip flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">
+<span class="material-symbols-outlined text-phase-menstrual" style="font-variation-settings: 'FILL' 0.2">water_drop</span>
+                    Spotting
+                </button>
+<button class="flow-chip flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">
+<span class="material-symbols-outlined text-phase-menstrual" style="font-variation-settings: 'FILL' 0.4">water_drop</span>
+                    Light
+                </button>
+<button class="flow-chip flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary selected">
+<span class="material-symbols-outlined text-phase-menstrual" style="font-variation-settings: 'FILL' 0.6">water_drop</span>
+                    Medium
+                </button>
+<button class="flow-chip flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">
+<span class="material-symbols-outlined text-phase-menstrual" style="font-variation-settings: 'FILL' 0.8">water_drop</span>
+                    Heavy
+                </button>
+<button class="flow-chip flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">
+<span class="material-symbols-outlined text-phase-menstrual" style="font-variation-settings: 'FILL' 1">water_drop</span>
+                    Flooding
+                </button>
+</div>
+<div class="mt-4 p-4 rounded-xl bg-surface/50 border border-border/50 flex items-center justify-between">
+<div>
+<div class="font-medium text-sm text-primary">Period ended today</div>
+<div class="text-xs text-text-secondary mt-0.5">Marks today as no bleeding</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only switch-input" type="checkbox"/>
+<div class="switch-bg w-11 h-6 bg-border rounded-full transition-colors relative">
+<div class="switch-handle absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow-sm transition-transform duration-200"></div>
+</div>
+</label>
+</div>
+</section>
+<!-- PHYSICAL SYMPTOMS -->
+<section class="space-y-4">
+<h2 class="text-xs font-semibold tracking-wider text-text-secondary uppercase">Physical Symptoms</h2>
+<div class="flex flex-wrap gap-2">
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Cramps</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Headache</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary selected">Bloating</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Fatigue</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Nausea</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Backache</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Acne</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Cravings</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Dizziness</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Insomnia</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Hot flashes</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Chills</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Migraine</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Constipation</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Diarrhea</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Fever</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Night sweats</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Pelvic pain</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Leg pain</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Brain fog</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Discharge</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary selected">Tender breasts</button>
+</div>
+</section><section class="space-y-4">
+<h2 class="text-xs font-semibold tracking-wider text-text-secondary uppercase">Temperature &amp; Ovulation Tests</h2>
+<div class="space-y-3">
+<div class="relative">
+<input class="w-full px-4 py-3 rounded-xl border border-border focus:border-accent focus:ring-1 focus:ring-accent outline-none text-primary placeholder-text-tertiary pr-12" placeholder="Basal body temperature" step="0.1" type="number"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary text-sm">°C</span>
+</div>
+<div class="flex gap-2">
+<button class="chip flex-1 px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Negative</button>
+<button class="chip flex-1 px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Positive</button>
+<button class="chip flex-1 px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Peak</button>
+</div>
+</div>
+</section>
+<!-- MOOD -->
+<section class="space-y-4">
+<h2 class="text-xs font-semibold tracking-wider text-text-secondary uppercase">Emotional Symptoms</h2>
+<div class="flex flex-wrap gap-2">
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Anxious</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Irritable</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Low mood</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Mood swings</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Low motivation</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Calm</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Angry</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Tearful</button>
+</div>
+</section><section class="space-y-4">
+<h2 class="text-xs font-semibold tracking-wider text-text-secondary uppercase">Mood</h2>
+<div class="flex flex-wrap gap-2">
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Happy</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary selected">Calm</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Energetic</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Irritable</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Anxious</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Low</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Angry</button>
+<button class="chip px-4 py-2 rounded-xl border border-border bg-white text-sm text-text-primary">Negative</button>
+</div>
+</section>
+<!-- PAIN -->
+<section class="space-y-4">
+<div class="flex items-center justify-between">
+<h2 class="text-xs font-semibold tracking-wider text-text-secondary uppercase">Pain level</h2>
+<span class="text-sm font-medium text-primary">4 / 10</span>
+</div>
+<div class="pt-2 pb-4">
+<input class="w-full" max="10" min="0" type="range" value="4"/>
+<div class="flex justify-between text-xs text-text-tertiary mt-2">
+<span>None</span>
+<span>Severe</span>
+</div>
+</div>
+</section>
+<!-- WELLBEING -->
+<section class="space-y-4">
+<h2 class="text-xs font-semibold tracking-wider text-text-secondary uppercase">Wellbeing</h2>
+<div class="space-y-3">
+<!-- Water -->
+<div class="flex items-center justify-between bg-surface/30 p-3 rounded-xl border border-border/50">
+<span class="text-sm text-primary">Water (glasses)</span>
+<div class="flex items-center gap-3">
+<button class="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-secondary hover:bg-surface">-</button>
+<span class="w-6 text-center font-medium">4</span>
+<button class="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-secondary hover:bg-surface">+</button>
+</div>
+</div>
+<!-- Sleep -->
+<div class="flex items-center justify-between bg-surface/30 p-3 rounded-xl border border-border/50">
+<span class="text-sm text-primary">Sleep (hours)</span>
+<div class="flex items-center gap-3">
+<button class="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-secondary hover:bg-surface">-</button>
+<span class="w-6 text-center font-medium">7.5</span>
+<button class="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-secondary hover:bg-surface">+</button>
+</div>
+</div>
+<!-- Energy -->
+<div class="flex items-center justify-between bg-surface/30 p-3 rounded-xl border border-border/50">
+<span class="text-sm text-primary">Energy</span>
+<div class="flex items-center gap-3">
+<button class="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-secondary hover:bg-surface">-</button>
+<span class="w-6 text-center font-medium">3/5</span>
+<button class="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-secondary hover:bg-surface">+</button>
+</div>
+</div>
+<!-- Stress -->
+<div class="flex items-center justify-between bg-surface/30 p-3 rounded-xl border border-border/50">
+<span class="text-sm text-primary">Stress</span>
+<div class="flex items-center gap-3">
+<button class="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-secondary hover:bg-surface">-</button>
+<span class="w-6 text-center font-medium">2/5</span>
+<button class="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-secondary hover:bg-surface">+</button>
+</div>
+</div>
+<!-- Sleep quality -->
+<div class="flex items-center justify-between bg-surface/30 p-3 rounded-xl border border-border/50">
+<span class="text-sm text-primary">Sleep quality</span>
+<div class="flex items-center gap-3">
+<button class="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-secondary hover:bg-surface">-</button>
+<span class="w-6 text-center font-medium">4/5</span>
+<button class="w-8 h-8 rounded-full border border-border flex items-center justify-center text-text-secondary hover:bg-surface">+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- WEIGHT -->
+<section class="space-y-4">
+<h2 class="text-xs font-semibold tracking-wider text-text-secondary uppercase">Weight</h2>
+<div class="relative">
+<input class="w-full px-4 py-3 rounded-xl border border-border focus:border-accent focus:ring-1 focus:ring-accent outline-none text-primary placeholder-text-tertiary pr-12" placeholder="0.0" step="0.1" type="number"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary text-sm">kg</span>
+</div>
+</section>
+<!-- NOTES -->
+<section class="space-y-4">
+<h2 class="text-xs font-semibold tracking-wider text-text-secondary uppercase">Notes</h2>
+<textarea class="w-full px-4 py-3 rounded-xl border border-border focus:border-accent focus:ring-1 focus:ring-accent outline-none text-primary placeholder-text-tertiary resize-none" placeholder="Anything you want to remember..." rows="4"></textarea>
+</section>
+</main>
+<!-- Bottom Save Button -->
+<div class="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-sm border-t border-border/50 z-50 flex justify-center">
+<button class="w-full max-w-lg h-[52px] bg-accent text-primary font-medium rounded-[16px] flex items-center justify-center transition-opacity hover:opacity-90">
+            Save
+        </button>
+</div>
+<script>
+        // Simple chip selection toggle for demo purposes
+        document.querySelectorAll('.chip, .flow-chip').forEach(chip => {
+            chip.addEventListener('click', function() {
+                if(!this.classList.contains('flow-chip')) {
+                    this.classList.toggle('selected');
+                } else {
+                    // For flow chips, single select
+                    document.querySelectorAll('.flow-chip').forEach(c => c.classList.remove('selected'));
+                    this.classList.add('selected');
+                }
+            });
+        });
+    </script>
+</body></html>

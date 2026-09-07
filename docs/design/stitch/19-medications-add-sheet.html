@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LunaTrack - Add Medication</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            text: "#3A2A30",
+                            seed: "#F7A8C4",
+                            surface: "#FFFFFF",
+                            sheet: "#FDF4F6", // Soft pink tint for cards/sheets
+                            border: "#EADEE1",
+                            muted: "#8A797D"
+                        }
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans", "sans-serif"],
+                        "display": ["Public Sans", "sans-serif"],
+                        "body": ["Public Sans", "sans-serif"],
+                        "label": ["Public Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#E5E5E5] flex items-center justify-center min-h-screen">
+<!-- Mobile Device Container (360x800dp) -->
+<div class="relative w-full max-w-[360px] h-[800px] bg-brand-surface overflow-hidden flex flex-col font-body shadow-2xl">
+<!-- TopAppBar (From JSON, rendered as background) -->
+<header class="w-full top-0 sticky bg-white flex items-center justify-between px-4 h-16 z-10 transition-colors">
+<button class="w-10 h-10 flex items-center justify-center hover:bg-[#F7A8C4]/10 rounded-full text-brand-text active:opacity-70 transition-all">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline text-lg font-medium text-brand-text">Medications</h1>
+<button class="w-10 h-10 flex items-center justify-center hover:bg-[#F7A8C4]/10 rounded-full text-brand-text active:opacity-70 transition-all">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+</header>
+<!-- Background Content: Medications List -->
+<main class="flex-1 overflow-y-auto px-4 py-6 space-y-4 pb-24">
+<!-- Info Card 1 -->
+<div class="bg-brand-sheet rounded-[20px] p-5 flex flex-col gap-1">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-brand-seed"></div>
+<span class="text-xs font-medium text-brand-muted uppercase tracking-wider">Daily</span>
+</div>
+<h3 class="text-xl font-medium text-brand-text">Prenatal Vitamin</h3>
+<p class="text-sm text-brand-text/70 mt-1">1 tablet • Every morning</p>
+</div>
+<!-- Info Card 2 -->
+<div class="bg-brand-sheet rounded-[20px] p-5 flex flex-col gap-1">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-[#B0A8C0]"></div> <!-- Predicted/Unknown color for as needed -->
+<span class="text-xs font-medium text-brand-muted uppercase tracking-wider">As Needed</span>
+</div>
+<h3 class="text-xl font-medium text-brand-text">Ibuprofen</h3>
+<p class="text-sm text-brand-text/70 mt-1">400mg • For cramps</p>
+</div>
+<!-- Info Card 3 -->
+<div class="bg-brand-sheet rounded-[20px] p-5 flex flex-col gap-1">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-brand-seed"></div>
+<span class="text-xs font-medium text-brand-muted uppercase tracking-wider">Daily</span>
+</div>
+<h3 class="text-xl font-medium text-brand-text">Iron Supplement</h3>
+<p class="text-sm text-brand-text/70 mt-1">65mg • Every evening with food</p>
+</div>
+</main>
+<!-- Dim Overlay -->
+<div class="absolute inset-0 bg-black/40 z-40 transition-opacity backdrop-blur-[1px]"></div>
+<!-- Add Medication Bottom Sheet -->
+<div class="absolute bottom-0 left-0 w-full bg-brand-sheet rounded-t-[20px] z-50 flex flex-col pt-3 pb-8 px-5 shadow-[0_-4px_24px_rgba(0,0,0,0.05)] transform transition-transform duration-300 ease-out translate-y-0">
+<!-- Drag Handle -->
+<div class="w-10 h-1.5 bg-brand-border rounded-full mx-auto mb-6"></div>
+<!-- Sheet Title -->
+<h2 class="font-headline text-[22px] font-medium text-brand-text mb-6">Add medication</h2>
+<!-- Form Fields -->
+<div class="space-y-5 mb-8">
+<!-- Name Field (Outlined) -->
+<div class="relative">
+<input class="block px-4 pb-3 pt-4 w-full text-base text-brand-text bg-transparent rounded-lg border-2 border-brand-border appearance-none focus:outline-none focus:ring-0 focus:border-brand-seed peer" id="med-name" placeholder=" " type="text"/>
+<label class="absolute text-sm text-brand-muted duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-brand-sheet px-2 peer-focus:px-2 peer-focus:text-brand-text peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-3" for="med-name">Name</label>
+</div>
+<!-- Dose Field (Outlined) -->
+<div class="relative">
+<input class="block px-4 pb-3 pt-4 w-full text-base text-brand-text bg-transparent rounded-lg border-2 border-brand-border appearance-none focus:outline-none focus:ring-0 focus:border-brand-seed peer" id="med-dose" placeholder=" " type="text"/>
+<label class="absolute text-sm text-brand-muted duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-brand-sheet px-2 peer-focus:px-2 peer-focus:text-brand-text peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-3" for="med-dose">Dose</label>
+</div>
+</div>
+<!-- Schedule Chips (Chip Grid) -->
+<h3 class="text-sm font-medium text-brand-text mb-3">Schedule</h3>
+<div class="flex flex-wrap gap-2.5 mb-10">
+<button class="px-4 py-2 rounded-[12px] border border-brand-border bg-white text-sm text-brand-text active:bg-brand-seed/20 transition-colors">Every morning</button>
+<button class="px-4 py-2 rounded-[12px] border-2 border-brand-seed bg-brand-seed/10 text-sm font-medium text-brand-text transition-colors">Every evening</button>
+<button class="px-4 py-2 rounded-[12px] border border-brand-border bg-white text-sm text-brand-text active:bg-brand-seed/20 transition-colors">Twice daily</button>
+<button class="px-4 py-2 rounded-[12px] border border-brand-border bg-white text-sm text-brand-text active:bg-brand-seed/20 transition-colors">As needed</button>
+</div>
+<!-- Full-width Save Button -->
+<button class="w-full h-[52px] bg-brand-seed rounded-[16px] text-brand-text font-medium text-base active:opacity-70 active:scale-[0.98] transition-all flex items-center justify-center">
+                Save
+            </button>
+<!-- Bottom Safe Area Spacer -->
+<div class="h-4"></div>
+</div>
+</div>
+</body></html>

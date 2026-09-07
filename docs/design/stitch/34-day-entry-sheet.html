@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>LunaTrack - Log Entry</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config from Design System -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#FFFFFF",
+                        surface: "#FFFFFF",
+                        "on-surface": "#3A2A30",
+                        primary: "#F7A8C4",
+                        "primary-container": "#FCE4EC", // Soft pink tint derived from seed
+                        "on-primary-container": "#3A2A30",
+                        "surface-variant": "#F5F5F5",
+                        outline: "#E0E0E0",
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        md: "0.75rem",
+                        lg: "1rem",
+                        xl: "1.25rem", // 20dp approx
+                        "2xl": "1.5rem",
+                        full: "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"],
+                        serif: ["Georgia", "serif"] // Added for the specific 20px serif request
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Hide scrollbar for cleaner look in the bottom sheet */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .chip-selected .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body antialiased overflow-hidden w-full h-screen relative flex flex-col justify-end">
+<!-- Background Scrim (Dimmed Calendar Sliver) -->
+<div class="absolute inset-0 bg-black/40 z-0 flex flex-col items-center pt-8">
+<!-- Mock Calendar Sliver -->
+<div class="w-full max-w-md px-4 grid grid-cols-7 gap-2 text-center text-white/50 text-sm mb-4">
+<div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
+<div>31</div><div>1</div><div>2</div><div>3</div><div>4</div><div class="text-primary font-bold bg-white/20 rounded-full h-8 w-8 flex items-center justify-center mx-auto">5</div><div>6</div>
+</div>
+</div>
+<!-- Bottom Sheet Modal (90% height) -->
+<div class="relative z-10 w-full max-w-md mx-auto bg-surface rounded-t-[28px] flex flex-col shadow-2xl h-[795px]">
+<!-- HEADER (pinned) -->
+<div class="flex flex-col items-center pt-4 pb-2 px-4 rounded-t-[28px] bg-surface z-20 shrink-0">
+<!-- Drag Handle -->
+<div class="w-8 h-1 bg-outline rounded-full mb-4"></div>
+<div class="w-full flex items-center justify-between">
+<div class="w-10"></div> <!-- Spacer for centering -->
+<h1 class="font-serif text-[20px] text-on-surface text-center flex-grow">Saturday, 5 September</h1>
+<button aria-label="Close" class="w-10 h-10 flex items-center justify-center text-on-surface rounded-full hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+</div>
+<!-- BODY (scrollable) -->
+<div class="flex-1 overflow-y-auto no-scrollbar px-4 pb-4 pt-2 space-y-8">
+<!-- Period Start Card -->
+<div class="bg-primary-container rounded-xl p-5 flex flex-col gap-4">
+<h2 class="font-headline font-medium text-lg text-on-surface">Did your period start?</h2>
+<div class="flex gap-3 w-full">
+<button class="flex-1 h-[48px] rounded-lg border border-primary text-on-surface font-medium hover:bg-primary/5 transition-colors flex items-center justify-center gap-2">
+                        Not yet
+                    </button>
+<button class="flex-1 h-[48px] rounded-lg border border-primary text-on-surface font-medium hover:bg-primary/5 transition-colors flex items-center justify-center gap-2">
+                        It started
+                    </button>
+</div>
+</div>
+<!-- FLOW section -->
+<section class="space-y-3">
+<h3 class="font-label text-[11px] uppercase tracking-wider text-on-surface/70 font-medium">Flow</h3>
+<div class="flex flex-wrap gap-2">
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">None</button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">Light</button>
+<button class="px-4 py-2 rounded-xl bg-primary-container text-on-primary-container border border-primary text-sm font-medium transition-colors flex items-center gap-2 chip-selected">
+<span class="material-symbols-outlined text-[18px]">check</span> Medium
+                    </button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">Heavy</button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">Spotting</button>
+</div>
+</section>
+<!-- MOOD section -->
+<section class="space-y-3">
+<h3 class="font-label text-[11px] uppercase tracking-wider text-on-surface/70 font-medium">Mood</h3>
+<div class="flex flex-wrap gap-2">
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">sentiment_satisfied</span> Calm
+                    </button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">mood</span> Happy
+                    </button>
+<button class="px-4 py-2 rounded-xl bg-primary-container text-on-primary-container border border-primary text-sm font-medium transition-colors flex items-center gap-2 chip-selected">
+<span class="material-symbols-outlined text-[18px]">mood_bad</span> Irritable
+                    </button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">sentiment_dissatisfied</span> Anxious
+                    </button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">sentiment_very_dissatisfied</span> Sad
+                    </button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">battery_0_bar</span> Low energy
+                    </button>
+</div>
+</section>
+<!-- SYMPTOMS section -->
+<section class="space-y-3">
+<h3 class="font-label text-[11px] uppercase tracking-wider text-on-surface/70 font-medium">Symptoms</h3>
+<div class="flex flex-wrap gap-2">
+<button class="px-4 py-2 rounded-xl bg-primary-container text-on-primary-container border border-primary text-sm font-medium transition-colors flex items-center gap-2 chip-selected">
+<span class="material-symbols-outlined text-[18px]">water_drop</span> Cramps
+                    </button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">sick</span> Headache
+                    </button>
+<button class="px-4 py-2 rounded-xl bg-primary-container text-on-primary-container border border-primary text-sm font-medium transition-colors flex items-center gap-2 chip-selected">
+<span class="material-symbols-outlined text-[18px]">air</span> Bloating
+                    </button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">favorite</span> Tender breasts
+                    </button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">face</span> Acne
+                    </button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">accessibility_new</span> Backache
+                    </button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">healing</span> Nausea
+                    </button>
+<button class="px-4 py-2 rounded-xl border border-outline text-sm font-medium hover:bg-surface-variant transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">bedtime</span> Fatigue
+                    </button>
+</div>
+</section>
+<!-- PAIN section -->
+<section class="space-y-4">
+<div class="flex justify-between items-end">
+<h3 class="font-label text-[11px] uppercase tracking-wider text-on-surface/70 font-medium">Pain Level</h3>
+<span class="text-xl font-headline font-medium text-primary">4</span>
+</div>
+<div class="px-2">
+<input class="w-full h-2 bg-surface-variant rounded-lg appearance-none cursor-pointer accent-primary" max="10" min="0" type="range" value="4"/>
+<div class="flex justify-between text-xs text-on-surface/60 mt-2 font-medium">
+<span>None</span>
+<span>Severe</span>
+</div>
+</div>
+</section>
+<!-- NOTES section -->
+<section class="space-y-3 pb-8">
+<h3 class="font-label text-[11px] uppercase tracking-wider text-on-surface/70 font-medium">Notes</h3>
+<textarea class="w-full bg-surface-variant border-none rounded-xl p-4 text-sm text-on-surface placeholder:text-on-surface/40 focus:ring-2 focus:ring-primary/50 resize-none" placeholder="How are you feeling today?" rows="3"></textarea>
+</section>
+</div>
+<!-- FOOTER (pinned) -->
+<div class="p-4 bg-surface border-t border-surface-variant z-20 shrink-0 shadow-[0_-4px_16px_rgba(0,0,0,0.02)]">
+<button class="w-full h-[52px] bg-primary text-[#3A2A30] font-headline font-medium rounded-2xl hover:bg-primary/90 transition-colors flex items-center justify-center text-[16px]">
+                Save
+            </button>
+</div>
+</div>
+</body></html>

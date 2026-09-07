@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=360, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>App Lock - LunaTrack</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3A2A30",
+                        seed: "#F7A8C4",
+                        surface: "#FFFFFF",
+                        surfaceVariant: "#FDF2F5",
+                        outline: "#E0E0E0",
+                        keypad: "#F3F3F3",
+                        secondaryText: "#757575"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        lg: "1rem",
+                        xl: "1.25rem", // 20dp
+                        full: "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            background-color: #FFFFFF;
+            color: #3A2A30;
+            width: 360px;
+            height: 800px;
+            margin: 0 auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* Material Symbols */
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body>
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-white dark:bg-[#1C1B1F] flex items-center h-16 px-4 z-10">
+<button class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-[#F7A8C4]/10 transition-colors active:scale-95 duration-150 mr-2 text-[#3A2A30]">
+<span class="material-symbols-outlined text-[24px]">arrow_back</span>
+</button>
+<h1 class="font-headline font-medium text-[#3A2A30] text-xl tracking-tight">App Lock</h1>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto no-scrollbar px-4 pb-8 flex flex-col items-center">
+<!-- Info Card -->
+<div class="w-full bg-surfaceVariant rounded-xl p-5 mb-8 mt-2 flex flex-col gap-3">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-primary mt-0.5">lock</span>
+<div class="flex flex-col gap-2">
+<p class="text-[15px] leading-snug text-primary">A PIN keeps LunaTrack closed if someone else picks up your phone.</p>
+<p class="text-[14px] leading-snug text-primary opacity-80">The lock screen never shows what the app is for.</p>
+</div>
+</div>
+</div>
+<!-- PIN Section -->
+<div class="w-full flex flex-col items-center mb-8 gap-4">
+<h2 class="text-xs font-semibold tracking-wider text-secondaryText uppercase">CHOOSE A PIN</h2>
+<!-- Indicators -->
+<div class="flex gap-4 py-4">
+<div class="w-4 h-4 rounded-full bg-primary"></div>
+<div class="w-4 h-4 rounded-full bg-primary"></div>
+<div class="w-4 h-4 rounded-full border-2 border-primary"></div>
+<div class="w-4 h-4 rounded-full border-2 border-primary"></div>
+<div class="w-4 h-4 rounded-full border-2 border-primary"></div>
+<div class="w-4 h-4 rounded-full border-2 border-primary"></div>
+</div>
+<p class="text-sm text-secondaryText">Enter a 6-digit PIN</p>
+</div>
+<!-- Biometric Card (Moved above keypad for better flow on this screen size) -->
+<div class="w-full bg-white rounded-xl border border-outline p-4 mb-8 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary text-[28px] opacity-80">fingerprint</span>
+<div class="flex flex-col">
+<span class="text-[16px] font-medium text-primary">Also allow fingerprint</span>
+<span class="text-[13px] text-secondaryText mt-0.5">Unlock with biometrics instead of typing</span>
+</div>
+</div>
+<!-- M3 Switch (ON) -->
+<div class="relative inline-flex h-8 w-14 items-center rounded-full bg-seed transition-colors shrink-0 cursor-pointer">
+<span class="inline-block h-6 w-6 translate-x-7 rounded-full bg-primary transition-transform"></span>
+</div>
+</div>
+<!-- Keypad -->
+<div class="w-full max-w-[280px] grid grid-cols-3 gap-y-4 gap-x-6 mx-auto mt-auto mb-4">
+<!-- Row 1 -->
+<button class="w-16 h-16 rounded-full bg-keypad text-primary text-2xl font-medium flex items-center justify-center mx-auto active:bg-outline transition-colors">1</button>
+<button class="w-16 h-16 rounded-full bg-keypad text-primary text-2xl font-medium flex items-center justify-center mx-auto active:bg-outline transition-colors">2</button>
+<button class="w-16 h-16 rounded-full bg-keypad text-primary text-2xl font-medium flex items-center justify-center mx-auto active:bg-outline transition-colors">3</button>
+<!-- Row 2 -->
+<button class="w-16 h-16 rounded-full bg-keypad text-primary text-2xl font-medium flex items-center justify-center mx-auto active:bg-outline transition-colors">4</button>
+<button class="w-16 h-16 rounded-full bg-keypad text-primary text-2xl font-medium flex items-center justify-center mx-auto active:bg-outline transition-colors">5</button>
+<button class="w-16 h-16 rounded-full bg-keypad text-primary text-2xl font-medium flex items-center justify-center mx-auto active:bg-outline transition-colors">6</button>
+<!-- Row 3 -->
+<button class="w-16 h-16 rounded-full bg-keypad text-primary text-2xl font-medium flex items-center justify-center mx-auto active:bg-outline transition-colors">7</button>
+<button class="w-16 h-16 rounded-full bg-keypad text-primary text-2xl font-medium flex items-center justify-center mx-auto active:bg-outline transition-colors">8</button>
+<button class="w-16 h-16 rounded-full bg-keypad text-primary text-2xl font-medium flex items-center justify-center mx-auto active:bg-outline transition-colors">9</button>
+<!-- Row 4 -->
+<div class="w-16 h-16"></div>
+<button class="w-16 h-16 rounded-full bg-keypad text-primary text-2xl font-medium flex items-center justify-center mx-auto active:bg-outline transition-colors">0</button>
+<button class="w-16 h-16 rounded-full text-primary flex items-center justify-center mx-auto active:bg-keypad transition-colors">
+<span class="material-symbols-outlined text-[28px]">backspace</span>
+</button>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>LunaTrack Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#FFFFFF",
+                        surface: "#FFFFFF",
+                        primary: "#3A2A30",
+                        accent: {
+                            DEFAULT: "#F7A8C4",
+                            light: "#F7A8C420"
+                        },
+                        muted: "#767676",
+                        destructive: "#B26B6B",
+                        divider: "#E5E5E5"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.25rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Public Sans', sans-serif; background-color: #FFFFFF; color: #3A2A30; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Hide scrollbar for clean look */
+        ::-webkit-scrollbar { display: none; }
+        * { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-primary antialiased flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-white dark:bg-[#1C1B1F] flex items-center h-16 px-4 w-full top-0 left-0 fixed z-50">
+<h1 class="font-headline text-xl font-semibold text-[#3A2A30] dark:text-[#E6E1E5]">Settings</h1>
+</header>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto pt-16 pb-[130px] px-4 sm:px-6 md:max-w-2xl md:mx-auto w-full">
+<!-- Group: ACCOUNT -->
+<div class="mb-8 pt-4">
+<h2 class="text-xs font-bold tracking-wider text-accent uppercase mb-2 ml-4">ACCOUNT</h2>
+<div class="bg-surface rounded-xl overflow-hidden">
+<!-- Item 1 -->
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">person</span>
+<span class="text-base text-primary">alex@example.com</span>
+</div>
+<span class="material-symbols-outlined text-accent" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<!-- Item 2 -->
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">sync</span>
+<div class="flex flex-col items-start">
+<span class="text-base text-primary">Sync now</span>
+<span class="text-xs text-muted">Last synced 2 minutes ago</span>
+</div>
+</div>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<!-- Item 3 -->
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">logout</span>
+<span class="text-base text-primary">Sign out</span>
+</div>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<!-- Item 4 -->
+<button class="w-full flex items-center justify-between p-4 hover:bg-[#B26B6B]/10 transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-destructive">delete_forever</span>
+<span class="text-base text-destructive">Request account deletion</span>
+</div>
+</button>
+</div>
+</div>
+<!-- Group: CYCLE -->
+<div class="mb-8">
+<h2 class="text-xs font-bold tracking-wider text-accent uppercase mb-2 ml-4">CYCLE</h2>
+<div class="bg-surface rounded-xl overflow-hidden">
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">description</span>
+<span class="text-base text-primary">What I'm using LunaTrack for</span>
+</div>
+<span class="text-sm text-muted">Track my cycle</span>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">event_repeat</span>
+<span class="text-base text-primary">Average cycle length</span>
+</div>
+<span class="text-sm text-muted">28 days</span>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">water_drop</span>
+<span class="text-base text-primary">Average period length</span>
+</div>
+<span class="text-sm text-muted">5 days</span>
+</button>
+</div>
+</div>
+<!-- Group: TRACKING -->
+<div class="mb-8">
+<h2 class="text-xs font-bold tracking-wider text-accent uppercase mb-2 ml-4">TRACKING</h2>
+<div class="bg-surface rounded-xl overflow-hidden">
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">tune</span>
+<div class="flex flex-col items-start">
+<span class="text-base text-primary">Customize tracking</span>
+<span class="text-xs text-muted">9 of 14 sections on</span>
+</div>
+</div>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">medication</span>
+<span class="text-base text-primary">Medications</span>
+</div>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">notifications</span>
+<span class="text-base text-primary">Reminders</span>
+</div>
+</button>
+</div>
+</div>
+<!-- Group: APPEARANCE -->
+<div class="mb-8">
+<h2 class="text-xs font-bold tracking-wider text-accent uppercase mb-2 ml-4">APPEARANCE</h2>
+<div class="bg-surface rounded-xl overflow-hidden">
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">palette</span>
+<span class="text-base text-primary">Theme</span>
+</div>
+<span class="text-sm text-muted">System</span>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">language</span>
+<span class="text-base text-primary">Language</span>
+</div>
+<span class="text-sm text-muted">English</span>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<div class="w-full flex items-center justify-between p-4">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">person_search</span>
+<span class="text-base text-primary">Gender-neutral language</span>
+</div>
+<div class="w-10 h-6 bg-divider rounded-full relative cursor-pointer">
+<div class="w-4 h-4 bg-white rounded-full absolute left-1 top-1"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Group: PRIVACY & SECURITY -->
+<div class="mb-8">
+<h2 class="text-xs font-bold tracking-wider text-accent uppercase mb-2 ml-4">PRIVACY &amp; SECURITY</h2>
+<div class="bg-surface rounded-xl overflow-hidden">
+<div class="w-full flex items-center justify-between p-4">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">lock</span>
+<span class="text-base text-primary">App lock</span>
+</div>
+<div class="w-10 h-6 bg-accent rounded-full relative cursor-pointer">
+<div class="w-4 h-4 bg-white rounded-full absolute right-1 top-1 shadow-sm"></div>
+</div>
+</div>
+<div class="h-px bg-divider ml-14"></div>
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">cloud_upload</span>
+<span class="text-base text-primary">Backup &amp; restore</span>
+</div>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<button class="w-full flex items-center justify-between p-4 hover:bg-[#B26B6B]/10 transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-destructive">delete</span>
+<span class="text-base text-destructive">Delete all my data</span>
+</div>
+</button>
+</div>
+</div>
+<!-- Group: ABOUT -->
+<div class="mb-4">
+<h2 class="text-xs font-bold tracking-wider text-accent uppercase mb-2 ml-4">ABOUT</h2>
+<div class="bg-surface rounded-xl overflow-hidden">
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">workspace_premium</span>
+<div class="flex flex-col items-start">
+<span class="text-base text-primary">LunaTrack Premium</span>
+<span class="text-xs text-muted">Removes ads</span>
+</div>
+</div>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<button class="w-full flex items-center justify-between p-4 hover:bg-accent-light transition-colors duration-200">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">policy</span>
+<span class="text-base text-primary">Privacy policy</span>
+</div>
+</button>
+<div class="h-px bg-divider ml-14"></div>
+<div class="w-full flex items-center justify-between p-4">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted">info</span>
+<span class="text-base text-primary">Version 1.0.0</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Ad Banner Slot -->
+<div class="fixed bottom-[80px] left-0 w-full flex justify-center bg-white/90 backdrop-blur-sm py-2 z-40 border-t border-divider/30">
+<div class="w-[320px] h-[50px] bg-divider rounded flex items-center justify-center">
+<span class="text-xs text-muted font-label">Advertisement</span>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 pb-safe bg-white dark:bg-[#1C1B1F] h-20 shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
+<button class="flex flex-col items-center justify-center gap-1 text-[#49454F] dark:text-[#CAC4D0] px-5 py-1 hover:bg-[#F7A8C4]/20 dark:hover:bg-[#E97B93]/20 scale-95 active:scale-90 transition-transform duration-150 rounded-xl">
+<span class="material-symbols-outlined">today</span>
+<span class="font-label text-xs tracking-wide">Today</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 text-[#49454F] dark:text-[#CAC4D0] px-5 py-1 hover:bg-[#F7A8C4]/20 dark:hover:bg-[#E97B93]/20 scale-95 active:scale-90 transition-transform duration-150 rounded-xl">
+<span class="material-symbols-outlined">calendar_month</span>
+<span class="font-label text-xs tracking-wide">Calendar</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 text-[#49454F] dark:text-[#CAC4D0] px-5 py-1 hover:bg-[#F7A8C4]/20 dark:hover:bg-[#E97B93]/20 scale-95 active:scale-90 transition-transform duration-150 rounded-xl">
+<span class="material-symbols-outlined">auto_graph</span>
+<span class="font-label text-xs tracking-wide">Forecast</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 text-[#49454F] dark:text-[#CAC4D0] px-5 py-1 hover:bg-[#F7A8C4]/20 dark:hover:bg-[#E97B93]/20 scale-95 active:scale-90 transition-transform duration-150 rounded-xl">
+<span class="material-symbols-outlined">query_stats</span>
+<span class="font-label text-xs tracking-wide">Insights</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 bg-[#F7A8C4] dark:bg-[#E97B93] text-[#3A2A30] dark:text-[#1C1B1F] rounded-xl px-5 py-1 hover:bg-[#F7A8C4]/20 dark:hover:bg-[#E97B93]/20 scale-95 active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label text-xs tracking-wide font-semibold">Settings</span>
+</button>
+</nav>
+</body></html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Account - LunaTrack</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#FFFFFF",
+                        surface: "#FFFFFF",
+                        "on-surface": "#3A2A30",
+                        "on-surface-variant": "#7A6A70",
+                        primary: "#F7A8C4",
+                        "primary-container": "#FCE4EC",
+                        "on-primary-container": "#4A1A2B",
+                        secondary: "#6FB3A8",
+                        "secondary-container": "#E0F2F1",
+                        "on-secondary-container": "#1D3B36",
+                        tertiary: "#B0A8C0",
+                        "tertiary-container": "#F3E8FF",
+                        "on-tertiary-container": "#312B44",
+                        destructive: "#A35D62",
+                        "destructive-container": "#F5D6D8",
+                        "on-destructive-container": "#4C1C20",
+                        outline: "#D1C4C8",
+                        "surface-variant": "#F5EFF1"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.25rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    },
+                    boxShadow: {
+                        'sm': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                        'DEFAULT': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+                        'md': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                        'lg': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            background-color: theme('colors.background');
+            color: theme('colors.on-surface');
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        /* Custom Switch Styling for Material 3 look */
+        .m3-switch {
+            appearance: none;
+            width: 52px;
+            height: 32px;
+            background-color: theme('colors.surface-variant');
+            border: 2px solid theme('colors.outline');
+            border-radius: 16px;
+            position: relative;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .m3-switch:checked {
+            background-color: theme('colors.primary');
+            border-color: theme('colors.primary');
+        }
+        .m3-switch::after {
+            content: '';
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            width: 16px;
+            height: 16px;
+            background-color: theme('colors.outline');
+            border-radius: 50%;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .m3-switch:checked::after {
+            left: 26px;
+            width: 24px;
+            height: 24px;
+            top: 2px;
+            background-color: theme('colors.on-primary-container');
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="antialiased min-h-screen flex flex-col items-center justify-start bg-gray-50">
+<!-- Mobile Device Container -->
+<div class="w-full h-full max-w-[360px] min-h-[800px] bg-background shadow-2xl relative overflow-hidden flex flex-col">
+<!-- Top App Bar -->
+<header class="fixed top-0 w-full max-w-[360px] z-50 bg-background h-16 flex items-center px-4 flex-shrink-0">
+<button aria-label="Go back" class="w-12 h-12 flex items-center justify-center -ml-2 rounded-full hover:bg-surface-variant active:bg-surface-variant/80 transition-colors">
+<span class="material-symbols-outlined text-on-surface">arrow_back</span>
+</button>
+<h1 class="font-headline text-lg font-medium text-on-surface ml-2">Account</h1>
+</header>
+<!-- Main Content Scrollable Area -->
+<main class="flex-1 overflow-y-auto pt-20 px-4 pb-12 flex flex-col gap-6">
+<!-- Section: SIGNED IN AS -->
+<section class="flex flex-col gap-2">
+<h2 class="text-xs font-semibold text-on-surface-variant tracking-wider uppercase pl-4">Signed in as</h2>
+<div class="bg-surface border border-outline rounded-xl p-4 flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center flex-shrink-0">
+<span class="text-on-primary-container font-medium text-lg">J</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-on-surface font-medium truncate">jo@example.com</p>
+</div>
+<div class="flex-shrink-0">
+<span class="material-symbols-outlined text-secondary">verified</span>
+</div>
+</div>
+</section>
+<!-- Section: SYNC -->
+<section class="flex flex-col gap-2">
+<h2 class="text-xs font-semibold text-on-surface-variant tracking-wider uppercase pl-4">Sync</h2>
+<div class="bg-surface border border-outline rounded-xl overflow-hidden flex flex-col">
+<!-- Sync Now Row -->
+<div class="p-4 flex items-center gap-4 active:bg-surface-variant transition-colors cursor-pointer border-b border-outline/50">
+<span class="material-symbols-outlined text-on-surface-variant">sync</span>
+<div class="flex-1">
+<p class="text-on-surface text-base">Sync now</p>
+<p class="text-on-surface-variant text-sm mt-0.5">Last synced 2 minutes ago</p>
+</div>
+</div>
+<!-- Sync on mobile data Row -->
+<div class="p-4 flex items-center gap-4 justify-between">
+<div class="flex-1">
+<p class="text-on-surface text-base">Sync on mobile data</p>
+</div>
+<input aria-label="Toggle sync on mobile data" checked="" class="m3-switch" type="checkbox"/>
+</div>
+</div>
+<!-- Disclaimer Banner -->
+<div class="mt-2 flex gap-3 px-2">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px] mt-0.5 shrink-0">info</span>
+<p class="text-xs text-on-surface-variant leading-relaxed">
+                        Your logs and settings are stored on our server in plain text — we can read them. Photos are stored unencrypted.
+                    </p>
+</div>
+</section>
+<!-- Section: THIS ACCOUNT -->
+<section class="flex flex-col gap-2">
+<h2 class="text-xs font-semibold text-on-surface-variant tracking-wider uppercase pl-4">This account</h2>
+<div class="bg-surface border border-outline rounded-xl overflow-hidden flex flex-col">
+<!-- Sign out Row -->
+<div class="p-4 flex items-center gap-4 active:bg-surface-variant transition-colors cursor-pointer border-b border-outline/50">
+<span class="material-symbols-outlined text-on-surface-variant">logout</span>
+<div class="flex-1">
+<p class="text-on-surface text-base">Sign out</p>
+</div>
+</div>
+<!-- Delete account Row -->
+<div class="p-4 flex items-center gap-4 active:bg-destructive-container/30 transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-destructive">person_off</span>
+<div class="flex-1">
+<p class="text-destructive text-base font-medium">Request account deletion</p>
+<p class="text-destructive/80 text-sm mt-0.5">You'll have 30 days to change your mind</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+</div>
+</body></html>

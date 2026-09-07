@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>LunaTrack - Diary</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#FFFFFF',
+                        surface: '#FFFFFF',
+                        primary: '#3A2A30',
+                        seed: '#F7A8C4',
+                        cardSurface: '#FDF1F5', // soft pink tint derived from seed
+                        menstrual: '#D64F6E',
+                        follicular: '#6FB3A8',
+                        ovulatory: '#7E9CE8',
+                        luteal: '#D9A15B',
+                        fertile: '#9CCFC6',
+                        predicted: '#B0A8C0',
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        '4': '16px',
+                        '5': '20px',
+                        '16': '64px',
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    },
+                    fontSize: {
+                        'xs': '12px',
+                        'sm': '14px',
+                        'base': '16px',
+                        'lg': '18px',
+                        'xl': '20px',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            background-color: #FFFFFF;
+            color: #3A2A30;
+            width: 360px;
+            height: 800px;
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .scrollable-content {
+            overflow-y: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .scrollable-content::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-primary antialiased">
+<!-- TopAppBar -->
+<header class="flex items-center justify-between px-4 h-16 w-full bg-white dark:bg-[#1C1B1B] shrink-0">
+<button aria-label="Go back" class="w-12 h-12 flex items-center justify-center -ml-2 rounded-full hover:bg-seed/10 active:opacity-70 transition-opacity">
+<span class="material-symbols-outlined text-primary text-[24px]" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline text-xl font-semibold text-primary flex-1 ml-2">Diary</h1>
+<button aria-label="Search" class="w-12 h-12 flex items-center justify-center -mr-2 rounded-full hover:bg-seed/10 active:opacity-70 transition-opacity">
+<span class="material-symbols-outlined text-primary text-[24px]" data-icon="search">search</span>
+</button>
+</header>
+<div class="scrollable-content flex-1 px-4 pb-8 flex flex-col gap-4">
+<!-- Search Field -->
+<div class="w-full relative mt-2">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-primary/60 text-[20px]" data-icon="search">search</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-3 rounded-xl border-none bg-cardSurface text-primary placeholder-primary/60 focus:ring-2 focus:ring-seed focus:outline-none text-base transition-shadow" placeholder="Search your notes" type="text"/>
+</div>
+<!-- Note Cards List -->
+<div class="flex flex-col gap-4 mt-2">
+<!-- Card 1 -->
+<article class="bg-cardSurface rounded-[20px] p-5 w-full flex flex-col gap-3">
+<div class="flex justify-between items-center w-full">
+<h2 class="font-body text-base font-medium">Sunday, 6 September</h2>
+<span class="bg-white/50 text-primary text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap border border-black/5">Day 18</span>
+</div>
+<p class="font-body text-sm leading-relaxed text-primary/80 line-clamp-3">
+                    Still feeling a bit sluggish today. Had some mild cramps in the morning but they've settled now. Need to remember to drink more water...
+                </p>
+</article>
+<!-- Card 2 -->
+<article class="bg-cardSurface rounded-[20px] p-5 w-full flex flex-col gap-3">
+<div class="flex justify-between items-center w-full">
+<h2 class="font-body text-base font-medium">Saturday, 5 September</h2>
+<span class="bg-white/50 text-primary text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap border border-black/5">Day 17</span>
+</div>
+<p class="font-body text-sm leading-relaxed text-primary/80 line-clamp-3">
+                    Slept really well last night. Energy levels are much better than earlier this week. Went for a long walk in the afternoon. No noticeable symptoms.
+                </p>
+</article>
+<!-- Card 3 -->
+<article class="bg-cardSurface rounded-[20px] p-5 w-full flex flex-col gap-3">
+<div class="flex justify-between items-center w-full">
+<h2 class="font-body text-base font-medium">Friday, 4 September</h2>
+<span class="bg-white/50 text-primary text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap border border-black/5">Day 16</span>
+</div>
+<p class="font-body text-sm leading-relaxed text-primary/80 line-clamp-3">
+                    Felt a slight twinge on the lower right side around midday. Mood is stable, feeling generally calm. Appetite is slightly higher than usual.
+                </p>
+</article>
+<!-- Card 4 -->
+<article class="bg-cardSurface rounded-[20px] p-5 w-full flex flex-col gap-3">
+<div class="flex justify-between items-center w-full">
+<h2 class="font-body text-base font-medium">Thursday, 3 September</h2>
+<span class="bg-white/50 text-primary text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap border border-black/5">Day 15</span>
+</div>
+<p class="font-body text-sm leading-relaxed text-primary/80 line-clamp-3">
+                    Woke up with a headache that lingered most of the morning. Took it easy today. Sleep was restless, lots of vivid dreams. 
+                </p>
+</article>
+</div>
+</div>
+</body></html>

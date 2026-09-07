@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Photos &amp; videos - LunaTrack</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        white: "#FFFFFF",
+                        "warm-near-black": "#3A2A30",
+                        "baby-pink": "#F7A8C4",
+                        "soft-pink-tint": "#FEF5F8",
+                        "predicted-lavender-grey": "#B0A8C0",
+                        "surface-dark": "#1A1A1A",
+                        "text-dark": "#E6E1E2"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.25rem",
+                        "2xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans", "sans-serif"],
+                        "display": ["Public Sans", "sans-serif"],
+                        "body": ["Public Sans", "sans-serif"],
+                        "label": ["Public Sans", "sans-serif"]
+                    },
+                    spacing: {
+                        "safe": "env(safe-area-inset-bottom)"
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+</head>
+<body class="bg-white text-warm-near-black font-body antialiased min-h-screen flex flex-col w-full max-w-[360px] mx-auto relative shadow-sm border-x border-gray-100">
+<!-- TopAppBar from JSON -->
+<header class="w-full sticky top-0 bg-white flex items-center h-16 px-4 z-10">
+<button aria-label="Back" class="mr-4 text-warm-near-black active:scale-95 transition-transform hover:opacity-80 flex items-center justify-center p-2 -ml-2 rounded-full">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-headline text-lg font-medium text-warm-near-black flex-1 truncate">Photos &amp; videos</h1>
+</header>
+<main class="flex-1 flex flex-col px-4 pt-4 pb-24 space-y-6">
+<!-- Inline Failure Card -->
+<div class="bg-[#F8F9FA] rounded-[20px] p-5 flex flex-col items-start gap-3">
+<div class="flex items-center gap-3 w-full">
+<span class="material-symbols-outlined text-predicted-lavender-grey">cloud_off</span>
+<h2 class="font-headline font-medium text-base text-warm-near-black">That didn't upload</h2>
+</div>
+<p class="text-sm text-warm-near-black/80 font-body leading-relaxed">
+                LunaTrack only saves photos once the upload finishes, so nothing was kept.
+            </p>
+<button class="mt-2 px-5 py-2.5 border border-predicted-lavender-grey/40 rounded-full font-label text-sm font-medium text-warm-near-black hover:bg-black/5 active:bg-black/10 transition-colors">
+                Try again
+            </button>
+</div>
+<!-- Library Section -->
+<section class="flex flex-col gap-4">
+<h3 class="font-label text-xs font-semibold tracking-wider text-warm-near-black/60 uppercase px-1">
+                SEPTEMBER 2026
+            </h3>
+<!-- Grid -->
+<div class="grid grid-cols-3 gap-2 w-full">
+<!-- Thumbnail 1 -->
+<div class="aspect-square bg-[#F4F4F4] rounded-lg overflow-hidden relative">
+<img alt="Neutral abstract texture" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1VPV6C7SVw-aGkNvThi6eFibud-45BSUvdXhvS6DI6689eRNSJL6HSjEF5IlREnbk6yE6JtLUCwYkGjGnp8mk5rta3Z7jWUcccJk1IVgMc7zlXO8q_FiWbbGfQ_C-AcCdxY5r0pH9_Pa_Ngp2B0Q3gkicSy5NYDgWlM3tu0GJ1zymym5W1yBGZgImC2fWUUY8gLGvQFjylSdjM6xUFuAN5c9B0hGk5XPaBGx1GUk_vHa1hlkEqHtXxv"/>
+</div>
+<!-- Thumbnail 2 -->
+<div class="aspect-square bg-[#EAEAEA] rounded-lg overflow-hidden relative">
+<img class="w-full h-full object-cover" data-alt="A macro shot of a very soft, unbleached linen fabric in a pale beige or warm white tone. The lighting is extremely soft, natural, and diffused, highlighting the delicate woven texture and subtle wrinkles of the textile. The mood is calm, serene, and organic, fitting a clean, light-mode minimalist clinical app interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDiWhErZD_EvOXlYMXuvzP4DizjFWod2CuRk-_-HBCpYXClk4bnagg7bcULAPluH03gPMKzfiDA6LFN7_IzIkJknUM-66aHgZK-BU03kTCtiNII6oLZbOo6DBIgymsAAYQOTKgV1a7YvbgM9L80yu1sUFdJ6PQ22CftlnvSo8AIlOdmczh6zpp1q43N9vkVoAHHPO3TiX-O2RUlByyhoFTDS8ws0QRD1LyBZLP5ubjMOsDvNkboKfHsR1JsVjSkHt4TbZmh3DjvWQ"/>
+</div>
+<!-- Thumbnail 3 -->
+<div class="aspect-square bg-[#E0E0E0] rounded-lg overflow-hidden relative">
+<img class="w-full h-full object-cover" data-alt="A close up shot of a smooth, rounded light grey river stone resting on a piece of white parchment paper. The lighting is soft and shadowless, creating a high-key, peaceful aesthetic. The image exudes a sense of groundedness, stillness, and quiet organic beauty suitable for a minimalist women's health application." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDW7Zm43KZO7h6GW6JqyIlCR8Q40RQV41R-BQMFgnyw8Kcbdv1-ha4s194ciiVxPUMq0bJHL4ml-L_eP0-AZ0iUqblqMzwEcjwm0K_hqojU6X93GwD2d4L78o2G73WvtJRQPA9xVC6jvP-rQoF7m96q79WOTMfGsde8vNmAxcTJLY2ysZUWEVyJWmQpmbI-zHYiqrEZ9mEwAt7Q5XTgL0duBXXT4mhN9ZuNvjq25D-TdrOgKA3gTx4ou4YUkG2GKE6-XND94IMiAQ"/>
+</div>
+<!-- Thumbnail 4 -->
+<div class="aspect-square bg-[#F0F0F0] rounded-lg overflow-hidden relative">
+<img class="w-full h-full object-cover" data-alt="A minimalist photograph of a single dried eucalyptus leaf resting on a pure white surface. The image is brightly lit with a high-key, soft white light, creating a calm and airy atmosphere. The pale green and grey tones of the leaf provide a very subtle contrast against the white background. The aesthetic is clinical yet warm and organic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbN7_2vFIghIvSdHSubtcOsTOZ0scc8KvIN2wLMalHXigAHm7YJn-xJaHZpADTzhEYCMy7tCzFVahAhQBQXyxf8tcrA-vI6u6siKGyg2m35t7krN-HxzmT4K_lYvlydY5bfbX7Bb9w8GdgXBG5m4mgyAn4W_o1Jvx6fu-OHGigRG0fpkHF2_0fLtMNzGffzY33MyPnICEHIm5OORjzIo9WvbuYrHljHnWXkS8sxhJXOFqYJCJdRx-FrFrOhTUldezY6IA2vxQHGQ"/>
+</div>
+<!-- Thumbnail 5 -->
+<div class="aspect-square bg-[#E8E8E8] rounded-lg overflow-hidden relative">
+<img class="w-full h-full object-cover" data-alt="A soft focus, abstract macro photograph of rippled sand on a beach at midday. The sand is a very pale, warm beige color, and the lighting is even and bright, eliminating harsh shadows. The gentle curves of the sand ripples create a soothing, rhythmic pattern that feels natural, unhurried, and deeply calm." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAdXzdTHkMgA-hk36jOLuQDPRLtRIY8R3oXQTgOr_b1jm-Rgq2F2WkfqY_bqeOPQxo3nr82C4leSsbM5wrCXXwnXwaOM3Tqp4q_s0f048oUJEUasWxNudFTgbT1f8aKPmm9DLic-3aveN1TDfUWgvCgEoVXBGqawdTOPHD4XPvkjuYO17EIPEwV-7ZhZ4lK_zxlVy0JKkYd1njeK5TFBQ6fosWnTuUpWP3IPKasr5KgSusz9k9QvaDkyK9-4iFIP4f40Su30VbSJg"/>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar is suppressed as this is a sub-page with a 'Back' action (Linear/Task-focused intent) -->
+</body></html>

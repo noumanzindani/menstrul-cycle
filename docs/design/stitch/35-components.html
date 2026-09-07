@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Components - LunaTrack</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: "#F7A8C4", // Baby pink seed
+                            container: "#F7A8C433", // 20% opacity for container
+                            surface: "#FDF5F8", // Soft pink tint for surfaces
+                        },
+                        surface: {
+                            DEFAULT: "#FFFFFF",
+                            dark: "#1C1B1F",
+                        },
+                        onSurface: {
+                            DEFAULT: "#3A2A30", // Primary text
+                            variant: "#49454F",
+                        },
+                        phase: {
+                            menstrual: "#D64F6E",
+                            follicular: "#6FB3A8",
+                            ovulatory: "#7E9CE8",
+                            luteal: "#D9A15B",
+                            fertile: "#9CCFC6",
+                            predicted: "#B0A8C0",
+                        }
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px",
+                        "card": "20px",
+                        "button": "16px",
+                        "chip": "12px"
+                    },
+                    spacing: {
+                        'safe': 'env(safe-area-inset-bottom)',
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Public Sans', sans-serif; background-color: #FFFFFF; color: #3A2A30; -webkit-font-smoothing: antialiased; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
+        
+        .section-label { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: #49454F; margin-bottom: 1rem; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-surface pb-20">
+<!-- TopAppBar -->
+<header class="bg-white dark:bg-[#1C1B1F] text-[#3A2A30] dark:text-[#E6E1E5] font-headline text-xl font-normal w-full h-16 flex items-center flat elevation-0 sticky top-0 z-10 transition-colors duration-200 flex items-center px-4 w-full">
+<h1 class="font-headline text-xl font-semibold text-[#3A2A30] dark:text-[#E6E1E5]">Components</h1>
+</header>
+<main class="px-4 py-8 max-w-lg mx-auto space-y-12">
+<!-- 1. INFO CARD -->
+<section>
+<h2 class="section-label">INFO CARD</h2>
+<div class="space-y-4">
+<!-- Card A -->
+<div class="bg-primary-surface rounded-card p-6 flex flex-col">
+<div class="flex items-center gap-2 mb-2">
+<div class="w-3 h-3 rounded-full bg-phase-menstrual"></div>
+<span class="font-label text-sm font-medium tracking-wide">NEXT PERIOD</span>
+</div>
+<span class="font-headline text-3xl font-semibold mb-1">in 10 days</span>
+<span class="font-body text-sm text-onSurface-variant">around 17 September</span>
+</div>
+<!-- Card B -->
+<div class="bg-primary-surface rounded-card p-6 flex flex-col">
+<div class="flex items-center gap-2 mb-2">
+<div class="w-3 h-3 rounded-full bg-phase-luteal"></div>
+<span class="font-label text-sm font-medium tracking-wide">CYCLE DAY</span>
+</div>
+<span class="font-headline text-3xl font-semibold mb-1">Day 19</span>
+<span class="font-body text-sm text-onSurface-variant">Luteal phase</span>
+</div>
+<!-- Card C -->
+<div class="bg-primary-surface rounded-card p-6 flex flex-col">
+<div class="flex items-center gap-2 mb-2">
+<div class="w-3 h-3 rounded-full bg-phase-predicted"></div>
+<span class="font-label text-sm font-medium tracking-wide">NEXT PERIOD</span>
+</div>
+<span class="font-headline text-3xl font-semibold mb-1">Not enough data yet</span>
+<span class="font-body text-sm text-onSurface-variant">Log 2 more cycles for an estimate.</span>
+</div>
+<!-- Card D -->
+<div class="bg-primary-surface rounded-card p-6 flex flex-col">
+<div class="flex items-center gap-2 mb-2">
+<div class="w-3 h-3 rounded-full bg-phase-predicted"></div>
+<span class="font-label text-sm font-medium tracking-wide">NEXT PERIOD</span>
+</div>
+<span class="font-headline text-3xl font-semibold mb-1">in 10 days</span>
+<span class="font-body text-sm text-onSurface-variant">Low confidence — your cycles vary a lot.</span>
+</div>
+</div>
+</section>
+<!-- 2. FERTILITY BAND -->
+<section>
+<h2 class="section-label">FERTILITY BAND</h2>
+<div class="space-y-4 px-2">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-phase-fertile opacity-40"></div>
+<span class="font-body text-base">Lower chance today (estimated)</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-phase-fertile opacity-70"></div>
+<span class="font-body text-base">Higher chance today (estimated)</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-phase-fertile"></div>
+<span class="font-body text-base font-medium">Most fertile today (estimated)</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-3 h-3"></div> <!-- Spacer for alignment -->
+<span class="font-body text-sm text-onSurface-variant italic">(hidden — outside the window, or confidence too low)</span>
+</div>
+</div>
+</section>
+<!-- 3. CHIPS -->
+<section>
+<h2 class="section-label">CHIPS</h2>
+<div class="space-y-6">
+<!-- Row 1: Unselected -->
+<div class="flex flex-wrap gap-2">
+<button class="px-4 py-2 rounded-chip bg-primary-surface text-onSurface font-label text-sm">Cramps</button>
+<button class="px-4 py-2 rounded-chip bg-primary-surface text-onSurface font-label text-sm">Headache</button>
+<button class="px-4 py-2 rounded-chip bg-primary-surface text-onSurface font-label text-sm">Bloating</button>
+</div>
+<!-- Row 2: Selected -->
+<div class="flex flex-wrap gap-2">
+<button class="px-4 py-2 rounded-chip bg-primary text-onSurface font-label text-sm flex items-center gap-1">
+<span class="material-symbols-outlined fill text-[16px]">check</span> Cramps
+                    </button>
+<button class="px-4 py-2 rounded-chip bg-primary text-onSurface font-label text-sm flex items-center gap-1">
+<span class="material-symbols-outlined fill text-[16px]">check</span> Bloating
+                    </button>
+</div>
+<!-- Row 3: Disabled -->
+<div class="flex flex-wrap gap-2 opacity-50 pointer-events-none">
+<button class="px-4 py-2 rounded-chip bg-gray-100 text-onSurface-variant font-label text-sm">Cramps</button>
+<button class="px-4 py-2 rounded-chip bg-gray-100 text-onSurface-variant font-label text-sm">Headache</button>
+</div>
+</div>
+</section>
+<!-- 4. MONTH RING. The real component: one arc segment per day of the month.
+     pathLength="30" makes 1 unit = 1 day, so a run is dasharray="N (30-N)" at
+     dashoffset="-(day-1)". Without it a dasharray REPEATS around the full
+     circumference and every run overpaints the whole ring. Same September
+     scenario as the Today screen: cycle day 1 = 20 Aug, ovulation 3 Sep,
+     today 7 Sep = day 19 (luteal), next period estimated 17-21 Sep. -->
+<section>
+<h2 class="section-label">MONTH RING</h2>
+<div class="flex flex-wrap items-center justify-center gap-8">
+<div class="relative flex items-center justify-center shrink-0" style="width:160px;height:160px"><svg class="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#9CCFC6" stroke-dasharray="2 28" stroke-dashoffset="0" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#7E9CE8" stroke-dasharray="1 29" stroke-dashoffset="-2" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#9CCFC6" stroke-dasharray="1 29" stroke-dashoffset="-3" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#D9A15B" stroke-dasharray="12 18" stroke-dashoffset="-4" stroke-opacity="0.35" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#B0A8C0" stroke-dasharray="5 25" stroke-dashoffset="-16" stroke-opacity="0.55" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#6FB3A8" stroke-dasharray="9 21" stroke-dashoffset="-21" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#FFFFFF" stroke-dasharray="0.09 0.91" stroke-dashoffset="-0.045" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#D9A15B" stroke-dasharray="0.16 0.13 0.16 0.13 0.16 29.26" stroke-dashoffset="-6.13" stroke-width="10"></circle>
+</svg>
+<div class="relative z-10 text-center leading-tight"><div class="font-label text-[10px] uppercase tracking-wider text-onSurface-variant">7 Sep</div><div class="font-display text-xl font-bold text-onSurface">Day 19</div><div class="font-body text-xs font-medium text-phase-luteal">Luteal</div></div>
+</div>
+<div class="relative flex items-center justify-center shrink-0" style="width:96px;height:96px"><svg class="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#9CCFC6" stroke-dasharray="2 28" stroke-dashoffset="0" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#7E9CE8" stroke-dasharray="1 29" stroke-dashoffset="-2" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#9CCFC6" stroke-dasharray="1 29" stroke-dashoffset="-3" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#D9A15B" stroke-dasharray="12 18" stroke-dashoffset="-4" stroke-opacity="0.35" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#B0A8C0" stroke-dasharray="5 25" stroke-dashoffset="-16" stroke-opacity="0.55" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#6FB3A8" stroke-dasharray="9 21" stroke-dashoffset="-21" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#FFFFFF" stroke-dasharray="0.09 0.91" stroke-dashoffset="-0.045" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#D9A15B" stroke-dasharray="0.16 0.13 0.16 0.13 0.16 29.26" stroke-dashoffset="-6.13" stroke-width="10"></circle>
+</svg>
+<div class="relative z-10 text-center leading-tight"><div class="font-display text-sm font-bold text-onSurface">Day 19</div></div>
+</div>
+<div class="relative flex items-center justify-center shrink-0" style="width:56px;height:56px"><svg class="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#9CCFC6" stroke-dasharray="2 28" stroke-dashoffset="0" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#7E9CE8" stroke-dasharray="1 29" stroke-dashoffset="-2" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#9CCFC6" stroke-dasharray="1 29" stroke-dashoffset="-3" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#D9A15B" stroke-dasharray="12 18" stroke-dashoffset="-4" stroke-opacity="0.35" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#B0A8C0" stroke-dasharray="5 25" stroke-dashoffset="-16" stroke-opacity="0.55" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#6FB3A8" stroke-dasharray="9 21" stroke-dashoffset="-21" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#FFFFFF" stroke-dasharray="0.09 0.91" stroke-dashoffset="-0.045" stroke-width="10"></circle>
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#D9A15B" stroke-dasharray="0.16 0.13 0.16 0.13 0.16 29.26" stroke-dashoffset="-6.13" stroke-width="10"></circle>
+</svg>
+<div class="relative z-10 text-center leading-tight"></div>
+</div>
+</div>
+<p class="font-body text-xs text-onSurface-variant italic mt-4 text-center">160px on Today, 96px on Forecast, 56px in the launcher widget.</p>
+</section>
+<!-- 5. BANNERS -->
+<section>
+<h2 class="section-label">BANNERS</h2>
+<div class="space-y-4">
+<div class="w-full bg-primary-surface/50 py-3 px-4 flex gap-3">
+<span class="material-symbols-outlined text-onSurface-variant">info</span>
+<span class="font-body text-sm text-onSurface-variant leading-tight">Estimates only — not a contraceptive method.</span>
+</div>
+<div class="w-full bg-primary-surface/50 py-3 px-4 flex gap-3">
+<span class="material-symbols-outlined text-onSurface-variant">cloud_off</span>
+<span class="font-body text-sm text-onSurface-variant leading-tight">Cloud sync unavailable. Your data is saved on this device.</span>
+</div>
+<div class="w-full bg-primary-surface/50 py-3 px-4 flex gap-3">
+<span class="material-symbols-outlined text-onSurface-variant">info</span>
+<span class="font-body text-sm text-onSurface-variant leading-tight">Photos are uploaded to your account and are not encrypted on our servers.</span>
+</div>
+</div>
+</section>
+<!-- 6. BUTTONS -->
+<section>
+<h2 class="section-label">BUTTONS</h2>
+<div class="space-y-4 flex flex-col items-center">
+<button class="w-full h-[52px] rounded-button bg-primary text-onSurface font-headline font-medium text-base hover:bg-opacity-90 transition-opacity">Save</button>
+<button class="w-full h-[52px] rounded-button border border-onSurface-variant text-onSurface font-headline font-medium text-base hover:bg-primary-surface transition-colors">Cancel</button>
+<button class="w-full h-[52px] rounded-button text-onSurface font-headline font-medium text-base hover:bg-primary-surface transition-colors">Learn more</button>
+<span class="font-body text-xs text-onSurface-variant italic mt-2 text-center">Filled buttons are always full width and stacked, never two in a row.</span>
+</div>
+</section>
+<!-- 7. AD SLOT -->
+<section>
+<h2 class="section-label">AD SLOT</h2>
+<div class="flex flex-col items-center">
+<div class="w-[320px] max-w-full h-[50px] border-2 border-dashed border-onSurface-variant/30 rounded flex items-center justify-center">
+<span class="font-body text-xs text-onSurface-variant/60">Ad 320x50</span>
+</div>
+<span class="font-body text-xs text-onSurface-variant italic mt-2 text-center">Never on logging or insights screens.</span>
+</div>
+</section>
+<!-- 8. NAVIGATION BAR - exactly 5 destinations, never a sixth. -->
+<section>
+<h2 class="section-label">NAVIGATION BAR</h2>
+<div class="space-y-3">
+<div class="w-full bg-primary-surface rounded flex items-center justify-around py-2"><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full bg-primary/40"><span class="material-symbols-outlined text-[20px] text-onSurface">home</span></div><span class="font-label text-[10px] text-onSurface">Today</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">calendar_month</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Calendar</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">timeline</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Forecast</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">analytics</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Insights</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">settings</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Settings</span></div></div>
+<div class="w-full bg-primary-surface rounded flex items-center justify-around py-2"><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">home</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Today</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full bg-primary/40"><span class="material-symbols-outlined text-[20px] text-onSurface">calendar_month</span></div><span class="font-label text-[10px] text-onSurface">Calendar</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">timeline</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Forecast</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">analytics</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Insights</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">settings</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Settings</span></div></div>
+<div class="w-full bg-primary-surface rounded flex items-center justify-around py-2"><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">home</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Today</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">calendar_month</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Calendar</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full bg-primary/40"><span class="material-symbols-outlined text-[20px] text-onSurface">timeline</span></div><span class="font-label text-[10px] text-onSurface">Forecast</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">analytics</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Insights</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">settings</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Settings</span></div></div>
+<div class="w-full bg-primary-surface rounded flex items-center justify-around py-2"><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">home</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Today</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">calendar_month</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Calendar</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">timeline</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Forecast</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full bg-primary/40"><span class="material-symbols-outlined text-[20px] text-onSurface">analytics</span></div><span class="font-label text-[10px] text-onSurface">Insights</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">settings</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Settings</span></div></div>
+<div class="w-full bg-primary-surface rounded flex items-center justify-around py-2"><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">home</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Today</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">calendar_month</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Calendar</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">timeline</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Forecast</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full "><span class="material-symbols-outlined text-[20px] text-onSurface-variant/70">analytics</span></div><span class="font-label text-[10px] text-onSurface-variant/70">Insights</span></div><div class="flex flex-col items-center gap-1 flex-1"><div class="px-4 py-0.5 rounded-full bg-primary/40"><span class="material-symbols-outlined text-[20px] text-onSurface">settings</span></div><span class="font-label text-[10px] text-onSurface">Settings</span></div></div>
+</div>
+</section>
+</main>
+</body></html>

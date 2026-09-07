@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LunaTrack - Delete Data</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            surface: "#FFFFFF",
+                            primaryText: "#3A2A30",
+                            seed: "#F7A8C4",
+                            mutedDestructive: "#A85D6B", // Muted brick tone for destruction
+                        },
+                        darkTheme: {
+                            surface: "#1C1B1F",
+                            primaryText: "#E6E1E5"
+                        }
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px",
+                        "dialog": "28px", // Material 3 dialog radius
+                        "button": "16px"  // App standard button radius
+                    },
+                    spacing: {
+                        "safe": "env(safe-area-inset-bottom)",
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans", "sans-serif"],
+                        "display": ["Public Sans", "sans-serif"],
+                        "body": ["Public Sans", "sans-serif"],
+                        "label": ["Public Sans", "sans-serif"]
+                    },
+                    fontSize: {
+                        "headline-sm": ["24px", "32px"],
+                        "body-md": ["14px", "20px"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="h-full w-full bg-brand-surface dark:bg-darkTheme-surface font-body text-brand-primaryText dark:text-darkTheme-primaryText antialiased flex flex-col relative overflow-hidden">
+<!-- Background Settings Screen Context -->
+<!-- We embed the screenshot placeholder as a background image, dimmed and blurred -->
+<div class="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat blur-sm brightness-50 z-0" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDAAbnC1E7ZOX8DtOSq6lqnPZCVu4BJRvpAMxjq0zyN0ye4S1i0YIGJK0FpzhinpNA50R7YrhJmtWpvkmUvWZgRn7PJANRyCrf7eMuVLO8qCLILgRO1PW7g48UxIIKbtvcHbYYxOEYyo1gS6Ik1HjLIubwaAfj-gomSdrc69l_dvhjhxEHe4mCtIW2yeJfzwW6pQ8Yjvfu4Wqp1idr_wrknyQan2WPa48h36MMs3w30uwdF9HqQ_b5f5g9vjs-Y2uaeZeIrqMdeGQ');">
+<!-- Semantic fallback for accessibility/if image fails to load -->
+<span class="sr-only">Settings screen behind dialog</span>
+</div>
+<!-- Scrim / Dimming Layer (Material 3 scrim) -->
+<div aria-hidden="true" class="absolute inset-0 w-full h-full bg-black/40 z-10"></div>
+<!-- Dialog Container (Centered) -->
+<div class="relative z-20 flex-1 flex flex-col items-center justify-center px-4 w-full max-w-sm mx-auto h-full">
+<!-- Material 3 Dialog Surface -->
+<div class="w-full bg-brand-surface dark:bg-darkTheme-surface rounded-dialog p-6 shadow-2xl flex flex-col gap-4 text-center transform transition-all">
+<!-- Icon -->
+<div class="flex justify-center mt-2 mb-2 text-brand-primaryText dark:text-darkTheme-primaryText">
+<span class="material-symbols-outlined text-[24px]">delete</span>
+</div>
+<!-- Headline -->
+<h2 class="font-headline text-headline-sm font-normal text-brand-primaryText dark:text-darkTheme-primaryText">
+                Delete everything on this device?
+            </h2>
+<!-- Body Content -->
+<div class="font-body text-body-md text-[#49454F] dark:text-[#CAC4D0] flex flex-col gap-4 text-left">
+<p>Every log, note, photo and setting on this phone will be erased. This cannot be undone.</p>
+<p>The copy in your account is left alone. Deleting that is a separate request in Settings.</p>
+</div>
+<!-- Actions (Stacked full width) -->
+<div class="mt-4 flex flex-col gap-2 w-full">
+<!-- Destructive Filled Button -->
+<button class="w-full h-[52px] rounded-button bg-brand-mutedDestructive text-white font-label text-sm tracking-wide flex items-center justify-center transition-opacity hover:opacity-90 active:opacity-80 focus:outline-none focus:ring-2 focus:ring-brand-mutedDestructive focus:ring-offset-2 dark:focus:ring-offset-darkTheme-surface">
+                    Delete from this device
+                </button>
+<!-- Cancel Text Button -->
+<button class="w-full h-[52px] rounded-button bg-transparent text-brand-primaryText dark:text-darkTheme-primaryText font-label text-sm tracking-wide flex items-center justify-center transition-colors hover:bg-brand-primaryText/5 dark:hover:bg-darkTheme-primaryText/5 active:bg-brand-primaryText/10 dark:active:bg-darkTheme-primaryText/10 focus:outline-none">
+                    Cancel
+                </button>
+</div>
+</div>
+</div>
+</body></html>

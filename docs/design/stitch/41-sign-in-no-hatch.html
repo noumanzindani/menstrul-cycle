@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>LunaTrack - Sign in</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#FFFFFF",
+                        onBackground: "#3A2A30",
+                        primary: "#F7A8C4",
+                        onPrimary: "#3A2A30",
+                        surface: "#FFF0F5", // Soft pink tint derived from seed
+                        onSurface: "#3A2A30",
+                        outline: "#E0E0E0",
+                        outlineVariant: "#F5F5F5",
+                        error: "#B0A8C0", // Using predicted for muted states as no red is allowed
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "md": "0.75rem", // 12dp
+                        "lg": "1rem",    // 16dp
+                        "xl": "1.25rem", // 20dp
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        sans: ["Roboto", "sans-serif"],
+                        headline: ["Roboto", "sans-serif"],
+                        display: ["Roboto", "sans-serif"],
+                        body: ["Roboto", "sans-serif"],
+                        label: ["Roboto", "sans-serif"]
+                    },
+                    spacing: {
+                        '13': '3.25rem', // 52dp
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Floating label styles */
+        .input-wrapper {
+            position: relative;
+        }
+        .input-wrapper input {
+            height: 56px;
+            padding: 24px 16px 8px 16px;
+            width: 100%;
+            background: transparent;
+            border: 1px solid #E0E0E0;
+            border-radius: 12px;
+            font-size: 16px;
+            color: #3A2A30;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input-wrapper input:focus {
+            outline: none;
+            border-color: #F7A8C4;
+            box-shadow: inset 0 0 0 1px #F7A8C4;
+        }
+        .input-wrapper label {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            color: #3A2A30;
+            opacity: 0.6;
+            pointer-events: none;
+            transition: all 0.2s ease-out;
+        }
+        .input-wrapper input:focus ~ label,
+        .input-wrapper input:not(:placeholder-shown) ~ label {
+            top: 16px;
+            font-size: 12px;
+            color: #F7A8C4;
+            opacity: 1;
+        }
+        .input-wrapper input:not(:focus):not(:placeholder-shown) ~ label {
+            color: #3A2A30;
+            opacity: 0.6;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-onBackground h-full min-h-screen flex flex-col items-center justify-center p-6 antialiased selection:bg-primary/20">
+<!-- Top Section -->
+<div class="flex flex-col items-center justify-center w-full max-w-sm mb-12">
+<!-- Small decorative ring mark -->
+<div class="w-12 h-12 rounded-full border-4 border-primary opacity-80 mb-4"></div>
+<!-- Wordmark -->
+<h1 class="text-3xl font-medium tracking-tight text-onBackground">LunaTrack</h1>
+</div>
+<!-- Form Section -->
+<form class="w-full max-w-sm flex flex-col gap-4" onsubmit="event.preventDefault();">
+<!-- Email Input -->
+<div class="input-wrapper">
+<input class="font-body" id="email" placeholder=" " required="" type="email"/>
+<label class="font-body" for="email">Email</label>
+</div>
+<!-- Password Input -->
+<div class="input-wrapper relative">
+<input class="font-body pr-12" id="password" placeholder=" " required="" type="password"/>
+<label class="font-body" for="password">Password</label>
+<button aria-label="Toggle password visibility" class="absolute right-4 top-1/2 -translate-y-1/2 text-onBackground/60 hover:text-onBackground transition-colors p-1" onclick="togglePassword()" type="button">
+<span class="material-symbols-outlined" id="visibility-icon">visibility_off</span>
+</button>
+</div>
+<!-- Sign in Button -->
+<button class="mt-4 w-full h-13 bg-primary text-onPrimary font-medium text-base rounded-lg hover:bg-primary/90 active:bg-primary/80 transition-colors flex items-center justify-center font-body shadow-none border-none" type="submit">
+            Sign in
+        </button>
+</form>
+<!-- Navigation/Action Section -->
+<div class="w-full max-w-sm mt-8 flex flex-col gap-2 items-center">
+<button class="text-onBackground font-medium text-sm px-4 py-3 rounded-full hover:bg-onBackground/5 active:bg-onBackground/10 transition-colors font-body bg-transparent border-none" type="button">
+            Create an account
+        </button>
+<button class="text-onBackground/70 font-normal text-sm px-4 py-3 rounded-full hover:bg-onBackground/5 active:bg-onBackground/10 transition-colors font-body bg-transparent border-none" type="button">
+            Forgot password?
+        </button>
+</div>
+<!-- Bottom Whitespace (inherent in layout) -->
+<div class="flex-grow"></div>
+<script>
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const visibilityIcon = document.getElementById('visibility-icon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                visibilityIcon.textContent = 'visibility';
+            } else {
+                passwordInput.type = 'password';
+                visibilityIcon.textContent = 'visibility_off';
+            }
+        }
+    </script>
+</body></html>

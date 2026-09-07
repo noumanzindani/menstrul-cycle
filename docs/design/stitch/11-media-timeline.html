@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Photos &amp; videos</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {},
+            "borderRadius": {
+              "DEFAULT": "0.5rem",
+              "lg": "1rem",
+              "xl": "1.5rem",
+              "full": "9999px"
+            },
+            "spacing": {},
+            "fontFamily": {
+              "headline": [
+                "Public Sans", "sans-serif"
+              ],
+              "display": [
+                "Public Sans", "sans-serif"
+              ],
+              "body": [
+                "Public Sans", "sans-serif"
+              ],
+              "label": [
+                "Public Sans", "sans-serif"
+              ]
+            },
+            "fontSize": {}
+          },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-white dark:bg-[#1C1B1F] text-[#3A2A30] dark:text-[#E6E1E5] font-body antialiased selection:bg-[#F7A8C4]/30 min-h-screen flex justify-center">
+<!-- Mobile Screen Container for preview purposes (360x800dp target) -->
+<div class="w-full max-w-[400px] min-h-screen bg-white dark:bg-[#1C1B1F] relative overflow-hidden flex flex-col shadow-[0_0_40px_rgba(0,0,0,0.05)] sm:border-x sm:border-slate-100 dark:sm:border-zinc-800">
+<!-- TopAppBar (From JSON) -->
+<header class="w-full top-0 sticky bg-white dark:bg-[#1C1B1F] flex items-center justify-between px-2 h-16 z-40">
+<button aria-label="Go back" class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-[#F7A8C4]/10 dark:hover:bg-[#E97B93]/10 transition-colors duration-200 text-[#3A2A30] dark:text-[#E6E1E5]">
+<span class="material-symbols-outlined text-[24px]" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="flex-1 text-[#3A2A30] dark:text-[#E6E1E5] font-headline text-[18px] font-medium px-2 truncate">Photos &amp; videos</h1>
+<button aria-label="More options" class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-[#F7A8C4]/10 dark:hover:bg-[#E97B93]/10 transition-colors duration-200 text-[#3A2A30] dark:text-[#E6E1E5]">
+<span class="material-symbols-outlined text-[24px]" data-icon="more_vert">more_vert</span>
+</button>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto pb-24 w-full">
+<div class="w-full bg-[#F4F2F3] dark:bg-[#2B292C] py-3 px-4 flex items-center gap-3 border-b border-[#3A2A30]/5">
+  <span class="material-symbols-outlined text-[18px] text-[#49454F] dark:text-[#CAC4D0]" data-icon="info">info</span>
+  <span class="text-[11px] text-[#49454F] dark:text-[#CAC4D0] leading-tight">Photos are uploaded to your account and are not encrypted on our servers.</span>
+</div>
+<!-- SEPTEMBER 2026 Section -->
+<section class="w-full pt-4">
+<h2 class="px-4 pb-3 text-[11px] font-medium tracking-[0.05em] uppercase text-[#49454F] dark:text-[#CAC4D0]">
+                    September 2026
+                </h2>
+<!-- 3-Column Grid with 2dp gaps -->
+<div class="grid grid-cols-3 gap-[2px] w-full">
+<!-- Thumbnail 1 (Photo) -->
+<div class="relative aspect-square bg-[#F4F2F3] dark:bg-[#2B292C] overflow-hidden group">
+<img alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" data-alt="A calm, abstract visual featuring soft, overlapping ripples in pale teal and warm cream. The lighting is incredibly gentle and diffused, creating a soothing, unhurried atmosphere perfect for a clean, private wellness app. The overall aesthetic is minimalist, modern, and warmly inviting without any harsh contrasts." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRXmyXLZNkHNfEsK11eIKqZTu4p0_onwelj4PhzkP5waB5VKx-FIA2cRNGRqPGAuVq05gDlvWD8UH6VQtPAl529V-oc9oIuLofup4SeK0f8SZ67MGR2BWmQ4FETvCeijH8UYnoHisN07Q6LMBi7gW77ZRHsClrefCrUb3PHFX60K-mXZfsnE0Zr4md2XdndslmeaMkRK8gJVqzGQRqAy_a9Or1fm-nzCCtFJSaFenHgNi6WOrDQd_hr4mRBGK-PbxX6_uZYkP7OQ"/>
+</div>
+<!-- Thumbnail 2 (Video) -->
+<div class="relative aspect-square bg-[#F4F2F3] dark:bg-[#2B292C] overflow-hidden group">
+<img alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" data-alt="Close up of a smooth, perfectly rounded light grey river stone resting on fine, pale sand. Warm, natural afternoon sunlight highlights the gentle curves and organic texture of the stone. The color palette is dominated by soft creams, warm greys, and a hint of muted amber. The mood is serene and deeply grounding." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAm7RBZgSccCosvciXNx8Adz4z9L7cSknjGH30oF80f-4-jhUiC-acctVVq7N0wzjfps6kWq2SNu-diGY_pCRdGw1kkJV_Z_UvzqA-Xfh9eOeLuM-89HcXa2KUgeqRzmUlFWHDS6byX432vbAWcn71aIfmtVS349I1Uc3xy3Us9riEW_ew65PfazbQNy3z5aDwShctqT8mJhnKR9MbLXJHMbW1GTGy14MulX7TbrCPvVIOtcvKExpMLTdBJ4Yutiblyk-0gsLiArg"/>
+<!-- Video Badge -->
+<div class="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[14px]" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<!-- Thumbnail 3 (Photo) -->
+<div class="relative aspect-square bg-[#F4F2F3] dark:bg-[#2B292C] overflow-hidden group">
+<img alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" data-alt="A macro shot of delicate, translucent eucalyptus leaves against a bright, pure white background. The soft green tones of the foliage are rendered with a hazy, dreamlike softness. The image conveys a sense of quiet clarity and natural simplicity, perfectly suited for a calm, uncluttered personal tracker interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCdhhok0C2_QL9KebqBvhdgP1uv2lgCWExvtJaQiaOp0z9a0c2SWzyDpkfapYgbSVcRI5vhBqqCAKd6EqC6kgWG0ctNUIwlhIizf0RtkT24-LqxULrjEde4GFxYQoOorWJPMJRO7bcJk941Vs4fqFrW2E0xj-huI4U1hELSmkbCB91xl8miJT5LKAbdgfl1pG7u7Pa-a30CpzIYxTP7HhTxzV9FQXJS7p9SbdHUfD4yY_rwyFO9ZaF5ilpFE8Kjdcv1QhnLMwTwcA"/>
+</div>
+<!-- Thumbnail 4 (Photo) -->
+<div class="relative aspect-square bg-[#F4F2F3] dark:bg-[#2B292C] overflow-hidden group">
+<img alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" data-alt="A gentle, abstract gradient blend transitioning smoothly from warm baby pink to soft lavender-grey. The texture appears slightly grainy, like high-quality matte paper. The lighting is completely flat and ambient, offering a serene, unhurried visual resting place that aligns with a private, warm digital environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_I0U6-IakQd9J7DsPsXVpEwkBH6fRR_hQTJ2SyfX3XhotS2H74F_LkHlXgdgK_IZkUt8cWxYJ6WP7aT2G8ONwQlCL9pcE4Wx9wZbL6fH8e98h2FI3_OO8fGSmZnbrwk61VR3FUKRT4nUoqHAtFPTNpDSMjsVLAg2_Wjy-R3MbgI6eRq0IrTEoyVIXNK7wYfAtQ8muo3m_kqXF6FnpxAbnsLrZpXcrCmCl0ZazQyXGN_BAPwLmy29htADU42N49GAQWRs3GmfFLw"/>
+</div>
+<!-- Thumbnail 5 (Video) -->
+<div class="relative aspect-square bg-[#F4F2F3] dark:bg-[#2B292C] overflow-hidden group">
+<img alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" data-alt="A minimalist architectural detail showing a soft, sweeping curve of a white plaster wall catching the warm light of early morning. A subtle shadow falls across the lower half, creating depth. The composition is highly intentional, focusing on empty space, clean lines, and a warm, supportive visual tone." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXjK8OkzNVwLkbYk8DqTr8V79ZPEWsda-5AXSRPkQ4Mu75hx29Io9Rq3XG4l4O-WDLSUbZ7UXV5fk59YVYPEe_K53MRN-_tyW7YPLzEw_QBwq5x-iA0g_cDlFfaVRylx0Lj1xhUKgyyvcwXhSLBJa5KiWI0utivaM1C-DwWc4lfy-TWECRKcFFwpJlOqJG65qj-EbsUy9dO64SKYB22MrXTPaxN57fFGl62sTsUkh-TSv3gXgHbXCtFceMCHlEPiQZHkietocbcQ"/>
+<!-- Video Badge -->
+<div class="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[14px]" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+</div>
+</section>
+<!-- AUGUST 2026 Section -->
+<section class="w-full pt-8">
+<h2 class="px-4 pb-3 text-[11px] font-medium tracking-[0.05em] uppercase text-[#49454F] dark:text-[#CAC4D0]">
+                    August 2026
+                </h2>
+<!-- 3-Column Grid with 2dp gaps -->
+<div class="grid grid-cols-3 gap-[2px] w-full">
+<!-- Thumbnail 6 (Photo) -->
+<div class="relative aspect-square bg-[#F4F2F3] dark:bg-[#2B292C] overflow-hidden group">
+<img alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" data-alt="A soft focus, highly abstract macro photograph of water droplets on brushed glass. The background behind the glass features a diffused wash of soft periwinkle and warm amber light. The mood is completely abstract, prioritizing atmosphere, calm, and a gentle visual rhythm over any specific subject matter." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDE3Qzo57yuzI8adD-JxvXLvcXg8whLiuRxGR8u0bfsnVkxHtvntqELWCRbHt-fcPy26Tzknl9hAe-4anFGGLd3Y9eGtI1IzrDZtJanLTLNMwfjZMoLENeP5msdJUBUjjRhXpgFjXInsSE0F2J0yk6Xj5syVusfi5tOKkB7Ci8xbatjtDLOEFHeF_plRlOGFgqkCeuyQBRZx8UyMgjkE7Xg62y_DA7pZQKHpx38svNgPhheNrD9k7rlxp2zQsmb_LBYmKjVrtvsKw"/>
+</div>
+<!-- Thumbnail 7 (Photo) -->
+<div class="relative aspect-square bg-[#F4F2F3] dark:bg-[#2B292C] overflow-hidden group">
+<img alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" data-alt="A top-down view of fine, raked zen garden sand with perfect, concentric circular patterns. The light is cast from a low angle, highlighting the subtle ridges and valleys in warm beige tones. The image strongly evokes themes of clarity, quiet observation, and unhurried passage of time in a calm setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqLMxSpRIGequu-p9TGUsjH6q8hnX_Wt88WuqK_4TKBUA9xsQAtqKKJNhISHp8hezgQAaz5J4-l_stfHs_7YyW4Es5FWwD1wdDHqBnlPZZyF3LuXQyxPUz2gGej0jN8A1CeWlmblUM4-5bb93ahBOgCjriq1MlDzuYPfDiZNHJOhBZoKMbtVIV4SLFkdSqbndBauiTUO6CWP_Px2zXhqyGblfFOzkxK7oyTIoM9UQG6Um2Nl2E9x2OGxo2vZkjQvIZ2J7dSONUPA"/>
+</div>
+<!-- Thumbnail 8 (Video) -->
+<div class="relative aspect-square bg-[#F4F2F3] dark:bg-[#2B292C] overflow-hidden group">
+<img alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" data-alt="A beautifully subtle texture of loosely woven natural linen fabric in a light oatmeal color. The organic fibers create a gentle, tactile surface that feels both clean and remarkably warm. The lighting is even and soft, ensuring no harsh highlights or deep shadows disrupt the clinical-but-warm aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZ4XTIJbICGIExP9xCXloGnvwZydw5WuFgeWwv7-Zcfk7QSi23WEY7sELracN2EgTg01ZeY8oiE9t9LYyATJGaCzezIZNmioiEs5SXY95PjWllafs2Opa8dzIGHvqNsch_xp8aVl8rXtcpQF35QZIfJqbXiHI4k9nanJUQCzwn3ecBtirypRdWVbYkfWuLG-VktCUK3PWP3wJukhGQJk-OJnL7jCLFCDyiDsuM7ZF3LfBsOAq2sYbDs4oPkj3IBAd0vrATSEapqw"/>
+<!-- Video Badge -->
+<div class="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[14px]" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<!-- Thumbnail 9 (Photo) -->
+<div class="relative aspect-square bg-[#F4F2F3] dark:bg-[#2B292C] overflow-hidden group">
+<img alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" data-alt="An abstract, out-of-focus capture of morning sunlight filtering softly through sheer white curtains. The resulting shapes are blurry, luminous geometric blocks of warm white and palest grey. The atmosphere is distinctly private, quiet, and domestic, serving as an ideal, non-distracting background element." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6wE-P0RKy8snUPGLrXcUEo3EIZO_DipZOIbbOsJuK5gZE0WKdUz4CnYnq432vrOOyk3YK_3xo-FJxf8fV01eIMAQEq9yHuJBtcR4IH7rJ9dA8HX3WVw235d-myTVAvaTaxaGp-9WMVUcnr-7wcZcPcXDTHUlSuCQ_Jf9Bp-DhsfWAGzwcO27TydfGTFn2C-8hokpKrLWSJZsNCAVEMBtioffK-ZtwJFSUHp126yhgoEC9QefuNH-lzXtYNzu2bfOQfdacXin3kg"/>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Button (FAB) -->
+<button aria-label="Add photo or video" class="absolute bottom-6 right-4 w-14 h-14 bg-[#F7A8C4] hover:bg-[#E97B93] active:bg-[#D64F6E] transition-colors duration-200 text-[#3A2A30] rounded-full flex items-center justify-center z-50 shadow-sm">
+<span class="material-symbols-outlined text-[24px]" data-icon="add_a_photo">add_a_photo</span>
+</button>
+</div>
+</body></html>

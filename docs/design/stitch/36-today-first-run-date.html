@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>LunaTrack - Today (first run, date given)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            surface: '#FFFFFF',
+                            text: '#3A2A30',
+                            seed: '#F7A8C4',
+                            menstrual: '#D64F6E',
+                            follicular: '#6FB3A8',
+                            ovulatory: '#7E9CE8',
+                            luteal: '#D9A15B',
+                            fertile: '#9CCFC6',
+                            predicted: '#B0A8C0',
+                            lutealWash: 'rgba(217, 161, 91, 0.15)'
+                        }
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        lg: "1rem",
+                        xl: "1.5rem",
+                        full: "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1;
+        }
+        body {
+            background-color: #FFFFFF;
+            color: #3A2A30;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Custom styles for month ring to match requirements */
+        .month-ring-svg circle {
+            fill: none;
+            stroke-width: 12;
+            stroke-linecap: round;
+        }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="font-body antialiased min-h-screen flex flex-col relative pb-[130px]">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-40 bg-white flat elevation-0 no-shadow">
+<div class="flex items-center h-16 px-4 w-full transition-colors duration-200">
+<button class="p-2 rounded-full hover:bg-[#F7A8C4]/10 text-[#3A2A30] mr-4 flex items-center justify-center">
+<span class="material-symbols-outlined">bubble_chart</span>
+</button>
+<h1 class="font-headline text-lg font-medium text-[#3A2A30]">Today</h1>
+</div>
+</header>
+<main class="flex-1 px-4 space-y-4 max-w-md mx-auto w-full">
+<!-- ============================================================================
+     TODAY - FIRST RUN, A DATE WAS GIVEN AT SETUP.
+     Composed locally 2026-09-07 from 01-today.html's components; the Stitch generate
+     endpoint would not return a full-page screen this size that day (see README).
+     ONE scenario drives every number on this screen. Onboarding._finish() seeds a real
+     DailyLog at the given date with flow: medium, so this user is NOT a zero-log user:
+       last period 2 Sep, cycle 28, period 5, today 7 Sep
+       => cycle day 6, follicular, next period 30 Sep (in 23 days)
+     Confidence is at the FLOOR (no COMPLETED cycle exists), so fertilityBand returns
+     none: the fertile card and every fertile/ovulation ring segment are ABSENT, and the
+     words "fertile" and "ovulation" appear nowhere. The estimate itself is shown, TAGGED
+     low-confidence - it is the user's own input, and labelling its weakness beats
+     withholding it. That is the ruling in section 6 of the brief.
+============================================================================ -->
+<!-- Phase Card -->
+<section class="bg-brand-follicular/10 rounded-[20px] p-6 flex flex-col gap-2">
+<div class="flex items-center gap-2">
+<div class="w-2.5 h-2.5 rounded-full bg-brand-follicular"></div>
+<span class="font-label text-sm font-medium text-brand-text">Follicular phase</span>
+</div>
+<h2 class="font-display text-4xl font-semibold text-brand-text tracking-tight">Day 6</h2>
+</section>
+<!-- Month Ring Card -->
+<section class="bg-brand-seed/5 rounded-[20px] p-6 flex flex-col items-center gap-6">
+<div class="relative w-[200px] h-[200px] flex items-center justify-center">
+<svg class="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+<!-- September 2026. ONE scenario drives this screen: onboarding answered "last period
+     started 2 Sep", cycle 28, period 5, today 7 Sep => cycle day 6, follicular,
+     next period 30 Sep. Confidence is at the FLOOR (no completed cycle), so the
+     fertile window and the ovulation marker are SUPPRESSED and painted nowhere.
+     pathLength="30" normalises the circle to 30 units, so 1 unit = 1 day and a run is
+     dasharray="N (30-N)" at dashoffset="-(day-1)". Without pathLength a dasharray
+     REPEATS around the whole circumference and every run overpaints the entire ring. -->
+<!-- Sep 1: before the recorded cycle, unknown -->
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#B0A8C0" stroke-dasharray="1 29" stroke-dashoffset="0" stroke-opacity="0.3" stroke-width="10"></circle>
+<!-- Sep 2 (cd1): the one logged bleeding day, seeded by onboarding -->
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#D64F6E" stroke-dasharray="1 29" stroke-dashoffset="-1" stroke-width="10"></circle>
+<!-- Sep 3-6 (cd2-5): menstrual phase, not logged -->
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#D64F6E" stroke-dasharray="4 26" stroke-dashoffset="-2" stroke-opacity="0.35" stroke-width="10"></circle>
+<!-- Sep 7-15 (cd6-14): follicular. Painted at 0.35 SO THAT TODAY'S DOTS READ: the dotted
+     day is drawn in the same hue at full strength, and same-on-same is invisible. -->
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#6FB3A8" stroke-dasharray="9 21" stroke-dashoffset="-6" stroke-opacity="0.35" stroke-width="10"></circle>
+<!-- Sep 16-29 (cd15-28): luteal. Ovulation would fall on 16 Sep but is suppressed. -->
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#D9A15B" stroke-dasharray="14 16" stroke-dashoffset="-15" stroke-opacity="0.35" stroke-width="10"></circle>
+<!-- Sep 30: estimated next period. Lavender #B0A8C0 is the token for ALL estimated states. -->
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#B0A8C0" stroke-dasharray="1 29" stroke-dashoffset="-29" stroke-opacity="0.55" stroke-width="10"></circle>
+<!-- Per-day tick separators in the card colour. This one CAN safely repeat: 0.09+0.91 = 1 day. -->
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#FEF6F9" stroke-dasharray="0.09 0.91" stroke-dashoffset="-0.045" stroke-width="10"></circle>
+<!-- Sep 7 (cd6): TODAY, dotted. The 6 dash values sum to exactly 30, so the pattern covers
+     the ring once and cannot repeat: 3 dots land inside day 7 alone. NO round linecap --
+     a round cap adds half the stroke width (0.54 units) to each end of every dash and
+     fuses the dots into one solid blob wider than a day. -->
+<circle cx="50" cy="50" fill="none" pathLength="30" r="44" stroke="#6FB3A8" stroke-dasharray="0.16 0.13 0.16 0.13 0.16 29.26" stroke-dashoffset="-6.13" stroke-width="10"></circle>
+</svg>
+<div class="text-center flex flex-col z-10">
+<span class="font-label text-xs uppercase tracking-wider text-brand-text/60">7 September</span>
+<span class="font-display text-2xl font-bold text-brand-text">Day 6</span>
+<span class="font-body text-sm font-medium text-brand-follicular mt-1">Follicular</span>
+</div>
+</div>
+<div class="flex flex-wrap justify-center gap-x-4 gap-y-2 max-w-[240px]">
+<div class="flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-brand-menstrual"></div><span class="text-xs text-brand-text/80">Period</span></div>
+<div class="flex items-center gap-1.5"><div class="w-2 h-2 rounded-full bg-brand-predicted"></div><span class="text-xs text-brand-text/80">Estimate</span></div>
+</div>
+</section>
+<!-- Next period card. Markup generated by Stitch as a standalone component
+     (screen ad37f368375d41df98d1d26a09bf14cd) and retokenised here. -->
+<section class="bg-brand-seed/5 rounded-[20px] p-5 flex flex-col gap-3">
+<div class="flex flex-row justify-between items-center w-full">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-brand-menstrual"></div>
+<span class="font-label text-sm font-medium text-brand-text/70">Next period</span>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-brand-predicted/20 text-brand-text text-[10px] uppercase font-bold tracking-wider">estimate</span>
+</div>
+<div class="font-display text-3xl font-semibold text-brand-text leading-tight">in 23 days</div>
+<div class="font-body text-sm text-brand-text/70">around 30 September</div>
+<div class="w-full h-px bg-brand-text/10 my-1"></div>
+<p class="font-body text-xs text-brand-text/50 leading-relaxed">Low confidence — based on what you told us at setup.</p>
+</section>
+<!-- Single call to action. A filled button in a COLUMN is the app's full-width CTA
+     convention and is correct; the layout bug is a bare FilledButton inside a Row. -->
+<button class="w-full h-[52px] bg-brand-seed text-brand-text font-medium rounded-[16px] flex items-center justify-center">Log today</button>
+<!-- Change Timer -->
+<section class="py-2">
+<h4 class="font-label text-sm font-medium text-brand-text/70 mb-3 px-1">Change timer</h4>
+<div class="flex flex-wrap gap-2">
+<button class="px-4 py-2 rounded-[12px] bg-brand-seed/5 text-sm font-medium hover:bg-brand-seed/10 active:scale-95 transition-transform flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">water_drop</span> Pad
+                </button>
+<button class="px-4 py-2 rounded-[12px] bg-brand-seed/5 text-sm font-medium hover:bg-brand-seed/10 active:scale-95 transition-transform">Tampon</button>
+<button class="px-4 py-2 rounded-[12px] bg-brand-seed/5 text-sm font-medium hover:bg-brand-seed/10 active:scale-95 transition-transform">Cup / disc</button>
+<button class="px-4 py-2 rounded-[12px] bg-brand-seed/5 text-sm font-medium hover:bg-brand-seed/10 active:scale-95 transition-transform">Period underwear</button>
+</div>
+</section>
+<!-- Disclaimer Banner -->
+<div class="flex items-start gap-2 bg-black/5 rounded-lg p-3 mt-6 mb-2">
+<span class="material-symbols-outlined text-[16px] text-brand-text/60 mt-0.5">info</span>
+<p class="text-xs text-brand-text/60 leading-tight">Estimates only — not a contraceptive method.</p>
+</div>
+</main>
+<!-- Ad Banner Slot -->
+<div class="fixed bottom-[80px] left-0 w-full flex justify-center pb-2 z-40 bg-gradient-to-t from-white via-white to-transparent pt-6 pointer-events-none">
+<div class="w-[320px] h-[50px] bg-gray-100 flex items-center justify-center border border-gray-200 pointer-events-auto">
+<span class="text-xs text-gray-400 font-medium tracking-widest uppercase">Advertisement</span>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 h-20 bg-white flat elevation-0 no-shadow pb-safe border-t border-black/5 flex justify-around items-center px-2">
+<button class="scale-95 active:scale-90 transition-transform duration-150 flex flex-col items-center justify-center gap-1 bg-[#F7A8C4] text-[#3A2A30] rounded-full px-5 py-1 w-[72px]">
+<span class="material-symbols-outlined" data-weight="fill">today</span>
+<span class="font-label text-xs font-medium">Today</span>
+</button>
+<button class="scale-95 active:scale-90 transition-transform duration-150 flex flex-col items-center justify-center gap-1 text-[#49454F] hover:bg-[#F7A8C4]/5 rounded-full w-[72px] py-1">
+<span class="material-symbols-outlined">calendar_month</span>
+<span class="font-label text-xs font-medium">Calendar</span>
+</button>
+<button class="scale-95 active:scale-90 transition-transform duration-150 flex flex-col items-center justify-center gap-1 text-[#49454F] hover:bg-[#F7A8C4]/5 rounded-full w-[72px] py-1">
+<span class="material-symbols-outlined">auto_graph</span>
+<span class="font-label text-xs font-medium">Forecast</span>
+</button>
+<button class="scale-95 active:scale-90 transition-transform duration-150 flex flex-col items-center justify-center gap-1 text-[#49454F] hover:bg-[#F7A8C4]/5 rounded-full w-[72px] py-1">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-label text-xs font-medium">Insights</span>
+</button>
+<button class="scale-95 active:scale-90 transition-transform duration-150 flex flex-col items-center justify-center gap-1 text-[#49454F] hover:bg-[#F7A8C4]/5 rounded-full w-[72px] py-1">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label text-xs font-medium">Settings</span>
+</button>
+</nav>
+</body></html>

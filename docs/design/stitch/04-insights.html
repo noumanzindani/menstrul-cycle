@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Insights - LunaTrack</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "primary": "#3A2A30",
+          "seed": "#F7A8C4",
+          "surface": "#FFFFFF",
+          "surface-tint": "#FDF0F4",
+          "menstrual": "#D64F6E",
+          "follicular": "#6FB3A8",
+          "ovulatory": "#7E9CE8",
+          "luteal": "#D9A15B",
+          "fertile": "#9CCFC6",
+          "predicted": "#B0A8C0"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.5rem",
+          "lg": "1rem",
+          "xl": "1.5rem",
+          "full": "9999px",
+          "card": "20px",
+          "btn": "16px"
+        },
+        "spacing": {
+          "btn-h": "52px"
+        },
+        "fontFamily": {
+          "headline": ["Public Sans", "sans-serif"],
+          "display": ["Public Sans", "sans-serif"],
+          "body": ["Public Sans", "sans-serif"],
+          "label": ["Public Sans", "sans-serif"]
+        },
+        "fontSize": {}
+      },
+    },
+  }
+</script>
+<style>
+  body { font-family: 'Public Sans', sans-serif; }
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .filled-icon {
+    font-variation-settings: 'FILL' 1;
+  }
+  /* Hide scrollbar for clean UI */
+  ::-webkit-scrollbar { display: none; }
+  * { scrollbar-width: none; }
+</style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-primary antialiased min-h-screen pb-24">
+<!-- Top App Bar -->
+<div class="w-full top-0 bg-surface flex items-center px-4 h-16 w-full sticky z-40">
+<button class="mr-4 hover:opacity-80 transition-opacity duration-200 text-primary p-2 -ml-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h1 class="font-headline text-lg font-medium text-primary">Insights</h1>
+</div>
+<!-- Main Content Area -->
+<main class="px-4 space-y-4 max-w-[600px] mx-auto pb-6">
+<!-- Cycle Length Chart Card -->
+<div class="bg-surface-tint rounded-card p-5">
+<div class="flex items-center gap-2 mb-4">
+<div class="w-2 h-2 rounded-full bg-predicted"></div>
+<h2 class="font-headline text-sm font-medium">CYCLE LENGTH</h2>
+</div>
+<div class="relative h-40 w-full mt-6 mb-2">
+<!-- Avg Line -->
+<div class="absolute w-full border-t border-dashed border-primary/20 top-1/2 -mt-2"></div>
+<div class="absolute right-0 top-1/2 -mt-7 text-[10px] text-primary/60 bg-surface-tint px-1">avg 28.8 days</div>
+<!-- Bars -->
+<div class="flex justify-between items-end h-full px-2">
+<div class="w-8 bg-seed rounded-t flex flex-col justify-end relative group" style="height: 95%;">
+<span class="absolute -top-5 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity">29</span>
+</div>
+<div class="w-8 bg-seed rounded-t flex flex-col justify-end relative group" style="height: 100%;">
+<span class="absolute -top-5 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity">31</span>
+</div>
+<div class="w-8 bg-seed rounded-t flex flex-col justify-end relative group" style="height: 92%;">
+<span class="absolute -top-5 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity">28</span>
+</div>
+<div class="w-8 bg-seed rounded-t flex flex-col justify-end relative group" style="height: 98%;">
+<span class="absolute -top-5 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity">30</span>
+</div>
+<div class="w-8 bg-seed rounded-t flex flex-col justify-end relative group" style="height: 88%;">
+<span class="absolute -top-5 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity">27</span>
+</div>
+<div class="w-8 bg-seed rounded-t flex flex-col justify-end relative group" style="height: 92%;">
+<span class="absolute -top-5 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity">28</span>
+</div>
+</div>
+</div>
+<div class="flex justify-between px-2 text-[10px] text-primary/60 mt-2">
+<span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span>
+</div>
+</div>
+<!-- Your Patterns Card -->
+<div class="bg-surface-tint rounded-card p-5">
+<div class="flex items-center gap-2 mb-4">
+<div class="w-2 h-2 rounded-full bg-predicted"></div>
+<h2 class="font-headline text-sm font-medium">YOUR PATTERNS</h2>
+</div>
+<div class="space-y-4">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-primary/60 mt-0.5">trending_down</span>
+<p class="text-sm leading-relaxed">Your recent cycles are running about 2 days shorter than earlier ones.</p>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-primary/60 mt-0.5">check_circle</span>
+<p class="text-sm leading-relaxed">Your cycle length is fairly regular.</p>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-primary/60 mt-0.5">water_drop</span>
+<p class="text-sm leading-relaxed">Your periods have been about 5 days long.</p>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-primary/60 mt-0.5">psychology</span>
+<p class="text-sm leading-relaxed">You most often log headaches around your luteal phase.</p>
+</div>
+</div>
+</div>
+<!-- Symptom Frequency Card -->
+<div class="bg-surface-tint rounded-card p-5">
+<div class="flex items-center gap-2 mb-4">
+<div class="w-2 h-2 rounded-full bg-follicular"></div>
+<h2 class="font-headline text-sm font-medium">SYMPTOM FREQUENCY</h2>
+</div>
+<div class="space-y-3 mt-4">
+<div class="flex items-center gap-3">
+<span class="w-20 text-xs truncate">Cramps</span>
+<div class="flex-1 bg-surface rounded-full h-2">
+<div class="bg-follicular h-full rounded-full" style="width: 80%"></div>
+</div>
+<span class="text-xs text-primary/60 w-6 text-right">12</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="w-20 text-xs truncate">Fatigue</span>
+<div class="flex-1 bg-surface rounded-full h-2">
+<div class="bg-follicular h-full rounded-full" style="width: 65%"></div>
+</div>
+<span class="text-xs text-primary/60 w-6 text-right">9</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="w-20 text-xs truncate">Headache</span>
+<div class="flex-1 bg-surface rounded-full h-2">
+<div class="bg-follicular h-full rounded-full" style="width: 50%"></div>
+</div>
+<span class="text-xs text-primary/60 w-6 text-right">6</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="w-20 text-xs truncate">Bloating</span>
+<div class="flex-1 bg-surface rounded-full h-2">
+<div class="bg-follicular h-full rounded-full" style="width: 40%"></div>
+</div>
+<span class="text-xs text-primary/60 w-6 text-right">4</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="w-20 text-xs truncate">Low mood</span>
+<div class="flex-1 bg-surface rounded-full h-2">
+<div class="bg-follicular h-full rounded-full" style="width: 25%"></div>
+</div>
+<span class="text-xs text-primary/60 w-6 text-right">2</span>
+</div>
+</div>
+</div>
+<!-- BBT Card -->
+<div class="bg-surface-tint rounded-card p-5">
+<div class="flex items-center gap-2 mb-1">
+<div class="w-2 h-2 rounded-full bg-ovulatory"></div>
+<h2 class="font-headline text-sm font-medium">BASAL BODY TEMPERATURE</h2>
+</div>
+<p class="text-xs text-primary/60 mb-6">An observation, not a diagnosis.</p>
+<div class="relative h-32 w-full">
+<!-- Simulated SVG Line Chart -->
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 100 40">
+<path d="M0,35 L10,34 L20,36 L30,33 L40,35 L50,15 L60,12 L70,14 L80,10 L90,13 L100,11" fill="none" stroke="#7E9CE8" stroke-linejoin="round" stroke-width="1.5"></path>
+<!-- Marker at rise -->
+<circle cx="50" cy="15" fill="#7E9CE8" r="1.5"></circle>
+<line stroke="#7E9CE8" stroke-dasharray="1,1" stroke-width="0.5" x1="50" x2="50" y1="15" y2="40"></line>
+</svg>
+<div class="absolute left-[45%] bottom-0 text-[9px] text-ovulatory bg-surface-tint px-1 transform -translate-x-1/2">Shift</div>
+</div>
+</div>
+<!-- Weight Card -->
+<div class="bg-surface-tint rounded-card p-5">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-predicted"></div>
+<h2 class="font-headline text-sm font-medium">WEIGHT</h2>
+</div>
+<span class="text-xs">-1.2 kg over 90 days</span>
+</div>
+<div class="relative h-24 w-full mt-2">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 100 30">
+<path d="M0,10 L20,12 L40,15 L60,14 L80,18 L100,20" fill="none" stroke="#B0A8C0" stroke-linejoin="round" stroke-width="1.5"></path>
+</svg>
+</div>
+</div>
+<!-- Export Button -->
+<button class="w-full h-btn-h bg-seed text-primary font-medium rounded-btn hover:opacity-90 transition-opacity mt-4 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">download</span>
+    Export a report for my doctor (PDF)
+  </button>
+<!-- Disclaimer -->
+<div class="flex items-start gap-3 p-4 mt-6 bg-surface-tint/50 rounded-lg text-primary/70">
+<span class="material-symbols-outlined text-sm mt-0.5">info</span>
+<p class="text-xs leading-relaxed">Estimates only — not a contraceptive method.</p>
+</div>
+</main>
+<!-- Bottom Nav Bar Shell -->
+<div class="fixed bottom-0 left-0 w-full flex justify-around items-center h-20 px-2 bg-surface z-50 border-t border-seed/10 md:hidden">
+<div class="flex flex-col items-center justify-center text-primary/70 px-5 py-1 hover:bg-seed/10 transition-colors rounded-xl">
+<span class="material-symbols-outlined mb-1">today</span>
+<span class="font-label text-xs font-medium">Today</span>
+</div>
+<div class="flex flex-col items-center justify-center text-primary/70 px-5 py-1 hover:bg-seed/10 transition-colors rounded-xl">
+<span class="material-symbols-outlined mb-1">calendar_month</span>
+<span class="font-label text-xs font-medium">Calendar</span>
+</div>
+<div class="flex flex-col items-center justify-center text-primary/70 px-5 py-1 hover:bg-seed/10 transition-colors rounded-xl">
+<span class="material-symbols-outlined mb-1">auto_graph</span>
+<span class="font-label text-xs font-medium">Forecast</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-seed/20 text-primary rounded-xl px-5 py-1 scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined filled-icon mb-1">analytics</span>
+<span class="font-label text-xs font-medium">Insights</span>
+</div>
+<div class="flex flex-col items-center justify-center text-primary/70 px-5 py-1 hover:bg-seed/10 transition-colors rounded-xl">
+<span class="material-symbols-outlined mb-1">settings</span>
+<span class="font-label text-xs font-medium">Settings</span>
+</div>
+</div>
+</body></html>

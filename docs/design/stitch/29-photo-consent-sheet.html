@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>LunaTrack - Photo Consent</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: '#F7A8C4', // Seed / primary accent
+                            text: '#3A2A30',    // Primary text on white
+                            surface: '#FFFFFF', // Background / surface
+                        },
+                        neutral: {
+                            text: '#49454F',
+                            border: '#E5E7EB',
+                            dim: 'rgba(0, 0, 0, 0.4)'
+                        }
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.25rem", // 20dp approx for cards
+                        "2xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        'sheet-pad': '1.5rem', // 24dp
+                        'btn-h': '3.25rem',    // 52dp
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans", "sans-serif"],
+                        "display": ["Public Sans", "sans-serif"],
+                        "body": ["Public Sans", "sans-serif"],
+                        "label": ["Public Sans", "sans-serif"]
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* Material Symbols */
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+
+        /* Mobile Container Simulation */
+        .mobile-container {
+            width: 100%;
+            max-width: 360px; /* Mobile portrait 360x800dp constraint */
+            height: 100dvh;
+            max-height: 800px;
+            margin: 0 auto;
+            position: relative;
+            background-color: black; /* Simulating media viewer behind sheet */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+<!-- Mobile Device Simulator -->
+<div class="mobile-container">
+<!-- Dimmed Background Overlay -->
+<div class="absolute inset-0 bg-neutral-dim z-40 transition-opacity duration-300"></div>
+<!-- Bottom Sheet -->
+<div class="bg-primary-surface w-full rounded-t-xl rounded-b-none z-50 relative pb-safe transform transition-transform duration-300 translate-y-0 shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">
+<!-- Drag Handle -->
+<div class="w-full flex justify-center pt-3 pb-1">
+<div class="w-8 h-1 bg-gray-300 rounded-full"></div>
+</div>
+<!-- Sheet Content -->
+<div class="px-sheet-pad pb-sheet-pad pt-2 flex flex-col gap-5">
+<!-- Header / Icon -->
+<div class="flex flex-col gap-3">
+<span class="material-symbols-outlined fill text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<h2 class="font-headline text-[22px] font-semibold text-primary-text leading-tight">Describe this photo?</h2>
+</div>
+<!-- Text Content -->
+<div class="font-body text-[15px] leading-relaxed text-primary-text space-y-4">
+<p>This sends the photo to Google's AI service. It leaves your device and your account.</p>
+<p>It's off unless you turn it on, and turning it on applies to this account only.</p>
+</div>
+<!-- Bulleted List -->
+<div class="flex flex-col gap-3 font-body text-[14px] text-primary-text mt-1">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-green-600 text-xl mt-0.5" style="font-variation-settings: 'wght' 600;">check</span>
+<p class="leading-snug">It describes what's visible in the photo.</p>
+</div>
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-gray-500 text-xl mt-0.5" style="font-variation-settings: 'wght' 600;">close</span>
+<p class="leading-snug">It will not name a condition, rate severity, or suggest treatment.</p>
+</div>
+</div>
+<!-- Actions (Strict Vertical Stack, Full Width) -->
+<div class="flex flex-col gap-3 mt-4 w-full">
+<button class="w-full h-btn-h bg-primary text-primary-surface font-label font-medium text-base rounded-[16px] flex items-center justify-center transition-opacity hover:opacity-90 active:opacity-80">
+                        Allow
+                    </button>
+<button class="w-full h-btn-h bg-transparent text-primary-text border border-neutral-border font-label font-medium text-base rounded-[16px] flex items-center justify-center transition-colors hover:bg-gray-50 active:bg-gray-100">
+                        Not now
+                    </button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

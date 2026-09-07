@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LunaTrack - Medications</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#FFFFFF",
+                        surface: "#FFFFFF",
+                        primary: "#3A2A30",
+                        secondary: "#6B5A60",
+                        seed: "#F7A8C4",
+                        card: "#FEF4F7",
+                        menstrual: "#D64F6E",
+                        follicular: "#6FB3A8",
+                        ovulatory: "#7E9CE8",
+                        luteal: "#D9A15B",
+                        fertile: "#9CCFC6",
+                        predicted: "#B0A8C0"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        lg: "1rem",
+                        xl: "1.25rem", 
+                        "2xl": "1.5rem",
+                        full: "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            background-color: #FFFFFF;
+            color: #3A2A30;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Utility for 20dp (approx 1.25rem) radius */
+        .rounded-[20px] {
+            border-radius: 20px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="antialiased min-h-screen flex flex-col items-center">
+<!-- Mobile Container (360x800dp approximate constraint for design intent) -->
+<main class="w-full max-w-[400px] min-h-screen relative shadow-sm flex flex-col bg-background">
+<!-- TopAppBar (From JSON) -->
+<header class="w-full top-0 sticky bg-white flex items-center justify-between px-4 h-16 w-full z-10">
+<button aria-label="Back" class="w-10 h-10 flex items-center justify-center text-[#3A2A30] hover:bg-[#F7A8C4]/10 transition-colors rounded-full active:opacity-70 transition-opacity">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-headline text-lg font-medium text-[#3A2A30] flex-1 px-4 truncate">
+                Medications
+            </h1>
+<button aria-label="Add Medication" class="w-10 h-10 flex items-center justify-center text-[#3A2A30] hover:bg-[#F7A8C4]/10 transition-colors rounded-full active:opacity-70 transition-opacity">
+<span class="material-symbols-outlined">add</span>
+</button>
+</header>
+<!-- Content Area -->
+<div class="flex-1 px-4 pt-4 pb-8 flex flex-col gap-6">
+<!-- Medications List Card (Single baby-pink card, 20dp radius, elevation 0) -->
+<div class="bg-card rounded-[20px] p-4 flex flex-col gap-4">
+<!-- Medication Row 1 -->
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-seed">
+<span class="material-symbols-outlined">medication</span>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-center">
+<h2 class="text-primary font-medium text-base truncate">Sertraline</h2>
+<p class="text-secondary text-sm truncate">50 mg · 1 tablet</p>
+<p class="text-secondary/70 text-xs mt-0.5 truncate">Every morning</p>
+</div>
+<button aria-label="Options for Sertraline" class="w-8 h-8 flex-shrink-0 flex items-center justify-center text-primary/70 hover:bg-black/5 rounded-full">
+<span class="material-symbols-outlined text-lg">more_vert</span>
+</button>
+</div>
+<!-- Divider -->
+<div class="h-px w-full bg-seed/20 ml-14"></div>
+<!-- Medication Row 2 -->
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-seed">
+<span class="material-symbols-outlined">medication</span>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-center">
+<h2 class="text-primary font-medium text-base truncate">Multivitamin</h2>
+<p class="text-secondary text-sm truncate">1 gummy</p>
+<p class="text-secondary/70 text-xs mt-0.5 truncate">Every morning</p>
+</div>
+<button aria-label="Options for Multivitamin" class="w-8 h-8 flex-shrink-0 flex items-center justify-center text-primary/70 hover:bg-black/5 rounded-full">
+<span class="material-symbols-outlined text-lg">more_vert</span>
+</button>
+</div>
+<!-- Divider -->
+<div class="h-px w-full bg-seed/20 ml-14"></div>
+<!-- Medication Row 3 -->
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-seed">
+<span class="material-symbols-outlined">medication</span>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-center">
+<h2 class="text-primary font-medium text-base truncate">Iron Supplement</h2>
+<p class="text-secondary text-sm truncate">65 mg · 1 tablet</p>
+<p class="text-secondary/70 text-xs mt-0.5 truncate">Twice daily</p>
+</div>
+<button aria-label="Options for Iron Supplement" class="w-8 h-8 flex-shrink-0 flex items-center justify-center text-primary/70 hover:bg-black/5 rounded-full">
+<span class="material-symbols-outlined text-lg">more_vert</span>
+</button>
+</div>
+<!-- Divider -->
+<div class="h-px w-full bg-seed/20 ml-14"></div>
+<!-- Medication Row 4 -->
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white text-seed">
+<span class="material-symbols-outlined">medication</span>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-center">
+<h2 class="text-primary font-medium text-base truncate">Ibuprofen</h2>
+<p class="text-secondary text-sm truncate">200 mg · 1-2 tablets</p>
+<p class="text-secondary/70 text-xs mt-0.5 truncate">As needed</p>
+</div>
+<button aria-label="Options for Ibuprofen" class="w-8 h-8 flex-shrink-0 flex items-center justify-center text-primary/70 hover:bg-black/5 rounded-full">
+<span class="material-symbols-outlined text-lg">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LunaTrack - Merge Data Sheet</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            // Extracted from design system
+            surface: "#FFFFFF",
+            primaryText: "#3A2A30",
+            seed: "#F7A8C4",
+            // Phase colours (light)
+            menstrual: "#D64F6E",
+            follicular: "#6FB3A8",
+            ovulatory: "#7E9CE8",
+            luteal: "#D9A15B",
+            fertile: "#9CCFC6",
+            predicted: "#B0A8C0",
+            // Dark mode overrides conceptually if needed, but defaulting to light
+          },
+          borderRadius: {
+            "DEFAULT": "0.5rem",
+            "lg": "1rem",
+            "xl": "1.5rem",
+            "full": "9999px",
+            // specific to design system requirements
+            "card": "20px",
+            "btn": "16px",
+            "sheet": "20px"
+          },
+          fontFamily: {
+            headline: ["Public Sans", "sans-serif"],
+            display: ["Public Sans", "sans-serif"],
+            body: ["Public Sans", "sans-serif"],
+            label: ["Public Sans", "sans-serif"]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Ensure the 360x800 portrait constraint for the demo */
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #f0f0f0;
+      margin: 0;
+    }
+    .mobile-container {
+      width: 360px;
+      height: 800px;
+      position: relative;
+      background-color: #FFFFFF;
+      overflow: hidden;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body text-primaryText antialiased">
+<div class="mobile-container flex flex-col relative">
+<!-- Background: Dimmed Today Screen Placeholder -->
+<div class="absolute inset-0 z-0">
+<img alt="Dimmed Today Screen" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_ayi_I87-u0NBeyXMeURVTx0T9bstSshSJhvfTmDNVwHX5Hc4xvnOyu6DuZp5EwW2gphREhQQVIZ5PPe_gVSscppZSvDpZSvfKhIAv3HaJtPqPYMATYcfSl2BsAtKJEbsiAYTlMnDGNFs-5S67_LFKoNzINPf1kNFd_OVejjDVqiPIOcmOT1K3hBY-5Zz8yHsHQP9xcUJOu0Km8dowUTFRZLP_HkWCk_AYfllzxhUrktkkJQ0P8TqK_blYfKO8ZJsbTFAsB5FtA"/>
+</div>
+<!-- Scrim / Dimming Overlay -->
+<div class="absolute inset-0 bg-black/60 z-10"></div>
+<!-- Modal Bottom Sheet -->
+<div class="absolute bottom-0 left-0 w-full bg-surface rounded-t-[20px] z-20 flex flex-col shadow-[0_-8px_16px_rgba(0,0,0,0.1)] transition-transform duration-300 translate-y-0 pb-safe">
+<!-- Drag Handle Area -->
+<div class="w-full flex justify-center pt-4 pb-2">
+<div class="w-8 h-1 bg-gray-300 rounded-full"></div>
+</div>
+<!-- Sheet Content Padding 24dp -->
+<div class="px-6 pb-6 pt-2 flex flex-col gap-6">
+<!-- Header -->
+<div class="flex flex-col gap-4">
+<h2 class="font-headline text-2xl font-semibold leading-tight text-primaryText">
+            Use the data already on this device?
+          </h2>
+<div class="flex flex-col gap-3 font-body text-base text-primaryText/80 leading-relaxed">
+<p>You logged 12 days on this phone before signing in. Choose what happens to them.</p>
+<p>Uploading adds them to your account. Keeping the account's data leaves this phone's days behind — they stay on the device but won't sync.</p>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex flex-col gap-3 w-full mt-2">
+<!-- Filled Button -->
+<button class="w-full h-[52px] rounded-[16px] bg-seed text-primaryText font-label text-base font-medium flex items-center justify-center hover:bg-seed/90 active:scale-[0.98] transition-all">
+            Upload this device's data
+          </button>
+<!-- Outlined Button -->
+<button class="w-full h-[52px] rounded-[16px] border border-[#79747E] bg-transparent text-primaryText font-label text-base font-medium flex items-center justify-center hover:bg-black/5 active:scale-[0.98] transition-all">
+            Keep the account's data
+          </button>
+<!-- Text Button (Footer) -->
+<button class="w-full h-10 mt-2 bg-transparent text-primaryText font-label text-sm font-medium flex items-center justify-center hover:bg-black/5 rounded-full transition-colors">
+            Decide later
+          </button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

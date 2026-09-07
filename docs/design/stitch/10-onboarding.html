@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LunaTrack - Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "primary": "#3A2A30",
+          "seed": "#F7A8C4",
+          "surface": "#FFFFFF",
+          "surface-variant": "#F2F2F2",
+          "outline": "#E5E5E5",
+          "text-secondary": "#757575",
+          "menstrual": "#D64F6E",
+          "predicted": "#B0A8C0"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.5rem",
+          "lg": "1rem",
+          "xl": "1.5rem",
+          "full": "9999px",
+          "card": "20px",
+          "button": "16px"
+        },
+        "spacing": {},
+        "fontFamily": {
+          "headline": [
+            "Public Sans"
+          ],
+          "display": [
+            "Public Sans"
+          ],
+          "body": [
+            "Public Sans"
+          ],
+          "label": [
+            "Public Sans"
+          ]
+        },
+        "fontSize": {}
+      },
+    },
+  }
+</script>
+<style>
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .phone-frame {
+    width: 360px;
+    height: 800px;
+    background-color: #FFFFFF;
+    border: 1px solid #E5E5E5;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+  }
+</style>
+</head>
+<body class="bg-gray-100 font-body text-primary antialiased min-h-screen flex items-center justify-center p-8">
+<div class="w-[1440px] max-w-full mx-auto">
+<div class="flex gap-8 overflow-x-auto pb-4 justify-center">
+<!-- Step 1 -->
+<div class="flex flex-col items-center">
+<span class="text-sm font-semibold text-text-secondary mb-2">Step 1</span>
+<div class="phone-frame">
+<!-- Status Bar Mock -->
+<div class="h-6 w-full flex justify-between items-center px-4 pt-2">
+<span class="text-xs font-medium">9:41</span>
+<div class="flex gap-1 items-center">
+<span class="material-symbols-outlined text-[14px]">signal_cellular_4_bar</span>
+<span class="material-symbols-outlined text-[14px]">wifi</span>
+<span class="material-symbols-outlined text-[14px]">battery_full</span>
+</div>
+</div>
+<!-- Progress Bar -->
+<div class="w-full h-1 bg-surface-variant flex mt-2">
+<div class="h-full bg-primary w-1/4"></div>
+</div>
+<!-- Content -->
+<div class="flex-1 flex flex-col px-6 pt-12 pb-6">
+<h1 class="font-headline text-2xl font-medium mb-12">When did your last period start?</h1>
+<!-- Calendar Control (Simplified Mock) -->
+<div class="w-full flex-1">
+<div class="flex justify-between items-center mb-6">
+<span class="material-symbols-outlined text-text-secondary cursor-pointer">chevron_left</span>
+<span class="font-medium text-lg">September 2026</span>
+<span class="material-symbols-outlined text-text-secondary cursor-pointer">chevron_right</span>
+</div>
+<div class="grid grid-cols-7 gap-y-4 text-center mb-2">
+<span class="text-xs text-text-secondary">S</span>
+<span class="text-xs text-text-secondary">M</span>
+<span class="text-xs text-text-secondary">T</span>
+<span class="text-xs text-text-secondary">W</span>
+<span class="text-xs text-text-secondary">T</span>
+<span class="text-xs text-text-secondary">F</span>
+<span class="text-xs text-text-secondary">S</span>
+</div>
+<div class="grid grid-cols-7 gap-y-4 text-center">
+<!-- Empty days for alignment -->
+<span></span>
+<span></span>
+<!-- Selected day -->
+<div class="flex justify-center items-center">
+<div class="w-8 h-8 rounded-full bg-seed flex items-center justify-center text-primary font-medium">1</div>
+</div>
+<!-- Other days -->
+<div class="flex justify-center items-center w-8 h-8">2</div>
+<div class="flex justify-center items-center w-8 h-8">3</div>
+<div class="flex justify-center items-center w-8 h-8">4</div>
+<div class="flex justify-center items-center w-8 h-8">5</div>
+<div class="flex justify-center items-center w-8 h-8">6</div>
+<div class="flex justify-center items-center w-8 h-8">7</div>
+<div class="flex justify-center items-center w-8 h-8">8</div>
+<div class="flex justify-center items-center w-8 h-8">9</div>
+<div class="flex justify-center items-center w-8 h-8">10</div>
+<div class="flex justify-center items-center w-8 h-8">11</div>
+<div class="flex justify-center items-center w-8 h-8">12</div>
+</div>
+<div class="mt-8 text-center">
+<button class="text-text-secondary text-sm font-medium py-2 px-4 rounded-full hover:bg-surface-variant transition-colors">I'm not sure</button>
+</div>
+</div>
+<!-- Bottom Button -->
+<button class="w-full h-[52px] bg-primary text-surface rounded-button font-medium text-base mt-auto flex items-center justify-center transition-transform active:scale-[0.98]">Continue</button>
+</div>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="flex flex-col items-center">
+<span class="text-sm font-semibold text-text-secondary mb-2">Step 2</span>
+<div class="phone-frame">
+<div class="h-6 w-full flex justify-between items-center px-4 pt-2">
+<span class="text-xs font-medium">9:41</span>
+<div class="flex gap-1 items-center">
+<span class="material-symbols-outlined text-[14px]">signal_cellular_4_bar</span>
+<span class="material-symbols-outlined text-[14px]">wifi</span>
+<span class="material-symbols-outlined text-[14px]">battery_full</span>
+</div>
+</div>
+<div class="w-full h-1 bg-surface-variant flex mt-2">
+<div class="h-full bg-primary w-2/4"></div>
+</div>
+<div class="flex-1 flex flex-col px-6 pt-12 pb-6">
+<h1 class="font-headline text-2xl font-medium mb-12">How long is your cycle, usually?</h1>
+<div class="flex-1 flex flex-col items-center justify-center -mt-20">
+<div class="flex items-center gap-8 mb-4">
+<button class="w-12 h-12 rounded-full border border-outline flex items-center justify-center text-text-secondary hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">remove</span>
+</button>
+<span class="text-7xl font-light tabular-nums">28</span>
+<button class="w-12 h-12 rounded-full border border-outline flex items-center justify-center text-text-secondary hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+<p class="text-text-secondary text-sm text-center max-w-[200px]">days from the first day of one period to the next</p>
+</div>
+<button class="w-full h-[52px] bg-primary text-surface rounded-button font-medium text-base mt-auto flex items-center justify-center transition-transform active:scale-[0.98]">Continue</button>
+</div>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="flex flex-col items-center">
+<span class="text-sm font-semibold text-text-secondary mb-2">Step 3</span>
+<div class="phone-frame">
+<div class="h-6 w-full flex justify-between items-center px-4 pt-2">
+<span class="text-xs font-medium">9:41</span>
+<div class="flex gap-1 items-center">
+<span class="material-symbols-outlined text-[14px]">signal_cellular_4_bar</span>
+<span class="material-symbols-outlined text-[14px]">wifi</span>
+<span class="material-symbols-outlined text-[14px]">battery_full</span>
+</div>
+</div>
+<div class="w-full h-1 bg-surface-variant flex mt-2">
+<div class="h-full bg-primary w-3/4"></div>
+</div>
+<div class="flex-1 flex flex-col px-6 pt-12 pb-6">
+<h1 class="font-headline text-2xl font-medium mb-12">How long does your period last?</h1>
+<div class="flex-1 flex flex-col items-center justify-center -mt-20">
+<div class="flex items-center gap-8 mb-4">
+<button class="w-12 h-12 rounded-full border border-outline flex items-center justify-center text-text-secondary hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">remove</span>
+</button>
+<span class="text-7xl font-light tabular-nums">5</span>
+<button class="w-12 h-12 rounded-full border border-outline flex items-center justify-center text-text-secondary hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+<p class="text-text-secondary text-sm text-center">days of bleeding</p>
+</div>
+<button class="w-full h-[52px] bg-primary text-surface rounded-button font-medium text-base mt-auto flex items-center justify-center transition-transform active:scale-[0.98]">Continue</button>
+</div>
+</div>
+</div>
+<!-- Step 4 -->
+<div class="flex flex-col items-center">
+<span class="text-sm font-semibold text-text-secondary mb-2">Step 4</span>
+<div class="phone-frame">
+<div class="h-6 w-full flex justify-between items-center px-4 pt-2">
+<span class="text-xs font-medium">9:41</span>
+<div class="flex gap-1 items-center">
+<span class="material-symbols-outlined text-[14px]">signal_cellular_4_bar</span>
+<span class="material-symbols-outlined text-[14px]">wifi</span>
+<span class="material-symbols-outlined text-[14px]">battery_full</span>
+</div>
+</div>
+<div class="w-full h-1 bg-surface-variant flex mt-2">
+<div class="h-full bg-primary w-full"></div>
+</div>
+<div class="flex-1 flex flex-col px-6 pt-12 pb-6">
+<h1 class="font-headline text-2xl font-medium mb-12">What are you using LunaTrack for?</h1>
+<div class="flex-1 flex flex-col gap-4">
+<!-- Selected Card -->
+<div class="w-full bg-seed/20 rounded-card p-5 cursor-pointer relative border-2 border-transparent">
+<div class="flex justify-between items-start mb-1">
+<h2 class="font-medium text-lg text-primary">Track my cycle</h2>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<p class="text-primary/80 text-sm">Predictions, symptoms and patterns</p>
+</div>
+<!-- Unselected Card -->
+<div class="w-full bg-surface-variant rounded-card p-5 cursor-pointer hover:bg-gray-200 transition-colors">
+<div class="flex justify-between items-start mb-1">
+<h2 class="font-medium text-lg text-primary">Trying to conceive</h2>
+<!-- Empty icon space to maintain alignment if needed, or omit -->
+</div>
+<p class="text-text-secondary text-sm">Adds fertility signals and ovulation tracking</p>
+</div>
+</div>
+<button class="w-full h-[52px] bg-primary text-surface rounded-button font-medium text-base mt-auto flex items-center justify-center transition-transform active:scale-[0.98]">Continue</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body></html>

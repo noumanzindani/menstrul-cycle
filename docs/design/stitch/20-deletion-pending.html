@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>LunaTrack - Account Deletion</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        'surface': '#FFFFFF',
+                        'on-surface': '#3A2A30',
+                        'primary': '#F7A8C4',
+                        'primary-container': '#FDEEF3',
+                        'on-primary-container': '#3A2A30',
+                        'muted': '#B0A8C0',
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.25rem",
+                        "2xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            width: 360px;
+            height: 800px;
+            margin: 0 auto;
+            position: relative;
+            background-color: #FFFFFF;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body antialiased">
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col px-4 pt-16 pb-8 h-full relative">
+<!-- Centered Content Wrapper -->
+<div class="flex-1 flex flex-col justify-center items-center">
+<!-- Large Icon -->
+<div class="mb-6 flex justify-center">
+<span class="material-symbols-outlined text-[72px] text-muted">schedule</span>
+</div>
+<!-- Title -->
+<h1 class="font-headline text-2xl font-semibold text-center mb-8 text-on-surface">
+                Account deletion requested
+            </h1>
+<!-- Info Card -->
+<div class="w-full bg-primary-container rounded-xl p-6 mb-6">
+<div class="space-y-6">
+<p class="text-base leading-relaxed text-on-surface">
+                        Everything on this device has already been erased.
+                    </p>
+<p class="text-base leading-relaxed text-on-surface">
+                        The copy in your account is scheduled to be deleted.
+                    </p>
+<div class="flex justify-between items-center pt-2">
+<span class="text-sm font-medium text-on-surface">Scheduled for</span>
+<span class="text-sm font-semibold text-on-surface">7 October 2026</span>
+</div>
+</div>
+</div>
+<!-- Subtext -->
+<p class="text-sm text-muted text-center px-4">
+                You can cancel any time before that date.
+            </p>
+</div>
+<!-- Bottom Actions -->
+<div class="w-full flex flex-col gap-4 mt-auto">
+<!-- Filled Button -->
+<button class="w-full h-[52px] bg-primary rounded-[16px] flex items-center justify-center font-label text-base font-medium text-on-surface hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2" type="button">
+                Cancel deletion request
+            </button>
+<!-- Text Button -->
+<button class="w-full h-[52px] flex items-center justify-center font-label text-base font-medium text-on-surface hover:bg-black/5 rounded-[16px] transition-colors focus:outline-none focus:ring-2 focus:ring-black/10" type="button">
+                Sign out
+            </button>
+</div>
+</main>
+</body></html>

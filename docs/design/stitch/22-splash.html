@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LunaTrack - Splash</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#FFFFFF",
+                        "on-background": "#3A2A30",
+                        primary: "#F7A8C4",
+                        menstrual: "#D64F6E",
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        @keyframes progress {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(0%); }
+            100% { transform: translateX(100%); }
+        }
+        .animate-progress {
+            animation: progress 1.5s infinite ease-in-out;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background h-full w-full m-0 p-0 flex flex-col justify-between items-center relative overflow-hidden">
+<!-- Top Spacer -->
+<div class="flex-1"></div>
+<!-- Centered Content -->
+<div class="flex flex-col items-center justify-center space-y-8">
+<!-- Wordmark -->
+<h1 class="font-display text-4xl font-semibold text-on-background tracking-tight">
+            LunaTrack
+        </h1>
+<!-- Miniature Cycle Ring Mark -->
+<div class="w-12 h-12 relative">
+<svg aria-hidden="true" class="w-full h-full" viewbox="0 0 48 48">
+<!-- Soft Pink Segments -->
+<circle cx="24" cy="24" fill="none" r="20" stroke="#F7A8C4" stroke-dasharray="8 4" stroke-width="4"></circle>
+<!-- Rose (Menstrual) Segments overlay to represent the 2 segments -->
+<path d="M 24 4 A 20 20 0 0 1 36.4 8.5" fill="none" stroke="#D64F6E" stroke-linecap="round" stroke-width="4"></path>
+</svg>
+</div>
+</div>
+<!-- Bottom Spacer & Progress Bar -->
+<div class="flex-1 flex flex-col justify-end items-center pb-20 w-full">
+<!-- Indeterminate Progress Bar -->
+<div class="w-[120px] h-[2px] bg-primary/20 rounded-full overflow-hidden relative">
+<div class="absolute top-0 left-0 h-full w-1/2 bg-primary rounded-full animate-progress"></div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>LunaTrack - Lock Screen</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#F7A8C4",
+                        onPrimary: "#3A2A30",
+                        surface: "#FFFFFF",
+                        onSurface: "#3A2A30",
+                        onSurfaceVariant: "#49454F",
+                        outline: "#CAC4D0"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Keypad press animation */
+        .keypad-btn:active {
+            background-color: rgba(247, 168, 196, 0.15); /* primary/15 */
+            transform: scale(0.95);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-onSurface font-body min-h-screen flex flex-col items-center justify-center overscroll-none select-none px-6 py-8">
+<!-- Content Container -->
+<main class="flex-1 w-full max-w-[360px] flex flex-col items-center justify-center mx-auto gap-8 mt-12">
+<!-- Logo and Brand -->
+<div class="flex flex-col items-center gap-4 text-center">
+<!-- Simulated Moon & Spa Icon (Material Icon fallback to spa/bedtime) -->
+<div class="w-14 h-14 flex items-center justify-center text-primary relative">
+<span class="material-symbols-outlined text-[56px] leading-none absolute opacity-70" style="font-variation-settings: 'FILL' 0;">bedtime</span>
+<span class="material-symbols-outlined text-[28px] leading-none absolute translate-y-2 translate-x-2" style="font-variation-settings: 'FILL' 0;">spa</span>
+</div>
+<h1 class="font-headline text-[22px] font-medium tracking-wide mt-2">LunaTrack</h1>
+<p class="font-body text-[14px] text-onSurfaceVariant mt-6">Enter your PIN</p>
+<!-- PIN Dots -->
+<div class="flex items-center gap-4 mt-4">
+<div class="w-3.5 h-3.5 rounded-full bg-primary"></div>
+<div class="w-3.5 h-3.5 rounded-full bg-primary"></div>
+<div class="w-3.5 h-3.5 rounded-full border-2 border-primary"></div>
+<div class="w-3.5 h-3.5 rounded-full border-2 border-primary"></div>
+</div>
+</div>
+<!-- Biometrics Button -->
+<button class="mt-4 flex items-center gap-2 text-[14px] font-medium text-onSurfaceVariant hover:text-onSurface transition-colors px-4 py-2 rounded-full hover:bg-primary/5 active:bg-primary/10">
+<span class="material-symbols-outlined text-[20px]">fingerprint</span>
+<span>Use biometrics instead</span>
+</button>
+<!-- Spacer to push keypad down -->
+<div class="flex-1 min-h-[2rem]"></div>
+<!-- Numeric Keypad -->
+<div class="grid grid-cols-3 gap-x-6 gap-y-4 mb-4">
+<!-- Row 1 -->
+<button class="keypad-btn w-[72px] h-[72px] rounded-full border border-outline/30 flex items-center justify-center text-[24px] font-display font-medium transition-all duration-150">1</button>
+<button class="keypad-btn w-[72px] h-[72px] rounded-full border border-outline/30 flex items-center justify-center text-[24px] font-display font-medium transition-all duration-150">2</button>
+<button class="keypad-btn w-[72px] h-[72px] rounded-full border border-outline/30 flex items-center justify-center text-[24px] font-display font-medium transition-all duration-150">3</button>
+<!-- Row 2 -->
+<button class="keypad-btn w-[72px] h-[72px] rounded-full border border-outline/30 flex items-center justify-center text-[24px] font-display font-medium transition-all duration-150">4</button>
+<button class="keypad-btn w-[72px] h-[72px] rounded-full border border-outline/30 flex items-center justify-center text-[24px] font-display font-medium transition-all duration-150">5</button>
+<button class="keypad-btn w-[72px] h-[72px] rounded-full border border-outline/30 flex items-center justify-center text-[24px] font-display font-medium transition-all duration-150">6</button>
+<!-- Row 3 -->
+<button class="keypad-btn w-[72px] h-[72px] rounded-full border border-outline/30 flex items-center justify-center text-[24px] font-display font-medium transition-all duration-150">7</button>
+<button class="keypad-btn w-[72px] h-[72px] rounded-full border border-outline/30 flex items-center justify-center text-[24px] font-display font-medium transition-all duration-150">8</button>
+<button class="keypad-btn w-[72px] h-[72px] rounded-full border border-outline/30 flex items-center justify-center text-[24px] font-display font-medium transition-all duration-150">9</button>
+<!-- Row 4 -->
+<div class="w-[72px] h-[72px]"></div> <!-- Empty slot -->
+<button class="keypad-btn w-[72px] h-[72px] rounded-full border border-outline/30 flex items-center justify-center text-[24px] font-display font-medium transition-all duration-150">0</button>
+<button class="keypad-btn w-[72px] h-[72px] rounded-full flex items-center justify-center text-onSurfaceVariant transition-all duration-150">
+<span class="material-symbols-outlined text-[28px]">backspace</span>
+</button>
+</div>
+<!-- Footer Link -->
+<button class="text-[14px] text-onSurfaceVariant font-medium hover:text-onSurface transition-colors pb-8 mt-2">
+            Forgot PIN?
+        </button>
+</main>
+</body></html>

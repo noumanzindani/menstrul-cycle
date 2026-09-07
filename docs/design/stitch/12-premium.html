@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LunaTrack Premium</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+              "surface": "#FFFFFF",
+              "on-surface": "#3A2A30",
+              "primary": "#F7A8C4",
+              "primary-container": "#FCE4EC",
+              "on-primary-container": "#3A2A30",
+              "predicted": "#B0A8C0"
+            },
+            "borderRadius": {
+              "DEFAULT": "0.5rem",
+              "lg": "1rem",
+              "xl": "1.25rem", // 20dp approx
+              "full": "9999px",
+              "button": "1rem" // 16dp
+            },
+            "spacing": {
+              "button-h": "3.25rem" // 52dp approx
+            },
+            "fontFamily": {
+              "headline": ["Public Sans", "sans-serif"],
+              "display": ["Public Sans", "sans-serif"],
+              "body": ["Public Sans", "sans-serif"],
+              "label": ["Public Sans", "sans-serif"]
+            },
+            "fontSize": {}
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface h-screen w-full flex flex-col justify-between overflow-hidden sm:max-w-[360px] sm:mx-auto sm:border-x sm:border-gray-200">
+<!-- Top Action -->
+<div class="pt-8 px-4 flex justify-start">
+<button aria-label="Close" class="p-2 rounded-full hover:bg-gray-50 active:bg-gray-100 transition-colors">
+<span class="material-symbols-outlined text-on-surface">close</span>
+</button>
+</div>
+<!-- Centered Content -->
+<main class="flex-1 flex flex-col items-center justify-center px-6">
+<!-- Hero Mark -->
+<div class="relative w-32 h-32 mb-8 flex items-center justify-center">
+<!-- Simplified LunaTrack Ring -->
+<svg class="w-full h-full text-primary" fill="none" stroke="currentColor" stroke-width="4" viewbox="0 0 100 100">
+<circle cx="50" cy="50" r="45" stroke-dasharray="8 6" stroke-linecap="round"></circle>
+<circle cx="50" cy="15" fill="currentColor" r="4" stroke="none"></circle>
+</svg>
+<span class="material-symbols-outlined absolute text-primary text-4xl">favorite</span>
+</div>
+<!-- Typography -->
+<h1 class="font-display font-medium text-3xl mb-4 text-center">LunaTrack Premium</h1>
+<p class="font-body text-base text-center text-on-surface/80 leading-relaxed mb-8 max-w-[280px]">
+            Removes ads. That's it. Every tracking feature is free and always will be.
+        </p>
+<!-- Price Section -->
+<div class="flex items-center justify-center space-x-2 text-sm text-on-surface/70 mb-12">
+<span>One-time purchase</span>
+<span class="w-1 h-1 rounded-full bg-predicted"></span>
+<span class="font-medium">$4.99</span>
+</div>
+<!-- Actions -->
+<div class="w-full flex flex-col space-y-4">
+<button class="w-full h-button-h bg-primary text-white rounded-button font-label font-medium text-base hover:opacity-90 active:scale-[0.98] transition-all">
+                Buy once — $4.99
+            </button>
+<button class="w-full h-12 text-on-surface/70 font-label font-medium text-sm hover:text-on-surface transition-colors">
+                Restore purchase
+            </button>
+</div>
+</main>
+<!-- Footer -->
+<footer class="pb-8 pt-4 px-6">
+<p class="text-center font-body text-xs text-on-surface/50">
+            No subscription. No recurring charge.
+        </p>
+</footer>
+</body></html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LunaTrack - Change Timer</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              surface: "#FFFFFF",
+              text: "#3A2A30",
+              seed: "#F7A8C4",
+              card: "#FDF2F5",
+              secondaryText: "#7E7579"
+            }
+          },
+          borderRadius: {
+            DEFAULT: "0.5rem",
+            lg: "1rem",
+            xl: "1.25rem", // 20dp approx
+            button: "1rem", // 16dp
+            chip: "0.75rem", // 12dp
+            full: "9999px"
+          },
+          fontFamily: {
+            headline: ["Public Sans", "sans-serif"],
+            display: ["Public Sans", "sans-serif"],
+            body: ["Public Sans", "sans-serif"],
+            label: ["Public Sans", "sans-serif"]
+          },
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      font-family: 'Public Sans', sans-serif;
+      background-color: #FFFFFF;
+      color: #3A2A30;
+      -webkit-font-smoothing: antialiased;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-brand-surface min-h-screen flex justify-center items-start">
+<div class="w-full max-w-[360px] min-h-[800px] bg-brand-surface relative shadow-sm mx-auto flex flex-col">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-white flex items-center px-4 h-16 w-full z-10">
+<button class="text-[#3A2A30] p-2 -ml-2 rounded-full hover:bg-black/5 transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="font-headline text-lg font-medium text-[#3A2A30] ml-2 tracking-tight">Timers</h1>
+</header>
+<main class="flex-1 px-4 pb-24 space-y-8 pt-4">
+<!-- Within the set time Section -->
+<section class="space-y-3">
+<h2 class="text-brand-seed text-xs font-semibold tracking-wider uppercase pl-2">Within the set time</h2>
+<!-- CARD 1 -->
+<div class="bg-brand-card rounded-xl p-5 flex flex-col items-center text-center space-y-5">
+<div class="flex items-center space-x-2 text-brand-text/80">
+<span class="material-symbols-outlined text-[20px]">water_drop</span>
+<span class="text-sm font-medium">Tampon</span>
+</div>
+<div class="space-y-1">
+<div class="text-[44px] leading-none font-medium tracking-tight text-brand-text">3h 12m</div>
+<div class="text-sm text-brand-secondaryText">since 09:40 · you set 4h</div>
+</div>
+<button class="w-full h-[52px] rounded-button border border-brand-text/20 text-brand-text font-medium hover:bg-brand-text/5 transition-colors flex items-center justify-center">
+            Changed it
+          </button>
+</div>
+</section>
+<!-- Past the time they set Section -->
+<section class="space-y-3">
+<h2 class="text-brand-seed text-xs font-semibold tracking-wider uppercase pl-2">Past the time they set</h2>
+<!-- CARD 2 -->
+<div class="bg-brand-card rounded-xl p-5 flex flex-col items-center text-center space-y-5">
+<div class="flex items-center space-x-2 text-brand-text/80">
+<span class="material-symbols-outlined text-[20px]">water_drop</span>
+<span class="text-sm font-medium">Tampon</span>
+</div>
+<div class="space-y-2">
+<div class="text-[44px] leading-none font-medium tracking-tight text-brand-text">5h 02m</div>
+<div class="flex flex-col space-y-1">
+<span class="text-sm text-brand-secondaryText">past the 4h you set</span>
+<span class="text-[11px] leading-tight text-brand-secondaryText/80 max-w-[240px] mx-auto">Reminders are best-effort — one may not have arrived.</span>
+</div>
+</div>
+<button class="w-full h-[52px] rounded-button border border-brand-text/20 text-brand-text font-medium hover:bg-brand-text/5 transition-colors flex items-center justify-center">
+            Changed it
+          </button>
+</div>
+</section>
+<!-- Start a timer Section -->
+<section class="space-y-4 pt-2">
+<h2 class="text-brand-text font-medium text-base pl-2">Start a timer</h2>
+<div class="flex flex-wrap gap-2">
+<button class="flex items-center space-x-2 bg-brand-text/5 hover:bg-brand-text/10 transition-colors px-4 py-2 rounded-chip text-brand-text">
+<span class="material-symbols-outlined text-[18px]">rectangle</span>
+<span class="text-sm font-medium">Pad</span>
+</button>
+<button class="flex items-center space-x-2 bg-brand-text/5 hover:bg-brand-text/10 transition-colors px-4 py-2 rounded-chip text-brand-text">
+<span class="material-symbols-outlined text-[18px]">water_drop</span>
+<span class="text-sm font-medium">Tampon</span>
+</button>
+<button class="flex items-center space-x-2 bg-brand-text/5 hover:bg-brand-text/10 transition-colors px-4 py-2 rounded-chip text-brand-text">
+<span class="material-symbols-outlined text-[18px]">local_cafe</span>
+<span class="text-sm font-medium">Cup / disc</span>
+</button>
+<button class="flex items-center space-x-2 bg-brand-text/5 hover:bg-brand-text/10 transition-colors px-4 py-2 rounded-chip text-brand-text">
+<span class="material-symbols-outlined text-[18px]">checkroom</span>
+<span class="text-sm font-medium">Period underwear</span>
+</button>
+</div>
+</section>
+</main>
+</div>
+</body></html>

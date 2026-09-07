@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>LunaTrack - Diary Empty State</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            text: "#3A2A30",
+                            accent: "#F7A8C4",
+                        }
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.25rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans", "sans-serif"],
+                        "display": ["Public Sans", "sans-serif"],
+                        "body": ["Public Sans", "sans-serif"],
+                        "label": ["Public Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-white min-h-[884px] flex flex-col font-body text-[#3A2A30] antialiased selection:bg-[#F7A8C4]/30 selection:text-[#3A2A30]">
+<!-- TopAppBar -->
+<header class="w-full top-0 bg-white dark:bg-[#1C1B1B] flex items-center justify-between px-4 h-16 shrink-0 z-10">
+<button aria-label="Go back" class="hover:bg-[#F7A8C4]/10 dark:hover:bg-[#F7A8C4]/20 transition-colors active:opacity-70 p-2 -ml-2 rounded-full inline-flex items-center justify-center focus:outline-none">
+<span class="material-symbols-outlined text-[#3A2A30] dark:text-[#E9E1E3]" style="font-variation-settings: 'FILL' 0, 'wght' 400;">arrow_back</span>
+</button>
+<h1 class="font-headline text-lg font-medium text-[#3A2A30] dark:text-[#E9E1E3] tracking-tight absolute left-1/2 -translate-x-1/2">
+            Diary
+        </h1>
+<button aria-label="Search" class="hover:bg-[#F7A8C4]/10 dark:hover:bg-[#F7A8C4]/20 transition-colors active:opacity-70 p-2 -mr-2 rounded-full inline-flex items-center justify-center focus:outline-none">
+<span class="material-symbols-outlined text-[#3A2A30] dark:text-[#E9E1E3]" style="font-variation-settings: 'FILL' 0, 'wght' 400;">search</span>
+</button>
+</header>
+<!-- Expanded Search Field -->
+<div class="px-4 pb-4 bg-white shrink-0">
+<div class="flex items-center bg-gray-50/80 rounded-full h-12 px-4 focus-within:bg-[#F7A8C4]/5 transition-colors border border-gray-100 focus-within:border-[#F7A8C4]/30">
+<span class="material-symbols-outlined text-[#3A2A30]/40 mr-3 text-[20px]" style="font-variation-settings: 'FILL' 0, 'wght' 300;">search</span>
+<input class="bg-transparent border-none p-0 focus:ring-0 w-full text-[#3A2A30] placeholder:text-[#3A2A30]/40 font-body text-[15px] outline-none" placeholder="Search your notes" type="text"/>
+</div>
+</div>
+<!-- Main Content: Empty State -->
+<main class="flex-1 flex flex-col items-center justify-center px-8 pb-20">
+<div class="flex flex-col items-center justify-center space-y-5 animate-fade-in opacity-80">
+<!-- Small outline note icon -->
+<div class="w-16 h-16 rounded-full bg-gray-50/50 flex items-center justify-center">
+<span class="material-symbols-outlined text-[#3A2A30]/30 text-[32px]" style="font-variation-settings: 'FILL' 0, 'wght' 200;">edit_note</span>
+</div>
+<!-- Text block -->
+<p class="text-[#3A2A30]/60 font-body text-[15px] text-center max-w-[220px] leading-relaxed tracking-wide">
+                Notes you write on a day show up here.
+            </p>
+</div>
+</main>
+<style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 0.8; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+    </style>
+</body></html>

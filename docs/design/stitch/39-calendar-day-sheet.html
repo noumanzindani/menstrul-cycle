@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>LunaTrack - Calendar (day sheet open)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#FFFFFF",
+                        surface: "#FFFFFF",
+                        primary: {
+                            text: "#3A2A30",
+                            seed: "#F7A8C4",
+                        },
+                        phase: {
+                            menstrual: "#D64F6E",
+                            follicular: "#6FB3A8",
+                            ovulatory: "#7E9CE8",
+                            luteal: "#D9A15B",
+                            fertile: "#9CCFC6",
+                            predicted: "#B0A8C0"
+                        },
+                        dark: {
+                            background: "#1C1B1B",
+                            menstrual: "#E97B93",
+                            follicular: "#7FC7BB",
+                            ovulatory: "#98B0EE",
+                            luteal: "#E3B579",
+                            fertile: "#5E8A82",
+                            predicted: "#6E6885"
+                        }
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        lg: "1rem",
+                        xl: "1.25rem",
+                        full: "9999px"
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    },
+                    spacing: {
+                        'safe': 'env(safe-area-inset-bottom)'
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            background-color: #FFFFFF;
+            color: #3A2A30;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px 4px;
+        }
+        .day-cell {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .day-cell:active {
+            transform: scale(0.95);
+        }
+        
+        /* Day Modifiers */
+        .day-menstrual {
+            background-color: #D64F6E;
+            color: #FFFFFF;
+        }
+        .day-fertile {
+            background-color: #9CCFC6;
+            color: #3A2A30;
+        }
+        .day-today {
+            border: 2px solid #D9A15B;
+        }
+        .day-predicted {
+            border: 1px dashed #B0A8C0;
+        }
+        
+        /* Indicators */
+        .indicator-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 4px;
+        }
+        .dot-ovulation {
+            background-color: #7E9CE8;
+            width: 6px;
+            height: 6px;
+        }
+        .dot-log {
+            background-color: #3A2A30;
+            opacity: 0.5;
+            bottom: 2px;
+        }
+        .day-menstrual .dot-log {
+            background-color: #FFFFFF;
+            opacity: 0.8;
+        }
+        
+        /* Dark Mode Adjustments */
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #1C1B1B; color: #E97B93; }
+            .day-menstrual { background-color: #E97B93; color: #1C1B1B; }
+            .day-fertile { background-color: #5E8A82; color: #E97B93; }
+            .day-today { border-color: #E3B579; }
+            .day-predicted { border-color: #6E6885; }
+            .dot-ovulation { background-color: #98B0EE; }
+            .dot-log { background-color: #E97B93; }
+            .day-menstrual .dot-log { background-color: #1C1B1B; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="antialiased min-h-screen flex flex-col pb-[130px] bg-white dark:bg-[#1C1B1B]">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-white dark:bg-[#1C1B1B] flex items-center justify-between px-4 h-16 w-full z-40">
+<h1 class="font-headline text-lg font-medium text-[#3A2A30] dark:text-[#E97B93]">Calendar</h1>
+<div class="flex items-center gap-1 -mr-2">
+<button aria-label="Diary" class="p-2 rounded-full hover:bg-[#F7A8C4]/10 dark:hover:bg-[#E97B93]/10 transition-colors duration-200 text-[#3A2A30] dark:text-[#E97B93]">
+<span class="material-symbols-outlined text-2xl">book</span>
+</button>
+<button aria-label="Photos and videos" class="p-2 rounded-full hover:bg-[#F7A8C4]/10 dark:hover:bg-[#E97B93]/10 transition-colors duration-200 text-[#3A2A30] dark:text-[#E97B93]">
+<span class="material-symbols-outlined text-2xl">photo_library</span>
+</button>
+</div>
+</header>
+<main class="flex-1 px-4 pt-6 max-w-md mx-auto w-full">
+<!-- Month Navigator -->
+<div class="flex items-center justify-between mb-8">
+<button aria-label="Previous month" class="p-3 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[#3A2A30] dark:text-[#E97B93]">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<h2 class="font-display text-xl font-medium tracking-wide text-[#3A2A30] dark:text-[#E97B93]">September 2026</h2>
+<button aria-label="Next month" class="p-3 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[#3A2A30] dark:text-[#E97B93]">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+<!-- Calendar Container -->
+<div class="mb-10">
+<!-- Weekday Headers -->
+<div class="calendar-grid mb-4 text-center text-xs font-medium text-[#3A2A30]/60 dark:text-[#E97B93]/60 font-label">
+<div>S</div>
+<div>M</div>
+<div>T</div>
+<div>W</div>
+<div>T</div>
+<div>F</div>
+<div>S</div>
+</div>
+<!-- Calendar Grid (Sept 2026 starts on Tuesday) -->
+<div class="calendar-grid">
+<!-- Empty slots for Sunday, Monday -->
+<div></div>
+<div></div>
+<!-- Day 1: Menstrual, Logged -->
+<div aria-label="September 1, Menstrual phase" class="day-cell day-menstrual">
+<span>1</span>
+<span class="indicator-dot dot-log"></span>
+</div>
+<!-- Day 2: Menstrual -->
+<div aria-label="September 2, Menstrual phase" class="day-cell day-menstrual">
+<span>2</span>
+</div>
+<!-- Day 3: Menstrual, Logged -->
+<div aria-label="September 3, Menstrual phase" class="day-cell day-menstrual">
+<span>3</span>
+<span class="indicator-dot dot-log"></span>
+</div>
+<!-- Day 4: Menstrual -->
+<div aria-label="September 4, Menstrual phase" class="day-cell day-menstrual">
+<span>4</span>
+</div>
+<!-- Day 5: Menstrual -->
+<div aria-label="September 5, Menstrual phase" class="day-cell day-menstrual">
+<span>5</span>
+</div>
+<!-- Day 6: Normal -->
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]">
+<span>6</span>
+</div>
+<!-- Day 7: Today -->
+<div aria-label="September 7, Today" class="day-cell day-today text-[#3A2A30] dark:text-[#E97B93]">
+<span>7</span>
+</div>
+<!-- Day 8: Normal -->
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]">
+<span>8</span>
+</div>
+<!-- Day 9: Normal -->
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]">
+<span>9</span>
+</div>
+<!-- Day 10: Fertile, Logged -->
+<div aria-label="September 10, Fertile window" class="day-cell day-fertile">
+<span>10</span>
+<span class="indicator-dot dot-log"></span>
+</div>
+<!-- Day 11: Fertile -->
+<div aria-label="September 11, Fertile window" class="day-cell day-fertile">
+<span>11</span>
+</div>
+<!-- Day 12: Fertile -->
+<div aria-label="September 12, Fertile window" class="day-cell day-fertile">
+<span>12</span>
+</div>
+<!-- Day 13: Ovulation -->
+<div aria-label="September 13, Predicted Ovulation" class="day-cell text-[#3A2A30] dark:text-[#E97B93]">
+<span>13</span>
+<span class="indicator-dot dot-ovulation"></span>
+</div>
+<!-- Day 14: Normal -->
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]">
+<span>14</span>
+</div>
+<!-- Day 15: Normal, Logged -->
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]">
+<span>15</span>
+<span class="indicator-dot dot-log"></span>
+</div>
+<!-- Days 16-19: Normal -->
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]"><span>16</span></div>
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]"><span>17</span></div>
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]"><span>18</span></div>
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]"><span>19</span></div>
+<!-- Day 20: Normal, Logged -->
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]">
+<span>20</span>
+<span class="indicator-dot dot-log"></span>
+</div>
+<!-- Days 21-27: Normal -->
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]"><span>21</span></div>
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]"><span>22</span></div>
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]"><span>23</span></div>
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]"><span>24</span></div>
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]"><span>25</span></div>
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]"><span>26</span></div>
+<div class="day-cell text-[#3A2A30] dark:text-[#E97B93]"><span>27</span></div>
+<!-- Days 28-30: Predicted Menstrual -->
+<div aria-label="September 28, Predicted period start" class="day-cell day-predicted text-[#3A2A30] dark:text-[#E97B93]">
+<span>28</span>
+</div>
+<div class="day-cell day-predicted text-[#3A2A30] dark:text-[#E97B93]">
+<span>29</span>
+</div>
+<div class="day-cell day-predicted text-[#3A2A30] dark:text-[#E97B93]">
+<span>30</span>
+</div>
+</div>
+</div>
+<!-- Legend -->
+<div class="flex flex-wrap justify-center gap-x-6 gap-y-3 mb-12 px-2 text-xs font-medium text-[#3A2A30]/80 dark:text-[#E97B93]/80">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-[#D64F6E] dark:bg-[#E97B93]"></div>
+<span>Period</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full border border-dashed border-[#B0A8C0] dark:border-[#6E6885]"></div>
+<span>Predicted</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-[#9CCFC6] dark:bg-[#5E8A82]"></div>
+<span>Fertile</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-1.5 h-1.5 rounded-full bg-[#7E9CE8] dark:bg-[#98B0EE] mx-0.5"></div>
+<span>Ovulation</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-1 h-1 rounded-full bg-[#3A2A30]/50 dark:bg-[#E97B93]/50 mx-1"></div>
+<span>Logged</span>
+</div>
+</div>
+<!-- Disclaimer Banner -->
+<div class="flex items-center justify-center gap-2 text-xs text-[#3A2A30]/60 dark:text-[#E97B93]/60 mb-6 py-3 bg-[#F7A8C4]/5 dark:bg-[#E97B93]/5 rounded-xl">
+<span class="material-symbols-outlined text-[16px]">info</span>
+<span>Estimates only — not a contraceptive method</span>
+</div>
+</main>
+<!-- The ad banner that normally sits here is GONE while the sheet is open:
+     _selectedDay gates the calendar ad, and ads never co-render with logging. -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-2 pb-safe bg-white dark:bg-[#1C1B1B] border-t border-[#F7A8C4]/10 h-20 z-50">
+<!-- Today -->
+<a class="flex flex-col items-center justify-center text-[#3A2A30]/70 dark:text-[#E97B93]/70 hover:bg-[#F7A8C4]/10 dark:hover:bg-[#E97B93]/10 active:scale-95 transition-transform duration-150 p-2 rounded-xl min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1 text-2xl">today</span>
+<span class="font-label text-xs tracking-wide">Today</span>
+</a>
+<!-- Calendar (Active) -->
+<a aria-current="page" class="flex flex-col items-center justify-center bg-[#F7A8C4]/20 dark:bg-[#E97B93]/20 text-[#3A2A30] dark:text-[#E97B93] rounded-xl px-4 py-1 active:scale-95 transition-transform duration-150 min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1 text-2xl" style="font-variation-settings: 'FILL' 1;">calendar_month</span>
+<span class="font-label text-xs tracking-wide font-medium">Calendar</span>
+</a>
+<!-- Forecast -->
+<a class="flex flex-col items-center justify-center text-[#3A2A30]/70 dark:text-[#E97B93]/70 hover:bg-[#F7A8C4]/10 dark:hover:bg-[#E97B93]/10 active:scale-95 transition-transform duration-150 p-2 rounded-xl min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1 text-2xl">auto_graph</span>
+<span class="font-label text-xs tracking-wide">Forecast</span>
+</a>
+<!-- Insights -->
+<a class="flex flex-col items-center justify-center text-[#3A2A30]/70 dark:text-[#E97B93]/70 hover:bg-[#F7A8C4]/10 dark:hover:bg-[#E97B93]/10 active:scale-95 transition-transform duration-150 p-2 rounded-xl min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1 text-2xl">analytics</span>
+<span class="font-label text-xs tracking-wide">Insights</span>
+</a>
+<!-- Settings -->
+<a class="flex flex-col items-center justify-center text-[#3A2A30]/70 dark:text-[#E97B93]/70 hover:bg-[#F7A8C4]/10 dark:hover:bg-[#E97B93]/10 active:scale-95 transition-transform duration-150 p-2 rounded-xl min-w-[64px]" href="#">
+<span class="material-symbols-outlined mb-1 text-2xl">settings</span>
+<span class="font-label text-xs tracking-wide">Settings</span>
+</a>
+</nav>
+<!-- ============================================================================
+     CALENDAR with the DAY-ENTRY BOTTOM SHEET open over the month grid.
+     Composed locally 2026-09-07 from 02-calendar.html plus the sheet structure of
+     34-day-entry-sheet.html, retokenised onto this file's palette. The Stitch generate
+     endpoint would not return a full-page screen this size that day (see README).
+     Two things are deliberate:
+     - NO ad banner. _selectedDay gates the calendar ad off while the sheet is open,
+       and ads never co-render with logging (test/ad_placement_test.dart).
+     - The sheet content is a Scaffold-shaped column: scrolling form in the body, Save
+       pinned in the sheet's OWN bottom bar. An inline panel under the month grid never
+       lays out reliably - that is why the real app uses a sheet.
+     The two check-in chips are OUTLINED, not filled. Two filled buttons in a Row would
+     each demand infinite width (Size.fromHeight(52)) and clip the trailing one.
+============================================================================ -->
+<!-- Scrim over the whole month grid -->
+<div class="fixed inset-0 bg-black/40 z-[60]"></div>
+<!-- Day entry bottom sheet, ~90% height -->
+<div class="fixed bottom-0 left-0 right-0 z-[70] w-full max-w-md mx-auto bg-white rounded-t-[20px] flex flex-col h-[90vh] shadow-2xl">
+<!-- Pinned header: drag handle + date -->
+<div class="flex flex-col items-center pt-3 pb-2 px-4 rounded-t-[20px] bg-white shrink-0">
+<div class="w-8 h-1 bg-[#3A2A30]/15 rounded-full mb-3"></div>
+<div class="w-full flex items-center justify-between">
+<div class="w-10"></div>
+<h2 class="font-headline text-[18px] font-medium text-[#3A2A30] text-center flex-grow">Monday, 7 September</h2>
+<button aria-label="Close" class="w-10 h-10 flex items-center justify-center text-[#3A2A30] rounded-full hover:bg-[#F7A8C4]/10">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+</div>
+<!-- Scrolling form -->
+<div class="flex-1 overflow-y-auto px-4 pb-6 pt-2 space-y-8">
+<!-- Period check-in strip. Period timing only: no fertility framing here. -->
+<div class="bg-[#F7A8C4]/10 rounded-[20px] p-5 flex flex-col gap-4">
+<h3 class="font-headline text-base font-medium text-[#3A2A30]">Did your period start on this day?</h3>
+<div class="flex gap-3 w-full">
+<button class="flex-1 h-[44px] rounded-[12px] border border-[#F7A8C4] text-sm font-medium text-[#3A2A30] hover:bg-[#F7A8C4]/10">Not yet</button>
+<button class="flex-1 h-[44px] rounded-[12px] border border-[#F7A8C4] text-sm font-medium text-[#3A2A30] hover:bg-[#F7A8C4]/10">It ended</button>
+</div>
+</div>
+<!-- FLOW -->
+<section class="space-y-3">
+<h3 class="font-label text-[11px] uppercase tracking-wider text-[#3A2A30]/70 font-medium">Flow</h3>
+<div class="flex flex-wrap gap-2">
+<button class="flex items-center gap-2 px-4 py-2 rounded-[12px] border border-[#3A2A30]/10 bg-white text-sm text-[#3A2A30]"><span class="material-symbols-outlined text-phase-menstrual text-[18px]" style="font-variation-settings:'FILL' 0.2">water_drop</span>Spotting</button>
+<button class="flex items-center gap-2 px-4 py-2 rounded-[12px] border border-[#3A2A30]/10 bg-white text-sm text-[#3A2A30]"><span class="material-symbols-outlined text-phase-menstrual text-[18px]" style="font-variation-settings:'FILL' 0.4">water_drop</span>Light</button>
+<button class="flex items-center gap-2 px-4 py-2 rounded-[12px] border border-phase-menstrual bg-[#FFF5F8] text-sm font-medium text-[#3A2A30]"><span class="material-symbols-outlined text-phase-menstrual text-[18px]" style="font-variation-settings:'FILL' 0.6">water_drop</span>Medium</button>
+<button class="flex items-center gap-2 px-4 py-2 rounded-[12px] border border-[#3A2A30]/10 bg-white text-sm text-[#3A2A30]"><span class="material-symbols-outlined text-phase-menstrual text-[18px]" style="font-variation-settings:'FILL' 0.8">water_drop</span>Heavy</button>
+<button class="flex items-center gap-2 px-4 py-2 rounded-[12px] border border-[#3A2A30]/10 bg-white text-sm text-[#3A2A30]"><span class="material-symbols-outlined text-phase-menstrual text-[18px]" style="font-variation-settings:'FILL' 1">water_drop</span>Flooding</button>
+</div>
+<div class="mt-1 p-4 rounded-[12px] bg-[#F7A8C4]/5 flex items-center justify-between">
+<div>
+<div class="font-medium text-sm text-[#3A2A30]">Period ended today</div>
+<div class="text-xs text-[#3A2A30]/60 mt-0.5">Marks today as no bleeding</div>
+</div>
+<div class="w-11 h-6 bg-[#3A2A30]/15 rounded-full relative shrink-0">
+<div class="absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow-sm"></div>
+</div>
+</div>
+</section>
+<!-- MOOD -->
+<section class="space-y-3">
+<h3 class="font-label text-[11px] uppercase tracking-wider text-[#3A2A30]/70 font-medium">Mood</h3>
+<div class="flex flex-wrap gap-2">
+<button class="px-4 py-2 rounded-[12px] border border-[#3A2A30]/10 bg-white text-sm text-[#3A2A30]">Happy</button>
+<button class="px-4 py-2 rounded-[12px] border border-[#F7A8C4] bg-[#FFF5F8] text-sm font-medium text-[#3A2A30]">Calm</button>
+<button class="px-4 py-2 rounded-[12px] border border-[#3A2A30]/10 bg-white text-sm text-[#3A2A30]">Energetic</button>
+<button class="px-4 py-2 rounded-[12px] border border-[#3A2A30]/10 bg-white text-sm text-[#3A2A30]">Irritable</button>
+<button class="px-4 py-2 rounded-[12px] border border-[#3A2A30]/10 bg-white text-sm text-[#3A2A30]">Anxious</button>
+<button class="px-4 py-2 rounded-[12px] border border-[#3A2A30]/10 bg-white text-sm text-[#3A2A30]">Low</button>
+<button class="px-4 py-2 rounded-[12px] border border-[#3A2A30]/10 bg-white text-sm text-[#3A2A30]">Angry</button>
+<button class="px-4 py-2 rounded-[12px] border border-[#3A2A30]/10 bg-white text-sm text-[#3A2A30]">Sensitive</button>
+</div>
+</section>
+<!-- PAIN -->
+<section class="space-y-3">
+<div class="flex items-center justify-between">
+<h3 class="font-label text-[11px] uppercase tracking-wider text-[#3A2A30]/70 font-medium">Pain level</h3>
+<span class="text-sm font-medium text-[#3A2A30]">3 / 10</span>
+</div>
+<input class="w-full" max="10" min="0" type="range" value="3"/>
+<div class="flex justify-between text-xs text-[#3A2A30]/40">
+<span>None</span><span>Severe</span>
+</div>
+</section>
+<!-- NOTES -->
+<section class="space-y-3 pb-4">
+<h3 class="font-label text-[11px] uppercase tracking-wider text-[#3A2A30]/70 font-medium">Notes</h3>
+<textarea class="w-full bg-[#F7A8C4]/5 border-none rounded-[12px] p-4 text-sm text-[#3A2A30] placeholder:text-[#3A2A30]/40 resize-none" placeholder="Anything you want to remember…" rows="3"></textarea>
+</section>
+</div>
+<!-- Pinned Save, in the sheet's OWN bottom bar -->
+<div class="p-4 bg-white border-t border-[#3A2A30]/5 shrink-0">
+<button class="w-full h-[52px] bg-[#F7A8C4] text-[#3A2A30] font-medium rounded-[16px] flex items-center justify-center">Save</button>
+</div>
+</div>
+</body></html>

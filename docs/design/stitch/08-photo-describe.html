@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>LunaTrack - Photo Analysis</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config from Design System -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: "#F7A8C4",
+                            text: "#3A2A30",
+                            surface: "#FFFFFF",
+                            pink_tint: "#FCEDF2"
+                        },
+                        surface: "#FFFFFF",
+                        onSurface: "#3A2A30",
+                        onSurfaceVariant: "#757575",
+                        outline: "#E0E0E0",
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.25rem",
+                        "2xl": "1.5rem",
+                        "full": "9999px",
+                        "sheet": "20px"
+                    },
+                    spacing: {
+                        'safe-bottom': 'env(safe-area-inset-bottom)',
+                    },
+                    fontFamily: {
+                        headline: ["Public Sans", "sans-serif"],
+                        display: ["Public Sans", "sans-serif"],
+                        body: ["Public Sans", "sans-serif"],
+                        label: ["Public Sans", "sans-serif"]
+                    },
+                    fontSize: {
+                        'xs': '0.75rem',
+                        'sm': '0.875rem',
+                        'base': '1rem',
+                        'lg': '1.125rem',
+                        'xl': '1.25rem',
+                        '2xl': '1.5rem',
+                    },
+                    boxShadow: {
+                        'none': '0 0 #0000',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none;
+        }
+        
+        /* Ensure Material Symbols look sharp and correct weight */
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1;
+        }
+
+        /* Hide scrollbar for the conversation area but keep functionality */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Modal entrance animation */
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.3s cubic-bezier(0.2, 0, 0, 1) forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-black w-full h-[100dvh] overflow-hidden fixed inset-0 flex justify-center items-center text-onSurface antialiased">
+<!-- Background Image Container (Dimmed) -->
+<div class="absolute inset-0 w-full h-full z-0 pointer-events-none">
+<div class="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA-6eJjJ81o61baESDRpq5s7ZKgz6PQRtjMabdULih3DJYh2RvyH05QmwyElABWai-34Ire0D2Xs8dbDsxguufIILxDTi0WHkUVPS1qbmKR3Mi6Pext01FkzenDMBAAA1a8DQwxQOuXhMRKNvsudvKJZvxoKowng3uKP794MGXKN36xwDqsa5zyjLW479fTPynW6HtctQLAbXCIycqiAUwNeL447xtLq_GEk2n0MbmisOqTNYDvtbALmFY_N8igNJTgvPifE59KvA')">
+</div>
+<!-- Dimmer overlay -->
+<div class="absolute inset-0 bg-black/60"></div>
+</div>
+<!-- Mobile Container (Max width for web viewing, full width on actual mobile) -->
+<main class="relative w-full max-w-[400px] h-[100dvh] mx-auto z-10 flex flex-col justify-end">
+<!-- Scrim to catch taps outside modal (optional functionality, but structural here) -->
+<div class="absolute inset-0 z-10 pointer-events-auto" id="scrim"></div>
+<!-- Modal Bottom Sheet (80% height) -->
+<div class="relative z-20 w-full h-[85vh] bg-surface rounded-t-[20px] flex flex-col animate-slide-up shadow-none pointer-events-auto overflow-hidden">
+<!-- Drag Handle Area -->
+<div class="w-full pt-4 pb-2 flex justify-center items-center bg-surface shrink-0 cursor-grab active:cursor-grabbing">
+<div class="w-[32px] h-[4px] rounded-full bg-onSurfaceVariant/30"></div>
+</div>
+<!-- 1. Header Row -->
+<header class="px-5 py-3 flex items-center justify-between shrink-0 bg-surface">
+<div class="flex items-center gap-4">
+<!-- Thumbnail -->
+<div class="w-[40px] h-[40px] rounded-[10px] overflow-hidden shrink-0 border border-outline/50 bg-black/10">
+<img alt="Reference Photo" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-6eJjJ81o61baESDRpq5s7ZKgz6PQRtjMabdULih3DJYh2RvyH05QmwyElABWai-34Ire0D2Xs8dbDsxguufIILxDTi0WHkUVPS1qbmKR3Mi6Pext01FkzenDMBAAA1a8DQwxQOuXhMRKNvsudvKJZvxoKowng3uKP794MGXKN36xwDqsa5zyjLW479fTPynW6HtctQLAbXCIycqiAUwNeL447xtLq_GEk2n0MbmisOqTNYDvtbALmFY_N8igNJTgvPifE59KvA"/>
+</div>
+<!-- Date Title -->
+<h1 class="font-headline font-medium text-lg text-onSurface">12 August</h1>
+</div>
+<!-- Close Button -->
+<button aria-label="Close" class="w-[40px] h-[40px] rounded-full flex items-center justify-center text-onSurfaceVariant hover:bg-black/5 active:bg-black/10 transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</header>
+<!-- 2. Scrolling Conversation Area -->
+<div class="flex-1 overflow-y-auto no-scrollbar px-5 py-6 flex flex-col gap-8 bg-surface">
+<!-- AI Response 1 Group -->
+<div class="flex flex-col gap-2 w-full max-w-[90%]">
+<!-- AI Plain Text -->
+<div class="font-body text-base text-onSurface leading-relaxed">
+                        A close-up photo taken in even indoor light. The area shown has some redness and a small raised area near the centre. The surrounding skin looks lighter in tone. No fluid or discharge is visible in the frame.
+                    </div>
+<!-- Disclaimer Banner / Caveat -->
+<div class="flex items-start gap-1.5 mt-1">
+<span class="material-symbols-outlined text-[14px] text-onSurfaceVariant/60 mt-0.5">info</span>
+<p class="font-label text-xs text-onSurfaceVariant/70 leading-snug">
+                            This describes what’s visible. It isn’t a medical opinion.
+                        </p>
+</div>
+</div>
+<!-- User Question -->
+<div class="flex flex-col items-end w-full mt-2">
+<div class="bg-primary/30 text-onSurface px-4 py-3 rounded-2xl rounded-tr-[4px] max-w-[85%] font-body text-base leading-snug">
+                        Is that normal?
+                    </div>
+</div>
+<!-- AI Response 2 Group -->
+<div class="flex flex-col gap-2 w-full max-w-[90%] mt-2 mb-4">
+<!-- AI Plain Text -->
+<div class="font-body text-base text-onSurface leading-relaxed">
+                        I can’t tell you whether something is normal or not — that’s a judgement only a clinician can make. What I can say is what the photo shows: the raised area has a defined edge and the redness around it fades gradually rather than stopping sharply.
+                    </div>
+<!-- Disclaimer Banner / Caveat -->
+<div class="flex items-start gap-1.5 mt-1">
+<span class="material-symbols-outlined text-[14px] text-onSurfaceVariant/60 mt-0.5">info</span>
+<p class="font-label text-xs text-onSurfaceVariant/70 leading-snug">
+                            This describes what’s visible. It isn’t a medical opinion.
+                        </p>
+</div>
+</div>
+<!-- Spacer to ensure scroll clears the pinned input -->
+<div class="h-4"></div>
+</div>
+<!-- 3. Pinned Bottom Row (Composer) -->
+<div class="shrink-0 bg-surface px-5 pt-2 pb-6 flex flex-col gap-3 relative before:absolute before:top-0 before:left-0 before:right-0 before:h-4 before:-mt-4 before:bg-gradient-to-t before:from-surface before:to-transparent before:pointer-events-none">
+<!-- Counter -->
+<div class="text-center w-full">
+<span class="font-label text-xs text-onSurfaceVariant/70">6 of 20 messages left today</span>
+</div>
+<!-- Input Row -->
+<div class="flex items-end gap-3 w-full">
+<!-- Outlined Text Field -->
+<div class="flex-1 relative">
+<textarea class="w-full bg-surface border border-outline rounded-[16px] px-4 py-3.5 font-body text-base text-onSurface placeholder:text-onSurfaceVariant/60 focus:outline-none focus:border-onSurface focus:ring-0 resize-none min-h-[52px] block overflow-hidden leading-snug" id="chatInput" placeholder="Ask a follow-up…" rows="1"></textarea>
+</div>
+<!-- Send Button -->
+<button aria-label="Send message" class="w-[52px] h-[52px] shrink-0 rounded-full bg-primary/20 text-onSurface flex items-center justify-center hover:bg-primary/30 active:bg-primary/40 transition-colors">
+<span class="material-symbols-outlined text-[24px]">send</span>
+</button>
+</div>
+</div>
+<!-- Safe area bottom spacer for actual mobile -->
+<div class="h-safe-bottom bg-surface w-full"></div>
+</div>
+</main>
+<script>
+        // Simple auto-resize textarea
+        const textarea = document.getElementById('chatInput');
+        textarea.addEventListener('input', function() {
+            this.style.height = '52px'; // Reset to min height
+            let newHeight = Math.min(this.scrollHeight, 120); // Max height limit
+            this.style.height = (newHeight) + 'px';
+        });
+    </script>
+</body></html>

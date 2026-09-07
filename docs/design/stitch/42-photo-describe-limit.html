@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>LunaTrack - Describe photo (limit reached)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        'surface': '#FFFFFF',
+                        'surface-dark': '#1C1B1B',
+                        'on-surface': '#3A2A30',
+                        'on-surface-dark': '#E97B93',
+                        'primary': '#F7A8C4',
+                        'primary-dark': '#E97B93',
+                        'surface-variant': '#F7A8C420',
+                        'outline-variant': '#F7A8C410',
+                        'disabled-container': '#f1f1f1',
+                        'disabled-text': '#a1a1a1',
+                        'menstrual': '#D64F6E',
+                        'predicted': '#B0A8C0'
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.25rem", // 20dp approx for cards
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans", "sans-serif"],
+                        "display": ["Public Sans", "sans-serif"],
+                        "body": ["Public Sans", "sans-serif"],
+                        "label": ["Public Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Public Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Hide scrollbar for cleaner look in the transcript */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Drag Handle animation */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(2px); }
+            100% { transform: translateY(0px); }
+        }
+        .drag-handle-hint {
+            animation: float 2s ease-in-out infinite;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="h-full w-full bg-black/40 flex flex-col justify-end overflow-hidden">
+<!-- Dimmed Backdrop (Handled by body bg-black/40) -->
+<!-- Modal Bottom Sheet -->
+<!-- 80% height, top corners 20dp radius (rounded-t-xl), white background -->
+<div class="w-full bg-surface h-[707px] rounded-t-xl flex flex-col relative shadow-2xl overflow-hidden translate-y-0 transition-transform duration-300">
+<!-- Drag Handle -->
+<div class="w-full pt-4 pb-2 flex justify-center cursor-grab active:cursor-grabbing z-10 bg-surface">
+<div class="w-8 h-1 bg-on-surface/20 rounded-full drag-handle-hint"></div>
+</div>
+<!-- Header Row -->
+<div class="px-6 pb-4 flex items-center justify-between border-b border-outline-variant bg-surface z-10">
+<div class="flex items-center gap-4">
+<!-- Thumbnail Placeholder -->
+<div class="w-12 h-12 rounded-lg bg-predicted/20 flex items-center justify-center overflow-hidden flex-shrink-0" data-alt="A soft, abstract macro photograph showing gentle curves and smooth, neutral-toned textures, suggesting skin under clinical but warm, bright lighting. Very calm, unhurried mood." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDgqw22GDmDT7hP6LK3dAE-BBipE6prfjFxEpe5yyB_NV5u19eQGBFwlWXn5tlCd31Ogx4rryfEWDeKKfCWZwM3bc3z9BRTXNFl_6WfBrH_AzWkDA4fY1l0jiV9guffR7C1H8Q5jY_3PziXTmZfmEM_vwpC5H7VL-a-R53TC5FI2gW5pafCj7XB_oD47RJMcRGFJ7MrFjwp2aGH7_xs4vPCmJAHy-Kb-MfkfZLKD5kPZQrA2LFGfXN2XjaLPP333COh6dQIOsB28A')">
+<!-- Image would go here, background-image used for placeholder -->
+</div>
+<!-- Date Label -->
+<span class="font-headline font-semibold text-lg text-on-surface">4 September</span>
+</div>
+<!-- Close Button -->
+<button class="p-2 rounded-full hover:bg-surface-variant transition-colors text-on-surface/60 hover:text-on-surface">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</button>
+</div>
+<!-- Body: Scrolling Transcript -->
+<div class="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar bg-surface">
+<!-- System/Prose Message 1 -->
+<div class="flex flex-col items-start max-w-[85%]">
+<div class="bg-surface-variant/50 text-on-surface p-4 rounded-xl rounded-tl-sm text-[15px] leading-relaxed font-body">
+                    The image shows a light pink circular area about 1cm in diameter on a neutral skin-toned surface. It is positioned in the upper right quadrant of the frame.
+                </div>
+<div class="flex items-center gap-1.5 mt-2 text-[11px] text-on-surface/40 uppercase tracking-wider font-label px-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="info">info</span>
+                    This describes what's visible. It isn't a medical opinion.
+                </div>
+</div>
+<!-- User Message 1 -->
+<div class="flex flex-col items-end w-full">
+<div class="max-w-[80%] bg-primary text-on-surface p-4 rounded-xl rounded-tr-sm text-[15px] leading-relaxed font-body">
+                    Does it look like it's getting smaller?
+                </div>
+</div>
+<!-- System/Prose Message 2 -->
+<div class="flex flex-col items-start max-w-[85%]">
+<div class="bg-surface-variant/50 text-on-surface p-4 rounded-xl rounded-tl-sm text-[15px] leading-relaxed font-body">
+                    The edges of the pink area appear less defined compared to previous descriptions, though the central saturation remains consistent.
+                </div>
+<div class="flex items-center gap-1.5 mt-2 text-[11px] text-on-surface/40 uppercase tracking-wider font-label px-1">
+<span class="material-symbols-outlined text-[14px]" data-icon="info">info</span>
+                    This describes what's visible. It isn't a medical opinion.
+                </div>
+</div>
+<!-- Spacer to ensure content isn't hidden behind composer -->
+<div class="h-4"></div>
+</div>
+<!-- Bottom: Disabled Composer -->
+<div class="p-4 bg-surface border-t border-outline-variant z-10 pb-safe pb-8">
+<div class="flex items-center bg-disabled-container rounded-[16px] px-4 py-3 h-[52px]">
+<input class="flex-1 bg-transparent border-none p-0 text-[15px] text-disabled-text placeholder:text-disabled-text focus:ring-0 cursor-not-allowed font-body" disabled="" placeholder="You've used today's 20 messages." type="text"/>
+<button class="ml-2 p-1 text-disabled-text cursor-not-allowed opacity-50" disabled="">
+<span class="material-symbols-outlined" data-icon="send" data-weight="fill" style="font-variation-settings: 'FILL' 1;">send</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Script to simulate slight pull down interaction just for feel -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const icons = document.querySelectorAll('.material-symbols-outlined[data-icon]');
+            icons.forEach(icon => {
+                icon.textContent = icon.getAttribute('data-icon');
+            });
+        });
+    </script>
+</body></html>

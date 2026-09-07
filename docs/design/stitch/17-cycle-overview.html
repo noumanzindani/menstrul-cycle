@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cycle Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#3A2A30',
+                        'seed': '#F7A8C4',
+                        'surface-pink': '#FFF5F8',
+                        'menstrual': '#D64F6E',
+                        'follicular': '#6FB3A8',
+                        'ovulatory': '#7E9CE8',
+                        'luteal': '#D9A15B',
+                        'fertile': '#9CCFC6',
+                        'predicted': '#B0A8C0'
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Public Sans", "sans-serif"],
+                        "display": ["Public Sans", "sans-serif"],
+                        "body": ["Public Sans", "sans-serif"],
+                        "label": ["Public Sans", "sans-serif"]
+                    },
+                    boxShadow: {
+                        'none': '0 0 #0000',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Public Sans', sans-serif; background-color: #FFFFFF; color: #3A2A30; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="w-[360px] h-[800px] mx-auto relative overflow-hidden flex flex-col bg-white">
+<!-- TopAppBar -->
+<header class="w-full top-0 bg-white flex items-center h-16 px-4 shrink-0">
+<button aria-label="Go back" class="w-12 h-12 flex items-center justify-center -ml-3 text-[#3A2A30] hover:opacity-80 transition-opacity active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline text-lg font-medium text-[#3A2A30] ml-2">Cycle Overview</h1>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto pb-6">
+<!-- Cycle Map Section -->
+<div class="px-5 mt-6 mb-10">
+<h2 class="text-sm font-medium mb-4">Cycle phases (28 days)</h2>
+<div class="relative w-full h-12 pt-2">
+<!-- Bar -->
+<div class="w-full h-3 flex rounded-full overflow-hidden">
+<div class="h-full bg-menstrual" style="width: 17.85%;"></div> <!-- 5/28 -->
+<div class="h-full bg-follicular" style="width: 28.57%;"></div> <!-- 8/28 -->
+<div class="h-full bg-ovulatory" style="width: 10.71%;"></div> <!-- 3/28 -->
+<div class="h-full bg-luteal" style="width: 42.85%;"></div> <!-- 12/28 -->
+</div>
+<!-- Markers -->
+<div class="absolute top-0 bottom-0 left-0 right-0 pointer-events-none">
+<!-- Day 19 Marker -->
+<div class="absolute top-0 h-full flex flex-col items-center" style="left: 67.85%; transform: translateX(-50%);">
+<div class="w-1.5 h-1.5 rounded-full bg-primary mb-0.5"></div>
+<div class="w-px h-4 bg-primary opacity-50 mb-1"></div>
+<span class="text-xs font-medium whitespace-nowrap">Day 19</span>
+</div>
+</div>
+<!-- End Labels -->
+<div class="flex justify-between w-full mt-2 px-1">
+<span class="text-xs text-primary/60">1</span>
+<span class="text-xs text-primary/60">28</span>
+</div>
+</div>
+</div>
+<!-- Phase Cards -->
+<div class="px-4 space-y-3">
+<!-- Menstrual -->
+<div class="bg-surface-pink rounded-[20px] p-5 shadow-none">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-menstrual"></div>
+<h3 class="font-medium text-base text-primary">Menstrual</h3>
+</div>
+<span class="px-3 py-1 bg-white/60 text-primary/70 text-xs font-medium rounded-full">Days 1–5</span>
+</div>
+<p class="text-sm text-primary/80 leading-relaxed">Hormone levels are at their lowest. You may feel more tired and inward-facing.</p>
+</div>
+<!-- Follicular -->
+<div class="bg-surface-pink rounded-[20px] p-5 shadow-none">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-follicular"></div>
+<h3 class="font-medium text-base text-primary">Follicular</h3>
+</div>
+<span class="px-3 py-1 bg-white/60 text-primary/70 text-xs font-medium rounded-full">Days 6–13</span>
+</div>
+<p class="text-sm text-primary/80 leading-relaxed">Estrogen rises, often bringing higher energy and a more outgoing mood.</p>
+</div>
+<!-- Ovulatory -->
+<div class="bg-surface-pink rounded-[20px] p-5 shadow-none">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-ovulatory"></div>
+<h3 class="font-medium text-base text-primary">Ovulatory</h3>
+</div>
+<span class="px-3 py-1 bg-white/60 text-primary/70 text-xs font-medium rounded-full">Days 14–16</span>
+</div>
+<p class="text-sm text-primary/80 leading-relaxed">The body prepares for potential conception. Energy and confidence often peak.</p>
+</div>
+<!-- Luteal (Current) -->
+<div class="bg-surface-pink rounded-[20px] p-5 shadow-none ring-1 ring-luteal relative overflow-hidden">
+<div class="absolute top-0 right-0 w-16 h-16 bg-luteal/5 rounded-bl-full pointer-events-none"></div>
+<div class="flex items-center justify-between mb-3 relative z-10">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-luteal relative">
+<div class="absolute inset-0 rounded-full bg-luteal animate-ping opacity-20"></div>
+</div>
+<h3 class="font-medium text-base text-primary">Luteal</h3>
+</div>
+<span class="px-3 py-1 bg-white/80 text-primary text-xs font-medium rounded-full ring-1 ring-luteal/20">Days 17–28</span>
+</div>
+<p class="text-sm text-primary/80 leading-relaxed relative z-10">Progesterone rises. You might notice changes in mood, skin, or energy levels.</p>
+</div>
+</div>
+</main>
+<!-- Bottom Disclaimer Banner -->
+<div class="w-full bg-surface-pink/50 py-3 px-4 flex items-center gap-2 justify-center shrink-0 border-t border-primary/5">
+<span class="material-symbols-outlined text-[16px] text-primary/60" data-icon="info">info</span>
+<span class="text-xs text-primary/70">Estimates only — not a contraceptive method</span>
+</div>
+</body></html>
