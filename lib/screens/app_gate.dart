@@ -305,7 +305,7 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     // splash here avoids a flash of the sign-in form for an already-signed-in
     // user.
     if (auth.state == AuthState.unknown) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const _SplashScreen();
     }
     // An account is required (design spec §7.1) -- UNLESS [_localOnly] is
     // already set, in which case this is not a fresh signed-out state to wall
@@ -339,7 +339,7 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
 
     // Wait for settings to load to avoid a flash of the wrong screen.
     if (!settings.loaded) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const _SplashScreen();
     }
     // The lock is rendered by [AppLock], above the Navigator, so it covers
     // whatever this method returns AND every route pushed on top of it. Nothing
@@ -429,5 +429,59 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       );
     }
     return content;
+  }
+}
+
+/// The gate's loading surface: wordmark, ring mark, one slim indeterminate
+/// line. Rendered while the auth state is still unknown and again while
+/// settings load.
+///
+/// It deliberately says nothing beyond the app's own name. This is the one
+/// surface that can be on screen before the app lock has decided anything, and
+/// before it is known whether this device even has an account — so a tagline, a
+/// cycle word or a "welcome back" would all be statements made to whoever
+/// happens to be holding the phone.
+///
+/// [Key] `appGate.splash` is what the gate-ordering suites assert on; it is the
+/// splash's identity rather than the type of the progress widget inside it, so
+/// swapping that widget again does not silently make those assertions vacuous.
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Scaffold(
+      key: const Key('appGate.splash'),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const Spacer(),
+            Text(
+              'LunaTrack',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+                color: scheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const LunaRingMark(size: 40),
+            const Spacer(),
+            SizedBox(
+              width: 120,
+              child: LinearProgressIndicator(
+                minHeight: 3,
+                borderRadius: BorderRadius.circular(2),
+                backgroundColor: scheme.surfaceContainerHighest,
+                color: scheme.primary,
+              ),
+            ),
+            const SizedBox(height: 56),
+          ],
+        ),
+      ),
+    );
   }
 }

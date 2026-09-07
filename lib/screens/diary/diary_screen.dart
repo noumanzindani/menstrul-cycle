@@ -52,64 +52,183 @@ class _DiaryScreenState extends State<DiaryScreen> {
     final provider = context.watch<LogProvider>();
     final entries = DiaryService.entries(provider.logs, query: _query);
     final df = DateFormat.yMMMEd();
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Diary')),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             child: TextField(
               key: const Key('diary-search'),
               controller: _search,
               onChanged: (v) => setState(() => _query = v),
-              decoration: const InputDecoration(
+              // A soft filled pill, not an outlined box: search is a quiet
+              // affordance over the notes, not a form field to fill in.
+              decoration: InputDecoration(
                 hintText: 'Search your notes',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search, size: 20),
+                filled: true,
+                fillColor: scheme.surfaceContainerHighest,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: scheme.primary),
+                ),
               ),
             ),
           ),
           Expanded(
             child: entries.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Text(
-                        _query.trim().isEmpty
-                            ? 'Notes you add to a day appear here, newest '
-                                'first — so you can look back over them.'
-                            : 'No notes match that search.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ),
-                  )
-                : ListView.separated(
+                ? _EmptyState(searching: _query.trim().isNotEmpty)
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                     itemCount: entries.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, i) {
                       final e = entries[i];
-                      final day = _cycleDay(provider, e.date);
-                      return ListTile(
-                        title: Text(df.format(e.date)),
-                        subtitle: Text(
-                          e.note,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: day == null
-                            ? null
-                            : Text(
-                                'Cycle day $day',
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
+                      return _DiaryCard(
+                        date: df.format(e.date),
+                        note: e.note,
+                        cycleDay: _cycleDay(provider, e.date),
                         onTap: () => showDayEntrySheet(context, date: e.date),
                       );
                     },
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// One note, as a card: the date and its cycle-day tag on one line, the note
+/// itself beneath in three lines of quieter type.
+class _DiaryCard extends StatelessWidget {
+  const _DiaryCard({
+    required this.date,
+    required this.note,
+    required this.cycleDay,
+    required this.onTap,
+  });
+
+  final String date;
+  final String note;
+  final int? cycleDay;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                // Top-aligned so the tag stays put if a long date wraps.
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      date,
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  if (cycleDay != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: scheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
+                      child: Text(
+                        'Day $cycleDay',
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                note,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.searching});
+
+  final bool searching;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(32, 0, 32, 64),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                searching ? Icons.search_off : Icons.edit_note,
+                size: 32,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              searching
+                  ? 'No notes match that search.'
+                  : 'Notes you add to a day appear here, newest '
+                      'first — so you can look back over them.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant, height: 1.45),
+            ),
+          ],
+        ),
       ),
     );
   }

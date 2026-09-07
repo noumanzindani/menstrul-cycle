@@ -7,6 +7,7 @@ import '../../models/prediction.dart';
 import '../../providers/log_provider.dart';
 import '../../providers/reminder_provider.dart';
 import '../../services/notification_service.dart';
+import '../settings/settings_group.dart';
 
 /// Toggle and configure the three smart reminders. Enabling one requests the
 /// system notification permission, then reschedules against the current
@@ -67,100 +68,107 @@ class RemindersScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reminders')),
+      // `SettingsGroup` supplies its own 16dp side padding, so the list adds
+      // only a bottom inset.
       body: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.only(bottom: 24),
         children: [
-          _ReminderCard(
-            icon: Icons.water_drop_outlined,
-            title: 'Period reminder',
-            subtitle: 'A heads-up before your period is expected',
-            enabled: provider.isEnabled(ReminderType.periodSoon),
-            onChanged: (v) => _setEnabled(context, ReminderType.periodSoon, v),
-            details: [
-              ListTile(
-                dense: true,
-                title: const Text('Days before'),
-                trailing: _DaysBeforeStepper(
-                  value: provider.daysBefore(ReminderType.periodSoon),
-                  onChanged: (d) => _setEnabled(
-                    context,
-                    ReminderType.periodSoon,
-                    true,
-                    daysBefore: d,
+          SettingsGroup(
+            title: 'Cycle reminders',
+            children: [
+              _ReminderCard(
+                icon: Icons.water_drop_outlined,
+                title: 'Period reminder',
+                subtitle: 'A heads-up before your period is expected',
+                enabled: provider.isEnabled(ReminderType.periodSoon),
+                onChanged: (v) =>
+                    _setEnabled(context, ReminderType.periodSoon, v),
+                details: [
+                  ListTile(
+                    dense: true,
+                    title: const Text('Days before'),
+                    trailing: _DaysBeforeStepper(
+                      value: provider.daysBefore(ReminderType.periodSoon),
+                      onChanged: (d) => _setEnabled(
+                        context,
+                        ReminderType.periodSoon,
+                        true,
+                        daysBefore: d,
+                      ),
+                    ),
                   ),
+                  ListTile(
+                    dense: true,
+                    title: const Text('Time'),
+                    trailing: Text(timeLabel(ReminderType.periodSoon)),
+                    onTap: () => _pickTime(context, ReminderType.periodSoon),
+                  ),
+                ],
+              ),
+              _ReminderCard(
+                icon: Icons.eco_outlined,
+                title: 'Fertile window reminder',
+                subtitle: 'When your estimated fertile window begins',
+                enabled: provider.isEnabled(ReminderType.fertileWindow),
+                onChanged: (v) =>
+                    _setEnabled(context, ReminderType.fertileWindow, v),
+                details: [
+                  ListTile(
+                    dense: true,
+                    title: const Text('Time'),
+                    trailing: Text(timeLabel(ReminderType.fertileWindow)),
+                    onTap: () => _pickTime(context, ReminderType.fertileWindow),
+                  ),
+                ],
+              ),
+              _ReminderCard(
+                icon: Icons.edit_calendar_outlined,
+                title: 'Daily log reminder',
+                subtitle: 'A gentle daily nudge to log how you feel',
+                enabled: provider.isEnabled(ReminderType.logNudge),
+                onChanged: (v) =>
+                    _setEnabled(context, ReminderType.logNudge, v),
+                details: [
+                  ListTile(
+                    dense: true,
+                    title: const Text('Time'),
+                    trailing: Text(timeLabel(ReminderType.logNudge)),
+                    onTap: () => _pickTime(context, ReminderType.logNudge),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          SettingsGroup(
+            title: 'Custom reminders',
+            children: [
+              for (final r in provider.customReminders)
+                _CustomReminderCard(
+                  reminder: r,
+                  timeLabel:
+                      TimeOfDay(hour: r.hour, minute: r.minute).format(context),
+                  onToggle: (on) => _toggleCustom(context, r, on),
+                  onTap: () => _editCustom(context, r),
                 ),
-              ),
+              // The add affordance is a row inside the group rather than a
+              // button beside the heading: at 360dp a heading and a trailing
+              // TextButton.icon compete for the same line, and the group's
+              // accent heading is a bare Text, not a row that can host a
+              // control.
               ListTile(
-                dense: true,
-                title: const Text('Time'),
-                trailing: Text(timeLabel(ReminderType.periodSoon)),
-                onTap: () => _pickTime(context, ReminderType.periodSoon),
+                leading: const Icon(Icons.add),
+                title: const Text('Add a reminder'),
+                onTap: () => _addCustom(context),
               ),
             ],
-          ),
-          _ReminderCard(
-            icon: Icons.eco_outlined,
-            title: 'Fertile window reminder',
-            subtitle: 'When your estimated fertile window begins',
-            enabled: provider.isEnabled(ReminderType.fertileWindow),
-            onChanged: (v) =>
-                _setEnabled(context, ReminderType.fertileWindow, v),
-            details: [
-              ListTile(
-                dense: true,
-                title: const Text('Time'),
-                trailing: Text(timeLabel(ReminderType.fertileWindow)),
-                onTap: () => _pickTime(context, ReminderType.fertileWindow),
-              ),
-            ],
-          ),
-          _ReminderCard(
-            icon: Icons.edit_calendar_outlined,
-            title: 'Daily log reminder',
-            subtitle: 'A gentle daily nudge to log how you feel',
-            enabled: provider.isEnabled(ReminderType.logNudge),
-            onChanged: (v) => _setEnabled(context, ReminderType.logNudge, v),
-            details: [
-              ListTile(
-                dense: true,
-                title: const Text('Time'),
-                trailing: Text(timeLabel(ReminderType.logNudge)),
-                onTap: () => _pickTime(context, ReminderType.logNudge),
-              ),
-            ],
-          ),
-          const Divider(height: 32),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Custom reminders',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-                TextButton.icon(
-                  onPressed: () => _addCustom(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add'),
-                ),
-              ],
-            ),
           ),
           if (provider.customReminders.isEmpty)
             const Padding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text('Add your own daily reminders — water, medication, '
-                  'anything you want a nudge for.'),
-            ),
-          for (final r in provider.customReminders)
-            _CustomReminderCard(
-              reminder: r,
-              timeLabel:
-                  TimeOfDay(hour: r.hour, minute: r.minute).format(context),
-              onToggle: (on) => _toggleCustom(context, r, on),
-              onTap: () => _editCustom(context, r),
+              padding: EdgeInsets.fromLTRB(24, 12, 24, 0),
+              child: SettingsFinePrint(
+                'Add your own daily reminders — water, medication, '
+                'anything you want a nudge for.',
+              ),
             ),
         ],
       ),
@@ -228,21 +236,24 @@ class _ReminderCard extends StatelessWidget {
   final ValueChanged<bool> onChanged;
   final List<Widget> details;
 
+  // No `Card` of its own: these are rows inside a `SettingsGroup`, which
+  // already supplies the rounded surface and the hairlines between rows. A
+  // nested Card would paint a second surface over the group's and break the
+  // alignment the hairline inset depends on.
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Column(
-        children: [
-          SwitchListTile(
-            secondary: Icon(icon),
-            title: Text(title),
-            subtitle: Text(subtitle),
-            value: enabled,
-            onChanged: onChanged,
-          ),
-          if (enabled) ...details,
-        ],
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SwitchListTile(
+          secondary: Icon(icon),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          value: enabled,
+          onChanged: onChanged,
+        ),
+        if (enabled) ...details,
+      ],
     );
   }
 }
@@ -260,16 +271,16 @@ class _CustomReminderCard extends StatelessWidget {
   final ValueChanged<bool> onToggle;
   final VoidCallback onTap;
 
+  // Cardless for the same reason as `_ReminderCard`: the enclosing
+  // `SettingsGroup` owns the surface.
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.alarm_outlined),
-        title: Text(reminder.title ?? 'Reminder'),
-        subtitle: Text('Every day at $timeLabel'),
-        onTap: onTap,
-        trailing: Switch(value: reminder.enabled, onChanged: onToggle),
-      ),
+    return ListTile(
+      leading: const Icon(Icons.alarm_outlined),
+      title: Text(reminder.title ?? 'Reminder'),
+      subtitle: Text('Every day at $timeLabel'),
+      onTap: onTap,
+      trailing: Switch(value: reminder.enabled, onChanged: onToggle),
     );
   }
 }

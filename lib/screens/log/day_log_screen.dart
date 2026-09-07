@@ -43,7 +43,26 @@ class _DayLogScreenState extends State<DayLogScreen> {
     final title = DateFormat.yMMMMEEEEd().format(widget.date);
     return Scaffold(
       appBar: AppBar(
-        title: Text(title, style: const TextStyle(fontSize: 18)),
+        // A close X, not a back arrow, and matching [DayEntrySheet]: this screen
+        // is an editor over one day, so dismissing it is "close", not "go back
+        // a level". Same pop either way.
+        leading: IconButton(
+          tooltip: 'Close',
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        titleSpacing: 0,
+        title: Text(
+          title,
+          // The date can be long in some locales; ellipsize rather than let the
+          // title collide with the trailing action.
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
         actions: [
           if (_hadExisting)
             IconButton(
@@ -59,9 +78,23 @@ class _DayLogScreenState extends State<DayLogScreen> {
         medications: enabledMedChips(context),
         categories: visibleCategories(context),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-        child: FilledButton(onPressed: _save, child: const Text('Save')),
+      // Pinned footer: a hairline separates it from the scrolling form so the
+      // Save target reads as chrome rather than as the end of the content —
+      // same treatment as the sheet host. One full-width FilledButton, never a
+      // Row of them (`filledButtonTheme` demands infinite width).
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: FilledButton(onPressed: _save, child: const Text('Save')),
+          ),
+        ),
       ),
     );
   }

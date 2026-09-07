@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../common/insights_text.dart';
+import '../models/enums.dart';
 import '../models/month_ring.dart';
 import '../theme/app_theme.dart';
 
@@ -22,9 +23,6 @@ class MonthRing extends StatelessWidget {
   Widget build(BuildContext context) {
     final phases = Theme.of(context).extension<PhaseColors>()!;
     final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-    final monthLabel =
-        DateFormat.yMMMM().format(DateTime(data.year, data.month));
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -42,31 +40,81 @@ class MonthRing extends StatelessWidget {
               ovulation: phases.fertile,
               pms: phases.luteal.withValues(alpha: 0.32),
               todayDot: scheme.primary,
-              halo: scheme.surface,
+              // What sits BEHIND the ring: the card, not the scaffold. It is
+              // painted between today's dots, so it has to be the card's own
+              // fill or the gaps read as a white notch on a tinted card.
+              halo: scheme.surfaceContainerLow,
             ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('${data.todayDay ?? ''}',
-                      style: text.displaySmall
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  Text(monthLabel,
-                      style: text.labelMedium
-                          ?.copyWith(color: scheme.onSurfaceVariant)),
-                  if (data.cycleDay != null) ...[
-                    const SizedBox(height: 4),
-                    Text('Day ${data.cycleDay} · ${data.phase.label}',
-                        style: text.bodySmall
-                            ?.copyWith(color: scheme.onSurfaceVariant)),
-                  ],
-                ],
-              ),
-            ),
+            child: Center(child: _RingCentre(data: data, phases: phases)),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         _MonthRingLegend(data: data, phases: phases),
+      ],
+    );
+  }
+}
+
+/// The readout inside the ring: the calendar date, the CYCLE day, the phase.
+///
+/// Two different numbers live here and they are easy to conflate — the ring is
+/// indexed by DAY OF MONTH, while "Day 19" is the cycle day. So the date is a
+/// quiet label line and the cycle day is the value line, rather than two
+/// competing figures. With no cycle day yet (no prediction) the date becomes the
+/// value, because there is nothing else true to show.
+class _RingCentre extends StatelessWidget {
+  const _RingCentre({required this.data, required this.phases});
+
+  final MonthRingData data;
+  final PhaseColors phases;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    final month = DateTime(data.year, data.month);
+
+    if (data.cycleDay == null) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('${data.todayDay ?? ''}',
+              style: text.displaySmall?.copyWith(fontWeight: FontWeight.w600)),
+          Text(DateFormat.yMMMM().format(month),
+              style:
+                  text.labelMedium?.copyWith(color: scheme.onSurfaceVariant)),
+        ],
+      );
+    }
+
+    final today = data.todayDay == null
+        ? null
+        : DateTime(data.year, data.month, data.todayDay!);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (today != null)
+          Text(
+            DateFormat.MMMMd().format(today),
+            style: text.labelMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+              letterSpacing: 0.5,
+            ),
+          ),
+        const SizedBox(height: 2),
+        Text('Day ${data.cycleDay}',
+            style: text.displaySmall?.copyWith(fontWeight: FontWeight.w600)),
+        if (data.phase != CyclePhase.unknown) ...[
+          const SizedBox(height: 2),
+          Text(
+            data.phase.label,
+            style: text.labelLarge?.copyWith(
+              color: phases.forPhase(data.phase),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -85,7 +133,7 @@ class _MonthRingLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 14,
+      spacing: 12,
       runSpacing: 6,
       alignment: WrapAlignment.center,
       children: [
@@ -107,12 +155,17 @@ class _MonthRingLegend extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 10,
-            height: 10,
+            width: 8,
+            height: 8,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 5),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
         ],
       );
 }
@@ -166,15 +219,31 @@ class MonthRingPainter extends CustomPainter {
       canvas.drawArc(rect, start, sweep, false, paint);
     }
 
-    // "You are here": a filled dot on today's segment, haloed so it reads on any
-    // segment colour.
+    // "You are here": today's own segment is drawn DOTTED — three short arcs in
+    // the accent colour, clearing the day's span first so the gaps show the
+    // card behind the ring rather than whatever role colour it happens to sit
+    // on. Dotting the day (rather than beading over it) is the design-system
+    // spec for this component, and it keeps the marker legible on every role
+    // colour without depending on the contrast between two of them.
+    //
+    // The dots are sized so three of them plus two gaps fill exactly one day.
+    // Caps stay BUTT: a round cap adds half the stroke width to each end of
+    // every dot, which at this thickness is far wider than a dot and fuses the
+    // three into one blob wider than a whole day — the defect the mock's SVG
+    // ring hit and recorded in docs/design/stitch/README.md.
     final todayIndex = data.days.indexWhere((d) => d.isToday);
     if (todayIndex >= 0) {
-      final mid = -math.pi / 2 + (todayIndex + 0.5) * step;
-      final dot = center + Offset(math.cos(mid), math.sin(mid)) * radius;
-      final r = thickness * 0.5;
-      canvas.drawCircle(dot, r + 2, Paint()..color = halo);
-      canvas.drawCircle(dot, r, Paint()..color = todayDot);
+      final dayStart = -math.pi / 2 + todayIndex * step + gap / 2;
+      paint.color = halo;
+      canvas.drawArc(rect, dayStart, sweep, false, paint);
+
+      const dotFraction = 0.26; // 3 dots + 2 gaps == 1 day
+      const gapFraction = 0.11;
+      paint.color = todayDot;
+      for (var k = 0; k < 3; k++) {
+        final start = dayStart + sweep * k * (dotFraction + gapFraction);
+        canvas.drawArc(rect, start, sweep * dotFraction, false, paint);
+      }
     }
   }
 

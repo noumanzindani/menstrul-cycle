@@ -7,6 +7,7 @@ import 'package:menstrul_track/common/catalog.dart';
 import 'package:menstrul_track/data/daily_log_repository.dart';
 import 'package:menstrul_track/data/medication_repository.dart';
 import 'package:menstrul_track/db/database.dart';
+import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/providers/log_provider.dart';
 import 'package:menstrul_track/providers/medication_provider.dart';
@@ -53,7 +54,11 @@ void main() {
         if (withMedProvider)
           ChangeNotifierProvider<MedicationProvider>.value(value: meds),
       ],
-      child: const MaterialApp(home: InsightsScreen()),
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const InsightsScreen(),
+      ),
     ));
     await tester.pumpAndSettle();
   }

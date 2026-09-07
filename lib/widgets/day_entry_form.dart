@@ -86,7 +86,19 @@ Set<String> visibleCategories(BuildContext context) {
   return settings.enabledCategories;
 }
 
-/// Numeric metrics rendered as 0..max sliders; 0 means "not logged". NEVER
+/// Vertical rhythm. Chips sit 8dp apart inside a section and sections 28dp
+/// apart, so each small header reads as belonging to the group beneath it
+/// rather than floating between two.
+const double _kSectionGap = 28;
+
+/// Rounded outline shared by the form's text fields: the design system's 16dp
+/// control radius, so a field sits between the 12dp chips and the 20dp cards
+/// instead of keeping Material's default 4dp corner.
+final OutlineInputBorder _kFieldBorder = OutlineInputBorder(
+  borderRadius: BorderRadius.circular(16),
+);
+
+/// Numeric metrics rendered as 0..max steppers; 0 means "not logged". NEVER
 /// filter this list — it drives the initState decode as well as the render, so
 /// dropping an entry here would erase that metric on the next save.
 const List<({String label, String key, int max, String suffix})> _metricConfigs = [
@@ -235,8 +247,11 @@ class DayEntryFormState extends State<DayEntryForm> {
     // this form stays buildable without its ambient dependencies. Null means
     // the drop simply inherits the chip's label colour.
     final phases = Theme.of(context).extension<PhaseColors>();
+    final scheme = Theme.of(context).colorScheme;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      // Generous tail padding: the last section must clear the pinned Save bar
+      // rather than stopping flush against it.
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       shrinkWrap: widget.shrinkWrap,
       physics:
           widget.shrinkWrap ? const NeverScrollableScrollPhysics() : null,
@@ -244,6 +259,7 @@ class DayEntryFormState extends State<DayEntryForm> {
         _SectionLabel('Flow'),
         Wrap(
           spacing: 8,
+          runSpacing: 8,
           children: [
             for (final f in FlowIntensity.values)
               if (f != FlowIntensity.none)
@@ -269,16 +285,31 @@ class DayEntryFormState extends State<DayEntryForm> {
                 ),
           ],
         ),
+        const SizedBox(height: 16),
+        // A filled tile rather than a bare switch row: this answer is a
+        // different KIND of statement from the flow chips above it ("no
+        // bleeding today", which ends a cycle run), so it reads as its own
+        // card instead of as a sixth flow option.
         SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Period ended today'),
+          contentPadding: const EdgeInsets.fromLTRB(16, 4, 12, 4),
+          tileColor: scheme.surfaceContainerLow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text(
+            'Period ended today',
+            style: Theme.of(context)
+                .textTheme
+                .bodyLarge
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
           subtitle: const Text('Marks today as no bleeding'),
           value: _flow == FlowIntensity.none,
           onChanged: (on) =>
               setState(() => _flow = on ? FlowIntensity.none : null),
         ),
         if (_cats.contains(kCatPhysicalSymptoms)) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           _SectionLabel('Physical symptoms'),
           _FilterChips(
             options: kSymptomOptions,
@@ -288,7 +319,7 @@ class DayEntryFormState extends State<DayEntryForm> {
           ),
         ],
         if (_cats.contains(kCatEmotional)) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           _SectionLabel('Emotional symptoms'),
           _FilterChips(
             options: kEmotionalOptions,
@@ -297,24 +328,29 @@ class DayEntryFormState extends State<DayEntryForm> {
                 () => sel ? _symptoms.add(key) : _symptoms.remove(key)),
           ),
         ],
-        const SizedBox(height: 20),
+        const SizedBox(height: _kSectionGap),
         _SectionLabel('Mood'),
         _SingleChips(
           options: kMoodOptions,
           selected: _mood,
           onSelect: (key) => setState(() => _mood = key),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: _kSectionGap),
         _SectionLabel('Pain'),
         _MetricSlider(
           label: 'Pain level',
           value: _metrics[kMetricPain] ?? 0,
           max: 10,
           suffix: '/10',
+          // Anchors for the user's OWN scale. A bare 0–10 says nothing about
+          // which end is which; these name the ends of the input and are never
+          // the app rating anything.
+          minLabel: 'None',
+          maxLabel: 'Severe',
           onChanged: (v) => setState(() => _metrics[kMetricPain] = v),
         ),
         if (_cats.contains(kCatDischarge)) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           _SectionLabel('Discharge'),
           _SingleChips(
             options: kDischargeOptions,
@@ -322,32 +358,32 @@ class DayEntryFormState extends State<DayEntryForm> {
             onSelect: (key) => setState(() => _discharge = key),
           ),
         ],
-        const SizedBox(height: 20),
+        const SizedBox(height: _kSectionGap),
         _SectionLabel('Temperature & ovulation tests'),
         TextField(
           controller: _bbt,
           keyboardType:
               const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Basal body temperature',
             hintText: 'e.g. 36.55',
             suffixText: '°C',
-            border: OutlineInputBorder(),
+            border: _kFieldBorder,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Text('Ovulation test (LH)',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: scheme.onSurfaceVariant,
                 )),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         _SingleChips(
           options: kOpkOptions,
           selected: _opk,
           onSelect: (key) => setState(() => _opk = key),
         ),
         if (_cats.contains(kCatVaginal)) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           // Matches the registry label so Settings and the day editor agree.
           _SectionLabel('Vulva & vagina'),
           _FilterChips(
@@ -358,7 +394,7 @@ class DayEntryFormState extends State<DayEntryForm> {
           ),
         ],
         if (_cats.contains(kCatSex)) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           _SectionLabel('Sex'),
           _SingleChips(
             options: kSexOptions,
@@ -367,7 +403,7 @@ class DayEntryFormState extends State<DayEntryForm> {
           ),
         ],
         if (_cats.contains(kCatSexualHealth)) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           _SectionLabel('Sexual health'),
           _FilterChips(
             options: kSexualHealthOptions,
@@ -377,7 +413,7 @@ class DayEntryFormState extends State<DayEntryForm> {
           ),
         ],
         if (_cats.contains(kCatLifestyle)) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           _SectionLabel('Lifestyle'),
           _FilterChips(
             options: kHabitOptions,
@@ -388,7 +424,7 @@ class DayEntryFormState extends State<DayEntryForm> {
         ],
         if (_cats.contains(kCatMedications) &&
             widget.medications.isNotEmpty) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           _SectionLabel('Medications'),
           _FilterChips(
             options: [
@@ -408,7 +444,7 @@ class DayEntryFormState extends State<DayEntryForm> {
           (kCatSkin, 'Skin & hair', kSkinOptions, _skin),
         ])
           if (_cats.contains(g.$1)) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: _kSectionGap),
             _SectionLabel(g.$2),
             _FilterChips(
               options: g.$3,
@@ -419,7 +455,7 @@ class DayEntryFormState extends State<DayEntryForm> {
           ],
         if (_cats.contains(kCatWellbeing) ||
             _cats.contains(kCatSleepQuality)) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           _SectionLabel('Wellbeing'),
         ],
         // Filtered HERE ONLY. _metricConfigs itself stays whole so initState
@@ -428,7 +464,7 @@ class DayEntryFormState extends State<DayEntryForm> {
           if (_cats.contains(m.key == kMetricSleepQuality
               ? kCatSleepQuality
               : kCatWellbeing))
-            _MetricSlider(
+            _MetricStepper(
               label: m.label,
               value: _metrics[m.key] ?? 0,
               max: m.max,
@@ -436,7 +472,7 @@ class DayEntryFormState extends State<DayEntryForm> {
               onChanged: (v) => setState(() => _metrics[m.key] = v),
             ),
         if (_cats.contains(kCatWeight)) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: _kSectionGap),
           _SectionLabel('Weight'),
           TextField(
             key: const Key('weight-field'),
@@ -447,19 +483,19 @@ class DayEntryFormState extends State<DayEntryForm> {
               suffixText: context.watch<SettingsProvider?>()?.weightUnit ??
                   kWeightUnitKg,
               errorText: _weightError,
-              border: const OutlineInputBorder(),
+              border: _kFieldBorder,
             ),
           ),
         ],
-        const SizedBox(height: 20),
+        const SizedBox(height: _kSectionGap),
         _SectionLabel('Notes'),
         TextField(
           controller: _notes,
-          minLines: 2,
-          maxLines: 5,
-          decoration: const InputDecoration(
-            hintText: 'Anything else about today…',
-            border: OutlineInputBorder(),
+          minLines: 3,
+          maxLines: 6,
+          decoration: InputDecoration(
+            hintText: 'Anything you want to remember…',
+            border: _kFieldBorder,
           ),
         ),
       ],
@@ -483,7 +519,7 @@ class _FilterChips extends StatelessWidget {
   Widget build(BuildContext context) {
     return Wrap(
       spacing: 8,
-      runSpacing: 4,
+      runSpacing: 8,
       children: [
         for (final o in options)
           FilterChip(
@@ -512,7 +548,7 @@ class _SingleChips extends StatelessWidget {
   Widget build(BuildContext context) {
     return Wrap(
       spacing: 8,
-      runSpacing: 4,
+      runSpacing: 8,
       children: [
         for (final o in options)
           ChoiceChip(
@@ -526,8 +562,95 @@ class _SingleChips extends StatelessWidget {
 }
 
 /// A 0..[max] slider for an optional numeric metric; 0 renders as "—" (unset).
+///
+/// Kept for **pain**, where the answer is a felt position on a range rather
+/// than a count, and where dragging is the faster gesture. The counted
+/// wellbeing metrics use [_MetricStepper] instead.
 class _MetricSlider extends StatelessWidget {
   const _MetricSlider({
+    required this.label,
+    required this.value,
+    required this.max,
+    required this.onChanged,
+    this.suffix = '',
+    this.minLabel,
+    this.maxLabel,
+  });
+
+  final String label;
+  final int value;
+  final int max;
+  final String suffix;
+
+  /// Optional captions naming the two ends of the user's own scale.
+  final String? minLabel;
+  final String? maxLabel;
+
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final endCaption = theme.textTheme.labelSmall?.copyWith(
+      color: scheme.onSurfaceVariant,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Flexible, not fixed: a large system text scale wraps the label
+              // rather than overflowing the row.
+              Flexible(child: Text(label)),
+              const SizedBox(width: 8),
+              Text(
+                value == 0 ? '—' : '$value$suffix',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: value == 0 ? scheme.onSurfaceVariant : scheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: value.toDouble(),
+            min: 0,
+            max: max.toDouble(),
+            divisions: max,
+            label: value == 0 ? 'Not set' : '$value$suffix',
+            onChanged: (v) => onChanged(v.round()),
+          ),
+          if (minLabel != null || maxLabel != null)
+            Padding(
+              // Aligns the captions with the track, which the Slider insets.
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(minLabel ?? '', style: endCaption),
+                  Text(maxLabel ?? '', style: endCaption),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A 0..[max] stepper row for a COUNTED metric (glasses of water, hours of
+/// sleep, a 1–5 rating); 0 renders as "—" (unset), exactly as the slider does.
+///
+/// A filled row rather than a slider because these are counts the user knows
+/// exactly — a drag makes an exact value fiddly to hit — and because five
+/// stacked sliders dominated the app's densest screen. Storage, range and the
+/// "0 means unset" rule are unchanged.
+class _MetricStepper extends StatelessWidget {
+  const _MetricStepper({
     required this.label,
     required this.value,
     required this.max,
@@ -543,39 +666,55 @@ class _MetricSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label),
-              Text(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Expanded(child: Text(label)),
+            IconButton(
+              tooltip: 'Less $label',
+              icon: const Icon(Icons.remove),
+              // Bounded by disabling, not by clamping: a tap that would do
+              // nothing should not look available.
+              onPressed: value <= 0 ? null : () => onChanged(value - 1),
+            ),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 40),
+              child: Text(
                 value == 0 ? '—' : '$value$suffix',
-                style: TextStyle(
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleSmall?.copyWith(
                   color: value == 0 ? scheme.onSurfaceVariant : scheme.primary,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ],
-          ),
-          Slider(
-            value: value.toDouble(),
-            min: 0,
-            max: max.toDouble(),
-            divisions: max,
-            label: value == 0 ? 'Not set' : '$value$suffix',
-            onChanged: (v) => onChanged(v.round()),
-          ),
-        ],
+            ),
+            IconButton(
+              tooltip: 'More $label',
+              icon: const Icon(Icons.add),
+              onPressed: value >= max ? null : () => onChanged(value + 1),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+/// A section header: small, tracked and quiet, so the chips and values under it
+/// carry the page rather than the headings.
+///
+/// Sentence case, NOT the mock's uppercase: `find.text('Urine')` /
+/// `find.text('Notes')` in four widget tests match on the rendered string, and
+/// nothing else in `lib/` upper-cases a heading.
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
   final String text;
@@ -583,13 +722,14 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10, top: 4),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         text,
-        style: Theme.of(context)
-            .textTheme
-            .titleMedium
-            ?.copyWith(fontWeight: FontWeight.w600),
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
       ),
     );
   }

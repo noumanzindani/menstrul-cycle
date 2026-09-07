@@ -183,8 +183,14 @@ void main() {
 
     expect(find.textContaining('scheduled to be permanently deleted'),
         findsOneWidget);
-    // The date the user was promised, formatted, not a vague "soon".
-    expect(find.textContaining('August 31, 2026'), findsOneWidget);
+    // The date the user was promised, formatted, not a vague "soon". The
+    // restyled screen ALSO pulls it out onto its own "Scheduled for" row, so a
+    // bare search for the date now matches twice; what this asserts is that the
+    // disclosure sentence itself still names it.
+    expect(
+      find.textContaining('permanently deleted on Monday, August 31, 2026'),
+      findsOneWidget,
+    );
     expect(find.textContaining('nothing is deleted'), findsOneWidget);
     expect(find.byKey(const Key('gate.cancelDeletion')), findsOneWidget);
   });
@@ -239,7 +245,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(OnboardingScreen), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byKey(const Key('appGate.splash')), findsNothing);
 
     // And it gives up rather than hanging forever: let the timeout fire (which
     // also stops the pending timer outliving the test).

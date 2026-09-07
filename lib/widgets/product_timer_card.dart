@@ -30,10 +30,12 @@ class ProductTimerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The plain card fill, like every other card on the dashboard. A distinct
+    // container colour would be emphasis, and nothing about a running timer is
+    // an alert — the card is simply where the truth lives.
     return Card(
-      color: Theme.of(context).colorScheme.tertiaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
         child: _TickingBody(session: session, clock: clock ?? DateTime.now),
       ),
     );
@@ -117,7 +119,7 @@ class _TickingBodyState extends State<_TickingBody>
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    final onCard = scheme.onTertiaryContainer;
+    final muted = scheme.onSurfaceVariant;
 
     final now = widget.clock();
     final session = widget.session;
@@ -126,77 +128,77 @@ class _TickingBodyState extends State<_TickingBody>
     final mayHaveMissed = session.overrunAt(now) > _delayDisclosureAfter;
     final capNote = session.product.capNote;
 
+    // "past the Nh you set" — the target is the user's, not the app's, so the
+    // app is never the one calling it late. Before the target, the same line
+    // simply repeats what was set, with no comparison and no encouragement.
+    final since = 'Since ${formatClock(session.insertedAt)}';
+    final target = pastTarget
+        ? 'past the ${formatElapsed(session.interval)} you set'
+        : 'you set ${formatElapsed(session.interval)}';
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.timer_outlined, size: 20, color: onCard),
-            const SizedBox(width: 8),
-            Expanded(
+            Icon(Icons.timer_outlined, size: 18, color: muted),
+            const SizedBox(width: 6),
+            Flexible(
               child: Text(
                 session.product.label,
-                style: text.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600, color: onCard),
+                style: text.labelLarge
+                    ?.copyWith(fontWeight: FontWeight.w600, color: muted),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        // Counts UP from the logged time. Never time remaining, and never a
-        // progress bar — both would draw a deadline the app cannot locate, on
-        // a value it does not know (absorbency, flow, individual risk).
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(text: 'Logged at ${formatClock(session.insertedAt)} · '),
-              TextSpan(
-                text: '${formatElapsed(elapsed)} ago',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: pastTarget ? scheme.error : onCard,
-                ),
-              ),
-              // "past the Nh you set" — the target is the user's, not the
-              // app's, so the app is never the one calling it late.
-              if (pastTarget)
-                TextSpan(
-                    text: ' — past the ${formatElapsed(session.interval)} '
-                        'you set.'),
-            ],
+        const SizedBox(height: 10),
+        // The elapsed figure is the card's whole purpose, so it is the card's
+        // one display line. It counts UP from the logged time: never time
+        // remaining, never a progress bar — both would draw a deadline the app
+        // cannot locate, on a value it does not know (absorbency, flow,
+        // individual risk). Its size and colour are identical either side of
+        // the target: past the target NOTHING turns red and nothing is
+        // emphasised, because nothing here is an emergency.
+        Text(
+          formatElapsed(elapsed),
+          textAlign: TextAlign.center,
+          style: text.displaySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: scheme.onSurface,
           ),
-          style: text.bodyMedium?.copyWith(color: onCard),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '$since · $target',
+          textAlign: TextAlign.center,
+          style: text.bodyMedium?.copyWith(color: muted),
         ),
         if (mayHaveMissed) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             'This reminder may not have arrived on time.',
-            style: text.bodySmall?.copyWith(color: onCard),
+            textAlign: TextAlign.center,
+            style: text.bodySmall?.copyWith(color: muted),
           ),
         ],
         if (pastTarget && capNote != null) ...[
-          const SizedBox(height: 6),
-          Text(capNote, style: text.bodySmall?.copyWith(color: onCard)),
+          const SizedBox(height: 8),
+          Text(capNote,
+              textAlign: TextAlign.center,
+              style: text.bodySmall?.copyWith(color: muted)),
         ],
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: FilledButton(
-                onPressed: () =>
-                    context.read<ProductSessionProvider>().changed(),
-                child: const Text('Changed'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () =>
-                    context.read<ProductSessionProvider>().removed(),
-                child: const Text('Removed'),
-              ),
-            ),
-          ],
+        const SizedBox(height: 18),
+        // Stacked, full width — the app's button convention, and the only
+        // arrangement `filledButtonTheme`'s infinite minimum width allows.
+        FilledButton(
+          onPressed: () => context.read<ProductSessionProvider>().changed(),
+          child: const Text('Changed'),
+        ),
+        TextButton(
+          onPressed: () => context.read<ProductSessionProvider>().removed(),
+          child: const Text('Removed'),
         ),
       ],
     );

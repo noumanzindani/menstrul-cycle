@@ -79,7 +79,11 @@ void main() {
     await tester.pump();
 
     expect(find.byType(SignInScreen), findsNothing);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    // The splash is identified by its key, not by the progress widget inside
+    // it: the widget is presentation and has already changed once (a spinner,
+    // now a slim line), and an assertion on the type would have gone quietly
+    // vacuous rather than failing.
+    expect(find.byKey(const Key('appGate.splash')), findsOneWidget);
   });
 
   testWidgets('shows sign-in once the user is known to be signed out',

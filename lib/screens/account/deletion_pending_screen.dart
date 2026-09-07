@@ -81,84 +81,141 @@ class _DeletionPendingScreenState extends State<DeletionPendingScreen> {
     final when = purgeAfter == null
         ? 'within $_windowLabel of your request'
         : 'on ${MaterialLocalizations.of(context).formatFullDate(purgeAfter)}';
+    final scheduledFor = purgeAfter == null
+        ? 'Within $_windowLabel'
+        : MaterialLocalizations.of(context).formatFullDate(purgeAfter);
 
     return Scaffold(
       key: const Key('gate.deletionPending'),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.schedule, size: 40, color: scheme.error),
-                const SizedBox(height: 16),
-                Text(
-                  'Account deletion pending',
-                  style: text.headlineSmall?.copyWith(color: scheme.error),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Deliberately NOT the error colour. This is reversible and
+                    // scheduled, not an emergency — nothing in this app is
+                    // styled as an alarm.
+                    Icon(Icons.schedule_outlined,
+                        size: 48, color: scheme.onSurfaceVariant),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Account deletion requested',
+                      textAlign: TextAlign.center,
+                      style: text.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'You asked us to delete this account. Your account '
+                            'and the copy of your logs on our server are '
+                            'scheduled to be permanently deleted $when.',
+                            style: text.bodyLarge,
+                          ),
+                          const SizedBox(height: 16),
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            color:
+                                scheme.outlineVariant.withValues(alpha: 0.5),
+                          ),
+                          const SizedBox(height: 16),
+                          // The date, pulled out of the sentence so it can be
+                          // read at a glance.
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Scheduled for',
+                                style: text.bodyMedium
+                                    ?.copyWith(color: scheme.onSurfaceVariant),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  scheduledFor,
+                                  textAlign: TextAlign.right,
+                                  style: text.bodyMedium
+                                      ?.copyWith(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Cancel any time before then and nothing is deleted — '
+                      'your account is restored and your logs sync back to '
+                      'this device.',
+                      style: text.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Until then cloud sync stays off, so nothing on this '
+                      'device is being backed up. The logs already on this '
+                      'device are untouched, and you can keep using LunaTrack '
+                      'while the request stands.',
+                      style: text.bodyMedium
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                    if (_failed) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        "Couldn't cancel the deletion. Check your connection "
+                        'and try again.',
+                        key: const Key('gate.deletionCancelFailed'),
+                        style: text.bodyMedium?.copyWith(color: scheme.error),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  'You asked us to delete this account. Your account and the '
-                  'copy of your logs on our server are scheduled to be '
-                  'permanently deleted $when.',
-                  style: text.bodyLarge,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Cloud sync stays off until then, so nothing on this device '
-                  'is being backed up.',
-                  style: text.bodyMedium,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Cancel the request and nothing is deleted — your account is '
-                  'restored and your logs sync back to this device.',
-                  style: text.bodyMedium,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'The logs already on this device are untouched, and you can '
-                  'keep using LunaTrack while the request stands.',
-                  style: text.bodyMedium,
-                ),
-                if (_failed) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    "Couldn't cancel the deletion. Check your connection and "
-                    'try again.',
-                    key: const Key('gate.deletionCancelFailed'),
-                    style: text.bodyMedium?.copyWith(color: scheme.error),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              child: Column(
+                children: [
+                  FilledButton(
+                    key: const Key('gate.cancelDeletion'),
+                    onPressed: _busy ? null : _cancel,
+                    child: _busy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Cancel deletion request'),
+                  ),
+                  const SizedBox(height: 4),
+                  TextButton(
+                    key: const Key('gate.dismissDeletionNotice'),
+                    onPressed: _busy ? null : widget.onDismiss,
+                    child: const Text('Continue to LunaTrack'),
+                  ),
+                  TextButton(
+                    key: const Key('gate.signOut'),
+                    onPressed: _busy ? null : widget.onSignOut,
+                    child: const Text('Sign out'),
                   ),
                 ],
-                const SizedBox(height: 24),
-                FilledButton(
-                  key: const Key('gate.cancelDeletion'),
-                  onPressed: _busy ? null : _cancel,
-                  child: _busy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Cancel deletion'),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  key: const Key('gate.dismissDeletionNotice'),
-                  onPressed: _busy ? null : widget.onDismiss,
-                  child: const Text('Continue to LunaTrack'),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  key: const Key('gate.signOut'),
-                  onPressed: _busy ? null : widget.onSignOut,
-                  child: const Text('Sign out'),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

@@ -28,20 +28,138 @@ class ForecastScreen extends StatelessWidget {
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
-                Text(
-                  'Based on a ${settings.cycleLength}-day cycle and '
-                  '${settings.periodLength}-day period.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                _ExplainerCard(
+                  cycleLength: settings.cycleLength,
+                  periodLength: settings.periodLength,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 for (final p in periods)
                   _PeriodCard(period: p, today: today),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 const DisclaimerBanner(),
               ],
             ),
     );
   }
+}
+
+/// A leading, plain-language note on where the forecast comes from. Framed as
+/// an estimate that improves with logging — never as a promise.
+class _ExplainerCard extends StatelessWidget {
+  const _ExplainerCard({
+    required this.cycleLength,
+    required this.periodLength,
+  });
+
+  final int cycleLength;
+  final int periodLength;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 18, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'These are estimates from the days you log, based on a '
+              '$cycleLength-day cycle and a $periodLength-day period. They get '
+              'better the more you log.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small phase-coloured dot + an uppercase eyebrow label, the design system's
+/// way of naming what a value line is about.
+class _DotLabel extends StatelessWidget {
+  const _DotLabel({required this.color, required this.label, this.trailing});
+
+  final Color color;
+  final String label;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.9,
+                ),
+          ),
+        ),
+        // Flexible, not fixed: a large system text scale shrinks the tag rather
+        // than overflowing the row and clipping it off-screen.
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          Flexible(child: trailing!),
+        ],
+      ],
+    );
+  }
+}
+
+/// The "ESTIMATE" tag every forecast card carries. Estimates are always
+/// labelled as estimates — a forecast card must never read as a fact.
+class _EstimateTag extends StatelessWidget {
+  const _EstimateTag();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        'ESTIMATE',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.9,
+              fontSize: 10,
+            ),
+      ),
+    );
+  }
+}
+
+/// Formats a date range compactly: "16 – 21 Sep" inside one month, otherwise
+/// "28 Jan – 2 Feb".
+String _range(DateTime start, DateTime end) {
+  if (start.month == end.month && start.year == end.year) {
+    return '${DateFormat.MMMd().format(start)} – ${DateFormat.d().format(end)}';
+  }
+  return '${DateFormat.MMMd().format(start)} – ${DateFormat.MMMd().format(end)}';
 }
 
 class _PeriodCard extends StatelessWidget {
@@ -51,83 +169,78 @@ class _PeriodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final phases = Theme.of(context).extension<PhaseColors>()!;
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final phases = theme.extension<PhaseColors>()!;
+    final scheme = theme.colorScheme;
     final ongoing =
         !today.isBefore(period.start) && !today.isAfter(period.end);
     final daysAway = daysBetween(today, period.start);
 
-    final sameMonth = period.start.month == period.end.month;
-    final range = sameMonth
-        ? '${DateFormat.MMMd().format(period.start)} – ${DateFormat.d().format(period.end)}'
-        : '${DateFormat.MMMd().format(period.start)} – ${DateFormat.MMMd().format(period.end)}';
-
-    String subtitle;
+    String when;
     if (ongoing) {
-      subtitle = 'Predicted now';
+      when = 'Predicted now';
     } else if (daysAway == 0) {
-      subtitle = 'Starts today';
+      when = 'Starts today';
     } else if (daysAway == 1) {
-      subtitle = 'In 1 day';
+      when = 'In 1 day';
     } else {
-      subtitle = 'In $daysAway days';
+      when = 'In $daysAway days';
     }
 
     return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      // The nearest predicted period is the one the user came here for: it is
+      // outlined in the menstrual token rather than filled with it, so it reads
+      // as "this one" without reading as an alert.
+      shape: ongoing
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                  color: phases.menstrual.withValues(alpha: 0.55)),
+            )
+          : null,
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: phases.menstrual.withValues(alpha: ongoing ? 0.9 : 0.18),
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: phases.menstrual.withValues(alpha: 0.6)),
-              ),
-              alignment: Alignment.center,
-              child: Icon(Icons.water_drop,
-                  size: 20,
-                  color: ongoing ? Colors.white : phases.menstrual),
+            _DotLabel(
+              color: phases.menstrual,
+              label: 'PERIOD',
+              trailing: const _EstimateTag(),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(range,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: Theme.of(context).textTheme.bodySmall),
-                ],
+            const SizedBox(height: 6),
+            Text(
+              _range(period.start, period.end),
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.2,
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text('${period.lengthDays} days',
-                    style: Theme.of(context).textTheme.labelLarge),
-                Text(
-                  'fertile ${DateFormat.MMMd().format(period.fertileStart)}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-                Text(
-                  'PMS ${DateFormat.MMMd().format(period.pmsStart)}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
+            const SizedBox(height: 2),
+            Text(
+              '${period.lengthDays} days · $when',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 14),
+            Divider(
+                height: 1, thickness: 1, color: scheme.outlineVariant),
+            const SizedBox(height: 14),
+            _DotLabel(color: phases.fertile, label: 'FERTILE WINDOW'),
+            const SizedBox(height: 4),
+            Text(
+              _range(period.fertileStart, period.fertileEnd),
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 14),
+            _DotLabel(color: phases.luteal, label: 'PMS'),
+            const SizedBox(height: 4),
+            Text(
+              _range(period.pmsStart, period.pmsEnd),
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w500),
             ),
           ],
         ),

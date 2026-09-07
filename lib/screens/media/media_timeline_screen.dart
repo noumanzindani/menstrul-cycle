@@ -51,6 +51,15 @@ class MediaTimelineScreen extends StatefulWidget {
 class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
   bool _busy = false;
 
+  /// How many files the last pick failed to upload.
+  ///
+  /// Rendered as an inline card at the top of the timeline rather than as a
+  /// snack bar: with no upload queue there is nothing left behind to point at
+  /// afterwards, so a message that slides away after four seconds is the whole
+  /// record of the loss. Every other outcome — a refusal, a cap, a decision the
+  /// user made — stays a snack bar, because those are answers, not losses.
+  int _failed = 0;
+
   @override
   void initState() {
     super.initState();
@@ -75,7 +84,13 @@ class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
   Future<void> _add() async {
     final add = widget.onAdd;
     if (add == null || _busy) return;
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      // Clearing here rather than on the reply is what makes the card's own
+      // "Try again" read as a retry instead of leaving the previous failure
+      // standing beside the new attempt.
+      _failed = 0;
+    });
     MediaUploadOutcome outcome;
     try {
       outcome = await add();
@@ -94,7 +109,10 @@ class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
       outcome = const MediaUploadOutcome(failed: 1);
     }
     if (!mounted) return;
-    setState(() => _busy = false);
+    setState(() {
+      _busy = false;
+      _failed = outcome.failed;
+    });
     await context.read<MediaProvider>().reload();
     if (!mounted) return;
     final message = _messageFor(outcome);
@@ -136,9 +154,9 @@ class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
     if (outcome.dropped > 0) {
       parts.add('${outcome.dropped} not added (10 at a time)');
     }
-    if (outcome.failed > 0) {
-      parts.add('${outcome.failed} didn\'t upload');
-    }
+    // `outcome.failed` is deliberately absent here: it is reported by the
+    // inline card instead, which persists. Reporting it in both places would
+    // say the same thing twice, once in a form that vanishes.
     for (final r in outcome.rejected) {
       parts.add(r.message);
     }
@@ -153,72 +171,301 @@ class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Photos & videos')),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         heroTag: 'media.add',
+        tooltip: 'Add a photo or video',
         onPressed: widget.canAdd && !_busy ? _add : null,
-        icon: _busy
+        child: _busy
             ? const SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Icon(Icons.add_photo_alternate_outlined),
-        label: Text(_busy ? 'Uploading…' : 'Add'),
+            : const Icon(Icons.add_a_photo_outlined),
       ),
-      body: provider.loading
-          ? const Center(child: CircularProgressIndicator())
-          : items.isEmpty
-              ? _EmptyState(canAdd: widget.canAdd)
-              : RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: GridView.builder(
-                    key: const Key('media-grid'),
-                    padding: const EdgeInsets.all(4),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 4,
-                      crossAxisSpacing: 4,
+      body: Column(
+        children: [
+          // Permanent, above everything, in both the populated and the empty
+          // state. Not an error strip and not dismissible: how these files are
+          // held is a standing fact about the feature, not an incident.
+          const _StorageNotice(),
+          Expanded(
+            child: provider.loading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: CustomScrollView(
+                      key: const Key('media-grid'),
+                      // So the empty state can be pulled down too — a screen
+                      // that cannot be refreshed is exactly the one a user
+                      // pulls on when nothing has arrived yet.
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        if (_failed > 0)
+                          SliverToBoxAdapter(
+                            child: _UploadFailureCard(
+                              count: _failed,
+                              onRetry: widget.canAdd && !_busy ? _add : null,
+                            ),
+                          ),
+                        if (items.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: _EmptyState(
+                              canAdd: widget.canAdd,
+                              onAdd: _busy ? null : _add,
+                            ),
+                          )
+                        else
+                          ..._monthSlivers(context, items),
+                      ],
                     ),
-                    itemCount: items.length,
-                    itemBuilder: (context, i) {
-                      final item = items[i];
-                      return MediaTile(
-                        key: Key('media-tile-${item.id}'),
-                        item: item,
-                        onTap: () => widget.onOpen?.call(context, item),
-                      );
-                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// One uppercase month header plus one grid per month, in the order the
+  /// provider hands them over (newest capture first).
+  ///
+  /// Grouping is presentation only — the query still returns one flat, sorted
+  /// list. Without it a year of photographs is an undifferentiated wall, and
+  /// the one thing a user is scrolling for ("around when was that?") is the one
+  /// thing the screen does not say.
+  List<Widget> _monthSlivers(BuildContext context, List<MediaItem> items) {
+    final theme = Theme.of(context);
+    final slivers = <Widget>[];
+
+    var start = 0;
+    while (start < items.length) {
+      var end = start + 1;
+      while (end < items.length &&
+          _sameMonth(items[end].capturedAt, items[start].capturedAt)) {
+        end++;
+      }
+      final group = items.sublist(start, end);
+      final isLast = end >= items.length;
+
+      slivers.add(
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16, start == 0 ? 16 : 24, 16, 10),
+            child: Text(
+              mediaMonthFormat.format(group.first.capturedAt).toUpperCase(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ),
+        ),
+      );
+      slivers.add(
+        SliverPadding(
+          // Edge to edge, 2dp gutters: the photographs are the content, and
+          // every pixel of chrome between them is a pixel not spent on them.
+          // The trailing pad on the last group clears the FAB.
+          padding: EdgeInsets.only(bottom: isLast ? 96 : 0),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 2,
+              crossAxisSpacing: 2,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, i) {
+                final item = group[i];
+                return MediaTile(
+                  key: Key('media-tile-${item.id}'),
+                  item: item,
+                  onTap: () => widget.onOpen?.call(context, item),
+                );
+              },
+              childCount: group.length,
+            ),
+          ),
+        ),
+      );
+      start = end;
+    }
+    return slivers;
+  }
+
+  static bool _sameMonth(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month;
+}
+
+/// The standing disclosure about where these files live.
+///
+/// Deliberately says how they are held on the server as well as that they are
+/// uploaded: the first half alone reads as reassurance. The wording avoids the
+/// words `media_guardrails_test.dart` bans from this directory — that scan is a
+/// blunt substring check and cannot tell a denial from a claim — while saying
+/// the same thing the sign-up disclosure says.
+class _StorageNotice extends StatelessWidget {
+  const _StorageNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      color: theme.colorScheme.surfaceContainerHighest,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Photos are uploaded to your account and stored as plain files '
+              'on our servers — the people who run LunaTrack can open them.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The inline record of a failed upload.
+///
+/// A card rather than a toast because there is nothing else left to see: this
+/// feature keeps no pending row, so if the message goes away, so does the only
+/// evidence that a file the user picked is not here.
+class _UploadFailureCard extends StatelessWidget {
+  const _UploadFailureCard({required this.count, this.onRetry});
+
+  final int count;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          // Not the error container. Nothing here is an emergency, and red on
+          // a photograph of your own body is a tone this app does not take.
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.cloud_off_outlined,
+                    size: 20, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    count == 1
+                        ? "That didn't upload"
+                        : "$count didn't upload",
+                    style: theme.textTheme.titleMedium,
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'LunaTrack only saves photos once the upload finishes, so '
+              'nothing was kept.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              // Outlined, so it can sit on its own line without demanding the
+              // infinite width `filledButtonTheme` gives a FilledButton.
+              child: OutlinedButton(
+                onPressed: onRetry,
+                child: const Text('Try again'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.canAdd});
+  const _EmptyState({required this.canAdd, this.onAdd});
 
   final bool canAdd;
+  final VoidCallback? onAdd;
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(
-            canAdd
-                // Says where they go, because that is the one thing about this
-                // feature a user cannot see for themselves. No claim about
-                // encryption or privacy — the bucket is neither.
-                ? 'Photos and videos you add are stored in your account, so '
-                    'they show up on your other devices.'
-                : 'Photos and videos are stored in your account. This device '
-                    "can't reach it right now.",
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(32, 24, 32, 48),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.photo_library_outlined,
+              size: 44,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 20),
+            Text('Nothing here yet', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              canAdd
+                  // Says where they go, because that is the one thing about
+                  // this feature a user cannot see for themselves. No claim
+                  // about how they are held — the strip above covers that, and
+                  // the bucket earns no reassurance.
+                  ? 'Photos and videos you add are stored in your account, so '
+                      'they show up on your other devices.'
+                  : 'Photos and videos are stored in your account. This device '
+                      "can't reach it right now.",
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (canAdd) ...[
+              const SizedBox(height: 28),
+              // Full width in a Column — the app's CTA convention, and the one
+              // shape `filledButtonTheme`'s infinite minimum width is built
+              // for. Never put one of these in a Row.
+              FilledButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add_a_photo_outlined),
+                label: const Text('Add a photo or video'),
+              ),
+            ],
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
-/// The date header format the viewer and any future grouping share.
-final mediaDateFormat = DateFormat.yMMMEd();
+/// The date format the viewer's title uses.
+final mediaDateFormat = DateFormat.yMMMMd();
+
+/// The timeline's month group headers.
+final mediaMonthFormat = DateFormat.yMMMM();

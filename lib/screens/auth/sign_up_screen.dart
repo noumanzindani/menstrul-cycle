@@ -16,6 +16,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
+  bool _showPassword = false;
 
   @override
   void dispose() {
@@ -54,65 +55,145 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Create account')),
+      // Bare back arrow: the heading below carries the title, so an app-bar
+      // copy of it would be the same words twice on a 360dp-wide screen.
+      appBar: AppBar(),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
-                  key: const Key('signUp.email'),
-                  controller: _email,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  validator: (v) {
-                    final value = v?.trim() ?? '';
-                    if (value.isEmpty) return 'Enter your email';
-                    if (!value.contains('@')) return 'Enter a valid email';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  key: const Key('signUp.password'),
-                  controller: _password,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                  validator: (v) => (v == null || v.length < 8)
-                      ? 'Use at least 8 characters'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  key: const Key('signUp.confirm'),
-                  controller: _confirm,
-                  obscureText: true,
-                  decoration:
-                      const InputDecoration(labelText: 'Confirm password'),
-                  validator: (v) => (v != _password.text)
-                      ? 'Passwords do not match'
-                      : null,
-                ),
-                if (auth.lastError != null) ...[
-                  const SizedBox(height: 12),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   Text(
-                    messageForAuthError(auth.lastError!),
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error),
+                    'Create your account',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  TextFormField(
+                    key: const Key('signUp.email'),
+                    controller: _email,
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) {
+                      final value = v?.trim() ?? '';
+                      if (value.isEmpty) return 'Enter your email';
+                      if (!value.contains('@')) return 'Enter a valid email';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    key: const Key('signUp.password'),
+                    controller: _password,
+                    obscureText: !_showPassword,
+                    autofillHints: const [AutofillHints.newPassword],
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      helperText: 'At least 8 characters',
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        onPressed: () =>
+                            setState(() => _showPassword = !_showPassword),
+                        icon: Icon(_showPassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined),
+                        tooltip:
+                            _showPassword ? 'Hide password' : 'Show password',
+                      ),
+                    ),
+                    validator: (v) => (v == null || v.length < 8)
+                        ? 'Use at least 8 characters'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    key: const Key('signUp.confirm'),
+                    controller: _confirm,
+                    obscureText: !_showPassword,
+                    autofillHints: const [AutofillHints.newPassword],
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm password',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) => (v != _password.text)
+                        ? 'Passwords do not match'
+                        : null,
+                  ),
+                  if (auth.lastError != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      messageForAuthError(auth.lastError!),
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: scheme.error),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    key: const Key('signUp.submit'),
+                    onPressed: auth.busy ? null : _submit,
+                    child: const Text('Create account'),
+                  ),
+                  const SizedBox(height: 24),
+                  // The plaintext-sync disclosure, in the same rounded-strip
+                  // language as `DisclaimerBanner` and
+                  // `CloudSyncUnavailableBanner` rather than a fourth visual
+                  // idiom for fine print.
+                  //
+                  // It is on THIS screen because this is the moment the
+                  // decision is made, and every clause of it is a fact about
+                  // what the code does today: `SyncService` mirrors daily logs
+                  // and preference settings to `users/{uid}` unencrypted, and
+                  // uploaded media bytes sit unencrypted in Cloud Storage. Do
+                  // not soften it to "securely stored" — see `PRIVACY_POLICY.md`
+                  // and CLAUDE.md's copy guardrail.
+                  Container(
+                    key: const Key('signUp.syncDisclosure'),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.cloud_outlined,
+                            size: 18, color: scheme.onSurfaceVariant),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Your daily logs and settings sync to our server '
+                            'so they reach your other devices. They are '
+                            'encrypted in transit and stored in plain text — '
+                            'which means we can read them. Photos you add are '
+                            'stored unencrypted.',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
-                const SizedBox(height: 24),
-                FilledButton(
-                  key: const Key('signUp.submit'),
-                  onPressed: auth.busy ? null : _submit,
-                  child: const Text('Create account'),
                 ),
-              ],
+              ),
             ),
           ),
         ),

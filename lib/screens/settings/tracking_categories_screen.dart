@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../common/l10n.dart';
 import '../../common/tracking_categories.dart';
 import '../../providers/settings_provider.dart';
+import 'settings_group.dart';
 
 /// Lets the user choose which sections appear in the day editor. Hiding a
 /// category is a display choice only — logged data is never deleted, which is
@@ -21,22 +22,26 @@ class TrackingCategoriesScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.settingsTrackingTitle)),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 24),
         children: [
+          // Above the switches, not below them: it is the promise that hiding
+          // a section does not delete anything, and it has to be readable
+          // BEFORE the user turns one off.
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Text(
-              context.l10n.settingsTrackingNote,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+            child: SettingsFinePrint(context.l10n.settingsTrackingNote),
           ),
-          for (final c in kTrackingCategories)
-            SwitchListTile(
-              title: Text(c.label),
-              value: enabled.contains(c.id),
-              onChanged: (v) => settings.setCategoryEnabled(c.id, v),
-            ),
+          SettingsGroup(
+            title: 'Day editor sections',
+            children: [
+              for (final c in kTrackingCategories)
+                SwitchListTile(
+                  title: Text(c.label),
+                  value: enabled.contains(c.id),
+                  onChanged: (v) => settings.setCategoryEnabled(c.id, v),
+                ),
+            ],
+          ),
         ],
       ),
     );

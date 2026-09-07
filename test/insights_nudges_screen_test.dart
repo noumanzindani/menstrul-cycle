@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:menstrul_track/common/catalog.dart';
 import 'package:menstrul_track/data/daily_log_repository.dart';
 import 'package:menstrul_track/db/database.dart';
+import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/providers/log_provider.dart';
 import 'package:menstrul_track/screens/insights/insights_screen.dart';
@@ -28,7 +29,11 @@ void main() {
 
   Widget wrap() => ChangeNotifierProvider<LogProvider>.value(
         value: logs,
-        child: const MaterialApp(home: InsightsScreen()),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const InsightsScreen(),
+        ),
       );
 
   testWidgets('shows the endometriosis nudge for recurrent severe pain',

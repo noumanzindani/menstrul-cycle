@@ -107,6 +107,15 @@ void main() {
     // further, as AccountSection (task 11) now does.
     await tester.dragUntilVisible(find.text('Restore from a backup'),
         find.byType(Scrollable).first, const Offset(0, -300));
+    // ...and then ensureVisible, because dragUntilVisible alone is not enough
+    // here. It stops as soon as its finder MATCHES, and this list is short
+    // enough that every tile is built on the first frame, so the finder
+    // matches immediately and it scrolls nothing at all. That was harmless
+    // while the row happened to sit inside the 800x600 test surface; the
+    // AccountSection group header pushed it to y=621 and the tap started
+    // missing. ensureVisible is the call that actually moves the viewport.
+    await tester.ensureVisible(find.text('Back up my data'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Back up my data'));
     await tester.pumpAndSettle();
 
@@ -127,6 +136,12 @@ void main() {
     await pump(tester);
     await tester.dragUntilVisible(find.text('Restore from a backup'),
         find.byType(Scrollable).first, const Offset(0, -300));
+    // dragUntilVisible stops on the frame the target first INTERSECTS the
+    // viewport, which since the grouped-card restyle leaves this last row
+    // straddling the bottom edge — its centre, and so tap()'s hit test, falls
+    // outside. ensureVisible finishes the scroll before tapping.
+    await tester.ensureVisible(find.text('Restore from a backup'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Restore from a backup'));
     await tester.pumpAndSettle();
 

@@ -12,6 +12,7 @@ import '../../providers/settings_provider.dart';
 import '../../services/device_id.dart';
 import '../../services/firebase_availability.dart';
 import '../../services/firestore_ref.dart';
+import '../../services/media_analysis.dart';
 import '../../services/media_analysis_service.dart';
 import '../../services/media_analyzer.dart';
 import '../../services/media_blob_store.dart';
@@ -121,6 +122,21 @@ Route<void> mediaTimelineRoute(BuildContext context) {
                       ),
               needsConsent: () => !analysisService.consented,
               endConversation: () => analysisService.endConversation(item.id),
+              // Display only, and computed from the SAME pure helper the
+              // service counts with — a second reading of "how many are left"
+              // is a second place for it to be wrong. Read lazily, so it is
+              // current every time the sheet rebuilds.
+              messagesLeft: !canAnalyze
+                  ? null
+                  : () {
+                      final used = analysisCountForDay(
+                        storedDay: settings.analysisCountDay,
+                        storedCount: settings.analysisCountToday,
+                        now: DateTime.now(),
+                      );
+                      final left = kMaxAnalysesPerDay - used;
+                      return left < 0 ? 0 : left;
+                    },
               requestConsent: (context) async {
                 final allowed = await showAnalysisConsentSheet(context);
                 if (allowed != true) return false;

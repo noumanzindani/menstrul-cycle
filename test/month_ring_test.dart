@@ -71,7 +71,10 @@ void main() {
       (tester) async {
     await pump(tester, data(PredictionConfidence.medium));
     expect(find.byType(MonthRing), findsOneWidget);
-    expect(find.text('15'), findsOneWidget); // today's date, centre
+    // The centre reads date / cycle day / phase, in that order: the ring is
+    // indexed by DAY OF MONTH, "Day 14" is the CYCLE day, and the label line is
+    // what keeps those two numbers from being read as one.
+    expect(find.text('July 15'), findsOneWidget); // today's date, centre
     expect(find.textContaining('Day 14'), findsOneWidget);
   });
 

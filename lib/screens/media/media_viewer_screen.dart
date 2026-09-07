@@ -45,6 +45,7 @@ class MediaViewerScreen extends StatefulWidget {
     this.needsConsent,
     this.requestConsent,
     this.endConversation,
+    this.messagesLeft,
   });
 
   final MediaItem item;
@@ -75,6 +76,11 @@ class MediaViewerScreen extends StatefulWidget {
   /// starts over rather than silently resuming a transcript the user can no
   /// longer see.
   final VoidCallback? endConversation;
+
+  /// How many messages today's cap still allows, read at build time. Null hides
+  /// the counter — a display of a budget nobody supplied would be a guess, and
+  /// this one costs real money to be wrong about.
+  final int Function()? messagesLeft;
 
   @override
   State<MediaViewerScreen> createState() => _MediaViewerScreenState();
@@ -135,10 +141,12 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
     }
   }
 
-  /// Whether the Describe action should be rendered at all.
+  /// Whether the Describe action can actually run.
   ///
   /// Requires a loaded file: the bytes ARE the request, so an action offered
   /// before the download finishes would either fail or silently re-download.
+  /// The control itself appears one state earlier (see [_showDescribe]) and is
+  /// disabled until this holds.
   bool get _canDescribe =>
       widget.analyze != null && !_isVideo && _file != null && _error == null;
 
@@ -180,6 +188,12 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
     await showAnalysisResultSheet(
       context,
       initialText: prose,
+      // The sheet sits over the photo but does not show it: at 80% height the
+      // top-left thumbnail is the only thing that says which picture the
+      // answer is about.
+      title: mediaDateFormat.format(widget.item.capturedAt),
+      thumbnail: widget.item.thumbnail,
+      messagesLeft: widget.messagesLeft,
       onClosed: widget.endConversation,
       onAsk: (question) async {
         final next = await analyze(widget.item, file, question);
@@ -210,34 +224,75 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Whether the Describe control belongs on screen at all.
+  ///
+  /// Wider than [_canDescribe] by exactly one state — the download — so the
+  /// action does not pop into existence a second after the photo does. When the
+  /// feature is absent (no key, or a video) there is no bar at all: hidden, not
+  /// disabled, the same rule the media entry point itself follows.
+  bool get _showDescribe =>
+      widget.analyze != null && !_isVideo && _error == null;
+
   @override
   Widget build(BuildContext context) {
+    // Full-bleed black in BOTH themes, and the one place in this app that is
+    // right: a photograph is judged against its surround, and a light frame
+    // tints everything inside it. The chrome over it is translucent so the
+    // image keeps the whole screen.
+    const scrim = Color(0xCC000000);
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
+      extendBody: true,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: scrim,
         foregroundColor: Colors.white,
-        title: Text(mediaDateFormat.format(widget.item.capturedAt)),
-        actions: [
-          if (_canDescribe)
-            IconButton(
-              key: const Key('media-describe'),
-              tooltip: 'Describe',
-              icon: _analyzing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.auto_awesome_outlined),
-              onPressed: _analyzing ? null : _describe,
-            ),
-        ],
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(
+          mediaDateFormat.format(widget.item.capturedAt),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+        ),
       ),
       body: Center(child: _body()),
+      bottomNavigationBar: !_showDescribe
+          ? null
+          : Container(
+              color: scrim,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: OutlinedButton.icon(
+                    key: const Key('media-describe'),
+                    // Labelled, not a lone sparkle in the app bar. This action
+                    // sends the photograph to a third party; an icon nobody can
+                    // name is not the affordance for that.
+                    onPressed: _analyzing || !_canDescribe ? null : _describe,
+                    icon: _analyzing
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.auto_awesome_outlined),
+                    label: const Text('Describe'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      foregroundColor: Colors.white,
+                      disabledForegroundColor: Colors.white38,
+                      side: const BorderSide(color: Colors.white70),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
     );
   }
 

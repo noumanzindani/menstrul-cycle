@@ -82,6 +82,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.text('Today'), findsOneWidget);
+    // Twice: the nav destination and Home's own app-bar title, which is named
+    // for the tab ("Today") like every other destination.
+    expect(find.text('Today'), findsNWidgets(2));
   });
 }

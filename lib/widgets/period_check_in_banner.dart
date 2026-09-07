@@ -35,28 +35,61 @@ class PeriodCheckInBanner extends StatelessWidget {
         : 'This period has run to its usual length.';
     final action = started ? "Didn't start" : 'Mark ended here';
 
-    return Container(
-      width: double.infinity,
-      color: scheme.secondaryContainer,
-      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-      child: Row(
-        children: [
-          Icon(Icons.event_note_outlined,
-              size: 20, color: scheme.onSecondaryContainer),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSecondaryContainer,
+    final text = Theme.of(context).textTheme;
+
+    // An inset card, not a full-bleed strip: it sits above a form whose fields
+    // are inset by the same 16dp, and a bled edge reads as a system warning
+    // bar. This is a question, not an alert.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: scheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.event_note_outlined,
+                    size: 20, color: scheme.onSecondaryContainer),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: text.bodyMedium?.copyWith(
+                      color: scheme.onSecondaryContainer,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
+                ),
+              ],
             ),
-          ),
-          TextButton(
-            onPressed: () => _mark(context),
-            child: Text(action),
-          ),
-        ],
+            const SizedBox(height: 8),
+            // Chip-weight, never a filled button: `filledButtonTheme` demands
+            // infinite width, and this express lane must not outrank the form's
+            // own Save below it.
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: OutlinedButton(
+                onPressed: () => _mark(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: scheme.onSecondaryContainer,
+                  side: BorderSide(
+                      color:
+                          scheme.onSecondaryContainer.withValues(alpha: 0.28)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(action),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

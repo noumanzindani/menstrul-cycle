@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -97,47 +99,53 @@ class _CalendarScreenState extends State<CalendarScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Log today'),
       ),
+      // The disclaimer and the ad live in the Scaffold's bottom slot rather
+      // than at the foot of the body: that is what makes the Scaffold lift the
+      // extended FAB clear of them. Floating over the body, the FAB sat on top
+      // of the right-hand half of the guardrail banner and of the ad.
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Persistent non-contraception notice — always visible on the
+          // calendar because it overlays a fertile-window / ovulation estimate
+          // (council guardrail; matches Home and Forecast). Kept OUT of the
+          // scrolling list so it can't be lazy-culled below the
+          // viewport-filling month grid.
+          const Padding(
+            padding: EdgeInsets.fromLTRB(_kGridGutter, 0, _kGridGutter, 8),
+            child: DisclaimerBanner(compact: true),
+          ),
+          // Ads must never co-render with the entry sheet (council rule).
+          if (_selectedDay == null)
+            const SafeArea(top: false, child: AdBanner()),
+        ],
+      ),
       body: Consumer<LogProvider>(
         builder: (context, provider, _) {
           if (provider.loading) {
             return const Center(child: CircularProgressIndicator());
           }
-          return Column(
+          return ListView(
+            // Room at the foot of the scroll for the extended FAB, which
+            // otherwise floats over the legend's last row.
+            padding: const EdgeInsets.only(top: 8, bottom: 72),
             children: [
-              Expanded(
-                child: ListView(
-                  children: [
-                    _MonthHeader(
-                      month: _month,
-                      onPrev: () => _shiftMonth(-1),
-                      onNext: () => _shiftMonth(1),
-                    ),
-                    const _WeekdayRow(),
-                    _MonthGrid(
-                      month: _month,
-                      today: today,
-                      phases: phases,
-                      overlay: overlay,
-                      showOvulation: showOvulation,
-                      logFor: provider.logForDate,
-                      onTapDay: _selectDay,
-                    ),
-                    _Legend(showOvulation: showOvulation),
-                  ],
-                ),
+              _MonthHeader(
+                month: _month,
+                onPrev: () => _shiftMonth(-1),
+                onNext: () => _shiftMonth(1),
               ),
-              // Persistent non-contraception notice — always visible on the
-              // calendar because it overlays a fertile-window / ovulation
-              // estimate (council guardrail; matches Home and Forecast). Kept
-              // OUT of the scrolling ListView so it can't be lazy-culled below
-              // the viewport-filling month grid.
-              const Padding(
-                padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
-                child: DisclaimerBanner(compact: true),
+              const _WeekdayRow(),
+              _MonthGrid(
+                month: _month,
+                today: today,
+                phases: phases,
+                overlay: overlay,
+                showOvulation: showOvulation,
+                logFor: provider.logForDate,
+                onTapDay: _selectDay,
               ),
-              // Ads must never co-render with the entry sheet (council rule).
-              if (_selectedDay == null)
-                const SafeArea(top: false, child: AdBanner()),
+              _Legend(showOvulation: showOvulation),
             ],
           );
         },
@@ -181,19 +189,36 @@ class _MonthHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      // 8 rather than 16 so the icon buttons' own 48dp touch targets end up
+      // optically flush with the 16dp grid gutter.
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(icon: const Icon(Icons.chevron_left), onPressed: onPrev),
-          Text(
-            DateFormat.yMMMM().format(month),
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.w600),
+          IconButton(
+            tooltip: 'Previous month',
+            icon: const Icon(Icons.chevron_left),
+            onPressed: onPrev,
           ),
-          IconButton(icon: const Icon(Icons.chevron_right), onPressed: onNext),
+          // Flexible: a long localized month name at a large text scale must
+          // shrink the label, never push a chevron off the row.
+          Expanded(
+            child: Text(
+              DateFormat.yMMMM().format(month),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.3,
+                  ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Next month',
+            icon: const Icon(Icons.chevron_right),
+            onPressed: onNext,
+          ),
         ],
       ),
     );
@@ -206,11 +231,14 @@ class _WeekdayRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const labels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    final style = Theme.of(context).textTheme.labelMedium?.copyWith(
+    final style = Theme.of(context).textTheme.labelSmall?.copyWith(
           color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.4,
         );
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      // Same gutter as _MonthGrid so the initials sit over their columns.
+      padding: const EdgeInsets.fromLTRB(_kGridGutter, 0, _kGridGutter, 8),
       child: Row(
         children: [
           for (final l in labels)
@@ -220,6 +248,10 @@ class _WeekdayRow extends StatelessWidget {
     );
   }
 }
+
+/// Horizontal inset shared by the weekday initials, the day grid and the
+/// legend, so all three line up on the same columns.
+const double _kGridGutter = 16;
 
 class _MonthGrid extends StatelessWidget {
   const _MonthGrid({
@@ -247,12 +279,15 @@ class _MonthGrid extends StatelessWidget {
     final cellCount = leadingBlanks + daysInMonth;
 
     return GridView.builder(
-      padding: const EdgeInsets.all(6),
+      // No cross-axis spacing: each cell insets itself instead, so a column is
+      // exactly 1/7 of the gutter-inset width and the weekday initials above
+      // land on the same centres.
+      padding: const EdgeInsets.symmetric(horizontal: _kGridGutter),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 7,
-        childAspectRatio: 0.82,
+        childAspectRatio: 1,
       ),
       itemCount: cellCount,
       itemBuilder: (context, index) {
@@ -310,19 +345,22 @@ class _DayCell extends StatelessWidget {
 
     Color fill = Colors.transparent;
     Color? borderColor;
+    // A dashed lavender ring is the app-wide "this is an estimate" mark: the
+    // design system reserves `predicted` for every estimated state, so a
+    // forecast period must not borrow the rose a LOGGED period owns.
+    bool dashedRing = false;
     if (bleeding) {
       fill = flow.color(phases);
     } else if (predictedPeriod) {
-      fill = phases.menstrual.withValues(alpha: 0.16);
-      borderColor = phases.menstrual.withValues(alpha: 0.6);
+      borderColor = phases.predicted;
+      dashedRing = true;
     } else if (fertile) {
-      // The estimated ovulation day sits inside the fertile window but gets a
-      // deeper fill and a solid ring so it reads as distinct (still an estimate).
-      fill = phases.fertile.withValues(alpha: ovulation ? 0.8 : 0.55);
-      if (ovulation) borderColor = phases.fertile;
+      // A single flat wash for the whole window; the estimated ovulation day is
+      // distinguished by its own marker dot below, not by a deeper fill — the
+      // band must never read as a scale.
+      fill = phases.fertile;
     } else if (pms) {
-      fill = phases.luteal.withValues(alpha: 0.28);
-      borderColor = phases.luteal.withValues(alpha: 0.55);
+      fill = phases.luteal.withValues(alpha: 0.22);
     }
 
     final hasOtherData = log != null &&
@@ -336,43 +374,108 @@ class _DayCell extends StatelessWidget {
     final textColor = isFuture && !predictedPeriod && !fertile && !pms
         ? scheme.onSurface.withValues(alpha: 0.35)
         : onDark
+            // Contrast against a saturated fill, not a theme surface — the same
+            // in light and dark.
             ? Colors.white
             : scheme.onSurface;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: fill,
-          shape: BoxShape.circle,
-          border: isToday
-              ? Border.all(color: scheme.primary, width: 2)
-              : borderColor != null
-                  ? Border.all(color: borderColor, width: 1.4)
-                  : null,
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Text('${date.day}', style: TextStyle(color: textColor)),
-            if (hasOtherData)
-              Positioned(
-                bottom: 6,
-                child: Container(
-                  width: 5,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: scheme.primary,
-                    shape: BoxShape.circle,
-                  ),
+    Widget cell = DecoratedBox(
+      decoration: BoxDecoration(
+        color: fill,
+        shape: BoxShape.circle,
+        border: isToday
+            ? Border.all(color: scheme.primary, width: 2)
+            : (borderColor != null && !dashedRing)
+                ? Border.all(color: borderColor, width: 1.4)
+                : null,
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Text(
+            '${date.day}',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: textColor,
+                  fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
                 ),
+          ),
+          if (ovulation || hasOtherData)
+            Positioned(
+              bottom: 5,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Estimated ovulation: a marker, never a number or a score.
+                  if (ovulation) _marker(phases.ovulatory, 6),
+                  if (ovulation && hasOtherData) const SizedBox(width: 3),
+                  if (hasOtherData)
+                    _marker(
+                      onDark
+                          ? Colors.white.withValues(alpha: 0.85)
+                          : scheme.onSurface.withValues(alpha: 0.45),
+                      4,
+                    ),
+                ],
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
+
+    if (dashedRing && !isToday) {
+      cell = CustomPaint(
+        foregroundPainter: _DashedCirclePainter(color: borderColor!),
+        child: cell,
+      );
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      // Transparent cells still need to swallow the tap.
+      behavior: HitTestBehavior.opaque,
+      child: Padding(padding: const EdgeInsets.all(3), child: cell),
+    );
   }
+
+  static Widget _marker(Color color, double size) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
+}
+
+/// Draws the dashed "estimate" ring used by predicted-period days and by the
+/// legend swatch that explains them.
+class _DashedCirclePainter extends CustomPainter {
+  const _DashedCirclePainter({required this.color, this.strokeWidth = 1.4});
+
+  final Color color;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final radius = (math.min(size.width, size.height) - strokeWidth) / 2;
+    if (radius <= 0) return;
+    final rect = Rect.fromCircle(
+      center: Offset(size.width / 2, size.height / 2),
+      radius: radius,
+    );
+    // ~3dp dash + ~3dp gap, rounded to a whole number of repeats so the
+    // pattern closes cleanly instead of leaving a seam.
+    final dashes = math.max(8, (math.pi * radius / 3).round());
+    final step = 2 * math.pi / dashes;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    for (var i = 0; i < dashes; i++) {
+      canvas.drawArc(rect, i * step, step * 0.55, false, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedCirclePainter old) =>
+      old.color != color || old.strokeWidth != strokeWidth;
 }
 
 class _Legend extends StatelessWidget {
@@ -381,34 +484,37 @@ class _Legend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final phases = Theme.of(context).extension<PhaseColors>()!;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+      padding: const EdgeInsets.fromLTRB(_kGridGutter, 20, _kGridGutter, 12),
       child: Wrap(
         alignment: WrapAlignment.center,
-        spacing: 16,
-        runSpacing: 4,
+        spacing: 18,
+        runSpacing: 10,
         children: [
           _LegendItem(color: phases.menstrual, label: 'Period'),
+          // Dashed lavender: the mark every estimated day on the grid carries.
           _LegendItem(
-            color: phases.menstrual.withValues(alpha: 0.16),
-            border: phases.menstrual.withValues(alpha: 0.6),
+            color: Colors.transparent,
+            dashedBorder: phases.predicted,
             label: 'Predicted',
           ),
-          _LegendItem(
-            color: phases.fertile.withValues(alpha: 0.55),
-            label: 'Fertile',
-          ),
+          _LegendItem(color: phases.fertile, label: 'Fertile'),
           if (showOvulation)
             _LegendItem(
-              color: phases.fertile.withValues(alpha: 0.8),
-              border: phases.fertile,
+              color: phases.ovulatory,
+              size: 6,
               label: 'Ovulation (est.)',
             ),
           _LegendItem(
-            color: phases.luteal.withValues(alpha: 0.28),
-            border: phases.luteal.withValues(alpha: 0.55),
+            color: phases.luteal.withValues(alpha: 0.22),
             label: 'PMS (est.)',
+          ),
+          _LegendItem(
+            color: scheme.onSurface.withValues(alpha: 0.45),
+            size: 4,
+            label: 'Logged',
           ),
         ],
       ),
@@ -417,27 +523,44 @@ class _Legend extends StatelessWidget {
 }
 
 class _LegendItem extends StatelessWidget {
-  const _LegendItem({required this.color, required this.label, this.border});
+  const _LegendItem({
+    required this.color,
+    required this.label,
+    this.dashedBorder,
+    this.size = 12,
+  });
+
   final Color color;
-  final Color? border;
+  final Color? dashedBorder;
+  final double size;
   final String label;
 
   @override
   Widget build(BuildContext context) {
+    Widget swatch = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+    if (dashedBorder != null) {
+      swatch = CustomPaint(
+        foregroundPainter:
+            _DashedCirclePainter(color: dashedBorder!, strokeWidth: 1.2),
+        child: swatch,
+      );
+    }
+    // Keep every swatch on the same 12dp optical column, whatever its size.
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            border: border != null ? Border.all(color: border!) : null,
-          ),
-        ),
+        SizedBox(width: 12, height: 12, child: Center(child: swatch)),
         const SizedBox(width: 6),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
       ],
     );
   }

@@ -9,6 +9,14 @@ import 'package:menstrul_track/screens/insights/cycle_overview_screen.dart';
 /// place, from a pre-computed [CycleOverview].
 void main() {
   testWidgets('shows each category section for a cycle', (tester) async {
+    // Phone-width but tall enough that the whole list is laid out. The screen
+    // is a lazy `ListView`: at the default 800x600 harness surface the sections
+    // below the fold are never BUILT, so `find.text` reports them missing even
+    // though the widget renders them — which is not what this test is about.
+    tester.view.physicalSize = const Size(1080, 6000);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+
     final overview = CycleOverview(
       start: DateTime(2026, 1, 1),
       periodEnd: DateTime(2026, 1, 4),

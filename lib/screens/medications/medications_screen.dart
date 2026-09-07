@@ -24,8 +24,13 @@ class MedicationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<MedicationProvider>();
+    final scheme = Theme.of(context).colorScheme;
+    final items = provider.items;
     return Scaffold(
-      appBar: AppBar(title: const Text('Medications & birth control')),
+      // Short title: the entry point in Settings carries the fuller
+      // "Medications & birth control" label, and that string ellipsizes in a
+      // 360dp app bar next to the back arrow.
+      appBar: AppBar(title: const Text('Medications')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, null),
         icon: const Icon(Icons.add),
@@ -33,23 +38,55 @@ class MedicationsScreen extends StatelessWidget {
       ),
       body: provider.loading
           ? const Center(child: CircularProgressIndicator())
-          : provider.items.isEmpty
+          : items.isEmpty
               ? const _EmptyState()
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
                   children: [
-                    for (final med in provider.items)
-                      _MedicationCard(
-                        med: med,
-                        onTap: () => _openEditor(context, med),
-                        onToggle: (on) => provider.update(
-                          med,
-                          name: med.name,
-                          type: med.type,
-                          schedule: MedicationSchedule.decode(med.schedule),
-                          enabled: on,
-                        ),
+                    // One grouped card rather than a card per row: the list is
+                    // short and homogeneous, so a stack of separate cards reads
+                    // as more separation than there is.
+                    Card(
+                      margin: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < items.length; i++) ...[
+                            if (i > 0)
+                              Divider(
+                                height: 1,
+                                thickness: 1,
+                                indent: 68,
+                                endIndent: 12,
+                                color: scheme.outlineVariant
+                                    .withValues(alpha: 0.5),
+                              ),
+                            _MedicationRow(
+                              med: items[i],
+                              onTap: () => _openEditor(context, items[i]),
+                              onToggle: (on) => provider.update(
+                                items[i],
+                                name: items[i].name,
+                                type: items[i].type,
+                                schedule:
+                                    MedicationSchedule.decode(items[i].schedule),
+                                enabled: on,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        'LunaTrack only tracks what you tell it and reminds you '
+                        '— it gives no dosing advice and checks nothing.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ),
                   ],
                 ),
     );
@@ -62,23 +99,32 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.medication_outlined,
-                size: 56, color: scheme.onSurfaceVariant),
-            const SizedBox(height: 12),
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.medication_outlined,
+                  size: 34, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 16),
             Text('No medications yet',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 6),
+                style: text.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
             Text(
-              'Track a pill, patch, injection, or supplement — and set a daily '
-              'reminder so you never miss one.',
+              'Add the ones you want to tick off each day — a pill, patch, '
+              'injection or supplement. Each can carry a daily reminder.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: scheme.onSurfaceVariant),
+              style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -87,8 +133,11 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _MedicationCard extends StatelessWidget {
-  const _MedicationCard({
+/// One row inside the grouped list: a soft icon tile, the name, what it is,
+/// and — only when one exists — the reminder time on its own quieter line.
+/// The switch pauses the reminder without deleting the medication.
+class _MedicationRow extends StatelessWidget {
+  const _MedicationRow({
     required this.med,
     required this.onTap,
     required this.onToggle,
@@ -100,20 +149,67 @@ class _MedicationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     final schedule = MedicationSchedule.decode(med.schedule);
-    final parts = <String>[medicationTypeLabel(med.type)];
-    if (schedule != null && schedule.remind) {
-      parts.add(
-        'Reminder ${TimeOfDay(hour: schedule.hour, minute: schedule.minute).format(context)}',
-      );
-    }
-    return Card(
-      child: ListTile(
-        leading: const Icon(Icons.medication_outlined),
-        title: Text(med.name),
-        subtitle: Text(parts.join(' · ')),
-        onTap: onTap,
-        trailing: Switch(value: med.enabled, onChanged: onToggle),
+    final reminder = schedule != null && schedule.remind
+        ? 'Reminder ${TimeOfDay(hour: schedule.hour, minute: schedule.minute).format(context)}'
+        : null;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.medication_outlined,
+                  size: 22, color: scheme.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    med.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    medicationTypeLabel(med.type),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodyMedium
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                  if (reminder != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      reminder,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Switch(value: med.enabled, onChanged: onToggle),
+          ],
+        ),
       ),
     );
   }
@@ -228,6 +324,7 @@ class _MedicationEditorState extends State<_MedicationEditor> {
   @override
   Widget build(BuildContext context) {
     final maxHeight = MediaQuery.of(context).size.height * 0.9;
+    final scheme = Theme.of(context).colorScheme;
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxHeight),
       child: Scaffold(
@@ -249,43 +346,103 @@ class _MedicationEditorState extends State<_MedicationEditor> {
             TextField(
               controller: _name,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Name',
                 hintText: 'e.g. Combined pill, Iron, Vitamin D',
-                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: scheme.surfaceContainerHighest,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: scheme.primary, width: 2),
+                ),
               ),
             ),
-            const SizedBox(height: 20),
-            Text('Type', style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            const _SectionLabel('Type'),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 8,
-              runSpacing: 4,
+              runSpacing: 8,
               children: [
                 for (final t in kMedicationTypes)
                   ChoiceChip(
                     label: Text(t.label),
                     selected: _type == t.key,
+                    showCheckmark: false,
                     onSelected: (sel) =>
                         setState(() => _type = sel ? t.key : null),
                   ),
               ],
             ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Daily reminder'),
-              subtitle: const Text('A notification at the same time each day'),
-              value: _remind,
-              onChanged: (v) => setState(() => _remind = v),
-            ),
-            if (_remind)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Time'),
-                trailing: Text(_time.format(context)),
-                onTap: _pickTime,
+            const SizedBox(height: 24),
+            const _SectionLabel('Reminder'),
+            const SizedBox(height: 10),
+            // Switch and time share one card, so the revealed time row reads as
+            // part of the same setting rather than a new one.
+            Material(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(20),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    title: const Text('Daily reminder'),
+                    subtitle:
+                        const Text('A notification at the same time each day'),
+                    value: _remind,
+                    onChanged: (v) => setState(() => _remind = v),
+                  ),
+                  if (_remind) ...[
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: scheme.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                    ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16),
+                      leading: const Icon(Icons.schedule_outlined),
+                      title: const Text('Time'),
+                      trailing: Text(
+                        _time.format(context),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      onTap: _pickTime,
+                    ),
+                  ],
+                ],
               ),
+            ),
+            const SizedBox(height: 12),
+            // Same honesty as the Reminders screen: a notification here is
+            // best-effort, and the app never implies otherwise.
+            Text(
+              'Reminders are best-effort. Your phone’s battery settings can '
+              'delay or drop them.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
           ],
         ),
         bottomNavigationBar: Padding(
@@ -293,6 +450,25 @@ class _MedicationEditorState extends State<_MedicationEditor> {
           child: FilledButton(onPressed: _save, child: const Text('Save')),
         ),
       ),
+    );
+  }
+}
+
+/// Small uppercase group header — the same section grammar the day log uses.
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            letterSpacing: 0.9,
+            fontWeight: FontWeight.w600,
+          ),
     );
   }
 }

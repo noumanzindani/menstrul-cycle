@@ -391,9 +391,9 @@ void main() {
     addTearDown(trigger.dispose);
     await tester.pumpWidget(wrap(trigger, settingsGate: settingsGate.future));
     auth.emit(const AppUser(uid: 'uid-1', email: 'uid-1@example.com'));
-    // Pumped rather than settled: the splash is a `CircularProgressIndicator`,
-    // which never settles. Ten frames is far more than the prompt's three local
-    // queries need to complete and push their route.
+    // Pumped rather than settled: the splash carries an indeterminate progress
+    // indicator, which never settles. Ten frames is far more than the prompt's
+    // three local queries need to complete and push their route.
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 20));
     }
@@ -402,7 +402,7 @@ void main() {
     // does not yet know app lock is on. Nothing may be raised from here — the
     // answer to "is this device locked?" is not in yet, and a prompt that asks
     // anyway is deciding the question by a race.
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byKey(const Key('appGate.splash')), findsOneWidget);
     expect(claimSheet, findsNothing);
     expect(disclosure, findsNothing);
 

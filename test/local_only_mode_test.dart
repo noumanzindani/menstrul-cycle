@@ -231,10 +231,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome to LunaTrack'), findsOneWidget);
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
+    // Onboarding is now one question per page rather than a single combined
+    // setup step, so walk it to the end instead of hard-coding how many
+    // "Continue" taps that is — the count is a layout decision, and what this
+    // proof is about is that a local-only user can finish and reach the shell.
+    for (var i = 0; i < 10 && find.text('Continue').evaluate().isNotEmpty; i++) {
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.text('Get started'));
     await tester.pumpAndSettle();
 
@@ -405,9 +409,9 @@ void main() {
     ));
     // `_FakeAuthService`'s stream has no initial event until [emit] is
     // called, so `AuthProvider.state` starts (and would stay) `unknown` --
-    // `AppGate`'s splash spinner -- without this; `pumpAndSettle` on a
-    // perpetually-animating `CircularProgressIndicator` times out rather than
-    // failing fast (confirmed while writing this test).
+    // `AppGate`'s splash -- without this; `pumpAndSettle` on the splash's
+    // perpetually-animating progress indicator times out rather than failing
+    // fast (confirmed while writing this test).
     auth.emit(null);
     await tester.pumpAndSettle();
 

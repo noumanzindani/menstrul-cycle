@@ -17,6 +17,7 @@ import '../../services/media_cache.dart';
 import '../../services/notification_service.dart';
 import '../../services/sync_trigger.dart';
 import '../auth/auth_error_text.dart';
+import 'settings_group.dart';
 
 /// Signed-in identity, cloud-sync status (reversible if the user declined to
 /// upload their pre-existing local data at sign-in — see
@@ -609,37 +610,41 @@ class _AccountSectionState extends State<AccountSection> {
     final uid = auth.user?.uid;
     _ensureFutures(trigger, uid);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ListTile(
-          leading: const Icon(Icons.person_outline),
-          title: const Text('Account'),
-          subtitle: Text(auth.user?.email ?? 'Not signed in'),
-        ),
-        if (uid == null)
-          _signOutTile(context)
-        else
-          FutureBuilder<DeletionRequest?>(
-            future: _pendingDeletion,
-            builder: (context, snapshot) {
-              final pending = snapshot.data;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (pending != null)
-                    _pendingTile(context, uid, pending)
-                  else
-                    _syncTile(context, uid),
-                  _signOutTile(context),
-                  // Hidden while a request is pending: the way out of that
-                  // state is "Cancel deletion", not requesting it again.
-                  if (pending == null) _deleteTile(context),
-                ],
-              );
-            },
-          ),
-      ],
+    // The FutureBuilder is hoisted ABOVE the group rather than nested inside
+    // one of its children, so that every row is a direct child of
+    // `SettingsGroup`. The group interleaves its hairlines between its own
+    // children, so a nested `Column` of tiles would arrive as a single child
+    // and the rules between sync / sign out / delete would silently vanish.
+    // `_pendingDeletion` is null whenever `uid` is (see `_ensureFutures`), and
+    // a null future leaves the snapshot dataless, so the signed-out branch
+    // below is reached exactly as it was before.
+    return FutureBuilder<DeletionRequest?>(
+      future: _pendingDeletion,
+      builder: (context, snapshot) {
+        final pending = snapshot.data;
+        return SettingsGroup(
+          title: 'Account',
+          children: [
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Account'),
+              subtitle: Text(auth.user?.email ?? 'Not signed in'),
+            ),
+            if (uid == null)
+              _signOutTile(context)
+            else ...[
+              if (pending != null)
+                _pendingTile(context, uid, pending)
+              else
+                _syncTile(context, uid),
+              _signOutTile(context),
+              // Hidden while a request is pending: the way out of that
+              // state is "Cancel deletion", not requesting it again.
+              if (pending == null) _deleteTile(context),
+            ],
+          ],
+        );
+      },
     );
   }
 }

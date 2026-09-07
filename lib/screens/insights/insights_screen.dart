@@ -25,10 +25,15 @@ import '../../services/pdf_report_service.dart';
 import '../../services/symptom_analysis_service.dart';
 import '../../services/weight_trend_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/disclaimer_banner.dart';
 import 'cycle_overview_screen.dart';
 
 /// Stats dashboard: summary tiles, a cycle-length trend, gentle red-flag
 /// notices, and a "share with your doctor" PDF export.
+///
+/// Every section is one filled 20dp card with a phase-coloured dot beside its
+/// name, so the screen reads as a stack of equal-weight observations rather
+/// than a wall of headings — and nothing on it is ever styled as an alarm.
 class InsightsScreen extends StatelessWidget {
   const InsightsScreen({super.key});
 
@@ -98,6 +103,11 @@ class InsightsScreen extends StatelessWidget {
       asOf: DateTime.now(),
     );
     final stats = insights.stats;
+    // The full app theme carries the phase tokens; a bare `ThemeData` (as used
+    // by several widget-test harnesses) does not, so every read is optional and
+    // falls back to the colour scheme.
+    final phases = Theme.of(context).extension<PhaseColors>();
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -117,206 +127,272 @@ class InsightsScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
                 _StatGrid(stats: stats),
-                if (stats.regularity != CycleRegularity.unknown) ...[
-                  const SizedBox(height: 12),
+                const SizedBox(height: 12),
+                if (stats.regularity != CycleRegularity.unknown)
                   _RegularityCard(
                       regularity: stats.regularity,
                       variability: stats.variability),
-                ],
-                const SizedBox(height: 20),
-                if (narratives.isNotEmpty) ...[
-                  Text('Your patterns',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Plain-language notes from your own logs — descriptions, '
-                    'not a diagnosis.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  for (final n in narratives) _NarrativeCard(narrative: n),
-                  const SizedBox(height: 20),
-                ],
-                if (insights.cycleLengthSeries.length >= 2) ...[
-                  Text('Cycle length trend',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 200,
-                    child: _CycleTrendChart(
-                        series: insights.cycleLengthSeries),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                if (flow.hasData) ...[
-                  Text('Flow intensity trend',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Average bleeding heaviness per cycle, oldest to newest. '
-                    'Self-reported — a description of your logs, not a diagnosis.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(height: 180, child: _FlowChart(analysis: flow)),
-                  const SizedBox(height: 20),
-                ],
-                if (symptoms.hasData) ...[
-                  Text('Most-logged symptoms',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(
-                    'How often each symptom appears in your logs'
-                    '${symptoms.painPeak != null ? ', with your logged pain level' : ''}. '
-                    'A count of what you logged — not a diagnosis.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  _SymptomFrequencyList(analysis: symptoms),
-                  const SizedBox(height: 20),
-                ],
-                if (cycles.isNotEmpty) ...[
-                  Text('Cycle history',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Tap a cycle to see everything you logged in it.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  _CycleHistory(
-                    cycles: cycles,
-                    logs: logProvider.logs,
-                    medNames: {
-                      for (final m
-                          in context.watch<MedicationProvider?>()?.items ??
-                              const [])
-                        m.id: m.name,
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                if (adherence.hasData) ...[
-                  Text('Medications this cycle',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Days you logged each medication in your last complete cycle.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  _MedicationAdherenceList(adherence: adherence),
-                  const SizedBox(height: 20),
-                ],
-                if (insights.flags.isNotEmpty) ...[
-                  Text('Worth noting',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  for (final f in insights.flags) _FlagCard(flag: f),
-                ],
-                if (nudges.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  Text('Patterns worth discussing',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(
-                    'General observations from your logs — not a diagnosis. '
-                    'A clinician can help you make sense of them.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  for (final n in nudges) _NudgeCard(nudge: n),
-                ],
-                if (bbtLogs.length >= 2) ...[
-                  const SizedBox(height: 20),
-                  Text('Basal body temperature',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 12),
-                  SizedBox(height: 180, child: _BbtChart(readings: bbtLogs)),
-                  if (thermalShift != null) ...[
-                    const SizedBox(height: 8),
-                    Card(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Text(
-                          'A sustained temperature rise appeared around '
-                          '${DateFormat.MMMd().format(thermalShift)}. This can '
-                          'indicate ovulation has already happened this cycle — '
-                          'it is awareness only, not a contraceptive method.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
+                if (narratives.isNotEmpty)
+                  _SectionCard(
+                    title: 'Your patterns',
+                    dotColor: phases?.predicted,
+                    subtitle: 'Plain-language notes from your own logs — '
+                        'descriptions, not a diagnosis.',
+                    child: Column(
+                      children: [
+                        for (final n in narratives)
+                          _NarrativeRow(narrative: n),
+                      ],
                     ),
-                  ],
-                ],
-                if (weightTrend != null) ...[
-                  const SizedBox(height: 16),
-                  Text('Weight',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    height: 180,
-                    child: _WeightChart(trend: weightTrend),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Latest '
-                    '${formatWeightFromKg(weightTrend.points.last.kg, weightUnit)} '
-                    '$weightUnit over ${weightTrend.points.length} readings — '
-                    '${weightTrend.netChangeKg >= 0 ? 'up' : 'down'} '
-                    '${formatWeightFromKg(weightTrend.netChangeKg.abs(), weightUnit)} '
-                    '$weightUnit in the last 90 days.',
-                    style: Theme.of(context).textTheme.bodySmall,
+                if (insights.cycleLengthSeries.length >= 2)
+                  _SectionCard(
+                    title: 'Cycle length trend',
+                    dotColor: phases?.predicted,
+                    child: SizedBox(
+                      height: 180,
+                      child: _CycleTrendChart(
+                          series: insights.cycleLengthSeries),
+                    ),
                   ),
-                ],
+                if (flow.hasData)
+                  _SectionCard(
+                    title: 'Flow intensity trend',
+                    dotColor: phases?.menstrual,
+                    subtitle:
+                        'Average bleeding heaviness per cycle, oldest to newest. '
+                        'Self-reported — a description of your logs, not a diagnosis.',
+                    child: SizedBox(height: 170, child: _FlowChart(analysis: flow)),
+                  ),
+                if (symptoms.hasData)
+                  _SectionCard(
+                    title: 'Most-logged symptoms',
+                    dotColor: phases?.follicular,
+                    subtitle: 'How often each symptom appears in your logs'
+                        '${symptoms.painPeak != null ? ', with your logged pain level' : ''}. '
+                        'A count of what you logged — not a diagnosis.',
+                    child: _SymptomFrequencyList(analysis: symptoms),
+                  ),
+                if (cycles.isNotEmpty)
+                  _SectionCard(
+                    title: 'Cycle history',
+                    dotColor: phases?.menstrual,
+                    subtitle: 'Tap a cycle to see everything you logged in it.',
+                    contentPadding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
+                    child: _CycleHistory(
+                      cycles: cycles,
+                      logs: logProvider.logs,
+                      medNames: {
+                        for (final m
+                            in context.watch<MedicationProvider?>()?.items ??
+                                const [])
+                          m.id: m.name,
+                      },
+                    ),
+                  ),
+                if (adherence.hasData)
+                  _SectionCard(
+                    title: 'Medications this cycle',
+                    dotColor: phases?.predicted,
+                    subtitle:
+                        'Days you logged each medication in your last complete cycle.',
+                    child: _MedicationAdherenceList(adherence: adherence),
+                  ),
+                if (insights.flags.isNotEmpty)
+                  _SectionCard(
+                    title: 'Worth noting',
+                    dotColor: phases?.luteal,
+                    child: Column(
+                      children: [
+                        for (final f in insights.flags)
+                          _NoticeRow(
+                            icon: Icons.lightbulb_outline,
+                            title: f.title,
+                            message: f.message,
+                          ),
+                      ],
+                    ),
+                  ),
+                if (nudges.isNotEmpty)
+                  _SectionCard(
+                    title: 'Patterns worth discussing',
+                    dotColor: phases?.ovulatory,
+                    subtitle:
+                        'General observations from your logs — not a diagnosis. '
+                        'A clinician can help you make sense of them.',
+                    child: Column(
+                      children: [
+                        for (final n in nudges)
+                          _NoticeRow(
+                            icon: Icons.medical_services_outlined,
+                            title: n.title,
+                            message: n.message,
+                          ),
+                      ],
+                    ),
+                  ),
+                if (bbtLogs.length >= 2)
+                  _SectionCard(
+                    title: 'Basal body temperature',
+                    dotColor: phases?.ovulatory,
+                    subtitle: 'An observation, not a diagnosis.',
+                    child: Column(
+                      children: [
+                        SizedBox(height: 170, child: _BbtChart(readings: bbtLogs)),
+                        if (thermalShift != null) ...[
+                          const SizedBox(height: 14),
+                          Text(
+                            'A sustained temperature rise appeared around '
+                            '${DateFormat.MMMd().format(thermalShift)}. This can '
+                            'indicate ovulation has already happened this cycle — '
+                            'it is awareness only, not a contraceptive method.',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                if (weightTrend != null)
+                  _SectionCard(
+                    title: 'Weight',
+                    dotColor: phases?.predicted,
+                    // A value and a direction, never a category. No BMI, no
+                    // target, no "ideal range" band on the chart.
+                    trailing: Text(
+                      '${weightTrend.netChangeKg >= 0 ? 'up' : 'down'} '
+                      '${formatWeightFromKg(weightTrend.netChangeKg.abs(), weightUnit)}'
+                      ' $weightUnit',
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelLarge
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 170,
+                          child: _WeightChart(trend: weightTrend),
+                        ),
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Latest '
+                            '${formatWeightFromKg(weightTrend.points.last.kg, weightUnit)} '
+                            '$weightUnit across ${weightTrend.points.length} '
+                            'readings in the last 90 days.',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 FilledButton.icon(
                   onPressed: () => _exportPdf(context, insights),
-                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  icon: const Icon(Icons.download_outlined),
                   label: const Text('Export summary for your doctor'),
                 ),
+                // Required on every surface that carries estimates or any
+                // fertility/ovulation observation — the thermal-shift note and
+                // the exported report both do. A permanent designed element,
+                // never an error state.
+                const SizedBox(height: 16),
+                const DisclaimerBanner(),
               ],
             ),
+    );
+  }
+}
+
+/// The workhorse container: one filled 20dp card per section, headed by a small
+/// phase-coloured dot, the section name, and an optional trailing value.
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.title,
+    required this.child,
+    this.dotColor,
+    this.subtitle,
+    this.trailing,
+    this.contentPadding = const EdgeInsets.all(20),
+  });
+
+  final String title;
+  final Widget child;
+  final Color? dotColor;
+  final String? subtitle;
+  final Widget? trailing;
+  final EdgeInsets contentPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: contentPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(
+                  left: contentPadding.left < 12 ? 12 - contentPadding.left : 0,
+                  right:
+                      contentPadding.right < 12 ? 12 - contentPadding.right : 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: dotColor ?? scheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ),
+                      // Flexible, not fixed: a large system text scale wraps the
+                      // trailing value instead of overflowing the header row.
+                      if (trailing != null) ...[
+                        const SizedBox(width: 8),
+                        Flexible(child: trailing!),
+                      ],
+                    ],
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle!,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            child,
+          ],
+        ),
+      ),
     );
   }
 }
@@ -346,9 +422,9 @@ class _StatGrid extends StatelessWidget {
       crossAxisCount: 3,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      childAspectRatio: 1.15,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 1.05,
       children: tiles,
     );
   }
@@ -373,31 +449,19 @@ class _RegularityCard extends StatelessWidget {
       CycleRegularity.unknown => ('—', -1),
     };
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(16),
+    return _SectionCard(
+      title: 'Regularity',
+      dotColor: Theme.of(context).extension<PhaseColors>()?.follicular,
+      trailing: Text(
+        label,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: scheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Regularity',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600)),
-              Text(label,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w700,
-                      )),
-            ],
-          ),
-          const SizedBox(height: 10),
           Row(
             children: [
               for (var i = 0; i < 3; i++)
@@ -406,16 +470,14 @@ class _RegularityCard extends StatelessWidget {
                     height: 8,
                     margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
                     decoration: BoxDecoration(
-                      color: i == index
-                          ? scheme.primary
-                          : scheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(4),
+                      color: i == index ? scheme.primary : scheme.surface,
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             'Based on ± ${variability.toStringAsFixed(1)} d of variation across '
             'your cycles — a description, not a diagnosis.',
@@ -429,6 +491,8 @@ class _RegularityCard extends StatelessWidget {
   }
 }
 
+/// The design system's "info card": a short label line above one large value
+/// line. Left-aligned so a column of them reads as a table of figures.
 class _StatTile extends StatelessWidget {
   const _StatTile({required this.label, required this.value});
   final String label;
@@ -436,32 +500,56 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
       ),
+      // Both lines are Flexible so a large system text scale shrinks the tile's
+      // content instead of overflowing a fixed-ratio grid cell.
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          FittedBox(
-            child: Text(value,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+          Flexible(
+            child: Text(label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: scheme.onSurfaceVariant)),
           ),
-          const SizedBox(height: 4),
-          Text(label,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 6),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  )),
+            ),
+          ),
         ],
       ),
     );
   }
 }
+
+/// Softer chart grid lines than fl_chart's default grey, so a chart sitting on
+/// a tinted card does not read as a spreadsheet.
+FlGridData _grid(ColorScheme scheme, {double? interval}) => FlGridData(
+      show: true,
+      drawVerticalLine: false,
+      horizontalInterval: interval,
+      getDrawingHorizontalLine: (_) => FlLine(
+        color: scheme.outlineVariant.withValues(alpha: 0.5),
+        strokeWidth: 1,
+      ),
+    );
 
 class _CycleTrendChart extends StatelessWidget {
   const _CycleTrendChart({required this.series});
@@ -476,13 +564,39 @@ class _CycleTrendChart extends StatelessWidget {
     ];
     final minY = (series.reduce((a, b) => a < b ? a : b) - 3).toDouble();
     final maxY = (series.reduce((a, b) => a > b ? a : b) + 3).toDouble();
+    final average =
+        series.reduce((a, b) => a + b) / series.length;
 
     return LineChart(
       LineChartData(
         minY: minY,
         maxY: maxY,
-        gridData: const FlGridData(show: true, drawVerticalLine: false),
+        gridData: _grid(scheme),
         borderData: FlBorderData(show: false),
+        // A dashed average line, labelled — the same figure the "Avg cycle"
+        // tile shows, so the trend reads against something.
+        extraLinesData: ExtraLinesData(
+          extraLinesOnTop: false,
+          horizontalLines: [
+            HorizontalLine(
+              y: average,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.45),
+              strokeWidth: 1,
+              dashArray: const [5, 5],
+              label: HorizontalLineLabel(
+                show: true,
+                alignment: Alignment.topRight,
+                padding: const EdgeInsets.only(right: 4, bottom: 2),
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+                labelResolver: (_) =>
+                    'avg ${average.toStringAsFixed(1)} days',
+              ),
+            ),
+          ],
+        ),
         titlesData: FlTitlesData(
           topTitles:
               const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -531,8 +645,9 @@ class _FlowChart extends StatelessWidget {
   Widget build(BuildContext context) {
     // The menstrual token when the full app theme is present; a graceful
     // fallback to the scheme keeps the screen pumpable under a bare MaterialApp.
+    final scheme = Theme.of(context).colorScheme;
     final base = Theme.of(context).extension<PhaseColors>()?.menstrual ??
-        Theme.of(context).colorScheme.primary;
+        scheme.primary;
     final pts = analysis.series;
     final groups = [
       for (var i = 0; i < pts.length; i++)
@@ -540,7 +655,7 @@ class _FlowChart extends StatelessWidget {
           BarChartRodData(
             toY: pts[i].avgIntensity,
             width: 14,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
             color: base.withValues(
               alpha: (0.30 + 0.14 * pts[i].avgIntensity).clamp(0.30, 1.0),
             ),
@@ -553,8 +668,7 @@ class _FlowChart extends StatelessWidget {
         minY: 0,
         maxY: 5,
         alignment: BarChartAlignment.spaceAround,
-        gridData: const FlGridData(
-            show: true, drawVerticalLine: false, horizontalInterval: 1),
+        gridData: _grid(scheme, interval: 1),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
           topTitles:
@@ -586,9 +700,63 @@ class _FlowChart extends StatelessWidget {
   }
 }
 
-/// A ranked list of the most-logged symptoms as proportional bars, plus an
-/// optional pain-severity summary. Uses plain bars (not a chart lib) so it reads
-/// as a compact "top symptoms" leaderboard. Descriptive, never diagnostic.
+/// One "label — proportional bar — figure" row, the shared shape of the
+/// symptom-frequency and medication lists.
+class _MeterRow extends StatelessWidget {
+  const _MeterRow({
+    required this.label,
+    required this.fraction,
+    required this.trailing,
+    required this.color,
+  });
+
+  final String label;
+  final double fraction;
+  final String trailing;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(label,
+                style: Theme.of(context).textTheme.bodySmall,
+                overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: fraction.clamp(0.0, 1.0),
+                minHeight: 8,
+                backgroundColor: scheme.surface,
+                valueColor: AlwaysStoppedAnimation(color),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 48,
+            child: Text(
+              trailing,
+              textAlign: TextAlign.end,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Per-medication days-logged for the most recent complete cycle, as bars scaled
 /// to the cycle length. A count, never a percentage (dosing frequency isn't
 /// stored, so no adherence target is implied).
@@ -599,50 +767,26 @@ class _MedicationAdherenceList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final color =
+        Theme.of(context).extension<PhaseColors>()?.predicted ?? scheme.primary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final e in adherence.entries)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 110,
-                  child: Text(e.name,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      overflow: TextOverflow.ellipsis),
-                ),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: e.cycleLength == 0
-                          ? 0
-                          : (e.daysLogged / e.cycleLength).clamp(0.0, 1.0),
-                      minHeight: 12,
-                      backgroundColor: scheme.surfaceContainerHighest,
-                      valueColor: AlwaysStoppedAnimation(scheme.primary),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    '${e.daysLogged} ${e.daysLogged == 1 ? 'day' : 'days'}',
-                    textAlign: TextAlign.end,
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                ),
-              ],
-            ),
+          _MeterRow(
+            label: e.name,
+            fraction: e.cycleLength == 0 ? 0 : e.daysLogged / e.cycleLength,
+            trailing: '${e.daysLogged} ${e.daysLogged == 1 ? 'day' : 'days'}',
+            color: color,
           ),
       ],
     );
   }
 }
 
+/// A ranked list of the most-logged symptoms as proportional bars, plus an
+/// optional pain-severity summary. Uses plain bars (not a chart lib) so it reads
+/// as a compact "top symptoms" leaderboard. Descriptive, never diagnostic.
 class _SymptomFrequencyList extends StatelessWidget {
   const _SymptomFrequencyList({required this.analysis});
   final SymptomAnalysis analysis;
@@ -652,6 +796,8 @@ class _SymptomFrequencyList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final color = Theme.of(context).extension<PhaseColors>()?.follicular ??
+        scheme.primary;
     final rows = analysis.ranked.take(_maxRows).toList();
     final maxCount = rows.first.dayCount; // ranked desc → first is the largest
 
@@ -659,39 +805,11 @@ class _SymptomFrequencyList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final s in rows)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 110,
-                  child: Text(s.label,
-                      style: Theme.of(context).textTheme.bodySmall,
-                      overflow: TextOverflow.ellipsis),
-                ),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: s.dayCount / maxCount,
-                      minHeight: 12,
-                      backgroundColor: scheme.surfaceContainerHighest,
-                      valueColor:
-                          AlwaysStoppedAnimation(scheme.primary),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    '${s.dayCount} ${s.dayCount == 1 ? 'day' : 'days'}',
-                    textAlign: TextAlign.end,
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                ),
-              ],
-            ),
+          _MeterRow(
+            label: s.label,
+            fraction: s.dayCount / maxCount,
+            trailing: '${s.dayCount} ${s.dayCount == 1 ? 'day' : 'days'}',
+            color: color,
           ),
         if (analysis.painPeak != null)
           Padding(
@@ -727,69 +845,96 @@ class _CycleHistory extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final df = DateFormat.MMMd();
+    final scheme = Theme.of(context).colorScheme;
     final ordered = cycles.reversed.toList(); // newest first
     return Column(
       children: [
-        for (final c in ordered)
-          Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              title: Text('${df.format(c.start)} – ${df.format(c.end)}'),
-              subtitle: Text(c.lengthDays != null
-                  ? '${c.lengthDays}-day cycle · ${c.periodLengthDays}-day period'
-                  : 'Current cycle · ${c.periodLengthDays}-day period'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => CycleOverviewScreen(
-                    overview: CycleOverviewService.summarize(c, logs,
-                        medNames: medNames),
-                  ),
+        for (var i = 0; i < ordered.length; i++) ...[
+          if (i > 0)
+            Divider(
+                height: 1,
+                thickness: 1,
+                indent: 12,
+                endIndent: 12,
+                color: scheme.outlineVariant.withValues(alpha: 0.6)),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14)),
+            title: Text(
+              '${df.format(ordered[i].start)} – ${df.format(ordered[i].end)}',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              ordered[i].lengthDays != null
+                  ? '${ordered[i].lengthDays}-day cycle · '
+                      '${ordered[i].periodLengthDays}-day period'
+                  : 'Current cycle · ${ordered[i].periodLengthDays}-day period',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            trailing:
+                Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => CycleOverviewScreen(
+                  overview: CycleOverviewService.summarize(ordered[i], logs,
+                      medNames: medNames),
                 ),
               ),
             ),
           ),
+        ],
       ],
     );
   }
 }
 
-class _FlagCard extends StatelessWidget {
-  const _FlagCard({required this.flag});
-  final RedFlag flag;
+/// One "Worth noting" / "Patterns worth discussing" entry, as an icon + title +
+/// message row inside its section card. Deliberately NOT a coloured alert box:
+/// nothing on this screen is an emergency, and nothing may be styled as one.
+class _NoticeRow extends StatelessWidget {
+  const _NoticeRow({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      color: scheme.secondaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.lightbulb_outline, color: scheme.onSecondaryContainer),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(flag.title,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(
-                              color: scheme.onSecondaryContainer,
-                              fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(flag.message,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSecondaryContainer)),
-                ],
-              ),
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(message,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4)),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -804,6 +949,10 @@ class _BbtChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Periwinkle — the ovulatory token, the same colour the calendar uses for
+    // this part of the cycle.
+    final line = Theme.of(context).extension<PhaseColors>()?.ovulatory ??
+        scheme.tertiary;
     final vals = [for (final r in readings) r.bbt!];
     final spots = [
       for (var i = 0; i < vals.length; i++) FlSpot(i.toDouble(), vals[i]),
@@ -815,7 +964,7 @@ class _BbtChart extends StatelessWidget {
       LineChartData(
         minY: lo,
         maxY: hi,
-        gridData: const FlGridData(show: true, drawVerticalLine: false),
+        gridData: _grid(scheme),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
           topTitles:
@@ -833,8 +982,15 @@ class _BbtChart extends StatelessWidget {
             spots: spots,
             isCurved: false,
             barWidth: 2,
-            color: scheme.tertiary,
-            dotData: const FlDotData(show: true),
+            color: line,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (_, _, _, _) => FlDotCirclePainter(
+                radius: 2.5,
+                color: line,
+                strokeWidth: 0,
+              ),
+            ),
           ),
         ],
       ),
@@ -853,6 +1009,8 @@ class _WeightChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final line = Theme.of(context).extension<PhaseColors>()?.predicted ??
+        scheme.primary;
     final unit =
         context.watch<SettingsProvider?>()?.weightUnit ?? kWeightUnitKg;
     final vals = [
@@ -869,7 +1027,7 @@ class _WeightChart extends StatelessWidget {
       LineChartData(
         minY: lo,
         maxY: hi,
-        gridData: const FlGridData(show: true, drawVerticalLine: false),
+        gridData: _grid(scheme),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
           topTitles:
@@ -887,8 +1045,15 @@ class _WeightChart extends StatelessWidget {
             spots: spots,
             isCurved: false,
             barWidth: 2,
-            color: scheme.primary,
-            dotData: const FlDotData(show: true),
+            color: line,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (_, _, _, _) => FlDotCirclePainter(
+                radius: 2.5,
+                color: line,
+                strokeWidth: 0,
+              ),
+            ),
           ),
         ],
       ),
@@ -896,76 +1061,40 @@ class _WeightChart extends StatelessWidget {
   }
 }
 
-/// A non-diagnostic "discuss with a clinician" prompt. Styled distinctly from
-/// [_FlagCard] (a clinical/medical accent) so it reads as a gentle suggestion,
-/// never an alarm or a diagnosis.
 /// One "Your patterns" narrative — a calm, plain-language observation about the
 /// user's own data. Never a diagnosis, never a number.
-class _NarrativeCard extends StatelessWidget {
-  const _NarrativeCard({required this.narrative});
+class _NarrativeRow extends StatelessWidget {
+  const _NarrativeRow({required this.narrative});
   final CycleNarrative narrative;
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      color: scheme.secondaryContainer,
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.insights_outlined,
-                size: 20, color: scheme.onSecondaryContainer),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(narrative.text,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSecondaryContainer,
-                      )),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NudgeCard extends StatelessWidget {
-  const _NudgeCard({required this.nudge});
-  final PatternNudge nudge;
+  static IconData _iconFor(String key) => switch (key) {
+        'cycle_trend' => Icons.show_chart,
+        'regularity' => Icons.check_circle_outline,
+        'period_trend' => Icons.water_drop_outlined,
+        'symptom_phase' => Icons.psychology_outlined,
+        'phase' => Icons.schedule_outlined,
+        _ => Icons.insights_outlined,
+      };
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Card(
-      color: scheme.tertiaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.medical_services_outlined,
-                color: scheme.onTertiaryContainer),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(nudge.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: scheme.onTertiaryContainer,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(nudge.message,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onTertiaryContainer)),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(_iconFor(narrative.key),
+              size: 20, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(narrative.text,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(height: 1.4)),
+          ),
+        ],
       ),
     );
   }

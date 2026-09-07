@@ -37,33 +37,34 @@ class ProductTimerStartCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(Icons.timer_outlined,
-                    size: 20, color: scheme.onSurfaceVariant),
+                    size: 18, color: scheme.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('Change reminder',
-                      style: text.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  child: Text('Change timer',
+                      style: text.labelLarge
+                          ?.copyWith(color: scheme.onSurfaceVariant)),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text('Start a timer when you put one in.',
-                style:
-                    text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
-            const SizedBox(height: 12),
+                style: text.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 14),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 for (final product in ProductType.values)
                   ActionChip(
+                    avatar: Icon(_iconFor(product), size: 18),
                     label: Text(product.label),
                     onPressed: () =>
                         context.read<ProductSessionProvider>().start(product),
@@ -87,11 +88,22 @@ class ProductTimerStartCard extends StatelessWidget {
     );
   }
 
+  /// A glyph per product, so the chip row is scannable rather than four
+  /// same-shaped words. Presentation only — it lives here, not on
+  /// [ProductType], because the model deliberately knows nothing about the UI.
+  IconData _iconFor(ProductType product) => switch (product) {
+        ProductType.pad => Icons.crop_portrait,
+        ProductType.tampon => Icons.water_drop_outlined,
+        ProductType.cupOrDisc => Icons.local_cafe_outlined,
+        ProductType.periodUnderwear => Icons.checkroom_outlined,
+      };
+
   void _openDurationSheet(BuildContext context) {
     final provider = context.read<ProductSessionProvider>();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       builder: (_) => ChangeNotifierProvider<ProductSessionProvider>.value(
         value: provider,
         child: const _DurationSheet(),
@@ -153,7 +165,7 @@ class _DurationSheetState extends State<_DurationSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Change reminder',
+            Text('Change timer',
                 style:
                     text.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),

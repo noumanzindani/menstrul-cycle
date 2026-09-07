@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../common/catalog.dart';
 import '../../common/l10n.dart';
+import '../../common/tracking_categories.dart';
 import '../../data/daily_log_repository.dart';
 import '../../db/database.dart';
 import '../../models/enums.dart';
@@ -23,6 +24,7 @@ import '../../widgets/ad_banner.dart';
 import '../lock/setup_lock_screen.dart';
 import '../medications/medications_screen.dart';
 import 'account_section.dart';
+import 'settings_group.dart';
 import 'tracking_categories_screen.dart';
 import '../pregnancy/pregnancy_screen.dart';
 import '../premium/premium_screen.dart';
@@ -30,6 +32,15 @@ import '../reminders/reminders_screen.dart';
 
 /// App settings: appearance, cycle defaults (feed prediction when history is
 /// thin), reminders, and the required disclaimer/about.
+///
+/// ## Layout
+///
+/// One scrolling list of **grouped rows**: a small uppercase accent-coloured
+/// header, then its rows separated by hairlines inset past the icon column, and
+/// whitespace (not a full-width `Divider`) between groups. Rows that choose a
+/// value show that value on the RIGHT and open a picker; rows that go somewhere
+/// keep a chevron. That split is the whole navigational grammar of the screen —
+/// see `docs/design/stitch/06-settings.html`.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({
     super.key,
@@ -74,24 +85,39 @@ class SettingsScreen extends StatelessWidget {
   Future<void> _confirmDeleteAll(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.l10n.settingsDeleteDialogTitle),
-        content: Text(ctx.l10n.settingsDeleteDialogBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(ctx.l10n.actionCancel),
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return AlertDialog(
+          // Icon + centred title, then the destructive action as one
+          // full-width button with Cancel beneath it. A `FilledButton` demands
+          // infinite width (`filledButtonTheme.minimumSize`), so `actions`
+          // always lays out vertically here — this ordering is what puts the
+          // prominent control on top rather than under the quiet one.
+          icon: Icon(Icons.delete_outline, color: scheme.error),
+          title: Text(ctx.l10n.settingsDeleteDialogTitle),
+          content: Text(
+            ctx.l10n.settingsDeleteDialogBody,
+            textAlign: TextAlign.start,
           ),
-          FilledButton(
-            key: const Key('settings.confirmDeleteAll'),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
+          actionsOverflowAlignment: OverflowBarAlignment.center,
+          actionsOverflowButtonSpacing: 4,
+          actions: [
+            FilledButton(
+              key: const Key('settings.confirmDeleteAll'),
+              style: FilledButton.styleFrom(
+                backgroundColor: scheme.error,
+                foregroundColor: scheme.onError,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(ctx.l10n.settingsDeleteConfirm),
             ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(ctx.l10n.settingsDeleteConfirm),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(ctx.l10n.actionCancel),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed != true || !context.mounted) return;
 
@@ -196,6 +222,99 @@ class SettingsScreen extends StatelessWidget {
     if (chosen != null) await settings.setLanguage(chosen);
   }
 
+  String _themeLabel(BuildContext context, ThemeMode mode) => switch (mode) {
+        ThemeMode.system => context.l10n.settingsThemeSystem,
+        ThemeMode.light => context.l10n.settingsThemeLight,
+        ThemeMode.dark => context.l10n.settingsThemeDark,
+      };
+
+  /// Theme is a one-of-three choice, so it reads as a single row carrying its
+  /// current value rather than three radios eating half the screen — the same
+  /// shape the language and weight-unit rows already had.
+  Future<void> _pickTheme(BuildContext context, SettingsProvider settings) async {
+    final picked = await showDialog<ThemeMode>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(ctx.l10n.settingsSectionAppearance),
+        children: [
+          RadioGroup<ThemeMode>(
+            groupValue: settings.themeMode,
+            onChanged: (m) => Navigator.pop(ctx, m),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile(
+                  value: ThemeMode.system,
+                  title: Text(ctx.l10n.settingsThemeSystem),
+                ),
+                RadioListTile(
+                  value: ThemeMode.light,
+                  title: Text(ctx.l10n.settingsThemeLight),
+                ),
+                RadioListTile(
+                  value: ThemeMode.dark,
+                  title: Text(ctx.l10n.settingsThemeDark),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked != null) await settings.setThemeMode(picked);
+  }
+
+  String _modeLabel(BuildContext context, TrackingMode mode) => switch (mode) {
+        TrackingMode.track => context.l10n.settingsGoalTrackTitle,
+        TrackingMode.conceive => context.l10n.settingsGoalConceiveTitle,
+        TrackingMode.perimenopause =>
+          context.l10n.settingsGoalPerimenopauseTitle,
+        // Not one of the three radios in [_pickMode] — pregnancy mode is
+        // entered and left from `PregnancyScreen`, so the row still has to be
+        // able to NAME it while it is the active mode.
+        TrackingMode.pregnancy => context.l10n.settingsPregnancyTitle,
+      };
+
+  /// The mode picker keeps every option's explanatory subtitle — those lines
+  /// are what tell a user that Conceive reorders Home and that Perimenopause
+  /// caps prediction confidence, so they move into the dialog rather than being
+  /// dropped when the three radios collapse into one row.
+  Future<void> _pickMode(BuildContext context, SettingsProvider settings) async {
+    final picked = await showDialog<TrackingMode>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(ctx.l10n.settingsSectionGoal),
+        children: [
+          RadioGroup<TrackingMode>(
+            groupValue: settings.mode,
+            onChanged: (m) => Navigator.pop(ctx, m),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile(
+                  value: TrackingMode.track,
+                  title: Text(ctx.l10n.settingsGoalTrackTitle),
+                  subtitle: Text(ctx.l10n.settingsGoalTrackSubtitle),
+                ),
+                RadioListTile(
+                  value: TrackingMode.conceive,
+                  title: Text(ctx.l10n.settingsGoalConceiveTitle),
+                  subtitle: Text(ctx.l10n.settingsGoalConceiveSubtitle),
+                ),
+                RadioListTile(
+                  value: TrackingMode.perimenopause,
+                  title: Text(ctx.l10n.settingsGoalPerimenopauseTitle),
+                  subtitle: Text(ctx.l10n.settingsGoalPerimenopauseSubtitle),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked != null) await settings.setMode(picked);
+  }
+
   /// Picks the weight DISPLAY unit. Logged values are canonical kg either way,
   /// so switching is purely cosmetic and never rewrites data.
   Future<void> _pickWeightUnit(BuildContext context) async {
@@ -209,6 +328,7 @@ class SettingsScreen extends StatelessWidget {
             groupValue: settings.weightUnit,
             onChanged: (v) => Navigator.pop(ctx, v),
             child: const Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 RadioListTile(
                   value: kWeightUnitKg,
@@ -277,16 +397,22 @@ class SettingsScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.restore_outlined),
         title: Text(ctx.l10n.backupRestoreConfirmTitle),
-        content: Text(ctx.l10n.backupRestoreConfirmBody),
+        content: Text(
+          ctx.l10n.backupRestoreConfirmBody,
+          textAlign: TextAlign.start,
+        ),
+        actionsOverflowAlignment: OverflowBarAlignment.center,
+        actionsOverflowButtonSpacing: 4,
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(ctx.l10n.actionCancel),
-          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(ctx.l10n.backupRestoreConfirmAction),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.l10n.actionCancel),
           ),
         ],
       ),
@@ -335,251 +461,249 @@ class SettingsScreen extends StatelessWidget {
     // Nullable read: `AuthProvider` is absent from several settings test
     // harnesses, and its absence means the same thing a signed-out user does.
     final uid = context.watch<AuthProvider?>()?.user?.uid;
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.settingsTitle)),
+      appBar: AppBar(title: Text(l10n.settingsTitle)),
       bottomNavigationBar: const SafeArea(child: AdBanner()),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 8),
         children: [
           const AccountSection(),
-          const Divider(),
-          _SectionHeader(context.l10n.settingsSectionPremium),
-          ListTile(
-            leading: Icon(
-              premium.isPremium
-                  ? Icons.workspace_premium
-                  : Icons.workspace_premium_outlined,
-            ),
-            title: Text(premium.isPremium
-                ? context.l10n.settingsPremiumActiveTitle
-                : context.l10n.settingsPremiumInactiveTitle),
-            subtitle: Text(premium.isPremium
-                ? context.l10n.settingsPremiumActiveSubtitle
-                : context.l10n.settingsPremiumInactiveSubtitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PremiumScreen()),
-            ),
-          ),
-          const Divider(),
-          _SectionHeader(context.l10n.settingsSectionAppearance),
-          RadioGroup<ThemeMode>(
-            groupValue: settings.themeMode,
-            onChanged: (m) {
-              if (m != null) settings.setThemeMode(m);
-            },
-            child: Column(
-              children: [
-                RadioListTile(
-                  value: ThemeMode.system,
-                  title: Text(context.l10n.settingsThemeSystem),
+          SettingsGroup(
+            title: l10n.settingsSectionGoal,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.flag_outlined),
+                title: const Text("What I'm using LunaTrack for"),
+                trailing: SettingsValue(_modeLabel(context, settings.mode)),
+                onTap: () => _pickMode(context, settings),
+              ),
+              ListTile(
+                leading: const Icon(Icons.pregnant_woman_outlined),
+                title: Text(l10n.settingsPregnancyTitle),
+                subtitle: Text(settings.isPregnant
+                    ? l10n.settingsPregnancyOn
+                    : l10n.settingsPregnancyOff),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PregnancyScreen()),
                 ),
-                RadioListTile(
-                    value: ThemeMode.light,
-                    title: Text(context.l10n.settingsThemeLight)),
-                RadioListTile(
-                    value: ThemeMode.dark,
-                    title: Text(context.l10n.settingsThemeDark)),
-              ],
-            ),
+              ),
+            ],
           ),
-          const Divider(),
-          _SectionHeader(context.l10n.settingsSectionGoal),
-          RadioGroup<TrackingMode>(
-            groupValue: settings.mode,
-            onChanged: (m) {
-              if (m != null) settings.setMode(m);
-            },
-            child: Column(
-              children: [
-                RadioListTile(
-                  value: TrackingMode.track,
-                  title: Text(context.l10n.settingsGoalTrackTitle),
-                  subtitle: Text(context.l10n.settingsGoalTrackSubtitle),
+          SettingsGroup(
+            title: l10n.settingsSectionCycleDefaults,
+            children: [
+              _StepperTile(
+                icon: Icons.event_repeat_outlined,
+                title: l10n.settingsAvgCycleLength,
+                suffix: l10n.settingsUnitDays,
+                value: settings.cycleLength,
+                min: 21,
+                max: 35,
+                onChanged: settings.setCycleLength,
+              ),
+              _StepperTile(
+                icon: Icons.water_drop_outlined,
+                title: l10n.settingsAvgPeriodLength,
+                suffix: l10n.settingsUnitDays,
+                value: settings.periodLength,
+                min: 2,
+                max: 10,
+                onChanged: settings.setPeriodLength,
+              ),
+            ],
+          ),
+          SettingsGroup(
+            // No ARB key for this heading yet; the screen is otherwise
+            // localized, so this is the one string to move into `app_en.arb`
+            // when the i18n initiative lands.
+            title: 'Tracking',
+            children: [
+              ListTile(
+                leading: const Icon(Icons.tune),
+                title: Text(l10n.settingsTrackingTitle),
+                subtitle: Text(
+                  '${settings.enabledCategories.length} of '
+                  '${kTrackingCategories.length} sections on',
                 ),
-                RadioListTile(
-                  value: TrackingMode.conceive,
-                  title: Text(context.l10n.settingsGoalConceiveTitle),
-                  subtitle: Text(context.l10n.settingsGoalConceiveSubtitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const TrackingCategoriesScreen()),
                 ),
-                RadioListTile(
-                  value: TrackingMode.perimenopause,
-                  title: Text(context.l10n.settingsGoalPerimenopauseTitle),
-                  subtitle:
-                      Text(context.l10n.settingsGoalPerimenopauseSubtitle),
+              ),
+              ListTile(
+                leading: const Icon(Icons.medication_outlined),
+                title: Text(l10n.settingsMedicationsTitle),
+                subtitle: Text(l10n.settingsMedicationsSubtitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MedicationsScreen()),
                 ),
-              ],
-            ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications_outlined),
+                title: Text(l10n.settingsRemindersTitle),
+                subtitle: Text(l10n.settingsRemindersSubtitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const RemindersScreen()),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.scale_outlined),
+                title: const Text('Weight unit'),
+                trailing: SettingsValue(
+                  settings.weightUnit == kWeightUnitLb
+                      ? 'Pounds (lb)'
+                      : 'Kilograms (kg)',
+                ),
+                onTap: () => _pickWeightUnit(context),
+              ),
+            ],
           ),
-          ListTile(
-            leading: const Icon(Icons.pregnant_woman_outlined),
-            title: Text(context.l10n.settingsPregnancyTitle),
-            subtitle: Text(settings.isPregnant
-                ? context.l10n.settingsPregnancyOn
-                : context.l10n.settingsPregnancyOff),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PregnancyScreen()),
-            ),
+          SettingsGroup(
+            title: l10n.settingsSectionHealth,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.monitor_heart_outlined),
+                title: Text(l10n.settingsHealthImportTitle),
+                subtitle: Text(l10n.settingsHealthImportSubtitle),
+                trailing: const Icon(Icons.download_outlined),
+                onTap: () => _importHealth(context),
+              ),
+            ],
           ),
-          const Divider(),
-          _SectionHeader(context.l10n.settingsSectionCycleDefaults),
-          _StepperTile(
-            title: context.l10n.settingsAvgCycleLength,
-            suffix: context.l10n.settingsUnitDays,
-            value: settings.cycleLength,
-            min: 21,
-            max: 35,
-            onChanged: settings.setCycleLength,
+          SettingsGroup(
+            title: l10n.settingsSectionAppearance,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: Text(l10n.settingsSectionAppearance),
+                trailing:
+                    SettingsValue(_themeLabel(context, settings.themeMode)),
+                onTap: () => _pickTheme(context, settings),
+              ),
+              ListTile(
+                leading: const Icon(Icons.language_outlined),
+                title: Text(l10n.settingsLanguageTitle),
+                trailing: SettingsValue(settings.language == 'system'
+                    ? l10n.settingsLanguageSystem
+                    : _localeName(settings.language)),
+                onTap: () => _pickLanguage(context, settings),
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.diversity_3_outlined),
+                title: Text(l10n.settingsGenderNeutralTitle),
+                subtitle: Text(l10n.settingsGenderNeutralSubtitle),
+                value: settings.genderNeutralLanguage,
+                onChanged: settings.setGenderNeutralLanguage,
+              ),
+            ],
           ),
-          _StepperTile(
-            title: context.l10n.settingsAvgPeriodLength,
-            suffix: context.l10n.settingsUnitDays,
-            value: settings.periodLength,
-            min: 2,
-            max: 10,
-            onChanged: settings.setPeriodLength,
+          SettingsGroup(
+            title: l10n.settingsSectionBackup,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.backup_outlined),
+                title: Text(l10n.settingsBackupExportTitle),
+                subtitle: Text(l10n.settingsBackupExportSubtitle),
+                trailing: const Icon(Icons.ios_share),
+                onTap: () => _exportBackup(context),
+              ),
+              ListTile(
+                leading: const Icon(Icons.restore_outlined),
+                title: Text(l10n.settingsBackupRestoreTitle),
+                subtitle: Text(l10n.settingsBackupRestoreSubtitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _restoreBackup(context),
+              ),
+            ],
           ),
-          const Divider(),
-          _SectionHeader(context.l10n.settingsSectionReminders),
-          ListTile(
-            leading: const Icon(Icons.notifications_outlined),
-            title: Text(context.l10n.settingsRemindersTitle),
-            subtitle: Text(context.l10n.settingsRemindersSubtitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const RemindersScreen()),
-            ),
+          SettingsGroup(
+            title: l10n.settingsSectionPrivacy,
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.lock_outline),
+                title: Text(l10n.settingsAppLockTitle),
+                subtitle: Text(l10n.settingsAppLockSubtitle),
+                value: settings.appLockEnabled,
+                onChanged: (v) async {
+                  if (v) {
+                    await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                          builder: (_) => const SetupLockScreen()),
+                    );
+                  } else {
+                    await LockService.clearPin();
+                    await settings.setAppLock(false);
+                  }
+                },
+              ),
+              // Photo descriptions. Off unless the CURRENT account turned it on
+              // — `analysisConsentUid` holds a uid, not a bool, so another
+              // account's consent on this device reads as off here and cannot
+              // be withdrawn from the wrong account either.
+              //
+              // Rendered only when a key was compiled in: with no backend the
+              // switch would toggle a preference that does nothing, which is
+              // worse than its absence.
+              if (analysisAvailable)
+                SwitchListTile(
+                  key: const Key('settings.imageAnalysis'),
+                  secondary: const Icon(Icons.auto_awesome_outlined),
+                  title: Text(l10n.settingsPhotoDescriptionsTitle),
+                  subtitle: Text(l10n.settingsPhotoDescriptionsSubtitle),
+                  value: uid != null && settings.analysisConsentUid == uid,
+                  onChanged: uid == null
+                      ? null
+                      : (v) async {
+                          if (v) {
+                            await settings.setAnalysisConsent(uid);
+                          } else {
+                            await settings.clearAnalysisConsent();
+                          }
+                        },
+                ),
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: scheme.error),
+                title: Text(
+                  l10n.settingsDeleteTitle,
+                  style: TextStyle(color: scheme.error),
+                ),
+                subtitle: Text(l10n.settingsDeleteSubtitle),
+                onTap: () => _confirmDeleteAll(context),
+              ),
+            ],
           ),
-          const Divider(),
-          _SectionHeader(context.l10n.settingsSectionMedications),
-          ListTile(
-            leading: const Icon(Icons.medication_outlined),
-            title: Text(context.l10n.settingsMedicationsTitle),
-            subtitle: Text(context.l10n.settingsMedicationsSubtitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const MedicationsScreen()),
-            ),
+          SettingsGroup(
+            title: l10n.settingsSectionAbout,
+            children: [
+              ListTile(
+                leading: Icon(
+                  premium.isPremium
+                      ? Icons.workspace_premium
+                      : Icons.workspace_premium_outlined,
+                ),
+                title: Text(premium.isPremium
+                    ? l10n.settingsPremiumActiveTitle
+                    : l10n.settingsPremiumInactiveTitle),
+                subtitle: Text(premium.isPremium
+                    ? l10n.settingsPremiumActiveSubtitle
+                    : l10n.settingsPremiumInactiveSubtitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PremiumScreen()),
+                ),
+              ),
+            ],
           ),
-          ListTile(
-            leading: const Icon(Icons.tune),
-            title: Text(context.l10n.settingsTrackingTitle),
-            subtitle: Text(context.l10n.settingsTrackingSubtitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                  builder: (_) => const TrackingCategoriesScreen()),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.monitor_weight_outlined),
-            title: const Text('Weight unit'),
-            subtitle: Text(
-              context.watch<SettingsProvider>().weightUnit == kWeightUnitLb
-                  ? 'Pounds (lb)'
-                  : 'Kilograms (kg)',
-            ),
-            onTap: () => _pickWeightUnit(context),
-          ),
-          const Divider(),
-          _SectionHeader(context.l10n.settingsSectionHealth),
-          ListTile(
-            leading: const Icon(Icons.monitor_heart_outlined),
-            title: Text(context.l10n.settingsHealthImportTitle),
-            subtitle: Text(context.l10n.settingsHealthImportSubtitle),
-            trailing: const Icon(Icons.download_outlined),
-            onTap: () => _importHealth(context),
-          ),
-          const Divider(),
-          _SectionHeader(context.l10n.settingsSectionLanguage),
-          ListTile(
-            leading: const Icon(Icons.language_outlined),
-            title: Text(context.l10n.settingsLanguageTitle),
-            subtitle: Text(settings.language == 'system'
-                ? context.l10n.settingsLanguageSystem
-                : _localeName(settings.language)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _pickLanguage(context, settings),
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.diversity_3_outlined),
-            title: Text(context.l10n.settingsGenderNeutralTitle),
-            subtitle: Text(context.l10n.settingsGenderNeutralSubtitle),
-            value: settings.genderNeutralLanguage,
-            onChanged: settings.setGenderNeutralLanguage,
-          ),
-          const Divider(),
-          _SectionHeader(context.l10n.settingsSectionBackup),
-          ListTile(
-            leading: const Icon(Icons.backup_outlined),
-            title: Text(context.l10n.settingsBackupExportTitle),
-            subtitle: Text(context.l10n.settingsBackupExportSubtitle),
-            trailing: const Icon(Icons.ios_share),
-            onTap: () => _exportBackup(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.restore_outlined),
-            title: Text(context.l10n.settingsBackupRestoreTitle),
-            subtitle: Text(context.l10n.settingsBackupRestoreSubtitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _restoreBackup(context),
-          ),
-          const Divider(),
-          _SectionHeader(context.l10n.settingsSectionPrivacy),
-          SwitchListTile(
-            secondary: const Icon(Icons.lock_outline),
-            title: Text(context.l10n.settingsAppLockTitle),
-            subtitle: Text(context.l10n.settingsAppLockSubtitle),
-            value: settings.appLockEnabled,
-            onChanged: (v) async {
-              if (v) {
-                await Navigator.of(context).push<bool>(
-                  MaterialPageRoute(builder: (_) => const SetupLockScreen()),
-                );
-              } else {
-                await LockService.clearPin();
-                await settings.setAppLock(false);
-              }
-            },
-          ),
-          // Photo descriptions. Off unless the CURRENT account turned it on —
-          // `analysisConsentUid` holds a uid, not a bool, so another account's
-          // consent on this device reads as off here and cannot be withdrawn
-          // from the wrong account either.
-          //
-          // Rendered only when a key was compiled in: with no backend the
-          // switch would toggle a preference that does nothing, which is worse
-          // than its absence.
-          if (analysisAvailable)
-            SwitchListTile(
-              key: const Key('settings.imageAnalysis'),
-              secondary: const Icon(Icons.auto_awesome_outlined),
-              title: Text(context.l10n.settingsPhotoDescriptionsTitle),
-              subtitle: Text(context.l10n.settingsPhotoDescriptionsSubtitle),
-              value: uid != null && settings.analysisConsentUid == uid,
-              onChanged: uid == null
-                  ? null
-                  : (v) async {
-                      if (v) {
-                        await settings.setAnalysisConsent(uid);
-                      } else {
-                        await settings.clearAnalysisConsent();
-                      }
-                    },
-            ),
-          ListTile(
-            leading: Icon(Icons.delete_forever_outlined,
-                color: Theme.of(context).colorScheme.error),
-            title: Text(context.l10n.settingsDeleteTitle),
-            subtitle: Text(context.l10n.settingsDeleteSubtitle),
-            onTap: () => _confirmDeleteAll(context),
-          ),
-          const Divider(),
-          _SectionHeader(context.l10n.settingsSectionAbout),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-            child: Text(context.l10n.settingsAboutBody),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 4, 20, 28),
+            child: SettingsFinePrint(null),
           ),
         ],
       ),
@@ -689,27 +813,12 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        text,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
-}
-
+/// A cycle/period default, shown as one row with a compact stepper pill on the
+/// right. The pill keeps the ± controls (they are the only way to change these
+/// numbers) while reading as the mock's single right-aligned value.
 class _StepperTile extends StatelessWidget {
   const _StepperTile({
+    required this.icon,
     required this.title,
     required this.suffix,
     required this.value,
@@ -718,6 +827,7 @@ class _StepperTile extends StatelessWidget {
     required this.onChanged,
   });
 
+  final IconData icon;
   final String title;
   final String suffix;
   final int value;
@@ -727,21 +837,36 @@ class _StepperTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return ListTile(
+      leading: Icon(icon),
       title: Text(title),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.remove_circle_outline),
-            onPressed: value > min ? () => onChanged(value - 1) : null,
-          ),
-          Text('$value $suffix'),
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: value < max ? () => onChanged(value + 1) : null,
-          ),
-        ],
+      trailing: Container(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              iconSize: 20,
+              icon: const Icon(Icons.remove),
+              onPressed: value > min ? () => onChanged(value - 1) : null,
+            ),
+            Text(
+              '$value $suffix',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              iconSize: 20,
+              icon: const Icon(Icons.add),
+              onPressed: value < max ? () => onChanged(value + 1) : null,
+            ),
+          ],
+        ),
       ),
     );
   }

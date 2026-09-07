@@ -103,7 +103,9 @@ void main() {
 
     expect(find.byType(ProductTimerCard), findsOneWidget);
     expect(find.text('Tampon'), findsOneWidget);
-    expect(find.textContaining('2h ago'), findsOneWidget);
+    // Elapsed is the card's display line now — the count-up framing lives in
+    // the "Since HH:MM · you set Nh" line beneath it, not in the figure.
+    expect(find.textContaining('2h'), findsOneWidget);
 
     // Unmount so the card's Timer is cancelled before the test ends.
     await tester.pumpWidget(const SizedBox());

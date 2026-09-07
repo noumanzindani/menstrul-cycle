@@ -25,6 +25,16 @@ Future<void> showDayEntrySheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
+    // The sheet's content is a Scaffold, which paints an opaque rectangle: it
+    // would square off the sheet's own rounded top corners against the scrim
+    // unless the sheet clips. 20dp is the design system's sheet/card radius.
+    clipBehavior: Clip.antiAlias,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    // Match the Scaffold beneath: the default sheet tint only ever showed in
+    // the drag-handle strip, drawing a colour seam across the header.
+    backgroundColor: Theme.of(context).colorScheme.surface,
     builder: (_) => ChangeNotifierProvider<LogProvider>.value(
       value: logProvider,
       child: DayEntrySheet(date: date, checkIn: checkIn),
@@ -82,7 +92,19 @@ class _DayEntrySheetState extends State<DayEntrySheet> {
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: Text(title, style: const TextStyle(fontSize: 18)),
+          // A sheet header, not a top-level app bar: the date is the sheet's
+          // subject, so it is centred between the two actions.
+          centerTitle: true,
+          titleSpacing: 8,
+          title: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
           actions: [
             if (hadExisting)
               IconButton(
@@ -90,6 +112,13 @@ class _DayEntrySheetState extends State<DayEntrySheet> {
                 icon: const Icon(Icons.delete_outline),
                 onPressed: _clear,
               ),
+            // Explicit dismissal, so closing never depends on knowing the sheet
+            // can be dragged or the scrim tapped.
+            IconButton(
+              tooltip: 'Close',
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
           ],
         ),
         body: Column(
@@ -113,9 +142,20 @@ class _DayEntrySheetState extends State<DayEntrySheet> {
             ),
           ],
         ),
-        bottomNavigationBar: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: FilledButton(onPressed: _save, child: const Text('Save')),
+        // Pinned footer: a hairline separates it from the scrolling form so the
+        // Save target reads as chrome rather than as the end of the content.
+        bottomNavigationBar: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: FilledButton(onPressed: _save, child: const Text('Save')),
+          ),
         ),
       ),
     );

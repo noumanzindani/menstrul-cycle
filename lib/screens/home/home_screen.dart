@@ -42,7 +42,9 @@ class HomeScreen extends StatelessWidget {
     final today = dateOnly(DateTime.now());
 
     return Scaffold(
-      appBar: AppBar(title: const Text('LunaTrack')),
+      // Named for the tab, like every other destination ("Calendar",
+      // "Forecast", …), rather than for the app.
+      appBar: AppBar(title: const Text('Today')),
       floatingActionButton: FloatingActionButton.extended(
         // Explicit tag because `AppShell` keeps every tab alive in an
         // `IndexedStack`: Home's and Calendar's FABs are BOTH in the route
@@ -92,13 +94,13 @@ class _PregnancyHome extends StatelessWidget {
     final session = context.watch<ProductSessionProvider>().session;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('LunaTrack')),
+      appBar: AppBar(title: const Text('Today')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           if (session != null) ...[
             ProductTimerCard(session: session),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
           ],
           Card(
             child: Padding(
@@ -106,9 +108,14 @@ class _PregnancyHome extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text('Pregnancy',
+                      style: text.labelLarge
+                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                  const SizedBox(height: 6),
                   Text(
                     '${ga.weeks} weeks${ga.days > 0 ? ' ${ga.days} days' : ''}',
-                    style: text.headlineMedium,
+                    style: text.displaySmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 2),
                   Text('Trimester $tri',
@@ -128,7 +135,7 @@ class _PregnancyHome extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             'Period and fertility predictions are paused while pregnancy '
             'tracking is on.',
@@ -156,21 +163,32 @@ class _InsightHighlight extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final styles = Theme.of(context).textTheme;
+    // Deliberately quiet: the plain card fill, a muted icon, and a titled
+    // sentence. It is context, not an alert, and it must not out-shout the
+    // phase card at the top of the screen.
     return Card(
-      color: scheme.secondaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(Icons.insights_outlined,
-                size: 20, color: scheme.onSecondaryContainer),
-            const SizedBox(width: 10),
+                size: 20, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 12),
             Expanded(
-              child: Text(text,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSecondaryContainer,
-                      )),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Your patterns',
+                      style: styles.labelLarge
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(text,
+                      style: styles.bodyMedium
+                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                ],
+              ),
             ),
           ],
         ),
@@ -265,23 +283,35 @@ class _CheckInCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
+            // Chip-weight actions in a Wrap, never filled buttons in a Row:
+            // `filledButtonTheme` sets `minimumSize: Size.fromHeight(52)`,
+            // which is INFINITE width, so a bare FilledButton in a Row lays out
+            // from the left and clips whatever follows it. A Wrap also lets the
+            // pair reflow rather than truncate at large text scales.
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => DayLogScreen(date: today)),
-                    ),
-                    child: Text(logLabel),
+                OutlinedButton(
+                  onPressed: () => _markNoBleeding(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: scheme.onPrimaryContainer,
+                    side: BorderSide(
+                        color: scheme.onPrimaryContainer
+                            .withValues(alpha: 0.28)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
+                  child: Text(noBleedLabel),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _markNoBleeding(context),
-                    child: Text(noBleedLabel),
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => DayLogScreen(date: today)),
                   ),
+                  style: TextButton.styleFrom(
+                      foregroundColor: scheme.onPrimaryContainer),
+                  child: Text(logLabel),
                 ),
               ],
             ),
@@ -352,57 +382,59 @@ class _PredictionBody extends StatelessWidget {
     final bleedingToday = todayFlow?.isBleeding ?? false;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      // 16dp gutters and a 16dp rhythm between cards: the cards are elevation
+      // 0, so the whitespace is the only thing separating them.
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
       children: [
         _PhaseCard(prediction: prediction),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         if (session != null) ...[
           ProductTimerCard(session: session),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
         ],
         const _CycleRingCard(),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         if (checkIn != CheckInPrompt.none) ...[
           _CheckInCard(prompt: checkIn, today: today),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
         ],
         // Offer to start a timer only on days with logged bleeding. The other
         // ~25 days of the month it would be dead weight, and a menstrual
         // product prompt on a non-period day is noise.
         if (session == null && bleedingToday) ...[
           const ProductTimerStartCard(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
         ],
         if (topInsight != null) ...[
           _InsightHighlight(text: topInsight.text),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
         ],
         if (peri) ...[
           nextPeriod,
           if (pmsWindow != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             pmsWindow,
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           const _PerimenopauseNote(),
         ] else if (conceive) ...[
           fertile,
           if (confirmation.confirmed) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             _OvulationConfirmedNote(date: confirmation.shiftDate!),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           nextPeriod,
         ] else ...[
           nextPeriod,
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           fertile,
           if (pmsWindow != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             pmsWindow,
           ],
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         const DisclaimerBanner(),
       ],
     );
@@ -467,13 +499,19 @@ class _CycleRingCard extends StatelessWidget {
     final data = context.watch<MonthRingData>();
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
         child: Center(child: MonthRing(data: data)),
       ),
     );
   }
 }
 
+/// The screen's one hero answer: which phase, and which cycle day.
+///
+/// The card carries the phase's own colour as a low-opacity wash — the same
+/// token the ring and the calendar use — so the top of the dashboard is tinted
+/// by where the user actually is. It is the only phase-tinted surface here;
+/// everything below is the plain card fill, so nothing competes with it.
 class _PhaseCard extends StatelessWidget {
   const _PhaseCard({required this.prediction});
   final PredictionResult prediction;
@@ -481,32 +519,45 @@ class _PhaseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final phases = Theme.of(context).extension<PhaseColors>()!;
+    final scheme = Theme.of(context).colorScheme;
     final accent = phases.forPhase(prediction.currentPhase);
     final text = Theme.of(context).textTheme;
 
     return Card(
+      // Translucent so it composites over the scaffold in either brightness,
+      // instead of hard-coding a blend that only works in light mode.
+      color: accent.withValues(alpha: 0.16),
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(width: 6, height: 64, color: accent),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (prediction.cycleDay != null)
-                    Text('Day ${prediction.cycleDay}',
-                        style: text.headlineMedium),
-                  Text(prediction.currentPhase.label,
-                      style: text.titleMedium
+            Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration:
+                      BoxDecoration(color: accent, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(prediction.currentPhase.label,
+                      style: text.labelLarge
                           ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(prediction.currentPhase.description,
-                      style: text.bodyMedium),
-                ],
-              ),
+                ),
+              ],
             ),
+            if (prediction.cycleDay != null) ...[
+              const SizedBox(height: 6),
+              Text('Day ${prediction.cycleDay}',
+                  style:
+                      text.displaySmall?.copyWith(fontWeight: FontWeight.w600)),
+            ],
+            const SizedBox(height: 6),
+            Text(prediction.currentPhase.description,
+                style: text.bodyMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant)),
           ],
         ),
       ),
@@ -521,28 +572,34 @@ class _NextPeriodCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final phases = Theme.of(context).extension<PhaseColors>()!;
     final next = prediction.nextPeriodStart!;
     final windowEnd = prediction.nextPeriodWindowEnd!;
     final days = daysBetween(today, next);
     final window = daysBetween(next, windowEnd);
 
-    String headline;
+    // The label line already says "Next period", so the value line is the
+    // answer alone. The hedge ("may") stays in it — this is a calendar
+    // estimate, and a bare "3 days late" would read as a fact.
+    String value;
     if (windowEnd.isBefore(today)) {
       final late = daysBetween(next, today);
-      headline = 'Your period may be $late ${late == 1 ? 'day' : 'days'} late';
+      value = 'May be $late ${late == 1 ? 'day' : 'days'} late';
     } else if (days <= 0) {
-      headline = 'Your period may start today';
+      value = 'May start today';
     } else if (days == 1) {
-      headline = 'Period expected tomorrow';
+      value = 'Expected tomorrow';
     } else {
-      headline = 'Period in $days days';
+      value = 'In $days days';
     }
 
     return _InfoCard(
-      icon: Icons.water_drop_outlined,
-      title: headline,
-      subtitle: 'Around ${DateFormat.MMMMd().format(next)} · ± $window days',
-      trailing: _ConfidenceChip(confidence: prediction.confidence),
+      accent: phases.menstrual,
+      label: 'Next period',
+      value: value,
+      detail: 'Around ${DateFormat.MMMMd().format(next)} · '
+          '± $window ${window == 1 ? 'day' : 'days'}',
+      tag: _ConfidenceChip(confidence: prediction.confidence),
     );
   }
 }
@@ -581,10 +638,14 @@ class _FertileCard extends StatelessWidget {
     final corroborated =
         prediction.fertilityConfidence.index > prediction.confidence.index;
 
+    final phases = Theme.of(context).extension<PhaseColors>()!;
     return _InfoCard(
-      icon: Icons.eco_outlined,
-      title: inWindow ? 'Fertile window (now)' : 'Estimated fertile window',
-      subtitle: '$range · awareness only, not contraception',
+      accent: phases.fertile,
+      label: inWindow ? 'Fertile window (now)' : 'Estimated fertile window',
+      // The card IS a date range. The band below is the only fertility signal,
+      // and only the band self-suppresses.
+      value: range,
+      detail: 'awareness only, not contraception',
       footer: band == FertilityBand.none
           ? null
           : _BandLabel(band: band, corroborated: corroborated),
@@ -614,10 +675,11 @@ class _PmsWindowCard extends StatelessWidget {
     final range =
         '${DateFormat.MMMd().format(start)} – ${DateFormat.MMMd().format(end)}';
 
+    final phases = Theme.of(context).extension<PhaseColors>()!;
     return _InfoCard(
-      icon: Icons.mood_outlined,
-      title: inWindow ? 'PMS window (now)' : 'Estimated PMS window',
-      subtitle: range,
+      accent: phases.luteal,
+      label: inWindow ? 'PMS window (now)' : 'Estimated PMS window',
+      value: range,
     );
   }
 }
@@ -676,47 +738,71 @@ class _BandLabel extends StatelessWidget {
   }
 }
 
+/// The dashboard's workhorse card: a role-coloured dot, a short label line, one
+/// large value line, and optional fine print — plus an optional tag pinned to
+/// the label's trailing edge.
+///
+/// Stacked full width rather than laid out two-up. A 2-up grid looks tidier
+/// with the mock's short fake values, but the real values are phrases
+/// ("May be 3 days late", "Sep 26 – Oct 2") that would truncate in half a
+/// 360dp screen, and worse at large text scales.
 class _InfoCard extends StatelessWidget {
   const _InfoCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.trailing,
+    required this.accent,
+    required this.label,
+    required this.value,
+    this.detail,
+    this.tag,
     this.footer,
   });
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget? trailing;
+
+  /// The phase token this card is about — the same colour the ring and the
+  /// calendar use for it, so the dot is a key rather than decoration.
+  final Color accent;
+  final String label;
+  final String value;
+  final String? detail;
+  final Widget? tag;
   final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: scheme.primary),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: Theme.of(context).textTheme.bodySmall),
-                  ?footer,
-                ],
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration:
+                      BoxDecoration(color: accent, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(label,
+                      style: text.labelLarge
+                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                ),
+                if (tag != null) ...[const SizedBox(width: 8), tag!],
+              ],
             ),
-            ?trailing,
+            const SizedBox(height: 8),
+            Text(value,
+                style: text.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600, height: 1.15)),
+            if (detail != null) ...[
+              const SizedBox(height: 4),
+              Text(detail!,
+                  style: text.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant)),
+            ],
+            ?footer,
           ],
         ),
       ),
@@ -724,18 +810,31 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
+/// The estimate tag. Lavender is the design system's token for *every*
+/// estimated state (the same one the ring uses for a predicted run), so the
+/// colour itself says "this is a projection" before the words are read.
 class _ConfidenceChip extends StatelessWidget {
   const _ConfidenceChip({required this.confidence});
   final PredictionConfidence confidence;
 
   @override
   Widget build(BuildContext context) {
+    final phases = Theme.of(context).extension<PhaseColors>()!;
     return Tooltip(
       message: confidence.hint,
-      child: Chip(
-        label: Text(confidence.label,
-            style: Theme.of(context).textTheme.labelSmall),
-        visualDensity: VisualDensity.compact,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: phases.predicted.withValues(alpha: 0.22),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          confidence.label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
       ),
     );
   }
