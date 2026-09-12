@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -152,4 +154,182 @@ void main() {
     expect(find.textContaining('Ovulation'), findsNothing);
     expect(find.text('Period'), findsOneWidget);
   });
+
+  // ---- reveal animation --------------------------------------------------
+  //
+  // The ring sweeps in clockwise on first mount, then today's dotted marker
+  // fades in over the tail of the timeline. The reveal maths is asserted against
+  // a recording Canvas rather than a golden: what matters is WHICH arcs are
+  // drawn and how far, not how they rasterise.
+
+  const todayDotColor = Color(0xFFAA0000);
+  const haloColor = Color(0xFF00BB00);
+
+  MonthRingPainter painterFor(
+    MonthRingData d, {
+    required double ring,
+    required double dots,
+  }) =>
+      MonthRingPainter(
+        data: d,
+        ringReveal: AlwaysStoppedAnimation<double>(ring),
+        dotFade: AlwaysStoppedAnimation<double>(dots),
+        normal: const Color(0xFF101010),
+        period: const Color(0xFF202020),
+        predicted: const Color(0xFF303030),
+        fertile: const Color(0xFF404040),
+        ovulation: const Color(0xFF505050),
+        pms: const Color(0xFF606060),
+        todayDot: todayDotColor,
+        halo: haloColor,
+      );
+
+  _RecordingCanvas record(MonthRingPainter p) {
+    final canvas = _RecordingCanvas();
+    p.paint(canvas, const Size(240, 240));
+    return canvas;
+  }
+
+  // Arcs are identified by hue, not by exact colour, because the marker's alpha
+  // is what the fade drives. The tolerance is not cosmetic: [Paint] stores its
+  // colour in a Float32List, so a colour read back off the Paint has been
+  // round-tripped through single precision and 2/3 comes back as
+  // 0.6666666865348816. Exact == against a double-precision Color never matches.
+  bool sameHue(Color a, Color b) =>
+      (a.r - b.r).abs() < 1e-6 &&
+      (a.g - b.g).abs() < 1e-6 &&
+      (a.b - b.b).abs() < 1e-6;
+
+  test('paints nothing at the start of the reveal', () {
+    final c =
+        record(painterFor(data(PredictionConfidence.medium), ring: 0, dots: 0));
+    expect(c.arcs, isEmpty);
+  });
+
+  test('reveals the month progressively, drawing the leading day partially',
+      () {
+    final c = record(
+        painterFor(data(PredictionConfidence.medium), ring: 0.5, dots: 0));
+    // July has 31 days, so half the ring is 15.5 days: 15 whole arcs plus one
+    // drawn at half sweep. Stepping whole segments instead would tie the motion
+    // to the frame rate.
+    expect(c.arcs.length, 16);
+    expect(c.arcs.last.sweepAngle, closeTo(c.arcs.first.sweepAngle * 0.5, 1e-6));
+  });
+
+  test('paints every day of the month once the reveal completes', () {
+    final c =
+        record(painterFor(data(PredictionConfidence.medium), ring: 1, dots: 0));
+    expect(c.arcs.length, 31);
+    expect(c.arcs.every((a) => a.sweepAngle == c.arcs.first.sweepAngle), isTrue);
+  });
+
+  test("withholds today's marker until the ring is complete", () {
+    final c = record(
+        painterFor(data(PredictionConfidence.medium), ring: 0.9, dots: 0));
+    expect(c.arcs.where((a) => sameHue(a.color, todayDotColor)), isEmpty);
+    expect(c.arcs.where((a) => sameHue(a.color, haloColor)), isEmpty);
+  });
+
+  test("paints today's three dots over a cleared segment when the fade ends",
+      () {
+    final c =
+        record(painterFor(data(PredictionConfidence.medium), ring: 1, dots: 1));
+    // ignore: avoid_print
+    expect(c.arcs.where((a) => sameHue(a.color, haloColor)).length, 1);
+    final dots =
+        c.arcs.where((a) => sameHue(a.color, todayDotColor)).toList();
+    expect(dots.length, 3);
+    expect(dots.every((d) => d.color.a == 1.0), isTrue);
+  });
+
+  test("fades today's marker in rather than popping it", () {
+    final c = record(
+        painterFor(data(PredictionConfidence.medium), ring: 1, dots: 0.5));
+    final dots =
+        c.arcs.where((a) => sameHue(a.color, todayDotColor)).toList();
+    expect(dots.length, 3);
+    expect(dots.first.color.a, closeTo(0.5, 1e-6));
+    // The halo clear fades with the dots; at full opacity from the first frame
+    // of the fade it would punch a hard notch in the finished ring.
+    final halo = c.arcs.firstWhere((a) => sameHue(a.color, haloColor));
+    expect(halo.color.a, closeTo(0.5, 1e-6));
+  });
+
+  testWidgets('animates the ring in rather than snapping to complete',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light(),
+      home: Scaffold(
+          body: Center(child: MonthRing(data: data(PredictionConfidence.medium)))),
+    ));
+    await tester.pump();
+    expect(painterOf(tester).ringReveal.value, 0.0);
+
+    await tester.pump(const Duration(milliseconds: 210));
+    final mid = painterOf(tester).ringReveal.value;
+    expect(mid, greaterThan(0.0));
+    expect(mid, lessThan(1.0));
+
+    await tester.pumpAndSettle();
+    expect(painterOf(tester).ringReveal.value, 1.0);
+    expect(painterOf(tester).dotFade.value, 1.0);
+  });
+
+  testWidgets('paints the completed ring on frame one when motion is reduced',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light(),
+      home: MediaQuery(
+        data: const MediaQueryData(disableAnimations: true),
+        child: Scaffold(
+            body: Center(
+                child: MonthRing(data: data(PredictionConfidence.medium)))),
+      ),
+    ));
+    await tester.pump();
+    expect(painterOf(tester).ringReveal.value, 1.0);
+    expect(painterOf(tester).dotFade.value, 1.0);
+  });
+
+  testWidgets('does not replay the reveal when new data arrives',
+      (tester) async {
+    await pump(tester, data(PredictionConfidence.medium));
+    expect(painterOf(tester).ringReveal.value, 1.0);
+
+    // The home screen rebuilds this widget whenever a log is saved; re-sweeping
+    // the whole ring on every refresh would be jarring.
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light(),
+      home: Scaffold(
+          body: Center(child: MonthRing(data: data(PredictionConfidence.low)))),
+    ));
+    await tester.pump();
+    expect(painterOf(tester).ringReveal.value, 1.0);
+  });
+}
+
+/// One recorded `drawArc`. The painter reuses a single [Paint] across every arc,
+/// so the colour must be copied at record time rather than read back later.
+class _RecordedArc {
+  const _RecordedArc(this.startAngle, this.sweepAngle, this.color);
+
+  final double startAngle;
+  final double sweepAngle;
+  final Color color;
+}
+
+/// A [Canvas] that records arcs instead of rasterising them, so the reveal maths
+/// can be asserted directly without golden files.
+class _RecordingCanvas implements ui.Canvas {
+  final List<_RecordedArc> arcs = <_RecordedArc>[];
+
+  @override
+  void drawArc(ui.Rect rect, double startAngle, double sweepAngle,
+      bool useCenter, ui.Paint paint) {
+    arcs.add(_RecordedArc(startAngle, sweepAngle, paint.color));
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
 }
