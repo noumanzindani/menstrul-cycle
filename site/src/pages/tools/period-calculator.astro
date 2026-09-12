@@ -1,0 +1,263 @@
+---
+import Tool from '../../layouts/Tool.astro'
+import Calculator from '../../components/Calculator.astro'
+import type { FaqEntry } from '../../types.ts'
+
+const faq: FaqEntry[] = [
+  {
+    q: 'How accurate is a period calculator?',
+    a: "It's only as accurate as the average cycle length you enter, and it assumes every future cycle will match that average exactly. Real cycles vary by a few days even in people who consider themselves regular, and small differences compound the further out a prediction reaches — treat the dates as a planning window, not a guarantee.",
+  },
+  {
+    q: "What should I enter if I don't know my average cycle length?",
+    a: 'Count from the first day of one period to the first day of the next for your last two or three cycles, then average the results. If you have never tracked this before, 28 days is a common starting point, but logging your own dates for a cycle or two will give you a far more personal number than any default.',
+  },
+  {
+    q: 'Why did I get an error message instead of a result?',
+    a: "The calculator only accepts cycle lengths between 21 and 45 days and period lengths between 1 and 10 days — the outer edges of what's generally considered a physiologically plausible range. If your own numbers sit near those edges, or you had to guess wildly to get a value inside them, that pattern is worth raising with a doctor rather than working around.",
+  },
+  {
+    q: 'Can I use this to know which days are safe to avoid pregnancy?',
+    a: "No. This calculator, and the app behind it, is not a method of contraception. It estimates likely dates from a fixed average; it cannot account for the cycle-to-cycle variation that makes calendar-based methods unreliable for preventing pregnancy on their own.",
+  },
+  {
+    q: "My actual period didn't match the estimate. Is something wrong?",
+    a: 'Not necessarily — see "Why your dates will drift" below. The calculator assumes every future cycle is exactly the length you typed in. Real cycles fluctuate even in people with a consistent pattern, and the gap between the estimate and reality tends to grow the further into the future you look.',
+  },
+  {
+    q: 'Does this still work if my periods are already irregular?',
+    a: "It will still produce a result, but treat it as a much rougher guide. The maths assumes one fixed cycle length repeating indefinitely; if your cycles vary a lot from month to month that assumption doesn't hold well, and a doctor can help work out why they're inconsistent in the first place.",
+  },
+  {
+    q: 'How is this different from what the LunaTrack app does?',
+    a: 'This page runs the same underlying calendar maths as the app, applied once to whatever last period date and cycle length you type in by hand. The app builds the same kind of estimate from your own logged cycle history instead of a single manual entry, so it can adjust as your actual pattern changes across cycles rather than staying fixed to one guess.',
+  },
+]
+---
+<Tool
+  title="Period Calculator — Predict Your Next Period"
+  description="Estimate your next three period dates from your last start date and cycle length, calculated in your browser and never transmitted anywhere."
+  path="/tools/period-calculator"
+  faq={faq}
+>
+  <Calculator slot="widget" kind="period" />
+
+  <p>
+    A period calculator answers one narrow question: if your next few cycles
+    behave like your recent ones, when will your period probably start and
+    end? Type in the first day of your last period, how long your cycle
+    usually runs, and how many days you typically bleed, and this tool
+    projects your next three periods forward using the same arithmetic a
+    calendar and a pen would use — just faster, and less error-prone. It runs
+    entirely as JavaScript in your own browser; the dates you type are never
+    sent to LunaTrack or to anyone else, and nothing here requires the app
+    itself. If you'd rather see how this fits alongside the rest of what
+    LunaTrack tracks, the <a href="/tools" class="underline">calculators
+    page</a> lists the other estimators built the same way.
+  </p>
+
+  <h2>How this works</h2>
+  <p>
+    The calculation is deliberately simple, and that simplicity is the whole
+    point: it makes the assumptions visible instead of hiding them inside a
+    black box. You give the tool three numbers — a start date, a cycle
+    length, and a period length — and it does the same thing you'd do with a
+    paper calendar: starting from your last period's first day, it counts
+    forward one full cycle length to land on the next expected start date,
+    then counts forward again by the same amount for the cycle after that,
+    and once more for the one after that. For each predicted start date, it
+    adds your period length minus one day to mark where that period is
+    expected to end.
+  </p>
+  <p>
+    There is no hidden adjustment, no smoothing, and no attempt to guess
+    whether this particular cycle will run long or short — the same cycle
+    length is applied uniformly to every future date. That's a deliberate
+    trade-off. A more elaborate model could try to weight recent cycles more
+    heavily, or flag a cycle as an outlier, but doing that well needs a
+    real history of your own cycles to learn from, not three numbers typed in
+    once. This page works from what you hand it in the moment; the "Tracking
+    instead of guessing" section below covers what changes once there's a
+    real history behind the numbers. Because everything happens locally in
+    your browser's own JavaScript engine, closing the tab discards the
+    calculation completely — there's no record kept anywhere of what you
+    typed in or what came out.
+  </p>
+
+  <h2>What "cycle length" means and how to measure it</h2>
+  <p>
+    Cycle length is the number of days from the first day of one period to
+    the first day of the next — not the number of days in a month, and not
+    the number of days between the end of one period and the start of the
+    next. Day one of a cycle is the first day of actual bleeding, not
+    spotting beforehand and not the day symptoms start; light spotting a day
+    or two before flow becomes steady is common and doesn't count as day
+    one for most people, though when it's genuinely hard to tell where
+    bleeding starts, that ambiguity is itself worth mentioning to a doctor.
+  </p>
+  <p>
+    To measure your own cycle length by hand: write down the date your last
+    period started, then write down the date the next one starts, and
+    subtract. A single measurement tells you one data point, not your
+    "true" cycle length — length can shift by a few days from one cycle to
+    the next even in people whose cycles are considered regular, so three or
+    four consecutive measurements give a far more honest picture than one.
+    If you've logged several start dates already, averaging them (or using a
+    tool built for exactly that, like the cycle-length calculator this page
+    links to once it's live) is more reliable than picking one recent
+    example and assuming it's typical.
+  </p>
+  <p>
+    A related point worth being precise about: this calculator restricts
+    cycle length to between 21 and 45 days. That range isn't a claim about
+    what's "normal" — reproductive-age cycles most often fall somewhere
+    between about 24 and 38 days, and plenty of healthy cycles sit outside
+    that narrower band too — it's simply the outer edge of what the
+    underlying maths treats as a plausible input worth projecting forward.
+    Numbers outside that range are rejected outright rather than silently
+    accepted and used to produce a confident-looking but meaningless date.
+  </p>
+
+  <h2>Why your dates will drift</h2>
+  <p>
+    Every prediction this calculator makes rests on one assumption: that
+    your next cycle, and the one after that, and the one after that, will
+    each last exactly as long as the number you typed in. In practice, almost
+    nobody's cycles are that metronomic. The first half of a cycle — from the
+    start of a period to ovulation — is the part most prone to shifting from
+    month to month, because ovulation timing itself responds to everything
+    from sleep to illness to stress. The second half, from ovulation to the
+    next period, tends to be far steadier, typically landing somewhere close
+    to two weeks, which is part of why a due-date or ovulation estimate
+    often counts backward from an expected period rather than forward from
+    the last one.
+  </p>
+  <p>
+    Because the first half is the variable part, even a cycle that runs a
+    few days long or short changes when the whole cycle finishes — and once
+    that happens, every later prediction this tool makes is built on the
+    now-outdated assumption that your cycle still matches the number you
+    entered at the start. A three-day shift in one cycle doesn't just move
+    that one period; it shifts every subsequent projected date by the same
+    three days, because the calculator has no way to learn that your actual
+    pattern changed unless you tell it again with a fresh calculation using
+    your latest start date.
+  </p>
+  <p>
+    This is the single biggest limitation of any one-off calculator compared
+    with ongoing tracking: a calculator answers the question "what if every
+    future cycle matches this one number," while your actual cycles answer a
+    messier, more honest question that changes slightly every month. Neither
+    answer is wrong, but they're different questions, and it's worth knowing
+    which one you're looking at when the two disagree.
+  </p>
+
+  <h2>What changes a cycle (illness, stress, travel, contraception, perimenopause)</h2>
+  <p>
+    Cycle length isn't fixed biology in the way height is — it responds to
+    what's happening in the rest of the body, sometimes within a single
+    cycle. A short illness with a fever can delay ovulation by disrupting
+    the hormonal signalling between the brain and the ovaries, which pushes
+    the whole cycle later even though the delay itself only lasted a few
+    days. Psychological or physical stress works through a related pathway:
+    sustained stress can suppress the hormone signals that trigger ovulation,
+    sometimes delaying a period by days and occasionally skipping it
+    altogether for that cycle.
+  </p>
+  <p>
+    Travel across time zones, and disrupted sleep more generally, can shift
+    cycle timing too — the reproductive hormone cycle is loosely coupled to
+    the body's broader circadian rhythms, and jet lag or a run of bad sleep
+    is a common, usually temporary, cause of a cycle running longer or
+    shorter than expected. None of these on their own are cause for alarm;
+    they're the reason cycle length is a range rather than a fixed number
+    even for people whose cycles are usually predictable.
+  </p>
+  <p>
+    Hormonal contraception changes the picture more fundamentally. Combined
+    pills, the patch, and the ring generally replace the natural cycle with
+    a hormone level the method controls directly, which is why bleeding on
+    these methods can be very regular but isn't really a "cycle" being
+    predicted in the same sense — it's a scheduled withdrawal bleed. Coming
+    off hormonal contraception, or switching methods, commonly causes a
+    stretch of irregularity while the body's own signalling resumes, and
+    that stretch can last several cycles before settling into a new pattern.
+    A calculator like this one, built around a natural ovulatory cycle,
+    won't model a hormonal method's bleeding pattern well, and isn't meant
+    to.
+  </p>
+  <p>
+    Perimenopause is the other major source of change, and it's one of the
+    most common reasons cycle length shifts later in life. As ovarian
+    reserve declines, cycles frequently become more variable — sometimes
+    shorter for a stretch, sometimes longer, sometimes skipped — well before
+    periods stop altogether. That variability is itself the pattern doctors
+    look for, so if your cycles have become noticeably less predictable in
+    your 40s or later, that's useful information to bring to a doctor rather
+    than something a calculator can characterise for you.
+  </p>
+
+  <h2>When a late period is worth a doctor's visit</h2>
+  <p>
+    A period a few days later than expected is common and usually not a sign
+    of anything wrong — it's exactly the kind of variation the section above
+    describes. A few situations are worth treating differently. If pregnancy
+    is possible, a late period is the first thing a pregnancy test can rule
+    in or out, and that's a faster, more direct answer than any calculator
+    can give. Missing periods for three months or longer, when they aren't
+    explained by pregnancy, breastfeeding, or a contraceptive method that's
+    expected to stop them, is generally considered worth discussing with a
+    doctor — this pattern has a name, secondary amenorrhoea, and it has
+    identifiable causes ranging from thyroid conditions to polycystic ovary
+    syndrome to significant changes in weight or exercise.
+  </p>
+  <p>
+    A sudden, sustained change in a pattern that used to be predictable is
+    also worth a conversation, even if any single late period wouldn't be.
+    So is bleeding that's unusually heavy — soaking through protection every
+    hour or two for several hours, or passing clots larger than a coin —
+    bleeding between periods or after sex, or pain severe enough to
+    interfere with daily activities. None of these are things this
+    calculator, or any calculator, can evaluate: it only knows the numbers
+    you typed in, not what your body is actually doing. Its job stops at
+    arithmetic; a doctor's doesn't.
+  </p>
+  <p>
+    None of this is a diagnosis, and this page isn't trying to be one — it's
+    a rough guide to which kinds of lateness are ordinary variation and
+    which are worth a second opinion, so that a delayed period doesn't sit
+    unexamined for months out of uncertainty about whether it's worth
+    mentioning.
+  </p>
+
+  <h2>Tracking instead of guessing</h2>
+  <p>
+    Everything above points at the same conclusion: a single calculation
+    from a single guessed cycle length is a reasonable starting point, but
+    it's a snapshot, not a system. The more your actual cycle varies, the
+    less a fixed-length projection has to say about any specific future
+    date, and the more value there is in recording what actually happens
+    each cycle instead of re-guessing the same average every time.
+  </p>
+  <p>
+    That's the difference between a calculator and ongoing tracking. A
+    calculator takes three numbers once and projects them forward blindly.
+    Tracking takes the date your period actually starts, cycle after cycle,
+    and uses that real history — not a remembered average — to keep the
+    estimate current as your pattern shifts, whether that's a temporary
+    change from travel or illness or a longer-term shift like the one
+    perimenopause can bring. The <a href="/features" class="underline">full
+    feature list</a> covers how LunaTrack builds predictions from logged
+    cycles rather than a single manual entry, alongside the rest of what it
+    tracks day to day.
+  </p>
+  <p>
+    If you came here just to check a date, that's a completely reasonable
+    use of this page on its own — not everyone wants an app for one
+    calculation. But if the number kept moving because your actual period
+    didn't land where the last calculation said it would, that's usually a
+    sign that a single average has stopped capturing what your body is
+    doing, and an ongoing log will tell you more than typing the same three
+    numbers in again next month.
+  </p>
+</Tool>

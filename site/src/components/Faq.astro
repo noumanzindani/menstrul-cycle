@@ -1,0 +1,16 @@
+---
+import type { FaqEntry } from '../types.ts'
+interface Props { items: FaqEntry[] }
+const { items } = Astro.props as Props
+---
+<section class="mt-12">
+  <h2 class="text-2xl font-bold">Common questions</h2>
+  <dl class="mt-4 space-y-6">
+    {items.map((f) => (
+      <div>
+        <dt class="font-semibold">{f.q}</dt>
+        <dd class="mt-1 opacity-90">{f.a}</dd>
+      </div>
+    ))}
+  </dl>
+</section>

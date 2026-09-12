@@ -1,0 +1,92 @@
+---
+import Base from '../../layouts/Base.astro'
+---
+<Base
+  title="Cycle Calculators — LunaTrack"
+  description="Period, ovulation, cycle-length, and due-date calculators that run locally in your browser. Nothing you type into any of them is ever transmitted."
+  path="/tools"
+>
+  <h1 class="text-3xl font-bold">Cycle calculators</h1>
+  <p class="mt-4 max-w-prose">
+    These tools estimate dates from cycle information you already have — a
+    last period, an average length, a handful of recent start dates — using
+    the same calendar arithmetic built into the LunaTrack app. Each one runs
+    as plain JavaScript in your own browser: nothing you type into a
+    calculator on this page is sent anywhere, and using one doesn't require
+    the app itself.
+  </p>
+
+  <div class="mt-10 grid gap-6 sm:grid-cols-2">
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">
+        <a href="/tools/period-calculator" class="underline">Period calculator</a>
+      </h2>
+      <p class="mt-2 text-sm">
+        Estimate your next three period start and end dates from your last
+        period and your average cycle and period length.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Ovulation calculator</h2>
+      <p class="mt-2 text-sm">
+        Estimate a likely ovulation day and fertile window by counting
+        backward from your next expected period. Coming soon.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Cycle length calculator</h2>
+      <p class="mt-2 text-sm">
+        Enter a few recent period start dates to see your average cycle
+        length, its spread, and whether that pattern looks regular. Coming
+        soon.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Due date calculator</h2>
+      <p class="mt-2 text-sm">
+        Estimate a due date and trimester timeline from your last period and
+        cycle length, using the standard calendar method. Coming soon.
+      </p>
+    </section>
+  </div>
+
+  <section class="mt-12 max-w-prose">
+    <h2 class="text-xl font-semibold">What these estimators can and cannot tell you</h2>
+    <p class="mt-2">
+      Every calculator here does the same kind of thing: it takes a small
+      number of dates you already know and projects forward or backward
+      using averages drawn from general reproductive-health references, not
+      from anything specific to your own body beyond the numbers you typed
+      in. That makes them useful for a quick, rough estimate — planning
+      around a likely period, getting a sense of a fertile window, working
+      out roughly how far along a pregnancy is — without needing to open an
+      app or dig up a paper calendar.
+    </p>
+    <p class="mt-2">
+      It also sets a hard limit on what they can tell you. Each calculator
+      assumes a single fixed cycle length repeating indefinitely, and real
+      cycles vary — sometimes by a few days, sometimes by a lot more, for
+      reasons ranging from illness and travel to hormonal contraception and
+      perimenopause. None of these tools can detect irregularity, diagnose a
+      condition, or tell you why a cycle changed; they can only do the
+      arithmetic on the assumption you fed them. They are not a method of
+      contraception, and a result from any of them is not a substitute for
+      advice from a doctor or midwife — see the disclaimer on each
+      calculator's page for the specifics.
+    </p>
+    <p class="mt-2">
+      The gap between a calculator and something like the
+      <a href="/features" class="underline">predictions built into LunaTrack</a>
+      is history. A calculator only ever sees the numbers you give it in one
+      sitting; ongoing tracking sees your actual cycles, one after another,
+      and can adjust as your real pattern shifts instead of staying anchored
+      to a single guess. If a calculator's estimate keeps missing, that's
+      usually a sign your cycle has more going on than one average can
+      capture — worth logging properly, and if it's a sudden or sustained
+      change, worth mentioning to a doctor too.
+    </p>
+  </section>
+</Base>

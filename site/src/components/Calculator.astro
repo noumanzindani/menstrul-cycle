@@ -1,0 +1,96 @@
+---
+interface Props { kind: 'period' | 'ovulation' | 'cycle-length' | 'due-date' }
+const { kind } = Astro.props as Props
+---
+<form id="calc" data-kind={kind} class="rounded-card border border-outline p-4">
+  <p class="mb-4 text-sm opacity-80">
+    This runs entirely in your browser. The dates you type are never sent anywhere.
+  </p>
+
+  {kind === 'cycle-length' ? (
+    <fieldset>
+      <legend class="font-semibold">The first day of your last few periods</legend>
+      <input type="date" name="d1" required class="mt-2 block" />
+      <input type="date" name="d2" required class="mt-2 block" />
+      <input type="date" name="d3" class="mt-2 block" />
+      <input type="date" name="d4" class="mt-2 block" />
+    </fieldset>
+  ) : (
+    <label class="block font-semibold">
+      First day of your last period
+      <input type="date" name="last" required class="mt-2 block" />
+    </label>
+  )}
+
+  {kind !== 'cycle-length' && (
+    <label class="mt-4 block font-semibold">
+      Average cycle length (days)
+      <input type="number" name="cycle" min="21" max="45" value="28" required class="mt-2 block" />
+    </label>
+  )}
+
+  {kind === 'period' && (
+    <label class="mt-4 block font-semibold">
+      How many days your period usually lasts
+      <input type="number" name="period" min="1" max="10" value="5" required class="mt-2 block" />
+    </label>
+  )}
+
+  <button type="submit" class="mt-6 h-btn-h rounded-btn bg-seed px-6 font-semibold text-primary">
+    Calculate
+  </button>
+  <output id="result" class="mt-6 block" aria-live="polite"></output>
+  <p id="error" role="alert" class="mt-2 text-menstrual"></p>
+</form>
+
+<script>
+  import {
+    predictPeriods, predictOvulation, analyseCycles, estimateDueDate, formatISO,
+  } from '../lib/cycle.ts'
+
+  const form = document.getElementById('calc') as HTMLFormElement
+  const out = document.getElementById('result')!
+  const err = document.getElementById('error')!
+  const kind = form.dataset.kind!
+
+  const human = (iso: string) =>
+    new Date(iso + 'T00:00:00Z').toLocaleDateString(undefined, {
+      weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+    })
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault()
+    err.textContent = ''
+    out.innerHTML = ''
+    const f = new FormData(form)
+    const num = (k: string) => Number(f.get(k))
+    try {
+      if (kind === 'period') {
+        const rows = predictPeriods(String(f.get('last')), num('cycle'), num('period'), 3)
+        out.innerHTML = '<h3 class="font-bold">Your next three periods</h3><ul>' +
+          rows.map((r) => `<li>${human(r.start)} to ${human(r.end)}</li>`).join('') + '</ul>'
+      } else if (kind === 'ovulation') {
+        const r = predictOvulation(String(f.get('last')), num('cycle'))
+        out.innerHTML =
+          `<h3 class="font-bold">Estimated ovulation: ${human(r.ovulation)}</h3>` +
+          `<p>Most fertile days: ${human(r.fertileStart)} to ${human(r.fertileEnd)}</p>` +
+          `<p>Next period expected: ${human(r.nextPeriod)}</p>`
+      } else if (kind === 'cycle-length') {
+        const dates = ['d1', 'd2', 'd3', 'd4'].map((k) => String(f.get(k) ?? '')).filter(Boolean)
+        const s = analyseCycles(dates)
+        out.innerHTML =
+          `<h3 class="font-bold">Average cycle: ${s.average} days</h3>` +
+          `<p>Shortest ${s.shortest}, longest ${s.longest}, a spread of ${s.variation} days.</p>` +
+          `<p>That pattern looks <strong>${s.regularity}</strong>. This is a description, not a diagnosis.</p>`
+      } else {
+        const r = estimateDueDate(String(f.get('last')), num('cycle'), formatISO(Date.now()))
+        out.innerHTML =
+          `<h3 class="font-bold">Estimated due date: ${human(r.dueDate)}</h3>` +
+          `<p>You are about ${r.gestationalWeeks} weeks and ${r.gestationalDays} days along.</p>` +
+          `<p>Second trimester from ${human(r.trimester2Start)}, third from ${human(r.trimester3Start)}.</p>`
+      }
+    } catch (e) {
+      err.textContent = e instanceof Error ? e.message : 'Please check the values you entered.'
+    }
+  })
+</script>
