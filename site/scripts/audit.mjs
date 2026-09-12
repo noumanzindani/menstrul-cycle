@@ -1,0 +1,193 @@
+#!/usr/bin/env node
+/**
+ * Executable form of the flo.health defect register.
+ * Every assertion below cites the defect it prevents; see
+ * docs/research/flo-health-teardown.md.
+ */
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative, sep } from 'node:path'
+import { BANNED_CLAIMS } from '../src/consts.ts'
+
+const DIST = new URL('../dist/', import.meta.url).pathname
+const failures = []
+const fail = (page, msg) => failures.push(`${page}: ${msg}`)
+
+/** Pages exempt from marketing-claim scanning: reproduced legal documents. */
+const CLAIM_EXEMPT = new Set(['/privacy-policy', '/terms'])
+/** Pages allowed to ship a hydrated island, with their JS byte budget. */
+const JS_BUDGET = { '/tools/period-calculator': 8192, '/tools/ovulation-calculator': 8192,
+                    '/tools/cycle-length-calculator': 8192, '/tools/due-date-calculator': 8192 }
+
+function walk(dir) {
+  return readdirSync(dir).flatMap((e) => {
+    const p = join(dir, e)
+    return statSync(p).isDirectory() ? walk(p) : [p]
+  })
+}
+
+const files = walk(DIST)
+const htmlFiles = files.filter((f) => f.endsWith('.html'))
+if (htmlFiles.length === 0) { console.error('audit: dist/ has no HTML. Run `npm run build` first.'); process.exit(1) }
+
+/** dist/tools/x.html -> /tools/x ; dist/index.html -> / */
+const routeOf = (f) => {
+  const r = '/' + relative(DIST, f).split(sep).join('/').replace(/\.html$/, '')
+  return r === '/index' ? '/' : r.replace(/\/index$/, '')
+}
+const routes = new Set(htmlFiles.map(routeOf))
+
+const text = (html) => html
+  .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+  .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  .replace(/<[^>]+>/g, ' ')
+  .replace(/&nbsp;/g, ' ')
+  .replace(/\s+/g, ' ')
+
+const all = (re, s) => [...s.matchAll(re)]
+
+let orgIds = new Set(), siteIds = new Set()
+
+for (const file of htmlFiles) {
+  const page = routeOf(file)
+  const html = readFileSync(file, 'utf8')
+
+  // --- A4: title and description discipline -----------------------------
+  const titles = all(/<title>([\s\S]*?)<\/title>/gi, html)
+  if (titles.length !== 1) fail(page, `expected 1 <title>, found ${titles.length}`)
+  else if (titles[0][1].length > 60) fail(page, `title is ${titles[0][1].length} chars (max 60)`)
+
+  const descs = all(/<meta\s+name="description"\s+content="([^"]*)"/gi, html)
+  if (descs.length !== 1) fail(page, `expected 1 meta description, found ${descs.length}`)
+  else {
+    const n = descs[0][1].length
+    if (n < 70 || n > 155) fail(page, `meta description is ${n} chars (want 70-155)`)
+  }
+
+  const canon = all(/<link\s+rel="canonical"\s+href="([^"]*)"/gi, html)
+  if (canon.length !== 1) fail(page, `expected 1 canonical, found ${canon.length}`)
+
+  for (const prop of ['og:title', 'og:description', 'og:url', 'og:type']) {
+    if (!html.includes(`property="${prop}"`)) fail(page, `missing ${prop}`)
+  }
+
+  // --- D2, D3: schema integrity ----------------------------------------
+  const blocks = all(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi, html)
+  if (blocks.length !== 1) fail(page, `expected 1 JSON-LD block, found ${blocks.length}`)
+  for (const [, raw] of blocks) {
+    let parsed
+    try { parsed = JSON.parse(raw) } catch (e) { fail(page, `JSON-LD does not parse: ${e.message}`); continue }
+    const nodes = parsed['@graph'] ?? [parsed]
+    const ids = nodes.map((n) => n['@id']).filter(Boolean)
+    if (new Set(ids).size !== ids.length) fail(page, `duplicate @id in JSON-LD (Flo D2)`)
+
+    // D3: no double slash in any emitted URL, ignoring the protocol separator.
+    for (const m of all(/"(https?:\/\/[^"]+)"/g, JSON.stringify(parsed))) {
+      if (m[1].slice(8).includes('//')) fail(page, `double slash in schema URL ${m[1]} (Flo D3)`)
+    }
+    // No dangling references: a lone {'@id': x} is a pointer, and every pointer
+    // must resolve to a node actually present in the graph. A node carrying '@id'
+    // plus other keys is a definition, not a pointer.
+    const declared = new Set(nodes.map((n) => n['@id']).filter(Boolean))
+    const refs = []
+    const walk = (v) => {
+      if (Array.isArray(v)) return v.forEach(walk)
+      if (v && typeof v === 'object') {
+        const keys = Object.keys(v)
+        if (keys.length === 1 && keys[0] === '@id') refs.push(v['@id'])
+        else Object.values(v).forEach(walk)
+      }
+    }
+    nodes.forEach(walk)
+    for (const r of refs) {
+      if (!declared.has(r)) fail(page, `JSON-LD points at ${r}, which no node in the graph declares`)
+    }
+
+    for (const n of nodes) {
+      if (n['@type'] === 'Organization') orgIds.add(n['@id'])
+      if (n['@type'] === 'WebSite') siteIds.add(n['@id'])
+      if (n['@type'] === 'BreadcrumbList') {
+        for (const li of n.itemListElement ?? []) {
+          if (typeof li.position !== 'number') fail(page, `breadcrumb position is not an integer`)
+        }
+      }
+      // D5, D6: health content must carry dates and an author.
+      if (n['@type'] === 'Article' || n['@type'] === 'MedicalWebPage') {
+        for (const k of ['datePublished', 'dateModified', 'author']) {
+          if (!n[k]) fail(page, `article schema missing ${k} (Flo D5/D6)`)
+        }
+      }
+    }
+  }
+
+  // --- D9: images -------------------------------------------------------
+  for (const [tag] of all(/<img\b[^>]*>/gi, html)) {
+    if (!/\bwidth=/.test(tag) || !/\bheight=/.test(tag)) fail(page, `<img> without width/height (CLS, Flo D9)`)
+    const src = tag.match(/src="([^"]*)"/)?.[1] ?? ''
+    if (/\.(png|jpe?g)(\?|$)/i.test(src)) fail(page, `<img> ships ${src}; use WebP/AVIF via astro:assets (Flo D9)`)
+  }
+
+  // --- D4, D5: JavaScript weight ---------------------------------------
+  // Counts BOTH inline script text and the bytes of every local <script src> it
+  // pulls in. Astro bundles island code to /_astro/*.js, so an inline-only
+  // measurement would read 0 on exactly the pages that ship JavaScript.
+  if (html.includes('cdn.tailwindcss.com')) fail(page, `loads the Tailwind CDN (ships a JIT compiler)`)
+  let jsBytes = 0
+  for (const m of all(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi, html)) {
+    const [, attrs, body] = m
+    if (/application\/ld\+json/.test(attrs)) continue
+    jsBytes += Buffer.byteLength(body, 'utf8')
+    const src = attrs.match(/src="([^"]+)"/)?.[1]
+    if (src && src.startsWith('/')) {
+      try { jsBytes += statSync(join(DIST, src.slice(1))).size } catch { fail(page, `<script src="${src}"> has no file in dist/`) }
+    }
+  }
+  const budget = JS_BUDGET[page] ?? 0
+  if (jsBytes > budget) fail(page, `${jsBytes} bytes of JS exceeds budget ${budget} (Flo D4)`)
+
+  // --- Calculators must never transmit an input (spec D6) ---------------
+  if (page.startsWith('/tools/')) {
+    for (const banned of ['fetch(', 'sendBeacon', 'XMLHttpRequest', 'new WebSocket']) {
+      if (html.includes(banned)) fail(page, `calculator page contains ${banned} — inputs must never leave the browser`)
+    }
+  }
+
+  // --- Positioning: no unsupportable claim ------------------------------
+  if (!CLAIM_EXEMPT.has(page)) {
+    const body = text(html).toLowerCase()
+    for (const claim of BANNED_CLAIMS) {
+      if (body.includes(claim)) fail(page, `contains unsupportable claim "${claim}" — see plan Global Constraints`)
+    }
+  }
+
+  // --- B3: every internal link resolves ---------------------------------
+  for (const m of all(/<a\b[^>]*href="(\/[^"#?]*)"/gi, html)) {
+    const target = m[1].replace(/\/$/, '') || '/'
+    if (!routes.has(target)) fail(page, `internal link to ${target} has no built page (Flo B3)`)
+  }
+}
+
+// --- D2, D8: exactly one organisation and one website identity sitewide --
+if (orgIds.size !== 1) failures.push(`sitewide: found ${orgIds.size} distinct Organization @ids, want 1`)
+if (siteIds.size !== 1) failures.push(`sitewide: found ${siteIds.size} distinct WebSite @ids, want 1`)
+
+// --- D1, B3: the sitemap covers every built route -----------------------
+const sitemapFile = files.find((f) => /sitemap-0\.xml$/.test(f))
+if (!sitemapFile) failures.push('sitewide: no sitemap-0.xml in dist/')
+else {
+  const xml = readFileSync(sitemapFile, 'utf8')
+  // build.format:'file' can emit either /x or /x.html into <loc>; normalise both.
+  const norm = (u) => (new URL(u).pathname.replace(/\.html$/, '').replace(/\/$/, '') || '/')
+  const listed = new Set(all(/<loc>([^<]+)<\/loc>/g, xml).map((m) => norm(m[1])))
+  for (const r of routes) {
+    if (r === '/404') continue
+    if (!listed.has(r)) failures.push(`sitemap: missing ${r}`)
+  }
+  if (/hreflang="\//.test(xml)) failures.push('sitemap: hreflang holds a URL path, not a language code (Flo D1)')
+}
+
+if (failures.length) {
+  console.error(`\naudit FAILED — ${failures.length} problem(s):\n`)
+  for (const f of failures) console.error('  ✗ ' + f)
+  process.exit(1)
+}
+console.log(`audit passed: ${htmlFiles.length} pages, ${routes.size} routes, 0 problems`)

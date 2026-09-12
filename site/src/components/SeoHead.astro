@@ -52,7 +52,7 @@ if (article) {
     headline: title,
     description,
     url: canonical,
-    mainEntityOfPage: { '@id': `${canonical}#webpage` },
+    mainEntityOfPage: canonical,   // a plain URL; never a pointer to a node we do not emit
     author: { '@type': 'Person', name: article.author },
     publisher: { '@id': abs('/#organization') },
     datePublished: article.datePublished.toISOString(),
