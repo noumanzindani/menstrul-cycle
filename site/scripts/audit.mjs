@@ -4,7 +4,7 @@
  * Every assertion below cites the defect it prevents; see
  * docs/research/flo-health-teardown.md.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { BANNED_CLAIMS } from '../src/consts.ts'
 
@@ -25,6 +25,7 @@ function walk(dir) {
   })
 }
 
+if (!existsSync(DIST)) { console.error('audit: dist/ does not exist. Run `npm run build` first.'); process.exit(1) }
 const files = walk(DIST)
 const htmlFiles = files.filter((f) => f.endsWith('.html'))
 if (htmlFiles.length === 0) { console.error('audit: dist/ has no HTML. Run `npm run build` first.'); process.exit(1) }
@@ -44,6 +45,10 @@ const text = (html) => html
   .replace(/\s+/g, ' ')
 
 const all = (re, s) => [...s.matchAll(re)]
+
+const ATTR_SCAN = /(?:content|alt|title|aria-label|placeholder|value)="([^"]*)"/gi
+const scanCorpus = (html) =>
+  (text(html) + ' ' + all(ATTR_SCAN, html).map((m) => m[1]).join(' ')).toLowerCase()
 
 let orgIds = new Set(), siteIds = new Set()
 
@@ -82,7 +87,8 @@ for (const file of htmlFiles) {
 
     // D3: no double slash in any emitted URL, ignoring the protocol separator.
     for (const m of all(/"(https?:\/\/[^"]+)"/g, JSON.stringify(parsed))) {
-      if (m[1].slice(8).includes('//')) fail(page, `double slash in schema URL ${m[1]} (Flo D3)`)
+      let u; try { u = new URL(m[1]) } catch { continue }
+      if (u.pathname.includes('//')) fail(page, `double slash in schema URL ${m[1]} (Flo D3)`)
     }
     // No dangling references: a lone {'@id': x} is a pointer, and every pointer
     // must resolve to a node actually present in the graph. A node carrying '@id'
@@ -121,7 +127,7 @@ for (const file of htmlFiles) {
 
   // --- D9: images -------------------------------------------------------
   for (const [tag] of all(/<img\b[^>]*>/gi, html)) {
-    if (!/\bwidth=/.test(tag) || !/\bheight=/.test(tag)) fail(page, `<img> without width/height (CLS, Flo D9)`)
+    if (!/\swidth=/.test(tag) || !/\sheight=/.test(tag)) fail(page, `<img> without width/height (CLS, Flo D9)`)
     const src = tag.match(/src="([^"]*)"/)?.[1] ?? ''
     if (/\.(png|jpe?g)(\?|$)/i.test(src)) fail(page, `<img> ships ${src}; use WebP/AVIF via astro:assets (Flo D9)`)
   }
@@ -139,6 +145,8 @@ for (const file of htmlFiles) {
     const src = attrs.match(/src="([^"]+)"/)?.[1]
     if (src && src.startsWith('/')) {
       try { jsBytes += statSync(join(DIST, src.slice(1))).size } catch { fail(page, `<script src="${src}"> has no file in dist/`) }
+    } else if (src) {
+      fail(page, `<script src="${src}"> is off-origin; CSP allows script-src 'self' only`)
     }
   }
   const budget = JS_BUDGET[page] ?? 0
@@ -153,7 +161,7 @@ for (const file of htmlFiles) {
 
   // --- Positioning: no unsupportable claim ------------------------------
   if (!CLAIM_EXEMPT.has(page)) {
-    const body = text(html).toLowerCase()
+    const body = scanCorpus(html)
     for (const claim of BANNED_CLAIMS) {
       if (body.includes(claim)) fail(page, `contains unsupportable claim "${claim}" — see plan Global Constraints`)
     }
