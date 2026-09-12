@@ -1,0 +1,10 @@
+---
+interface Props { kind: 'tool' | 'article' }
+const { kind } = Astro.props as Props
+const text = kind === 'tool'
+  ? 'This calculator gives an estimate based on averages. It is not a diagnosis, not contraception, and not a substitute for advice from a doctor or midwife.'
+  : 'This article is general information, not medical advice. If something about your cycle worries you, speak to a doctor.'
+---
+<aside role="note" class="my-8 rounded-lg border border-outline bg-surface-tint p-4 text-sm dark:bg-surface-dark-2">
+  <strong>Please read:</strong> {text}
+</aside>

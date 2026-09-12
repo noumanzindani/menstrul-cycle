@@ -1,0 +1,38 @@
+---
+import Base from '../layouts/Base.astro'
+import { ORG } from '../consts.ts'
+
+const playUrl = ORG.sameAs[0]
+---
+<Base
+  title="Download LunaTrack for Android"
+  description="Get LunaTrack on Google Play. Read what it tracks and how it handles your data before you create an account and install it."
+  path="/download"
+>
+  <h1 class="text-3xl font-bold">Get LunaTrack</h1>
+  <p class="mt-4 max-w-prose">
+    LunaTrack is available for Android on Google Play.
+  </p>
+
+  <a
+    href={playUrl}
+    class="mt-6 inline-flex h-btn-h items-center gap-3 rounded-btn bg-primary px-6 text-white"
+  >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M3 2.5c-.4.4-.6.9-.6 1.5v16c0 .6.2 1.1.6 1.5l.1.1L12.5 12 3.1 2.4 3 2.5z"></path>
+      <path d="M15.8 15.3 12.5 12l3.3-3.3 4.1 2.4c1 .6 1 1.9 0 2.5l-4.1 2.4z" opacity=".7"></path>
+      <path d="M15.8 15.3 12.5 12 3.1 21.6c.4.4 1 .5 1.6.2l11.1-6.5z" opacity=".85"></path>
+      <path d="M15.8 8.7 4.7 2.2c-.6-.3-1.2-.2-1.6.2L12.5 12l3.3-3.3z" opacity=".55"></path>
+    </svg>
+    <span>
+      <span class="block text-xs opacity-80">Get it on</span>
+      <span class="block text-base font-semibold leading-tight">Google Play</span>
+    </span>
+  </a>
+
+  <p class="mt-8 max-w-prose text-sm">
+    Before you install, see <a href="/features" class="underline">what LunaTrack tracks</a>
+    and <a href="/privacy" class="underline">how it handles your data</a> — including the
+    account it requires and what syncs to the cloud.
+  </p>
+</Base>

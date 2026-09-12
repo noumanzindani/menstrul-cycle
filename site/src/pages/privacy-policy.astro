@@ -1,0 +1,38 @@
+---
+import Base from '../layouts/Base.astro'
+import { compiledContent } from '../../../PRIVACY_POLICY.md'
+
+// PRIVACY_POLICY.md at the repo root is the single source of truth for the
+// legal text — the Play Console listing links to it, so it is imported here
+// rather than copied into site/. The "Before publishing" block near the top
+// (PRIVACY_POLICY.md:12-20) is an internal reviewer checklist, not policy
+// text, so it is stripped from the compiled HTML at render time. Everything
+// else, including the later "Current status" notice about the deletion
+// purge job, is real disclosure and stays.
+const raw = await compiledContent()
+const html = raw.replace(/<blockquote>[\s\S]*?Before publishing[\s\S]*?<\/blockquote>\s*/, '')
+---
+<Base
+  title="Privacy policy — LunaTrack"
+  description="The full LunaTrack privacy policy: what the app stores on your device, what syncs to the cloud, advertising, and how to delete your data."
+  path="/privacy-policy"
+>
+  <p class="text-sm opacity-70">
+    Looking for the short version? See <a href="/privacy" class="underline">how LunaTrack handles your data</a>.
+  </p>
+  <div class="legal-doc mt-6" set:html={html} />
+</Base>
+
+<style>
+  .legal-doc :global(h1) { font-size: 1.875rem; font-weight: 700; margin-top: 1.5rem; }
+  .legal-doc :global(h2) { font-size: 1.375rem; font-weight: 700; margin-top: 2rem; margin-bottom: 0.5rem; }
+  .legal-doc :global(h3) { font-size: 1.125rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+  .legal-doc :global(p) { margin-top: 0.75rem; line-height: 1.6; }
+  .legal-doc :global(ul), .legal-doc :global(ol) { margin-top: 0.75rem; padding-left: 1.5rem; line-height: 1.6; }
+  .legal-doc :global(li) { margin-top: 0.25rem; }
+  .legal-doc :global(li) :global(ul), .legal-doc :global(li) :global(ol) { margin-top: 0.25rem; }
+  .legal-doc :global(blockquote) { margin-top: 1rem; padding: 0.75rem 1rem; border-left: 3px solid var(--color-outline); background: var(--color-surface-tint); }
+  .legal-doc :global(a) { text-decoration: underline; }
+  .legal-doc :global(strong) { font-weight: 600; }
+  .legal-doc :global(hr) { margin: 2rem 0; border-color: var(--color-outline); }
+</style>

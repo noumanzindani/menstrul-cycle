@@ -37,4 +37,4 @@
 }
 
 html { color-scheme: light dark; }
-body { font-family: var(--font-body); }
+body { font-family: var(--font-body); overflow-wrap: break-word; }

@@ -3,8 +3,77 @@ import Base from '../layouts/Base.astro'
 ---
 <Base
   title="LunaTrack — period and cycle tracking"
-  description="LunaTrack is a period and cycle tracker that keeps your device as the source of truth, works fully offline, and never sends health data to advertisers."
+  description="LunaTrack shows no ads on symptom logging, diary, or insights. Your device leads, the app works offline, and health data never reaches advertisers."
   path="/"
 >
-  <h1 class="text-3xl font-bold">LunaTrack</h1>
+  <h1 class="text-3xl font-bold sm:text-4xl">LunaTrack</h1>
+  <p class="mt-4 max-w-prose text-lg">
+    No ads on symptom logging, your diary, or your insights — ever. That's the
+    one promise here that's easy to check for yourself.
+  </p>
+  <div class="mt-6 flex flex-wrap gap-4">
+    <a href="/download" class="inline-flex h-btn-h items-center rounded-btn bg-primary px-6 text-white">
+      Get it on Google Play
+    </a>
+    <a href="/features" class="inline-flex h-btn-h items-center rounded-btn border border-outline px-6">
+      See everything it tracks
+    </a>
+  </div>
+
+  <section class="mt-14 max-w-prose">
+    <h2 class="text-xl font-semibold">Your device leads, the cloud follows</h2>
+    <p class="mt-2">
+      Every log — periods, symptoms, mood, medication marks, weight, basal body
+      temperature, ovulation test results — is written to a database on your
+      device first. LunaTrack works fully offline, and that on-device copy is
+      the source of truth; the cloud is a mirror of it, kept for the account
+      LunaTrack requires so your logs follow you between devices. The device
+      database is encrypted at rest with a key held in your OS keystore — the
+      <a href="/privacy-policy" class="underline">full privacy policy</a> spells out
+      the one documented exception to that, along with everything else that
+      syncs.
+    </p>
+  </section>
+
+  <section class="mt-10 max-w-prose">
+    <h2 class="text-xl font-semibold">What's inside</h2>
+    <p class="mt-2">
+      Predictions, a daily log for symptoms and mood, medication marks, weight
+      and BBT tracking, ovulation test results, reminders, an app lock, a
+      doctor-ready PDF export, and a photo timeline. The
+      <a href="/features" class="underline">features page</a> covers all of it,
+      including what each one does and doesn't do.
+    </p>
+  </section>
+
+  <section class="mt-10 max-w-prose">
+    <h2 class="text-xl font-semibold">Ads that stay out of the way</h2>
+    <p class="mt-2">
+      The free version shows non-personalised ads through Google AdMob, and
+      never on symptom logging, your diary, or your insights. Your health data
+      is never sent to the ad network either way. If you'd rather not see ads
+      at all, Premium is a one-time Google Play purchase that removes them
+      everywhere — see <a href="/privacy" class="underline">how your data is handled</a>
+      for the details on both.
+    </p>
+  </section>
+
+  <section class="mt-10 max-w-prose">
+    <h2 class="text-xl font-semibold">Photo descriptions, off until you turn them on</h2>
+    <p class="mt-2">
+      The photo timeline can describe what's in a picture you choose, using an
+      outside image-recognition service. That's off by default, decided
+      separately for each account and each device — read
+      <a href="/privacy" class="underline">what that involves</a> before you switch it on.
+    </p>
+  </section>
+
+  <section class="mt-14 max-w-prose border-t border-outline pt-8">
+    <h2 class="text-xl font-semibold">Try it</h2>
+    <p class="mt-2">
+      <a href="/download" class="underline">Download LunaTrack on Google Play</a>.
+      It requires an account to sign in, and its
+      <a href="/terms" class="underline">terms of use</a> cover purchases and warranty.
+    </p>
+  </section>
 </Base>

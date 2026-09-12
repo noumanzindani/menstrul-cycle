@@ -1,0 +1,105 @@
+---
+import Base from '../layouts/Base.astro'
+---
+<Base
+  title="Features — LunaTrack cycle tracking"
+  description="Everything LunaTrack tracks today: predictions, symptoms and mood, BBT, ovulation tests, reminders, app lock, and a doctor-ready PDF export."
+  path="/features"
+>
+  <h1 class="text-3xl font-bold">What LunaTrack tracks</h1>
+  <p class="mt-4 max-w-prose">
+    This is the shipped list, not a roadmap. Everything here is written to the
+    on-device database first — see <a href="/privacy" class="underline">how your data is handled</a>
+    for what also leaves the device.
+  </p>
+
+  <div class="mt-10 grid gap-6 sm:grid-cols-2">
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Cycle predictions</h2>
+      <p class="mt-2 text-sm">
+        A calendar estimate of your next period and fertile window, built from the
+        cycles you've logged. It is an estimate based on averages, not a diagnosis
+        and not a method of contraception.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Symptom and mood logging</h2>
+      <p class="mt-2 text-sm">
+        Log flow, symptoms, mood and notes for each day. This is one of the screens
+        that carries no ads — see below.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Medication marks</h2>
+      <p class="mt-2 text-sm">
+        Mark when you took a medication, day by day. Your medication list itself
+        stays on your device; only the daily "took it" mark syncs.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Weight</h2>
+      <p class="mt-2 text-sm">
+        Track weight over time and see the trend. There is no BMI, no height field,
+        and no body classification of any kind.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Basal body temperature</h2>
+      <p class="mt-2 text-sm">
+        Log BBT and see it charted alongside your cycle, for a symptothermal view
+        of your fertility signs.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Ovulation test results</h2>
+      <p class="mt-2 text-sm">
+        Record an OPK/LH strip result. A positive result can corroborate the
+        calendar estimate; it never overrides the disclaimer that this is
+        awareness, not a "safe day" indicator.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Reminders</h2>
+      <p class="mt-2 text-sm">
+        Best-effort local notifications for logging and for product changes.
+        Reminders stay on your device and are never uploaded.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">App lock</h2>
+      <p class="mt-2 text-sm">
+        Require your device PIN or biometric unlock before the app opens. Handled
+        entirely by your device; LunaTrack never receives biometric data.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Doctor-ready PDF export</h2>
+      <p class="mt-2 text-sm">
+        Generate a summary PDF of your cycle, symptom and mood history to bring to
+        an appointment. Sexual activity and photos are excluded from it by default.
+      </p>
+    </section>
+
+    <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+      <h2 class="font-semibold">Photo timeline</h2>
+      <p class="mt-2 text-sm">
+        Keep photos and videos on a dedicated timeline. Automatic descriptions of a
+        photo are off by default — turning that on is a separate choice, made per
+        account and per device.
+      </p>
+    </section>
+  </div>
+
+  <p class="mt-10 max-w-prose text-sm">
+    Ready to try it? <a href="/download" class="underline">Get LunaTrack on Google Play</a>,
+    or read the <a href="/terms" class="underline">terms of use</a> first.
+  </p>
+</Base>

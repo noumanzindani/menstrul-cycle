@@ -1,0 +1,15 @@
+---
+import { ORG } from '../consts.ts'
+const year = new Date().getFullYear()
+---
+<footer class="mt-16 border-t border-outline">
+  <nav aria-label="Footer" class="mx-auto max-w-5xl px-4 py-8 text-sm">
+    <ul class="flex flex-wrap gap-4">
+      <li><a href="/features" class="hover:underline">Features</a></li>
+      <li><a href="/privacy" class="hover:underline">Your data</a></li>
+      <li><a href="/privacy-policy" class="hover:underline">Privacy policy</a></li>
+      <li><a href="/terms" class="hover:underline">Terms</a></li>
+    </ul>
+    <p class="mt-4 opacity-70">© {year} {ORG.name}. Not a medical device.</p>
+  </nav>
+</footer>
