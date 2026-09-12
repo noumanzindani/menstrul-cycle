@@ -6,6 +6,13 @@ const { kind } = Astro.props as Props
   <p class="mb-4 text-sm opacity-80">
     This runs entirely in your browser. The dates you type are never sent anywhere.
   </p>
+  <noscript>
+    <p class="mb-4 rounded-lg border border-outline bg-surface-tint p-3 text-sm">
+      This calculator needs JavaScript, because the maths runs on your device rather
+      than on a server. With JavaScript off it stays switched off deliberately, so
+      your dates are never put into the address bar.
+    </p>
+  </noscript>
 
   {kind === 'cycle-length' ? (
     <fieldset>
@@ -36,7 +43,14 @@ const { kind } = Astro.props as Props
     </label>
   )}
 
-  <button type="submit" class="mt-6 h-btn-h rounded-btn bg-seed px-6 font-semibold text-primary">
+  <!--
+    Disabled in the HTML and re-enabled by the module below. The form has no action,
+    so a submit without JS would GET the current URL with the fields appended —
+    putting a menstrual date into the address bar, history and any bookmark. The CSP
+    is `script-src 'self'`, which blocks an inline onsubmit, so gating the button is
+    the fix that works with the policy rather than against it.
+  -->
+  <button type="submit" disabled class="mt-6 h-btn-h rounded-btn bg-seed px-6 font-semibold text-primary disabled:opacity-50">
     Calculate
   </button>
   <output id="result" class="mt-6 block" aria-live="polite"></output>
@@ -49,6 +63,8 @@ const { kind } = Astro.props as Props
   } from '../lib/cycle.ts'
 
   const form = document.getElementById('calc') as HTMLFormElement
+  // Safe to accept input now: the handler below keeps every value on this device.
+  form.querySelector('button[type=submit]')?.removeAttribute('disabled')
   const out = document.getElementById('result')!
   const err = document.getElementById('error')!
   const kind = form.dataset.kind!
