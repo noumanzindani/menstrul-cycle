@@ -137,5 +137,37 @@ void main() {
       await cache.clear();
       await expectLater(cache.clear(), completes);
     });
+
+    test('also removes the picker temps sitting beside it', () async {
+      // image_picker copies originals into the cache ROOT, which makes them
+      // SIBLINGS of this directory rather than children. Until this ran, a
+      // full-resolution copy of every photo the user ever picked survived
+      // sign-out, "Delete all my data" and account deletion.
+      const uuid = '3f2b8c1a-9d4e-4a77-b0c3-5e6f7a8b9c0d';
+      File(p.join(root.path, uuid, 'IMG.jpg'))
+        ..createSync(recursive: true)
+        ..writeAsBytesSync(List<int>.filled(64, 0));
+      File(p.join(root.path, 'scaled_IMG.jpg'))
+          .writeAsBytesSync(List<int>.filled(16, 0));
+
+      await cache.clear();
+
+      expect(Directory(p.join(root.path, uuid)).existsSync(), isFalse);
+      expect(File(p.join(root.path, 'scaled_IMG.jpg')).existsSync(), isFalse);
+    });
+
+    test('removes picker temps even when no media was ever cached', () async {
+      // A user who picked a photo but never had an upload succeed has picker
+      // temps and no media directory at all. An early return on the missing
+      // directory would skip them.
+      const uuid = '3f2b8c1a-9d4e-4a77-b0c3-5e6f7a8b9c0d';
+      File(p.join(root.path, uuid, 'IMG.jpg'))
+        ..createSync(recursive: true)
+        ..writeAsBytesSync(List<int>.filled(64, 0));
+
+      await cache.clear();
+
+      expect(Directory(p.join(root.path, uuid)).existsSync(), isFalse);
+    });
   });
 }

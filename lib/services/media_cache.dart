@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'picker_temp_cache.dart';
+
 /// Ceiling for downloaded full-size media held on disk.
 ///
 /// Every file here is re-downloadable, so this is a convenience budget, not
@@ -135,6 +137,11 @@ class MediaCache {
   /// any flow that uses it.
   Future<void> clear() async {
     final dir = await _directoryProvider();
+    // Sibling, not child: image_picker copies originals into the cache ROOT,
+    // one level above this directory, so nothing here ever reached them. Swept
+    // BEFORE the early return — a user who picked a photo but never completed
+    // an upload has picker temps and no media directory at all.
+    await sweepPickerTempFiles(dir.parent);
     if (!await dir.exists()) return;
     try {
       await dir.delete(recursive: true);

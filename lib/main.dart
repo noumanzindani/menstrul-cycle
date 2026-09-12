@@ -35,6 +35,7 @@ import 'services/month_ring_builder.dart';
 import 'services/notification_actions.dart';
 import 'services/notification_service.dart';
 import 'services/prediction_service.dart';
+import 'services/picker_temp_cache.dart';
 import 'services/sync_trigger.dart';
 import 'theme/app_theme.dart';
 import 'widgets/home_widget_sync.dart';
@@ -55,6 +56,13 @@ Future<void> main() async {
   );
   // Ads init is fire-and-forget: the UI must not block on the network.
   unawaited(AdService.instance.initialize());
+  // So is the picker sweep, for the same reason and one more: `image_picker`'s
+  // own TODO says to clear its leftovers "after the app startup", because the
+  // `deleteOnExit()` it relies on does not fire on Android. Startup is the only
+  // moment no pick can be in flight, so it is the only moment the sweep is
+  // unconditionally safe. A pick in the SAME session is cleared by the sweep in
+  // `_pickAndUpload`'s finally.
+  unawaited(sweepPickerTempFiles());
   final db = AppDatabase();
   runApp(LunaTrackApp(database: db, firebaseAvailable: firebaseAvailable));
 }

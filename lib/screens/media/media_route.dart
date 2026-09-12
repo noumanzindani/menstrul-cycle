@@ -19,6 +19,7 @@ import '../../services/media_blob_store.dart';
 import '../../services/media_cache.dart';
 import '../../services/media_limits.dart';
 import '../../services/media_picker_config.dart';
+import '../../services/picker_temp_cache.dart';
 import '../../services/media_sync_service.dart';
 import '../../services/media_thumbnailer.dart';
 import '../../services/media_upload_service.dart';
@@ -202,22 +203,35 @@ Future<MediaUploadOutcome> _pickAndUpload(MediaUploadService uploader) async {
   );
   if (files.isEmpty) return const MediaUploadOutcome();
 
-  final picked = <PickedMedia>[];
-  for (final xfile in files) {
-    final contentType = xfile.mimeType ?? _guessContentType(xfile.path);
-    final kind = mediaKindFor(contentType);
-    Duration? duration;
-    if (kind == MediaKind.video) {
-      duration = await _probeDuration(File(xfile.path));
+  try {
+    final picked = <PickedMedia>[];
+    for (final xfile in files) {
+      final contentType = xfile.mimeType ?? _guessContentType(xfile.path);
+      final kind = mediaKindFor(contentType);
+      Duration? duration;
+      if (kind == MediaKind.video) {
+        duration = await _probeDuration(File(xfile.path));
+      }
+      picked.add(PickedMedia(
+        file: File(xfile.path),
+        contentType: contentType,
+        duration: duration,
+        capturedAt: await _capturedAt(xfile),
+      ));
     }
-    picked.add(PickedMedia(
-      file: File(xfile.path),
-      contentType: contentType,
-      duration: duration,
-      capturedAt: await _capturedAt(xfile),
-    ));
+    // `return await`, not a bare `return uploader.upload(picked)`. In an async
+    // function `finally` runs when control leaves the try — which, for a
+    // returned-but-unawaited future, is BEFORE the upload has read a byte. The
+    // sweep would delete the files out from under it.
+    return await uploader.upload(picked);
+  } finally {
+    try {
+      await sweepPickerTempFiles();
+    } catch (_) {
+      // Cache hygiene must not mask an upload error, nor turn a successful
+      // upload into a thrown one. The startup sweep gets it next launch.
+    }
   }
-  return uploader.upload(picked);
 }
 
 /// Reads a video's length from its container header.
