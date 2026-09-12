@@ -24,6 +24,21 @@ String _code(String path) => _read(path)
 String _xml(String path) =>
     _read(path).replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
 
+/// Every merged `AndroidManifest.xml` an Android build has produced.
+///
+/// Empty on a clean checkout, which is why the tests using it declare a `skip`
+/// reason rather than quietly passing — a guardrail that reports success when
+/// it examined nothing is the exact defect this group was written to fix.
+Iterable<File> _mergedManifests() sync* {
+  final dir = Directory('build/app/intermediates/merged_manifests');
+  if (!dir.existsSync()) return;
+  for (final entity in dir.listSync(recursive: true)) {
+    if (entity is File && entity.path.endsWith('AndroidManifest.xml')) {
+      yield entity;
+    }
+  }
+}
+
 /// Every `lib/` Dart file, so a rule cannot be dodged by adding a new one.
 Iterable<File> _libSources() sync* {
   for (final entity in Directory('lib').listSync(recursive: true)) {
@@ -259,10 +274,14 @@ void main() {
       }
     });
 
-    test('still declares no foreground service', () {
+    test('declares no service of its own, and no foreground permission', () {
       // A media upload is exactly the feature that tempts one. It would mean a
       // permanent status-bar icon: continuous self-disclosure by a period
       // tracker, which is the harm `visibility: secret` exists to prevent.
+      //
+      // Scoped to OUR file on purpose. This assertion used to be written as if
+      // it covered the shipped app, and it did not — see the merged-manifest
+      // group below, which is the one Play actually scans.
       final xml = _xml('android/app/src/main/AndroidManifest.xml');
       expect(xml.contains('FOREGROUND_SERVICE'), isFalse);
       expect(xml.contains('<service'), isFalse);
@@ -277,6 +296,118 @@ void main() {
         contains('android:allowBackup="false"'),
       );
     });
+  });
+
+  group('the MERGED manifest, which is the one Play scans', () {
+    // The source manifest is not what ships. Manifest merge folds in every
+    // dependency's declarations, and `home_widget` alone brings
+    // androidx.glance plus androidx.work — which is how thirteen <service>
+    // entries and FOREGROUND_SERVICE arrive without appearing in our file.
+    //
+    // So the invariant cannot be "no service" — every app using Firebase, Play
+    // Services or Glance has a dozen. It is that none of them is OURS, and that
+    // none is TYPED: `foregroundServiceType` is the attribute that forces a
+    // Play Console declaration and produces the persistent, typed notification.
+    // An untyped service that nothing ever starts costs the user nothing.
+    final manifests = _mergedManifests().toList();
+    // Skipping is honest on a clean checkout and dishonest at release time, so
+    // the release pipeline sets LUNA_REQUIRE_MERGED_MANIFEST=1 and these become
+    // a hard failure instead. `flutter test` alone reports them as skipped —
+    // which reads as `~2` in the summary, NOT as a pass.
+    final required =
+        Platform.environment['LUNA_REQUIRE_MERGED_MANIFEST'] == '1';
+    final absent = manifests.isEmpty && !required
+        ? 'no merged manifest built yet — run `flutter build apk` (or any '
+            'Android build) to produce it, then re-run this test'
+        : null;
+
+    void requireBuilt() => expect(
+          manifests,
+          isNotEmpty,
+          reason: 'LUNA_REQUIRE_MERGED_MANIFEST=1, but no Android build output '
+              'exists to check — build before gating a release on this',
+        );
+
+    test('carries no foregroundServiceType, and no service of ours', () {
+      requireBuilt();
+      for (final file in manifests) {
+        final xml = _xml(file.path);
+        expect(
+          xml.contains('foregroundServiceType'),
+          isFalse,
+          reason: '${file.path} declares a TYPED foreground service',
+        );
+        for (final match
+            in RegExp(r'<service\b(.*?)(?:/>|>)', dotAll: true).allMatches(xml)) {
+          final name =
+              RegExp(r'android:name="([^"]+)"').firstMatch(match.group(1)!);
+          final declared = name?.group(1) ?? '';
+          expect(
+            declared.startsWith('.') ||
+                declared.startsWith('com.lunatrack') ||
+                declared.startsWith('com.example.menstrul_track'),
+            isFalse,
+            reason: '$declared is OUR service, in ${file.path}',
+          );
+        }
+      }
+    }, skip: absent);
+
+    test('nothing in the app ever asks for foreground or expedited work', () {
+      // This is the assertion that actually prevents the harm. androidx.work's
+      // SystemForegroundService is DECLARED in the merged manifest and cannot
+      // be removed without risking Glance's widget updates — but it only ever
+      // starts if something requests it. Nothing does, and nothing may.
+      //
+      // Matched on call shapes, not the bare word: `onForegroundResponse` and
+      // `disabledForegroundColor` are legitimate and unrelated.
+      const forbidden = [
+        'ForegroundInfo',
+        'setForeground(',
+        'startForeground(',
+        'startForegroundService(',
+        'setExpedited(',
+        'OutOfQuotaPolicy',
+      ];
+      final sources = <File>[
+        ..._libSources(),
+        ...Directory('android/app/src/main')
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.kt') || f.path.endsWith('.java')),
+      ];
+      for (final file in sources) {
+        final code = _code(file.path);
+        for (final symbol in forbidden) {
+          expect(
+            code.contains(symbol),
+            isFalse,
+            reason: '${file.path} requests foreground work via $symbol',
+          );
+        }
+      }
+    });
+
+    test('still carries no media permission after the merge', () {
+      requireBuilt();
+      // The tools:node="remove" entries in our manifest are only a REQUEST.
+      // Whether they survived the merge can only be read here.
+      for (final file in manifests) {
+        final xml = _xml(file.path);
+        for (final permission in [
+          'READ_MEDIA_IMAGES',
+          'READ_MEDIA_VIDEO',
+          'READ_EXTERNAL_STORAGE',
+          'ACCESS_MEDIA_LOCATION',
+        ]) {
+          expect(
+            RegExp('<uses-permission[^>]*$permission').hasMatch(xml),
+            isFalse,
+            reason: '$permission survived the merge into ${file.path}',
+          );
+        }
+      }
+    }, skip: absent);
   });
 
   group('the deletion contract is stated in every place it must be', () {
