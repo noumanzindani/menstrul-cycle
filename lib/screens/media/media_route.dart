@@ -18,6 +18,7 @@ import '../../services/media_analyzer.dart';
 import '../../services/media_blob_store.dart';
 import '../../services/media_cache.dart';
 import '../../services/media_limits.dart';
+import '../../services/media_picker_config.dart';
 import '../../services/media_sync_service.dart';
 import '../../services/media_thumbnailer.dart';
 import '../../services/media_upload_service.dart';
@@ -176,12 +177,19 @@ Future<File> _loadFile(
 /// Opens the system picker and uploads what comes back.
 ///
 /// `pickMultipleMedia` is the only API that returns images AND videos from one
-/// interaction, and on Android 13+ it delegates to the system Photo Picker —
-/// which grants a per-item read and needs no media permission. That matters
-/// beyond convenience: Play restricts `READ_MEDIA_IMAGES`/`READ_MEDIA_VIDEO` to
-/// apps whose core purpose is photo/video, which a period tracker is not, so
-/// the picker route is the only compliant one.
+/// interaction, and once [useSystemPhotoPicker] has run it delegates to the
+/// system Photo Picker — which grants a per-item read and needs no media
+/// permission. That matters beyond convenience: Play restricts
+/// `READ_MEDIA_IMAGES`/`READ_MEDIA_VIDEO` to apps whose core purpose is
+/// photo/video, which a period tracker is not, so the picker route is the only
+/// compliant one.
+///
+/// The configuration is applied HERE, next to the only picker in the app,
+/// rather than at startup: it is idempotent, it costs a type test, and a
+/// structural test in `media_picker_config_test.dart` fails if a second entry
+/// point ever constructs a picker without it.
 Future<MediaUploadOutcome> _pickAndUpload(MediaUploadService uploader) async {
+  useSystemPhotoPicker();
   final picker = ImagePicker();
   final files = await picker.pickMultipleMedia(
     limit: kMaxItemsPerPick,
