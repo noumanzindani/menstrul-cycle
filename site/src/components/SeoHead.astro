@@ -1,0 +1,105 @@
+---
+import { SITE, ORG } from '../consts.ts'
+import type { ArticleMeta, FaqEntry, Crumb } from '../types.ts'
+
+interface Props {
+  title: string
+  description: string
+  path: string
+  type?: 'website' | 'article'
+  article?: ArticleMeta
+  faq?: FaqEntry[]
+  breadcrumbs?: Crumb[]
+}
+
+const {
+  title, description, path,
+  type = 'website', article, faq, breadcrumbs,
+} = Astro.props as Props
+
+/** The one and only way a URL is built in this project. */
+const abs = (p: string) => new URL(p, SITE).href
+const canonical = abs(path)
+
+// Sentinel from spec D4: when no clinician has reviewed the article we render a
+// visible notice and omit reviewedBy from schema rather than fabricate a name.
+const UNREVIEWED = 'Not medically reviewed'
+
+const graph: Record<string, unknown>[] = [
+  {
+    '@type': 'Organization',
+    '@id': abs('/#organization'),
+    name: ORG.name,
+    legalName: ORG.legalName,
+    url: abs('/'),
+    logo: abs(ORG.logo),
+    sameAs: [...ORG.sameAs],
+  },
+  {
+    '@type': 'WebSite',
+    '@id': abs('/#website'),
+    url: abs('/'),
+    name: ORG.name,
+    publisher: { '@id': abs('/#organization') },
+    inLanguage: 'en',
+  },
+]
+
+if (article) {
+  const node: Record<string, unknown> = {
+    '@type': article.reviewedBy === UNREVIEWED ? 'Article' : 'MedicalWebPage',
+    '@id': `${canonical}#article`,
+    headline: title,
+    description,
+    url: canonical,
+    mainEntityOfPage: { '@id': `${canonical}#webpage` },
+    author: { '@type': 'Person', name: article.author },
+    publisher: { '@id': abs('/#organization') },
+    datePublished: article.datePublished.toISOString(),
+    dateModified: article.dateModified.toISOString(),
+    isPartOf: { '@id': abs('/#website') },
+  }
+  if (article.reviewedBy !== UNREVIEWED) {
+    node.reviewedBy = { '@type': 'Person', name: article.reviewedBy }
+  }
+  graph.push(node)
+}
+
+if (faq?.length) {
+  graph.push({
+    '@type': 'FAQPage',
+    '@id': `${canonical}#faq`,
+    mainEntity: faq.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  })
+}
+
+if (breadcrumbs?.length) {
+  graph.push({
+    '@type': 'BreadcrumbList',
+    '@id': `${canonical}#breadcrumbs`,
+    // position is an integer, not a string. Flo shipped strings here (D10-low).
+    itemListElement: breadcrumbs.map((c, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: c.name,
+      item: abs(c.path),
+    })),
+  })
+}
+
+const jsonLd = { '@context': 'https://schema.org', '@graph': graph }
+---
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+<meta property="og:type" content={type} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+<meta property="og:site_name" content={ORG.name} />
+<meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

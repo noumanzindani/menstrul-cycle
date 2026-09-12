@@ -1,14 +1,24 @@
 ---
 import '../styles/global.css'
-interface Props { title: string; description: string; path: string }
-const { title, description, path } = Astro.props
+import SeoHead from '../components/SeoHead.astro'
+import type { ArticleMeta, FaqEntry, Crumb } from '../types.ts'
+
+interface Props {
+  title: string
+  description: string
+  path: string
+  type?: 'website' | 'article'
+  article?: ArticleMeta
+  faq?: FaqEntry[]
+  breadcrumbs?: Crumb[]
+}
+const props = Astro.props as Props
 ---
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title}</title>
-    <meta name="description" content={description} />
+    <SeoHead {...props} />
   </head>
   <body class="bg-surface text-primary dark:bg-surface-dark dark:text-white">
     <main>
