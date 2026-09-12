@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     include: ['src/lib/**/*.test.ts'],
     environment: 'node',
+    env: { TZ: 'America/New_York' },
   },
 })

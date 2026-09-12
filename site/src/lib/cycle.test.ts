@@ -50,6 +50,16 @@ describe('predictPeriods', () => {
     expect(() => predictPeriods('2026-09-01', 28, 0, 1)).toThrow(RangeError)
     expect(() => predictPeriods('2026-09-01', 28, 11, 1)).toThrow(RangeError)
   })
+
+  it('accepts the inclusive range boundaries', () => {
+    expect(predictPeriods('2026-09-01', 21, 10, 12)).toHaveLength(12)
+    expect(predictPeriods('2026-09-01', 45, 1, 1)[0].start).toBe('2026-10-16')
+  })
+
+  it('rejects a non-integer or NaN cycle length', () => {
+    expect(() => predictPeriods('2026-09-01', 28.5, 5, 1)).toThrow(RangeError)
+    expect(() => predictPeriods('2026-09-01', NaN, 5, 1)).toThrow(RangeError)
+  })
 })
 
 describe('predictOvulation', () => {
@@ -66,6 +76,11 @@ describe('predictOvulation', () => {
     const r = predictOvulation('2026-09-01', 35)
     expect(r.nextPeriod).toBe('2026-10-06')
     expect(r.ovulation).toBe('2026-09-22')
+  })
+
+  it('rejects a cycle length outside 21-45', () => {
+    expect(() => predictOvulation('2026-09-01', 20)).toThrow(RangeError)
+    expect(() => predictOvulation('2026-09-01', 46)).toThrow(RangeError)
   })
 })
 
@@ -107,6 +122,13 @@ describe('analyseCycles', () => {
   it('rejects duplicate dates, which would imply a zero-day cycle', () => {
     expect(() => analyseCycles(['2026-06-01', '2026-06-01'])).toThrow(RangeError)
   })
+
+  it('calls a spread of eight days irregular', () => {
+    const r = analyseCycles(['2026-01-01', '2026-01-25', '2026-02-26'])
+    expect(r.lengths).toEqual([24, 32])
+    expect(r.variation).toBe(8)
+    expect(r.regularity).toBe('irregular')
+  })
 })
 
 describe('estimateDueDate', () => {
@@ -115,7 +137,7 @@ describe('estimateDueDate', () => {
       dueDate: '2026-10-08',
       conception: '2026-01-15',
       trimester2Start: '2026-04-09',
-      trimester3Start: '2026-07-09',
+      trimester3Start: '2026-07-16',
       gestationalWeeks: 8,
       gestationalDays: 3,
     })
@@ -129,5 +151,14 @@ describe('estimateDueDate', () => {
     const r = estimateDueDate('2026-01-01', 28, '2026-01-01')
     expect(r.gestationalWeeks).toBe(0)
     expect(r.gestationalDays).toBe(0)
+  })
+
+  it('rejects a cycle length outside 21-45', () => {
+    expect(() => estimateDueDate('2026-01-01', 5, '2026-03-01')).toThrow(RangeError)
+    expect(() => estimateDueDate('2026-01-01', 60, '2026-03-01')).toThrow(RangeError)
+  })
+
+  it('rejects an LMP in the future', () => {
+    expect(() => estimateDueDate('2026-01-01', 28, '2025-01-01')).toThrow(RangeError)
   })
 })

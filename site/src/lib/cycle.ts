@@ -12,7 +12,7 @@ const FERTILE_AFTER = 1
 const GESTATION_DAYS = 280
 const REFERENCE_CYCLE = 28
 const TRIMESTER_2_DAY = 98   // 14 weeks
-const TRIMESTER_3_DAY = 189  // 27 weeks
+const TRIMESTER_3_DAY = 196  // 28 weeks — ACOG/NHS: T1 wk 1-13, T2 wk 14-27, T3 wk 28-40
 /** Spread between shortest and longest cycle still described as regular. */
 const REGULAR_MAX_VARIATION = 7
 
