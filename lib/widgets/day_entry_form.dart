@@ -9,6 +9,7 @@ import '../providers/log_provider.dart';
 import '../providers/medication_provider.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
+import 'flow_drop.dart';
 import 'track_art.dart';
 
 /// The set of selectors for one day. Extracted so it can be hosted both by the
@@ -257,33 +258,42 @@ class DayEntryFormState extends State<DayEntryForm> {
           widget.shrinkWrap ? const NeverScrollableScrollPhysics() : null,
       children: [
         _SectionLabel('Flow'),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final f in FlowIntensity.values)
-              if (f != FlowIntensity.none)
-                ChoiceChip(
-                  // The one place the art departs from the label colour.
-                  //
-                  // A CONSTANT red, deliberately not the graduated
-                  // `FlowIntensityUi.color` ramp: the drop already encodes
-                  // intensity in how much of it is filled, so fading the colour
-                  // as well encodes the same thing twice — and on device that
-                  // double-fade made Spotting and Light nearly invisible in
-                  // dark mode, because the ramp reaches its lighter steps with
-                  // alpha and low-alpha rose over a dark surface is barely
-                  // there. Fill fraction carries the ordinal; the colour just
-                  // says "this is flow".
-                  label: chipLabel(
-                    f.label,
-                    kFlowArt[f],
-                    artColor: phases?.menstrual,
+        // The drops fill in sequence on first build, left to right, so the row
+        // reads as an ordered scale rather than five unrelated marks. Entrance
+        // only — `FlowDropStagger` never replays, which matters here because
+        // this form rebuilds on every field change.
+        FlowDropStagger(
+          levels: kFlowFill.values.toList(),
+          builder: (context, drops) {
+            final levels = kFlowFill.keys.toList();
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var i = 0; i < levels.length; i++)
+                  ChoiceChip(
+                    // The one place the art departs from the label colour.
+                    //
+                    // A CONSTANT red, deliberately not the graduated
+                    // `FlowIntensityUi.color` ramp: the drop already encodes
+                    // intensity in how much of it is filled, so fading the
+                    // colour as well encodes the same thing twice — and on
+                    // device that double-fade made Spotting and Light nearly
+                    // invisible in dark mode, because the ramp reaches its
+                    // lighter steps with alpha and low-alpha rose over a dark
+                    // surface is barely there. Fill fraction carries the
+                    // ordinal; the colour just says "this is flow".
+                    label: chipLabelArt(
+                      levels[i].label,
+                      FlowDrop(fill: drops[i], color: phases?.menstrual),
+                    ),
+                    selected: _flow == levels[i],
+                    onSelected: (sel) =>
+                        setState(() => _flow = sel ? levels[i] : null),
                   ),
-                  selected: _flow == f,
-                  onSelected: (sel) => setState(() => _flow = sel ? f : null),
-                ),
-          ],
+              ],
+            );
+          },
         ),
         const SizedBox(height: 16),
         // A filled tile rather than a bare switch row: this answer is a

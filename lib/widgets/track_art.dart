@@ -87,12 +87,20 @@ class TrackArt extends StatelessWidget {
 /// Row with an empty slot, so an undecorated group has no phantom gutter.
 ///
 /// [artColor] departs from the inherited label colour; see [TrackArt.color].
-Widget chipLabel(String label, String? art, {Color? artColor}) {
-  if (art == null) return Text(label);
+Widget chipLabel(String label, String? art, {Color? artColor}) => art == null
+    ? Text(label)
+    : chipLabelArt(label, TrackArt(path: art, color: artColor));
+
+/// [chipLabel] for art that is PAINTED rather than loaded -- the flow droplet.
+///
+/// Delegated to rather than duplicated so the 6px gap cannot drift between a
+/// chip whose mark is an SVG and one whose mark is a [CustomPaint]; the flow row
+/// sits directly beneath rows of the other kind.
+Widget chipLabelArt(String label, Widget art) {
   return Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      TrackArt(path: art, color: artColor),
+      art,
       const SizedBox(width: 6),
       Text(label),
     ],

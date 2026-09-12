@@ -162,12 +162,12 @@ const String kMedicationArt = 'assets/track/medication_generic.svg';
 /// the calendar and the month ring, which have no fill fraction and so need
 /// colour as their only channel — which is why this was fixed at the chip
 /// rather than in the shared ramp.
-const Map<FlowIntensity, String> kFlowArt = {
-  FlowIntensity.spotting: 'assets/track/flow_1_spotting.svg',
-  FlowIntensity.light: 'assets/track/flow_2_light.svg',
-  FlowIntensity.medium: 'assets/track/flow_3_medium.svg',
-  FlowIntensity.heavy: 'assets/track/flow_4_heavy.svg',
-  FlowIntensity.flooding: 'assets/track/flow_5_flooding.svg',
+const Map<FlowIntensity, double> kFlowFill = {
+  FlowIntensity.spotting: 0.15,
+  FlowIntensity.light: 0.35,
+  FlowIntensity.medium: 0.60,
+  FlowIntensity.heavy: 0.85,
+  FlowIntensity.flooding: 1.00,
 };
 
 /// The asset for [key], or null when it has none.

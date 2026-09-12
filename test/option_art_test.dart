@@ -90,7 +90,6 @@ void main() {
     test('every declared asset exists on disk', () {
       final missing = [
         ...kOptionArt.values,
-        ...kFlowArt.values,
         kMedicationArt,
       ].where((p) => !File(p).existsSync());
       expect(missing, isEmpty);
@@ -112,7 +111,6 @@ void main() {
       final offenders = <String>[];
       for (final p in [
         ...kOptionArt.values,
-        ...kFlowArt.values,
         kMedicationArt,
       ]) {
         final colours = RegExp(r'(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"')
@@ -126,14 +124,26 @@ void main() {
 
     // `none` is the "Period ended today" switch, not a chip. An empty drop
     // beside it would read as a sixth intensity.
-    test('flow art covers every selectable intensity and not none', () {
+    test('flow fill covers every selectable intensity and not none', () {
       for (final f in FlowIntensity.values) {
         expect(
-          kFlowArt.containsKey(f),
+          kFlowFill.containsKey(f),
           f != FlowIntensity.none,
-          reason: 'flow art mismatch for $f',
+          reason: 'flow fill mismatch for $f',
         );
       }
+    });
+
+    // The ramp is the ordinal: a pair out of order, or a level at/above the one
+    // after it, would make a heavier flow read as lighter.
+    test('flow fill rises strictly with intensity and ends full', () {
+      final fills = kFlowFill.values.toList();
+      for (var i = 1; i < fills.length; i++) {
+        expect(fills[i], greaterThan(fills[i - 1]),
+            reason: 'level $i does not exceed level ${i - 1}');
+      }
+      expect(fills.first, greaterThan(0));
+      expect(fills.last, 1.0, reason: 'flooding must fill the droplet');
     });
   });
 
