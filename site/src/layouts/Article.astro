@@ -2,6 +2,7 @@
 import Base from './Base.astro'
 import Disclaimer from '../components/Disclaimer.astro'
 import ReviewNotice from '../components/ReviewNotice.astro'
+import type { ArticleHeader } from '../lib/article-headers.ts'
 
 interface Source { title: string; url: string }
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
   author: string; reviewedBy: string
   datePublished: Date; dateModified: Date
   sources: Source[]
+  header?: ArticleHeader
 }
 const p = Astro.props as Props
 const fmt = (d: Date) => d.toISOString().slice(0, 10)
@@ -35,6 +37,30 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10)
   </p>
   <div class="mt-4"><ReviewNotice reviewedBy={p.reviewedBy} /></div>
   <Disclaimer kind="article" />
+  {p.header && (
+    <figure class="mt-10">
+      <!--
+        The figure is deliberately NOT clamped to the prose measure: these are
+        authored at 1024px, the width of the content column, and squeezing one
+        to 68ch renders its internal labels at about 8px.
+
+        Intrinsic 2048x430 with w-full: the attributes are here so the browser
+        reserves the right box before the bytes land (no layout shift), while
+        the class decides how wide it actually draws. eager + high priority
+        because this sits near the top and is usually the largest paint.
+      -->
+      <img
+        src={p.header.src}
+        alt={p.header.alt}
+        width="2048"
+        height="430"
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+        class="w-full rounded-lg"
+      />
+    </figure>
+  )}
   <article class="prose mt-10"><slot /></article>
   <section class="mt-14 max-w-[68ch] border-t border-outline pt-8 dark:border-white/10">
     <h2 class="display-sm text-2xl">Sources</h2>

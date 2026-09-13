@@ -1,6 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content'
 import Article from '../../layouts/Article.astro'
+import { ARTICLE_HEADERS } from '../../lib/article-headers.ts'
 
 export async function getStaticPaths() {
   const entries = await getCollection('articles')
@@ -16,6 +17,7 @@ const d = entry.data
   author={d.author} reviewedBy={d.reviewedBy}
   datePublished={d.datePublished} dateModified={d.dateModified}
   sources={d.sources}
+  header={ARTICLE_HEADERS[entry.id]}
 >
   <Content />
 </Article>

@@ -100,5 +100,32 @@ const jsonLd = { '@context': 'https://schema.org', '@graph': graph }
 <meta property="og:description" content={description} />
 <meta property="og:url" content={canonical} />
 <meta property="og:site_name" content={ORG.name} />
-<meta name="twitter:card" content="summary" />
+
+<!--
+  The share card. An absolute URL is required here: Facebook, Slack, X and
+  iMessage fetch og:image from their own servers, where a root-relative path
+  has no origin to resolve against and the card silently does not render.
+  Width/height let a scraper reserve the slot before the image arrives, and
+  og:image:alt is what a screen reader announces in place of the card.
+-->
+<meta property="og:image" content={`${SITE}/og-card.webp`} />
+<meta property="og:image:type" content="image/webp" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta
+  property="og:image:alt"
+  content="A 28-day cycle drawn to scale as four coloured bands — menstrual 5 days, follicular 8, ovulatory 3, luteal 12 — above the LunaTrack wordmark and the line 'Track your cycle. Read the fine print.'"
+/>
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content={`${SITE}/og-card.webp`} />
+
+<!--
+  favicon.svg carries every current browser and stays sharp at any size;
+  favicon-32.png is the fallback for the ones that ignore SVG. The Apple touch
+  icon must be PNG at 180x180 — iOS accepts neither SVG nor WebP here, which is
+  why this one file is deliberately not WebP.
+-->
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
