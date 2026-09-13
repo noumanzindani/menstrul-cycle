@@ -2,13 +2,14 @@
 import Base from '../layouts/Base.astro'
 import PhaseBand from '../components/PhaseBand.astro'
 import Section from '../components/Section.astro'
+import HeroArt from '../components/HeroArt.astro'
 ---
 <Base
   title="LunaTrack — period and cycle tracking"
   description="LunaTrack shows no ads on symptom logging, diary, or insights. Your device leads, the app works offline, and health data never reaches advertisers."
   path="/"
 >
-  <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_14rem] lg:gap-12">
+  <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-12">
     <div>
       <PhaseBand height="14px" draw labelled class="max-w-md" />
 
@@ -34,6 +35,7 @@ import Section from '../components/Section.astro'
     </div>
 
     <aside class="mt-12 border-t border-outline pt-6 text-sm text-ink-muted lg:mt-2 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0 dark:border-white/10 dark:text-white/60">
+      <HeroArt class="mx-auto mb-8 max-w-[15rem] lg:mb-7 lg:max-w-none" />
       <p class="prose-body">
         The band above is a 28-day cycle drawn to scale. Yours will differ —
         that variation is the whole reason a tracker keeps a history instead of
@@ -53,7 +55,7 @@ import Section from '../components/Section.astro'
       device first. LunaTrack works fully offline, and that on-device copy is
       the source of truth; the cloud is a mirror of it, kept for the account
       LunaTrack requires so your logs follow you between devices. The device
-      database is encrypted at rest with a key held in your OS keystore — the
+      database is encrypted at rest with a key held in your OS keystore — the{' '}
       <a href="/privacy-policy" class="underline underline-offset-2">full privacy policy</a> spells out
       the one documented exception to that, along with everything else that
       syncs.
@@ -64,7 +66,7 @@ import Section from '../components/Section.astro'
     <p>
       Predictions, a daily log for symptoms and mood, medication marks, weight
       and BBT tracking, ovulation test results, reminders, an app lock, a
-      doctor-ready PDF export, and a photo timeline. The
+      doctor-ready PDF export, and a photo timeline. The{' '}
       <a href="/features" class="underline underline-offset-2">features page</a> covers all of it,
       including what each one does and doesn't do.
     </p>
@@ -76,7 +78,7 @@ import Section from '../components/Section.astro'
       never on symptom logging, your diary, or your insights. Your health data
       is never sent to the ad network either way. If you'd rather not see ads
       at all, Premium is a one-time Google Play purchase that removes them
-      everywhere — see <a href="/privacy" class="underline underline-offset-2">how your data is handled</a>
+      everywhere — see <a href="/privacy" class="underline underline-offset-2">how your data is handled</a>{' '}
       for the details on both.
     </p>
   </Section>
@@ -85,7 +87,7 @@ import Section from '../components/Section.astro'
     <p>
       The photo timeline can describe what's in a picture you choose, using an
       outside image-recognition service. That's off by default, decided
-      separately for each account and each device — read
+      separately for each account and each device — read{' '}
       <a href="/privacy" class="underline underline-offset-2">what that involves</a> before you switch it on.
     </p>
   </Section>
@@ -95,13 +97,13 @@ import Section from '../components/Section.astro'
       Before you install anything, you can estimate your next period from a
       date you already know. The <a href="/tools" class="underline underline-offset-2">calculators
       page</a> runs the same cycle maths as the app, entirely in your browser —
-      nothing you type into it is sent anywhere. Alongside the
+      nothing you type into it is sent anywhere. Alongside the{' '}
       <a href="/tools/period-calculator" class="underline underline-offset-2">period
-      calculator</a>, there's also an
+      calculator</a>, there's also an{' '}
       <a href="/tools/ovulation-calculator" class="underline underline-offset-2">ovulation
-      calculator</a>, a
+      calculator</a>, a{' '}
       <a href="/tools/cycle-length-calculator" class="underline underline-offset-2">cycle-length
-      calculator</a>, and a
+      calculator</a>, and a{' '}
       <a href="/tools/due-date-calculator" class="underline underline-offset-2">due-date
       calculator</a>, all built the same way.
     </p>
@@ -139,7 +141,7 @@ import Section from '../components/Section.astro'
     <h2 class="display-sm text-2xl">Try it</h2>
     <p class="prose-body mt-3 max-w-prose">
       <a href="/download" class="underline underline-offset-2">Download LunaTrack on Google Play</a>.
-      It requires an account to sign in, and its
+      It requires an account to sign in, and its{' '}
       <a href="/terms" class="underline underline-offset-2">terms of use</a> cover purchases and warranty.
     </p>
   </section>

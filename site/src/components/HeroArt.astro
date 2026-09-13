@@ -1,0 +1,121 @@
+---
+/**
+ * The hero illustration, cut into six independently drifting layers.
+ *
+ * The source was one flat 1024x1536 PNG. Layers were separated by flood-filling
+ * the TRUE background — not by thresholding, because the calendar face and the
+ * speech bubbles are near-white INSIDE the artwork and a threshold punches
+ * transparent holes straight through them — and then labelling connected
+ * components. That is also why the floating icons could be freed but the arms,
+ * hair and phone could not: those share edges with the body, so no amount of
+ * background analysis separates them. Animating the phone needs the layered
+ * source file, not this raster.
+ *
+ * All motion is CSS. Every page here has a zero-byte JS budget enforced by
+ * scripts/audit.mjs, so an animation library would fail `npm run verify`, and
+ * the CSP (`script-src 'self'`) forbids the CDN it would load from anyway.
+ *
+ * Durations are deliberately non-harmonic (4.3 / 5.1 / 5.9 / 6.7 / 7.3 / 9.3s).
+ * Equal or multiple periods visibly re-sync every few seconds and start to read
+ * as a mechanism; coprime-ish ones never line up, which is what reads as drift.
+ *
+ * Positions are percentages of the artwork's own bounding box, so the whole
+ * composition scales to any container width with no hardcoded pixels.
+ */
+interface Props { class?: string }
+const { class: klass = '' } = Astro.props as Props
+---
+<div
+  class={`hero-art ${klass}`}
+  role="img"
+  aria-label="An illustration of a person looking at LunaTrack on their phone, with a calendar, hearts and a cycle icon floating beside them."
+>
+  <img
+    src="/hero/figure.webp" alt="" aria-hidden="true"
+    width="558" height="1490" decoding="async" fetchpriority="high"
+    class="l l-figure"
+    style="left:0%;top:0%;width:71.630%;z-index:1"
+  />
+  <img
+    src="/hero/calendar.webp" alt="" aria-hidden="true"
+    width="139" height="133" decoding="async"
+    class="l l-calendar"
+    style="left:70.090%;top:8.255%;width:17.843%;z-index:2"
+  />
+  <img
+    src="/hero/drop.webp" alt="" aria-hidden="true"
+    width="83" height="92" decoding="async"
+    class="l l-drop"
+    style="left:89.345%;top:14.362%;width:10.655%;z-index:2"
+  />
+  <img
+    src="/hero/butterfly.webp" alt="" aria-hidden="true"
+    width="104" height="89" decoding="async"
+    class="l l-butterfly"
+    style="left:76.893%;top:20.336%;width:13.351%;z-index:2"
+  />
+  <img
+    src="/hero/heart-lg.webp" alt="" aria-hidden="true"
+    width="47" height="44" decoding="async"
+    class="l l-heart-lg"
+    style="left:65.982%;top:5.839%;width:6.033%;z-index:3"
+  />
+  <img
+    src="/hero/heart-sm.webp" alt="" aria-hidden="true"
+    width="33" height="31" decoding="async"
+    class="l l-heart-sm"
+    style="left:63.801%;top:15.570%;width:4.236%;z-index:3"
+  />
+</div>
+
+<style>
+  .hero-art {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 779 / 1490;
+  }
+
+  .l {
+    position: absolute;
+    display: block;
+    height: auto;
+  }
+
+  /*
+    0% and 100% are the RESTING pose on purpose. The global reduced-motion net
+    in global.css collapses every animation to 0.01ms, which lands each layer on
+    its 100% frame — so reduced motion shows the composition exactly as drawn,
+    rather than frozen mid-drift with the icons hanging out of place.
+  */
+  @keyframes f-figure {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50%      { transform: translate3d(0, -6px, 0); }
+  }
+  @keyframes f-calendar {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50%      { transform: translate3d(0, -13px, 0); }
+  }
+  @keyframes f-drop {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50%      { transform: translate3d(0, -14px, 0); }
+  }
+  @keyframes f-butterfly {
+    0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+    50%      { transform: translate3d(0, -10px, 0) rotate(-2.5deg); }
+  }
+  @keyframes f-heart-lg {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50%      { transform: translate3d(0, -18px, 0); }
+  }
+  @keyframes f-heart-sm {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50%      { transform: translate3d(0, -11px, 0); }
+  }
+
+  .l-figure    { animation: f-figure    9.3s ease-in-out infinite; }
+  .l-calendar  { animation: f-calendar  5.1s ease-in-out infinite; }
+  .l-drop      { animation: f-drop      5.9s ease-in-out infinite; animation-delay: 0.5s; }
+  .l-butterfly { animation: f-butterfly 7.3s ease-in-out infinite; animation-delay: 1.3s; }
+  .l-heart-lg  { animation: f-heart-lg  4.3s ease-in-out infinite; animation-delay: 0.35s; }
+  .l-heart-sm  { animation: f-heart-sm  6.7s ease-in-out infinite; animation-delay: 0.9s; }
+</style>
