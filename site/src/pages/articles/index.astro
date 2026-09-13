@@ -14,7 +14,7 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10)
   description="Sourced articles on cycle tracking, predictions, and reading a period tracker's privacy policy, each carrying its own dated citations."
   path="/articles"
 >
-  <h1 class="text-3xl font-bold">Articles</h1>
+  <h1 class="display text-[2.1rem] sm:text-[2.6rem]">Articles</h1>
   <p class="mt-4 max-w-prose">
     Longer pieces than a calculator result or a features list, each one written to
     stand on its own and each one carrying dated, verifiable sources at the end
@@ -43,10 +43,10 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10)
     replace a doctor or midwife for anything specific to your own health.
   </p>
 
-  <div class="mt-10 grid gap-6 sm:grid-cols-2">
+  <div class="mt-10 grid gap-x-10 gap-y-9 sm:grid-cols-2">
     {sorted.map((entry) => (
-      <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
-        <h2 class="font-semibold">
+      <section class="border-t border-outline pt-5 dark:border-white/15">
+        <h2 class="display-sm text-[1.3rem]">
           <a href={`/articles/${entry.id}`} class="underline">{entry.data.title}</a>
         </h2>
         <p class="mt-2 text-sm">{entry.data.description}</p>

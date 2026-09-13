@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro'
+import PhaseBand from '../components/PhaseBand.astro'
 import { ORG } from '../consts.ts'
 
 const playUrl = ORG.sameAs[0]
@@ -9,14 +10,15 @@ const playUrl = ORG.sameAs[0]
   description="Get LunaTrack on Google Play. Read what it tracks and how it handles your data before you create an account and install it."
   path="/download"
 >
-  <h1 class="text-3xl font-bold">Get LunaTrack</h1>
+  <PhaseBand height="14px" draw class="max-w-xs" />
+  <h1 class="display mt-8 text-[2.1rem] sm:text-[2.6rem]">Get LunaTrack</h1>
   <p class="mt-4 max-w-prose">
     LunaTrack is available for Android on Google Play.
   </p>
 
   <a
     href={playUrl}
-    class="mt-6 inline-flex h-btn-h items-center gap-3 rounded-btn bg-primary px-6 text-white"
+    class="pressable mt-7 inline-flex h-btn-h items-center gap-3 rounded-btn bg-primary px-6 text-white hover:bg-menstrual"
   >
     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M3 2.5c-.4.4-.6.9-.6 1.5v16c0 .6.2 1.1.6 1.5l.1.1L12.5 12 3.1 2.4 3 2.5z"></path>

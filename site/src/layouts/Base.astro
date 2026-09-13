@@ -22,9 +22,13 @@ const props = Astro.props as Props
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <SeoHead {...props} />
   </head>
-  <body class="bg-surface text-primary dark:bg-surface-dark dark:text-white">
+  <body class="bg-paper text-primary dark:bg-surface-dark dark:text-white">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-primary focus:px-4 focus:py-2 focus:text-white"
+    >Skip to content</a>
     <Header />
-    <main class="mx-auto max-w-5xl px-4 py-8">
+    <main id="main" class="mx-auto max-w-5xl px-5 py-12 sm:py-16">
       <slot />
     </main>
     <Footer />

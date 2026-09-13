@@ -3,9 +3,18 @@
 @import "@fontsource/public-sans/500.css";
 @import "@fontsource/public-sans/600.css";
 @import "@fontsource/public-sans/700.css";
+@import "@fontsource-variable/fraunces/wonk.css";
 
-/* Class-based dark mode, matching the Stitch mockups' darkMode: "class". */
-@custom-variant dark (&:where(.dark, .dark *));
+/* Dark mode follows the OS by default, with a `.dark` / `.light` class able to
+   override it. The Stitch mockups were class-only, but nothing on this site can
+   add that class — the JS budget is zero bytes — so class-only meant every
+   `dark:` utility on every page was dead code. */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:not(.light, .light *)) { @slot; }
+  }
+  &:where(.dark, .dark *) { @slot; }
+}
 
 @theme {
   --color-primary: #3A2A30;
@@ -15,7 +24,20 @@
   --color-surface-tint: #FDF0F4;
   --color-surface-dark: #1C1B1F;
   --color-surface-dark-2: #2B292C;
-  --color-outline: #E6E1E5;
+  --color-outline: #E7E0DA;
+
+  /* Warm enough to read as paper rather than screen, and to sit under the
+     plum-brown ink — but well clear of the #F4F1EA cream that reads as a
+     generated default. */
+  --color-paper: #FAF6F3;
+  --color-ink-muted: #6B5A61;
+
+  /* Error text, kept separate from --color-menstrual. The brand red is a DATA
+     colour tuned for bands and rules, where 3:1 is the bar; as body-size text
+     it only reaches 3.76:1 and fails WCAG AA. These two clear 4.5:1 on their
+     respective grounds. */
+  --color-danger: #B8344F;
+  --color-danger-dark: #F08099;
 
   --color-menstrual: #D64F6E;
   --color-follicular: #6FB3A8;
@@ -33,8 +55,271 @@
   --spacing-btn-h: 52px;
 
   --font-body: "Public Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-headline: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-headline: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
 }
 
 html { color-scheme: light dark; }
-body { font-family: var(--font-body); overflow-wrap: break-word; }
+
+body {
+  font-family: var(--font-body);
+  overflow-wrap: break-word;
+}
+
+/* ---------------------------------------------------------------------------
+   Display type. Fraunces' WONK axis is what stops this reading as a stock
+   serif; opsz is pushed high so large settings get the wide, low-contrast cut
+   rather than the Didone-ish one that the small optical size produces.
+   --------------------------------------------------------------------------- */
+.display {
+  font-family: var(--font-headline);
+  font-variation-settings: "SOFT" 24, "WONK" 1, "opsz" 120;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+.display-sm {
+  font-family: var(--font-headline);
+  font-variation-settings: "SOFT" 18, "WONK" 1, "opsz" 40;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.18;
+  text-wrap: balance;
+}
+
+/* Serif body text wants more leading than the sans it sits beside. */
+.prose-body { line-height: 1.7; }
+
+/* ---------------------------------------------------------------------------
+   The cycle band.
+
+   Segment widths are proportional to a reference 28-day cycle — menstrual 5,
+   follicular 8, ovulatory 3, luteal 12 — so the band is a to-scale drawing of
+   a cycle rather than a decorative stripe. Fertile days are drawn as an
+   overlay because they span the follicular/ovulatory boundary; they are not a
+   fifth phase.
+   --------------------------------------------------------------------------- */
+.cycle-band {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  isolation: isolate;
+}
+
+.cycle-band > span {
+  display: block;
+  height: 100%;
+}
+
+/* One orchestrated page-load moment: the band draws left-to-right, once. */
+@media (prefers-reduced-motion: no-preference) {
+  .cycle-band--draw {
+    animation: band-draw 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes band-draw {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+
+/* Tier 2: keep the fact of the transition, drop the displacement. */
+@media (prefers-reduced-motion: reduce) {
+  .cycle-band--draw { animation: band-fade 200ms ease both; }
+}
+
+@keyframes band-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ---------------------------------------------------------------------------
+   Section rules. Each one is tinted to the phase that section talks about, so
+   the colour carries meaning. If every rule ever ends up the same colour,
+   delete the device — at that point it is decoration.
+   --------------------------------------------------------------------------- */
+.phase-rule {
+  display: block;
+  height: 3px;
+  width: 3.5rem;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: left center;
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .phase-rule {
+      animation: rule-grow linear both;
+      animation-timeline: view();
+      animation-range: entry 10% entry 60%;
+    }
+  }
+}
+
+@keyframes rule-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* ---------------------------------------------------------------------------
+   Cross-document view transitions. Zero JS: the browser does the work, and
+   honours prefers-reduced-motion on its own.
+   --------------------------------------------------------------------------- */
+@view-transition { navigation: auto; }
+
+::view-transition-old(root) { animation-duration: 140ms; }
+::view-transition-new(root) { animation-duration: 180ms; }
+
+/* ---------------------------------------------------------------------------
+   Long-form article typography.
+
+   Markdown renders bare h2/h3/p/ul with no classes, and Tailwind's Preflight
+   resets headings to inherit size and weight — so without this block every
+   article is a single undifferentiated wall of text. Hand-rolled rather than
+   pulling in @tailwindcss/typography, because the headings need to be Fraunces
+   and the accents need to come from the cycle palette.
+   --------------------------------------------------------------------------- */
+.prose {
+  max-width: 68ch;
+  line-height: 1.72;
+  font-size: 1.0625rem;
+}
+
+.prose > * + * { margin-top: 1.15em; }
+
+.prose h2 {
+  font-family: var(--font-headline);
+  font-variation-settings: "SOFT" 18, "WONK" 1, "opsz" 40;
+  font-weight: 600;
+  font-size: 1.6rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  margin-top: 2.4em;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--color-outline);
+}
+
+.prose h3 {
+  font-weight: 650;
+  font-size: 1.1rem;
+  line-height: 1.35;
+  margin-top: 1.9em;
+}
+
+.prose h4 { font-weight: 650; margin-top: 1.6em; }
+
+.prose ul,
+.prose ol {
+  padding-left: 1.35rem;
+  margin-top: 1em;
+}
+
+.prose ul { list-style: disc; }
+.prose ol { list-style: decimal; }
+.prose li { margin-top: 0.45em; }
+.prose li::marker { color: var(--color-menstrual); }
+.prose ol li::marker { color: var(--color-ink-muted); font-variant-numeric: tabular-nums; }
+
+.prose a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--color-seed-strong);
+}
+
+.prose a:hover { text-decoration-thickness: 2px; }
+
+.prose strong { font-weight: 650; }
+
+.prose blockquote {
+  border-left: 3px solid var(--color-menstrual);
+  padding-left: 1.1rem;
+  margin-left: 0;
+  color: var(--color-ink-muted);
+}
+
+.prose hr {
+  border: 0;
+  border-top: 1px solid var(--color-outline);
+  margin-block: 2.5em;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.prose th,
+.prose td {
+  border-bottom: 1px solid var(--color-outline);
+  padding: 0.6rem 0.75rem 0.6rem 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose th { font-weight: 650; }
+
+/* Tables are the one thing allowed to outrun the measure. */
+.prose > table { display: block; overflow-x: auto; }
+
+.prose code {
+  font-size: 0.9em;
+  background: var(--color-surface-tint);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+/* The first heading in an article already has the byline above it. */
+.prose > h2:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .prose h2,
+  :root:not(.light) .prose hr,
+  :root:not(.light) .prose th,
+  :root:not(.light) .prose td { border-color: #ffffff1f; }
+
+  :root:not(.light) .prose blockquote { color: #ffffffa8; }
+  :root:not(.light) .prose code { background: var(--color-surface-dark-2); }
+}
+
+/* ---------------------------------------------------------------------------
+   Tier 3 motion: responses to a person's action. These stay on under reduced
+   motion — they imply no self-motion and removing them makes the interface
+   feel broken rather than calm.
+   --------------------------------------------------------------------------- */
+.pressable {
+  transition: background-color 140ms ease, color 140ms ease,
+              border-color 140ms ease, transform 80ms ease;
+}
+
+.pressable:active { transform: translateY(1px); }
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--color-menstrual);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Global safety net. 0.01ms rather than 0s so anything waiting on
+   transitionend/animationend still fires. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Tier 3 survives the net. */
+  .pressable { transition-duration: 140ms !important; }
+}

@@ -1,108 +1,146 @@
 ---
 import Base from '../layouts/Base.astro'
+import PhaseBand from '../components/PhaseBand.astro'
+import Section from '../components/Section.astro'
 ---
 <Base
   title="LunaTrack — period and cycle tracking"
   description="LunaTrack shows no ads on symptom logging, diary, or insights. Your device leads, the app works offline, and health data never reaches advertisers."
   path="/"
 >
-  <h1 class="text-3xl font-bold sm:text-4xl">LunaTrack</h1>
-  <p class="mt-4 max-w-prose text-lg">
-    No ads on symptom logging, your diary, or your insights — ever. That's the
-    one promise here that's easy to check for yourself.
-  </p>
-  <div class="mt-6 flex flex-wrap gap-4">
-    <a href="/download" class="inline-flex h-btn-h items-center rounded-btn bg-primary px-6 text-white">
-      Get it on Google Play
-    </a>
-    <a href="/features" class="inline-flex h-btn-h items-center rounded-btn border border-outline px-6">
-      See everything it tracks
-    </a>
+  <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_14rem] lg:gap-12">
+    <div>
+      <PhaseBand height="14px" draw labelled class="max-w-md" />
+
+      <h1 class="display mt-9 text-[2.6rem] sm:text-6xl">
+        Track your cycle.<br />Read the fine print.
+      </h1>
+
+      <p class="prose-body mt-6 max-w-prose text-lg">
+        No ads on symptom logging, your diary, or your insights — ever. That's the
+        one promise here that's easy to check for yourself.
+      </p>
+
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a
+          href="/download"
+          class="pressable inline-flex h-btn-h items-center rounded-btn bg-primary px-6 font-medium text-white hover:bg-menstrual"
+        >Get it on Google Play</a>
+        <a
+          href="/features"
+          class="pressable inline-flex h-btn-h items-center rounded-btn border border-outline px-6 font-medium hover:border-primary dark:border-white/20 dark:hover:border-white"
+        >See everything it tracks</a>
+      </div>
+    </div>
+
+    <aside class="mt-12 border-t border-outline pt-6 text-sm text-ink-muted lg:mt-2 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0 dark:border-white/10 dark:text-white/60">
+      <p class="prose-body">
+        The band above is a 28-day cycle drawn to scale. Yours will differ —
+        that variation is the whole reason a tracker keeps a history instead of
+        a single number.
+      </p>
+      <p class="prose-body mt-4">
+        Everything this site claims is written to be checkable. Where LunaTrack
+        falls short, the <a href="/privacy" class="underline decoration-menstrual underline-offset-2">data page</a> says so.
+      </p>
+    </aside>
   </div>
 
-  <section class="mt-14 max-w-prose">
-    <h2 class="text-xl font-semibold">Your device leads, the cloud follows</h2>
-    <p class="mt-2">
+  <Section title="Your device leads, the cloud follows">
+    <p>
       Every log — periods, symptoms, mood, medication marks, weight, basal body
       temperature, ovulation test results — is written to a database on your
       device first. LunaTrack works fully offline, and that on-device copy is
       the source of truth; the cloud is a mirror of it, kept for the account
       LunaTrack requires so your logs follow you between devices. The device
       database is encrypted at rest with a key held in your OS keystore — the
-      <a href="/privacy-policy" class="underline">full privacy policy</a> spells out
+      <a href="/privacy-policy" class="underline underline-offset-2">full privacy policy</a> spells out
       the one documented exception to that, along with everything else that
       syncs.
     </p>
-  </section>
+  </Section>
 
-  <section class="mt-10 max-w-prose">
-    <h2 class="text-xl font-semibold">What's inside</h2>
-    <p class="mt-2">
+  <Section title="What's inside">
+    <p>
       Predictions, a daily log for symptoms and mood, medication marks, weight
       and BBT tracking, ovulation test results, reminders, an app lock, a
       doctor-ready PDF export, and a photo timeline. The
-      <a href="/features" class="underline">features page</a> covers all of it,
+      <a href="/features" class="underline underline-offset-2">features page</a> covers all of it,
       including what each one does and doesn't do.
     </p>
-  </section>
+  </Section>
 
-  <section class="mt-10 max-w-prose">
-    <h2 class="text-xl font-semibold">Ads that stay out of the way</h2>
-    <p class="mt-2">
+  <Section title="Ads that stay out of the way">
+    <p>
       The free version shows non-personalised ads through Google AdMob, and
       never on symptom logging, your diary, or your insights. Your health data
       is never sent to the ad network either way. If you'd rather not see ads
       at all, Premium is a one-time Google Play purchase that removes them
-      everywhere — see <a href="/privacy" class="underline">how your data is handled</a>
+      everywhere — see <a href="/privacy" class="underline underline-offset-2">how your data is handled</a>
       for the details on both.
     </p>
-  </section>
+  </Section>
 
-  <section class="mt-10 max-w-prose">
-    <h2 class="text-xl font-semibold">Photo descriptions, off until you turn them on</h2>
-    <p class="mt-2">
+  <Section title="Photo descriptions, off until you turn them on">
+    <p>
       The photo timeline can describe what's in a picture you choose, using an
       outside image-recognition service. That's off by default, decided
       separately for each account and each device — read
-      <a href="/privacy" class="underline">what that involves</a> before you switch it on.
+      <a href="/privacy" class="underline underline-offset-2">what that involves</a> before you switch it on.
     </p>
-  </section>
+  </Section>
 
-  <section class="mt-10 max-w-prose">
-    <h2 class="text-xl font-semibold">Not sure about a date? Try a calculator first</h2>
-    <p class="mt-2">
+  <Section title="Not sure about a date? Try a calculator first" phase="predicted">
+    <p>
       Before you install anything, you can estimate your next period from a
-      date you already know. The <a href="/tools" class="underline">calculators
+      date you already know. The <a href="/tools" class="underline underline-offset-2">calculators
       page</a> runs the same cycle maths as the app, entirely in your browser —
       nothing you type into it is sent anywhere. Alongside the
-      <a href="/tools/period-calculator" class="underline">period
+      <a href="/tools/period-calculator" class="underline underline-offset-2">period
       calculator</a>, there's also an
-      <a href="/tools/ovulation-calculator" class="underline">ovulation
+      <a href="/tools/ovulation-calculator" class="underline underline-offset-2">ovulation
       calculator</a>, a
-      <a href="/tools/cycle-length-calculator" class="underline">cycle-length
+      <a href="/tools/cycle-length-calculator" class="underline underline-offset-2">cycle-length
       calculator</a>, and a
-      <a href="/tools/due-date-calculator" class="underline">due-date
+      <a href="/tools/due-date-calculator" class="underline underline-offset-2">due-date
       calculator</a>, all built the same way.
     </p>
-  </section>
 
-  <section class="mt-10 max-w-prose">
-    <h2 class="text-xl font-semibold">Want the longer version of any of this?</h2>
-    <p class="mt-2">
-      The <a href="/articles" class="underline">articles library</a> covers the
+    <figure class="mt-7 max-w-md">
+      <div
+        class="h-3 w-full rounded-full"
+        style="background:linear-gradient(90deg,
+          color-mix(in oklab, var(--color-predicted) 0%, transparent) 0%,
+          var(--color-predicted) 28%,
+          var(--color-menstrual) 50%,
+          var(--color-predicted) 72%,
+          color-mix(in oklab, var(--color-predicted) 0%, transparent) 100%)"
+        role="img"
+        aria-label="A predicted period drawn as a band that fades at both ends, showing that the estimate is a range rather than a single certain day."
+      ></div>
+      <figcaption class="mt-3 text-sm text-ink-muted dark:text-white/60">
+        A prediction is a range, not a date. The calculators give you the
+        middle; the faded ends are the part most apps don't draw.
+      </figcaption>
+    </figure>
+  </Section>
+
+  <Section title="Want the longer version of any of this?">
+    <p>
+      The <a href="/articles" class="underline underline-offset-2">articles library</a> covers the
       reasoning behind the calculators above, what counts as a normal cycle, and
       a checklist for reading any tracker's privacy policy — applied honestly to
       LunaTrack's own, including where it falls short. Every article carries
       dated sources at the end.
     </p>
-  </section>
+  </Section>
 
-  <section class="mt-14 max-w-prose border-t border-outline pt-8">
-    <h2 class="text-xl font-semibold">Try it</h2>
-    <p class="mt-2">
-      <a href="/download" class="underline">Download LunaTrack on Google Play</a>.
+  <section class="mt-20 border-t border-outline pt-10 dark:border-white/10">
+    <h2 class="display-sm text-2xl">Try it</h2>
+    <p class="prose-body mt-3 max-w-prose">
+      <a href="/download" class="underline underline-offset-2">Download LunaTrack on Google Play</a>.
       It requires an account to sign in, and its
-      <a href="/terms" class="underline">terms of use</a> cover purchases and warranty.
+      <a href="/terms" class="underline underline-offset-2">terms of use</a> cover purchases and warranty.
     </p>
   </section>
 </Base>

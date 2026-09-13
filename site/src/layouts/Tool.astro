@@ -2,10 +2,21 @@
 import Base from './Base.astro'
 import Faq from '../components/Faq.astro'
 import Disclaimer from '../components/Disclaimer.astro'
+import CycleFocus from '../components/CycleFocus.astro'
 import type { FaqEntry } from '../types.ts'
 
-interface Props { title: string; description: string; path: string; faq: FaqEntry[] }
-const { title, description, path, faq } = Astro.props as Props
+type Phase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal' | 'fertile' | 'predicted'
+
+interface Props {
+  title: string
+  description: string
+  path: string
+  faq: FaqEntry[]
+  /** Which days of a 28-day cycle this calculator can speak to. */
+  focus?: { from: number; to: number; color: Phase; label: string }
+}
+
+const { title, description, path, faq, focus } = Astro.props as Props
 ---
 <Base
   title={title}
@@ -18,8 +29,14 @@ const { title, description, path, faq } = Astro.props as Props
     { name: title, path },
   ]}
 >
-  <h1 class="text-3xl font-bold">{title}</h1>
-  <div class="mt-6"><slot name="widget" /></div>
+  <h1 class="display max-w-[18ch] text-[2.1rem] sm:text-[2.6rem]">{title}</h1>
+  {focus && (
+    <CycleFocus
+      from={focus.from} to={focus.to} color={focus.color} label={focus.label}
+      class="mt-6 max-w-sm"
+    />
+  )}
+  <div class="mt-8"><slot name="widget" /></div>
   <Disclaimer kind="tool" />
   <article class="prose"><slot /></article>
   <Faq items={faq} />

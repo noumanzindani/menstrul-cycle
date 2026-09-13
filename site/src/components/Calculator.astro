@@ -62,13 +62,44 @@ const { kind } = Astro.props as Props
   </fieldset>
 
   <output id="result" class="mt-6 block" aria-live="polite"></output>
-  <p id="error" role="alert" class="mt-2 text-menstrual"></p>
+  <p id="error" role="alert" class="mt-2 text-danger dark:text-danger-dark"></p>
 </form>
 
 <script>
   import {
     predictPeriods, predictOvulation, analyseCycles, estimateDueDate, formatISO,
   } from '../lib/cycle.ts'
+  import { extent, geometry, gradient, cycleFeather, type Span } from '../lib/band.ts'
+
+  const DAY = 86400000
+  const dayNum = (iso: string) => Math.round(Date.parse(iso + 'T00:00:00Z') / DAY)
+
+  interface Bar { span: Span; color: string }
+
+  /**
+   * Draw a set of spans on one shared track.
+   *
+   * The caption is required, not optional: a faded edge with nothing
+   * explaining it reads as a measured confidence interval, which none of
+   * these are.
+   */
+  const track = (bars: Bar[], caption: string) => {
+    const e = extent(bars.map((b) => b.span))
+    // Pad the axis so the rail stays visible past the outermost band. Without
+    // it a lone result fills the track exactly, and a band with nothing either
+    // side of it reads as a bar rather than a range.
+    const pad = Math.max(1, Math.round(e.days * 0.08))
+    const start = e.start - pad
+    const days = e.days + pad * 2
+    const drawn = bars.map((b) => {
+      const g = geometry(b.span, start, days)
+      return `<span class="absolute inset-y-0 rounded-full" style="left:${g.left.toFixed(2)}%;` +
+        `width:${g.width.toFixed(2)}%;background:${gradient(b.color, g.stop)}"></span>`
+    }).join('')
+    return `<div class="relative mt-5 h-4 w-full overflow-hidden rounded-full ` +
+      `bg-outline/50 dark:bg-white/10">${drawn}</div>` +
+      `<p class="mt-2 max-w-prose text-xs text-ink-muted dark:text-white/55">${caption}</p>`
+  }
 
   const form = document.getElementById('calc') as HTMLFormElement
   // Safe to accept input now: the handler below keeps every value on this device.
@@ -91,28 +122,78 @@ const { kind } = Astro.props as Props
     try {
       if (kind === 'period') {
         const rows = predictPeriods(String(f.get('last')), num('cycle'), num('period'), 3)
-        out.innerHTML = '<h3 class="font-bold">Your next three periods</h3><ul>' +
-          rows.map((r) => `<li>${human(r.start)} to ${human(r.end)}</li>`).join('') + '</ul>'
+        out.innerHTML = '<h3 class="display-sm text-xl">Your next three periods</h3><ul>' +
+          rows.map((r) => `<li>${human(r.start)} to ${human(r.end)}</li>`).join('') + '</ul>' +
+          track(
+            rows.map((r, i) => ({
+              span: { from: dayNum(r.start), to: dayNum(r.end), feather: cycleFeather(i) },
+              color: 'var(--color-menstrual)',
+            })),
+            'Each band is one predicted period, drawn to scale. The fade widens further ' +
+            'out because a fixed average drifts from a real cycle over time — it marks ' +
+            'that order of confidence, not a measured margin of error.',
+          )
       } else if (kind === 'ovulation') {
         const r = predictOvulation(String(f.get('last')), num('cycle'))
         out.innerHTML =
-          `<h3 class="font-bold">Estimated ovulation: ${human(r.ovulation)}</h3>` +
+          `<h3 class="display-sm text-xl">Estimated ovulation: ${human(r.ovulation)}</h3>` +
           `<p>Most fertile days: ${human(r.fertileStart)} to ${human(r.fertileEnd)}</p>` +
-          `<p>Next period expected: ${human(r.nextPeriod)}</p>`
+          `<p>Next period expected: ${human(r.nextPeriod)}</p>` +
+          track(
+            [
+              {
+                span: {
+                  from: dayNum(r.fertileStart), to: dayNum(r.fertileEnd), feather: 2,
+                },
+                color: 'var(--color-fertile)',
+              },
+              {
+                span: { from: dayNum(r.ovulation), to: dayNum(r.ovulation), feather: 1 },
+                color: 'var(--color-ovulatory)',
+              },
+            ],
+            'The wide band is the fertile window; the narrow one is the estimated ' +
+            'ovulation day. Both fade because a calendar estimate cannot observe ' +
+            'ovulation. This is not a method of contraception.',
+          )
       } else if (kind === 'cycle-length') {
         const dates = ['d1', 'd2', 'd3', 'd4'].map((k) => String(f.get(k) ?? '')).filter(Boolean)
         const s = analyseCycles(dates)
         out.innerHTML =
-          `<h3 class="font-bold">Average cycle: ${s.average} days</h3>` +
+          `<h3 class="display-sm text-xl">Average cycle: ${s.average} days</h3>` +
           `<p>Shortest ${s.shortest}, longest ${s.longest}, a spread of ${s.variation} days.</p>` +
-          `<p>That pattern looks <strong>${s.regularity}</strong>. This is a description, not a diagnosis.</p>`
+          `<p>That pattern looks <strong>${s.regularity}</strong>. This is a description, not a diagnosis.</p>` +
+          track(
+            [
+              {
+                span: { from: s.shortest, to: s.longest, feather: 0 },
+                color: 'var(--color-follicular)',
+              },
+              {
+                span: { from: s.average, to: s.average, feather: 0 },
+                color: 'var(--color-primary)',
+              },
+            ],
+            'Your observed range, shortest to longest, with the average marked. These ' +
+            'edges are hard because these are cycles you actually had — the only ' +
+            'result on this site that is measured rather than predicted.',
+          )
       } else {
         const r = estimateDueDate(String(f.get('last')), num('cycle'), formatISO(Date.now()))
         out.innerHTML =
-          `<h3 class="font-bold">Estimated due date: ${human(r.dueDate)}</h3>` +
+          `<h3 class="display-sm text-xl">Estimated due date: ${human(r.dueDate)}</h3>` +
           `<p>Estimated conception: ${human(r.conception)}.</p>` +
           `<p>You are about ${r.gestationalWeeks} weeks and ${r.gestationalDays} days along.</p>` +
-          `<p>Second trimester from ${human(r.trimester2Start)}, third from ${human(r.trimester3Start)}.</p>`
+          `<p>Second trimester from ${human(r.trimester2Start)}, third from ${human(r.trimester3Start)}.</p>` +
+          track(
+            [{
+              span: { from: dayNum(r.dueDate), to: dayNum(r.dueDate), feather: 14 },
+              color: 'var(--color-predicted)',
+            }],
+            'The solid centre is the estimated date; the fade is roughly two weeks ' +
+            'either side, where most births actually happen. Very few arrive on the ' +
+            'due date itself.',
+          )
       }
     } catch (e) {
       err.textContent = e instanceof Error ? e.message : 'Please check the values you entered.'

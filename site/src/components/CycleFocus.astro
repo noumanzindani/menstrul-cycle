@@ -1,0 +1,46 @@
+---
+/**
+ * A 28-day cycle track with one span highlighted.
+ *
+ * Used to show, at a glance, which part of a cycle a given calculator can
+ * actually tell you about. The highlight is positioned from real day numbers,
+ * so it stays honest: the ovulation window really is that narrow, and the
+ * due-date tool really does key off a single day.
+ */
+interface Props {
+  /** First highlighted day, 1-indexed. */
+  from: number
+  /** Last highlighted day, inclusive. */
+  to: number
+  /** Phase token name driving the highlight colour. */
+  color: 'menstrual' | 'follicular' | 'ovulatory' | 'luteal' | 'fertile' | 'predicted'
+  /** Plain-language description of what the highlight means. */
+  label: string
+  class?: string
+}
+
+const { from, to, color, label, class: cls = '' } = Astro.props as Props
+
+const CYCLE_DAYS = 28
+const clamp = (n: number) => Math.min(Math.max(n, 1), CYCLE_DAYS)
+const start = clamp(from)
+const end = clamp(Math.max(to, from))
+
+const left = ((start - 1) / CYCLE_DAYS) * 100
+const width = ((end - start + 1) / CYCLE_DAYS) * 100
+const span = start === end ? `day ${start}` : `days ${start} to ${end}`
+---
+
+<div class={cls}>
+  <div
+    class="relative h-1.5 w-full overflow-hidden rounded-full bg-outline dark:bg-white/15"
+    role="img"
+    aria-label={`${label} — ${span} of a 28-day cycle.`}
+  >
+    <span
+      class="absolute inset-y-0 rounded-full"
+      style={`left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:var(--color-${color})`}
+    ></span>
+  </div>
+  <p class="mt-2 text-xs text-ink-muted dark:text-white/55" aria-hidden="true">{label}</p>
+</div>

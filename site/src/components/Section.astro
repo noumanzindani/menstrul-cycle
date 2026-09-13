@@ -1,0 +1,40 @@
+---
+/**
+ * A content section with a phase-tinted rule above its heading.
+ *
+ * The colour is an argument, not a default, because the rule is meant to
+ * encode which part of the cycle (or which kind of claim) the section is
+ * about. A section with no honest phase mapping passes `neutral` and gets a
+ * plain outline rule instead of borrowing a meaning it does not have.
+ */
+type Phase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal' | 'fertile' | 'predicted' | 'neutral'
+
+interface Props {
+  title: string
+  phase?: Phase
+  /** Heading level, so pages keep a correct outline. */
+  as?: 'h2' | 'h3'
+  id?: string
+  class?: string
+}
+
+const { title, phase = 'neutral', as: Tag = 'h2', id, class: cls = '' } = Astro.props as Props
+
+const RULE_COLOR: Record<Phase, string> = {
+  menstrual: 'text-menstrual',
+  follicular: 'text-follicular',
+  ovulatory: 'text-ovulatory',
+  luteal: 'text-luteal',
+  fertile: 'text-fertile',
+  predicted: 'text-predicted',
+  neutral: 'text-outline dark:text-white/25',
+}
+---
+
+<section class:list={['mt-16 first:mt-0', cls]} id={id}>
+  <span class:list={['phase-rule', RULE_COLOR[phase]]} aria-hidden="true"></span>
+  <Tag class="display-sm mt-5 text-2xl sm:text-[1.75rem]">{title}</Tag>
+  <div class="prose-body mt-3 max-w-prose">
+    <slot />
+  </div>
+</section>

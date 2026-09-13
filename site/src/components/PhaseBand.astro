@@ -1,0 +1,55 @@
+---
+/**
+ * A to-scale drawing of a reference 28-day cycle.
+ *
+ * Segment widths are the real day counts, not arbitrary thirds, so the band
+ * reports something true: the luteal phase really is the long one, and the
+ * ovulatory window really is that narrow. Phase colours match the app.
+ */
+interface Props {
+  /** Band height. Hero uses a chunky band; section markers use a hairline. */
+  height?: string
+  /** Play the one orchestrated page-load draw. Hero only — never repeat it. */
+  draw?: boolean
+  /** Render day-count labels beneath each segment. */
+  labelled?: boolean
+  class?: string
+}
+
+const { height = '12px', draw = false, labelled = false, class: cls = '' } = Astro.props as Props
+
+const PHASES = [
+  { name: 'Menstrual', days: 5, color: 'var(--color-menstrual)' },
+  { name: 'Follicular', days: 8, color: 'var(--color-follicular)' },
+  { name: 'Ovulatory', days: 3, color: 'var(--color-ovulatory)' },
+  { name: 'Luteal', days: 12, color: 'var(--color-luteal)' },
+]
+
+const TOTAL = PHASES.reduce((sum, p) => sum + p.days, 0)
+const pct = (days: number) => `${((days / TOTAL) * 100).toFixed(3)}%`
+const summary = PHASES.map((p) => `${p.name} ${p.days} days`).join(', ')
+---
+
+<div class={cls}>
+  <div
+    class:list={['cycle-band', draw && 'cycle-band--draw']}
+    style={`height:${height}`}
+    role="img"
+    aria-label={`A ${TOTAL}-day reference cycle drawn to scale: ${summary}. Lengths vary between people.`}
+  >
+    {PHASES.map((p) => (
+      <span style={`width:${pct(p.days)};background:${p.color}`}></span>
+    ))}
+  </div>
+
+  {labelled && (
+    <ul class="mt-3 flex w-full list-none p-0 text-xs text-ink-muted dark:text-white/60" aria-hidden="true">
+      {PHASES.map((p) => (
+        <li style={`width:${pct(p.days)}`} class="pr-2">
+          <span class="block truncate font-medium">{p.name}</span>
+          <span class="block tabular-nums">{p.days}d</span>
+        </li>
+      ))}
+    </ul>
+  )}
+</div>

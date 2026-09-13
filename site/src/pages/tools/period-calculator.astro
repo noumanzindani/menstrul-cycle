@@ -39,6 +39,7 @@ const faq: FaqEntry[] = [
   description="Estimate your next three period dates from your last start date and cycle length, calculated in your browser and never transmitted anywhere."
   path="/tools/period-calculator"
   faq={faq}
+  focus={{ from: 1, to: 5, color: 'menstrual', label: 'Bleeding days' }}
 >
   <Calculator slot="widget" kind="period" />
 

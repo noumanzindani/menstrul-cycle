@@ -39,6 +39,7 @@ const faq: FaqEntry[] = [
   description="Estimate ovulation and a six-day fertile window from your last period and cycle length. Runs in your browser; not a method of contraception."
   path="/tools/ovulation-calculator"
   faq={faq}
+  focus={{ from: 10, to: 16, color: 'fertile', label: 'Fertile window' }}
 >
   <Calculator slot="widget" kind="ovulation" />
 

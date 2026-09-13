@@ -39,6 +39,7 @@ const faq: FaqEntry[] = [
   description="Estimate a due date, trimester dates, and gestational age from your last period and cycle length, using Naegele's rule adjusted for cycle length."
   path="/tools/due-date-calculator"
   faq={faq}
+  focus={{ from: 1, to: 1, color: 'predicted', label: 'Counts forward from day 1 only' }}
 >
   <Calculator slot="widget" kind="due-date" />
 

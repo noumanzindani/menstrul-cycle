@@ -28,19 +28,19 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10)
     { name: p.title, path: p.path },
   ]}
 >
-  <h1 class="text-3xl font-bold">{p.title}</h1>
-  <p class="mt-2 text-sm opacity-80">
+  <h1 class="display max-w-[20ch] text-[2.1rem] sm:text-[2.75rem]">{p.title}</h1>
+  <p class="mt-4 text-sm text-ink-muted dark:text-white/60">
     By {p.author} · Published <time datetime={fmt(p.datePublished)}>{fmt(p.datePublished)}</time>
     · Updated <time datetime={fmt(p.dateModified)}>{fmt(p.dateModified)}</time>
   </p>
   <div class="mt-4"><ReviewNotice reviewedBy={p.reviewedBy} /></div>
   <Disclaimer kind="article" />
-  <article class="prose"><slot /></article>
-  <section class="mt-12">
-    <h2 class="text-2xl font-bold">Sources</h2>
-    <ul class="mt-4 list-disc pl-5">
+  <article class="prose mt-10"><slot /></article>
+  <section class="mt-14 max-w-[68ch] border-t border-outline pt-8 dark:border-white/10">
+    <h2 class="display-sm text-2xl">Sources</h2>
+    <ul class="mt-4 list-disc pl-5 leading-relaxed marker:text-menstrual">
       {p.sources.map((s) => (
-        <li><a href={s.url} rel="noopener" class="underline">{s.title}</a></li>
+        <li class="mt-2"><a href={s.url} rel="noopener" class="underline underline-offset-2">{s.title}</a></li>
       ))}
     </ul>
   </section>
