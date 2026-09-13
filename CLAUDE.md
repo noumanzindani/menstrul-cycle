@@ -110,7 +110,7 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   Numeric metrics (`pain`, `water`, `sleep`, `energy`, `stress`, `sleep_quality`, `weight`)
   ride the same blob as real JSON numbers, so they never satisfy the `== true` symptom check
   and need no key prefix. **`0` means "unset" for every numeric metric**, weight included.
-- **Schema & migrations.** `schemaVersion` is **9**. `onUpgrade` uses independent additive
+- **Schema & migrations.** `schemaVersion` is **10**. `onUpgrade` uses independent additive
   `if (from < n)` branches (not else-if), one nullable column each, so a user on any old
   version runs every intervening branch and existing rows need no backfill: v1→v2 added
   `AppSettings.pregnancyStartDate`; v2→v3 added `AppSettings.trackingCategories`; v3→v4
@@ -124,17 +124,21 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   **v8→v9 added the five clinical-profile columns `AppSettings.contraceptionMethod`,
   `contraceptionStartDate`, `knownDiagnoses`, `breastfeeding` and `breastfeedingSince`**
   (Tier 1 of the gynaecological intake; `breastfeeding` is a NULLABLE bool precisely so
-  "never asked" stays distinct from "answered no").
+  "never asked" stays distinct from "answered no"); **v9→v10 added
+  `AppSettings.sexualHealthBaseline`**, ONE nullable TEXT column holding the signup
+  sexual-health baseline as JSON (`SexualBaseline` in `catalog.dart`) — one column, not
+  four, because that question set will grow and a column per question means a migration per
+  question.
   v4→v5 and v5→v6 are the only branches that
   create a table rather than adding a column; both are still purely additive. Note the two `SettingsRepository` entry
   points that write those columns: **`update()` stamps `settingsUpdatedAt`** (a user
   edit, so it pushes on the next sync), **`updateSyncState()` deliberately does not** —
   it is sync bookkeeping, and stamping it would make every sync look like a settings
   change and push forever. A committed JSON snapshot per version lives in
-  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v9.json` /
-  `schema_v9.dart`); `test/db_migration_v9_test.dart` uses drift's `SchemaVerifier` to run
-  the REAL `onUpgrade` against a v8 DB seeded with non-default rows. The suite runs one
-  such test per hop, `db_migration_v3_test.dart` through `db_migration_v9_test.dart`.
+  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v10.json` /
+  `schema_v10.dart`); `test/db_migration_v10_test.dart` uses drift's `SchemaVerifier` to run
+  the REAL `onUpgrade` against a v9 DB seeded with non-default rows. The suite runs one
+  such test per hop, `db_migration_v3_test.dart` through `db_migration_v10_test.dart`.
   In-memory `AppDatabase.forTesting` runs `onCreate` at the current schema and NEVER
   exercises `onUpgrade`, so every new migration needs a snapshot dumped BEFORE the version
   bump (only derivable while that version is current) and its own SchemaVerifier test.
@@ -198,9 +202,21 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
     would find. Same blob, same sensitivity, same shoulder-surf handling — the default was
     protecting nothing and only encoded which sexual behaviour counts as ordinary. The
     "no editor grows unasked" rule still holds for every other category.
-  - **Sync marker is a VERSION.** `profileFields` is now `2`. A v8 device writes `1`
-    truthfully while knowing nothing of the v9 columns, so presence alone is not enough —
-    `knowsClinicalProfile` gates on `>= 2`. Bump it again whenever the field set grows.
+  - **Sync marker is a VERSION.** `profileFields` is now `3`. Each generation of columns
+    gates on its OWN minimum — `knowsProfileFields` (any marker) for the v8 four,
+    `knowsClinicalProfile` (`>= 2`) for the v9 five, `knowsSexualBaseline` (`>= 3`) for the
+    v10 baseline. A v8 device writes `1` truthfully while knowing nothing of v9; a v9 device
+    writes `2` truthfully while knowing nothing of v10. Presence alone is never enough.
+    Bump it again whenever the field set grows, and add a gate rather than widening one.
+  - **Signup baseline (v10).** Three onboarding pages — Sex, Sexual health, Intimacy —
+    each asking TWO things: a BASELINE ("how often, generally", stored in settings) and a
+    TODAY answer (seeded as a real day-tag entry). They are never merged: the baseline
+    answers "how often", the logs answer "what happened on the 3rd", and a field that tries
+    to be both disagrees with itself. This closes the cold-start hole in "derive the
+    frequency from the logs" — a new user has no logs, which is exactly when context is
+    scarcest. **`saveDay` REPLACES a day**, so when the last-period date IS today the flow
+    and the seeded tags must be ONE write; two would erase the period the user just entered
+    (`onboarding_profile_test.dart` pins this). An all-empty today writes NO row at all.
 - **Prediction is the calendar method**, always labelled an estimate and **never a
   contraceptive method**. Fertile window is awareness-only.
 - **Fertility indicator is a qualitative band, never a number** (`FertilityBand` enum,

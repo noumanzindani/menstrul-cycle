@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../common/catalog.dart';
+import '../../common/date_utils.dart';
 import '../../common/l10n.dart';
 import '../../models/enums.dart';
 import '../../providers/log_provider.dart';
@@ -39,7 +40,7 @@ final OutlineInputBorder _kOnboardingFieldBorder = OutlineInputBorder(
 );
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  static const _pageCount = 8;
+  static const _pageCount = 11;
 
   /// Index of the height / weight / first-period page. Its two typed
   /// measurements are the only answers in the wizard that can be WRONG rather
@@ -80,6 +81,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // breastfeeding colour how results READ, so they live in Settings rather
   // than lengthening a first-run wizard.
   String? _contraception;
+  // The signup sexual-health baseline: what is TYPICALLY true. Stored in one
+  // JSON column, and deliberately NOT the same data as the `_today*` fields
+  // below — those record what happened today and become a real log entry.
+  String? _sexFrequency;
+  String? _soloFrequency;
+  String? _baselineLibido;
+  final Set<String> _sexualHistory = {};
+  // Today's answers, seeded into today's log on finish.
+  String? _todaySex;
+  final Set<String> _todaySexualHealth = {};
+  String? _todayLibido;
+  final Set<String> _todayIntimacy = {};
   String? _heightError;
   String? _weightError;
 
@@ -138,13 +151,45 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     // says nobody asked, the other says the user uses nothing. Only the second
     // belongs in a doctor report.
     await settings.setContraception(_contraception);
+    await settings.setSexualBaseline(
+      sexFrequency: _sexFrequency,
+      soloFrequency: _soloFrequency,
+      libido: _baselineLibido,
+      history: _sexualHistory,
+    );
 
-    // Seed the last period so cycle stats have a starting anchor.
-    if (_lastPeriod != null) {
+    // Seed the last period so cycle stats have a starting anchor, and seed
+    // today's day tags from the three sexual-health pages.
+    //
+    // These are ONE write when they fall on the same date. `saveDay` REPLACES a
+    // day rather than merging into it, so two writes for one date would mean
+    // the second silently erased the first — and the period the user had just
+    // entered would vanish behind a day tag.
+    final today = dateOnly(DateTime.now());
+    final todayFlags = <String>{
+      ..._todaySexualHealth,
+      ..._todayIntimacy,
+      ?_todaySex,
+      ?_todayLibido,
+    };
+    final lastPeriodIsToday =
+        _lastPeriod != null && dateOnly(_lastPeriod!) == today;
+
+    if (_lastPeriod != null && !lastPeriodIsToday) {
       await logs.saveDay(
         date: _lastPeriod!,
         flow: FlowIntensity.medium,
         symptomsJson: encodeSymptoms({}),
+      );
+    }
+    // An empty day is NOT written: a row with no flow and no tags reads as a
+    // logged day forever after, and nothing would ever distinguish it from one
+    // the user really did open and leave blank.
+    if (lastPeriodIsToday || todayFlags.isNotEmpty) {
+      await logs.saveDay(
+        date: today,
+        flow: lastPeriodIsToday ? FlowIntensity.medium : null,
+        symptomsJson: encodeDayTags(flags: todayFlags),
       );
     }
     await settings.completeOnboarding();
@@ -256,6 +301,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   _ContraceptionPage(
                     method: _contraception,
                     onChanged: (m) => setState(() => _contraception = m),
+                  ),
+                  _SexBaselinePage(
+                    frequency: _sexFrequency,
+                    onFrequency: (v) => setState(() => _sexFrequency = v),
+                    today: _todaySex,
+                    onToday: (v) => setState(() => _todaySex = v),
+                  ),
+                  _SexualHealthBaselinePage(
+                    history: _sexualHistory,
+                    onHistory: (key, on) => setState(() =>
+                        on ? _sexualHistory.add(key) : _sexualHistory.remove(key)),
+                    libido: _baselineLibido,
+                    onLibido: (v) => setState(() => _baselineLibido = v),
+                    today: _todaySexualHealth,
+                    onToday: (key, on) => setState(() => on
+                        ? _todaySexualHealth.add(key)
+                        : _todaySexualHealth.remove(key)),
+                    todayLibido: _todayLibido,
+                    onTodayLibido: (v) => setState(() => _todayLibido = v),
+                  ),
+                  _IntimacyBaselinePage(
+                    frequency: _soloFrequency,
+                    onFrequency: (v) => setState(() => _soloFrequency = v),
+                    today: _todayIntimacy,
+                    onToday: (key, on) => setState(() =>
+                        on ? _todayIntimacy.add(key) : _todayIntimacy.remove(key)),
                   ),
                   _ModePage(
                     mode: _mode,
@@ -677,6 +748,209 @@ class _ContraceptionPage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Shared scaffolding for the three sexual-health signup pages.
+///
+/// Each asks TWO questions that look similar and are not: a BASELINE ("how
+/// often, generally") that is stored once in settings, and a TODAY answer that
+/// becomes a real day-tag entry. Keeping them visually separated matters —
+/// a user who reads the second as a rephrasing of the first will answer it
+/// wrongly, and the two can never be reconciled afterwards.
+class _BaselineScaffold extends StatelessWidget {
+  const _BaselineScaffold({
+    required this.question,
+    required this.baseline,
+    required this.todayLabel,
+    required this.today,
+  });
+
+  final String question;
+  final List<Widget> baseline;
+  final String todayLabel;
+  final List<Widget> today;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return _QuestionPage(
+      question: question,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 12),
+        children: [
+          ...baseline,
+          const SizedBox(height: 28),
+          Divider(color: scheme.outlineVariant),
+          const SizedBox(height: 12),
+          Text(
+            todayLabel,
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Optional — this one is logged as today, not as a general answer.',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          ...today,
+        ],
+      ),
+    );
+  }
+}
+
+/// Frequency choices, rendered as the same cards the mode page uses.
+List<Widget> _frequencyCards(String? selected, ValueChanged<String?> onPick) => [
+      for (final o in kFrequencyOptions) ...[
+        _ChoiceCard(
+          title: o.label,
+          description: '',
+          selected: selected == o.key,
+          // Tapping the selected card clears it, so a mis-tap is recoverable
+          // without a separate skip control on every page.
+          onTap: () => onPick(selected == o.key ? null : o.key),
+        ),
+        const SizedBox(height: 8),
+      ],
+    ];
+
+/// Small chips for the "today" half, matching the day editor's shape.
+Widget _todayChips({
+  required List<TrackOption> options,
+  required bool Function(String) isSelected,
+  required void Function(String, bool) onToggle,
+}) =>
+    Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final o in options)
+          FilterChip(
+            label: Text(o.label),
+            selected: isSelected(o.key),
+            onSelected: (on) => onToggle(o.key, on),
+          ),
+      ],
+    );
+
+class _SexBaselinePage extends StatelessWidget {
+  const _SexBaselinePage({
+    required this.frequency,
+    required this.onFrequency,
+    required this.today,
+    required this.onToday,
+  });
+
+  final String? frequency;
+  final ValueChanged<String?> onFrequency;
+  final String? today;
+  final ValueChanged<String?> onToday;
+
+  @override
+  Widget build(BuildContext context) => _BaselineScaffold(
+        question: 'How often do you have sex?',
+        baseline: _frequencyCards(frequency, onFrequency),
+        todayLabel: 'Today',
+        today: [
+          _todayChips(
+            options: kSexOptions,
+            isSelected: (k) => today == k,
+            onToggle: (k, on) => onToday(on ? k : null),
+          ),
+        ],
+      );
+}
+
+class _SexualHealthBaselinePage extends StatelessWidget {
+  const _SexualHealthBaselinePage({
+    required this.history,
+    required this.onHistory,
+    required this.libido,
+    required this.onLibido,
+    required this.today,
+    required this.onToday,
+    required this.todayLibido,
+    required this.onTodayLibido,
+  });
+
+  final Set<String> history;
+  final void Function(String, bool) onHistory;
+  final String? libido;
+  final ValueChanged<String?> onLibido;
+  final Set<String> today;
+  final void Function(String, bool) onToday;
+  final String? todayLibido;
+  final ValueChanged<String?> onTodayLibido;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _BaselineScaffold(
+      question: 'Have you ever experienced any of these?',
+      baseline: [
+        _todayChips(
+          options: kSexualHistoryOptions,
+          isSelected: history.contains,
+          onToggle: onHistory,
+        ),
+        const SizedBox(height: 24),
+        Text('Your libido, generally',
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 12),
+        _todayChips(
+          options: kLibidoOptions,
+          isSelected: (k) => libido == k,
+          onToggle: (k, on) => onLibido(on ? k : null),
+        ),
+      ],
+      todayLabel: 'Today',
+      today: [
+        _todayChips(
+          options: kSexualHealthOptions,
+          isSelected: today.contains,
+          onToggle: onToday,
+        ),
+        const SizedBox(height: 12),
+        _todayChips(
+          options: kLibidoOptions,
+          isSelected: (k) => todayLibido == k,
+          onToggle: (k, on) => onTodayLibido(on ? k : null),
+        ),
+      ],
+    );
+  }
+}
+
+class _IntimacyBaselinePage extends StatelessWidget {
+  const _IntimacyBaselinePage({
+    required this.frequency,
+    required this.onFrequency,
+    required this.today,
+    required this.onToday,
+  });
+
+  final String? frequency;
+  final ValueChanged<String?> onFrequency;
+  final Set<String> today;
+  final void Function(String, bool) onToday;
+
+  @override
+  Widget build(BuildContext context) => _BaselineScaffold(
+        question: 'How often do you masturbate?',
+        baseline: _frequencyCards(frequency, onFrequency),
+        todayLabel: 'Today',
+        today: [
+          _todayChips(
+            options: kIntimacyOptions,
+            isSelected: today.contains,
+            onToggle: onToday,
+          ),
+        ],
+      );
 }
 
 class _ModePage extends StatelessWidget {

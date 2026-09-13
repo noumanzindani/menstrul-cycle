@@ -2112,6 +2112,17 @@ class $AppSettingsTable extends AppSettings
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _sexualHealthBaselineMeta =
+      const VerificationMeta('sexualHealthBaseline');
+  @override
+  late final GeneratedColumn<String> sexualHealthBaseline =
+      GeneratedColumn<String>(
+        'sexual_health_baseline',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2142,6 +2153,7 @@ class $AppSettingsTable extends AppSettings
     knownDiagnoses,
     breastfeeding,
     breastfeedingSince,
+    sexualHealthBaseline,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2374,6 +2386,15 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('sexual_health_baseline')) {
+      context.handle(
+        _sexualHealthBaselineMeta,
+        sexualHealthBaseline.isAcceptableOrUnknown(
+          data['sexual_health_baseline']!,
+          _sexualHealthBaselineMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2497,6 +2518,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.dateTime,
         data['${effectivePrefix}breastfeeding_since'],
       ),
+      sexualHealthBaseline: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sexual_health_baseline'],
+      ),
     );
   }
 
@@ -2538,6 +2563,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final String? knownDiagnoses;
   final bool? breastfeeding;
   final DateTime? breastfeedingSince;
+  final String? sexualHealthBaseline;
   const AppSetting({
     required this.id,
     required this.mode,
@@ -2567,6 +2593,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.knownDiagnoses,
     this.breastfeeding,
     this.breastfeedingSince,
+    this.sexualHealthBaseline,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2639,6 +2666,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || breastfeedingSince != null) {
       map['breastfeeding_since'] = Variable<DateTime>(breastfeedingSince);
     }
+    if (!nullToAbsent || sexualHealthBaseline != null) {
+      map['sexual_health_baseline'] = Variable<String>(sexualHealthBaseline);
+    }
     return map;
   }
 
@@ -2708,6 +2738,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       breastfeedingSince: breastfeedingSince == null && nullToAbsent
           ? const Value.absent()
           : Value(breastfeedingSince),
+      sexualHealthBaseline: sexualHealthBaseline == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sexualHealthBaseline),
     );
   }
 
@@ -2765,6 +2798,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       breastfeedingSince: serializer.fromJson<DateTime?>(
         json['breastfeedingSince'],
       ),
+      sexualHealthBaseline: serializer.fromJson<String?>(
+        json['sexualHealthBaseline'],
+      ),
     );
   }
   @override
@@ -2803,6 +2839,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'knownDiagnoses': serializer.toJson<String?>(knownDiagnoses),
       'breastfeeding': serializer.toJson<bool?>(breastfeeding),
       'breastfeedingSince': serializer.toJson<DateTime?>(breastfeedingSince),
+      'sexualHealthBaseline': serializer.toJson<String?>(sexualHealthBaseline),
     };
   }
 
@@ -2835,6 +2872,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<String?> knownDiagnoses = const Value.absent(),
     Value<bool?> breastfeeding = const Value.absent(),
     Value<DateTime?> breastfeedingSince = const Value.absent(),
+    Value<String?> sexualHealthBaseline = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     mode: mode ?? this.mode,
@@ -2888,6 +2926,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     breastfeedingSince: breastfeedingSince.present
         ? breastfeedingSince.value
         : this.breastfeedingSince,
+    sexualHealthBaseline: sexualHealthBaseline.present
+        ? sexualHealthBaseline.value
+        : this.sexualHealthBaseline,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -2963,6 +3004,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       breastfeedingSince: data.breastfeedingSince.present
           ? data.breastfeedingSince.value
           : this.breastfeedingSince,
+      sexualHealthBaseline: data.sexualHealthBaseline.present
+          ? data.sexualHealthBaseline.value
+          : this.sexualHealthBaseline,
     );
   }
 
@@ -2996,7 +3040,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('contraceptionStartDate: $contraceptionStartDate, ')
           ..write('knownDiagnoses: $knownDiagnoses, ')
           ..write('breastfeeding: $breastfeeding, ')
-          ..write('breastfeedingSince: $breastfeedingSince')
+          ..write('breastfeedingSince: $breastfeedingSince, ')
+          ..write('sexualHealthBaseline: $sexualHealthBaseline')
           ..write(')'))
         .toString();
   }
@@ -3031,6 +3076,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     knownDiagnoses,
     breastfeeding,
     breastfeedingSince,
+    sexualHealthBaseline,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -3063,7 +3109,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.contraceptionStartDate == this.contraceptionStartDate &&
           other.knownDiagnoses == this.knownDiagnoses &&
           other.breastfeeding == this.breastfeeding &&
-          other.breastfeedingSince == this.breastfeedingSince);
+          other.breastfeedingSince == this.breastfeedingSince &&
+          other.sexualHealthBaseline == this.sexualHealthBaseline);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -3095,6 +3142,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<String?> knownDiagnoses;
   final Value<bool?> breastfeeding;
   final Value<DateTime?> breastfeedingSince;
+  final Value<String?> sexualHealthBaseline;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.mode = const Value.absent(),
@@ -3124,6 +3172,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.knownDiagnoses = const Value.absent(),
     this.breastfeeding = const Value.absent(),
     this.breastfeedingSince = const Value.absent(),
+    this.sexualHealthBaseline = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -3154,6 +3203,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.knownDiagnoses = const Value.absent(),
     this.breastfeeding = const Value.absent(),
     this.breastfeedingSince = const Value.absent(),
+    this.sexualHealthBaseline = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -3184,6 +3234,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<String>? knownDiagnoses,
     Expression<bool>? breastfeeding,
     Expression<DateTime>? breastfeedingSince,
+    Expression<String>? sexualHealthBaseline,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3222,6 +3273,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (knownDiagnoses != null) 'known_diagnoses': knownDiagnoses,
       if (breastfeeding != null) 'breastfeeding': breastfeeding,
       if (breastfeedingSince != null) 'breastfeeding_since': breastfeedingSince,
+      if (sexualHealthBaseline != null)
+        'sexual_health_baseline': sexualHealthBaseline,
     });
   }
 
@@ -3254,6 +3307,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<String?>? knownDiagnoses,
     Value<bool?>? breastfeeding,
     Value<DateTime?>? breastfeedingSince,
+    Value<String?>? sexualHealthBaseline,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -3286,6 +3340,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       knownDiagnoses: knownDiagnoses ?? this.knownDiagnoses,
       breastfeeding: breastfeeding ?? this.breastfeeding,
       breastfeedingSince: breastfeedingSince ?? this.breastfeedingSince,
+      sexualHealthBaseline: sexualHealthBaseline ?? this.sexualHealthBaseline,
     );
   }
 
@@ -3384,6 +3439,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (breastfeedingSince.present) {
       map['breastfeeding_since'] = Variable<DateTime>(breastfeedingSince.value);
     }
+    if (sexualHealthBaseline.present) {
+      map['sexual_health_baseline'] = Variable<String>(
+        sexualHealthBaseline.value,
+      );
+    }
     return map;
   }
 
@@ -3417,7 +3477,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('contraceptionStartDate: $contraceptionStartDate, ')
           ..write('knownDiagnoses: $knownDiagnoses, ')
           ..write('breastfeeding: $breastfeeding, ')
-          ..write('breastfeedingSince: $breastfeedingSince')
+          ..write('breastfeedingSince: $breastfeedingSince, ')
+          ..write('sexualHealthBaseline: $sexualHealthBaseline')
           ..write(')'))
         .toString();
   }
@@ -5448,6 +5509,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<String?> knownDiagnoses,
       Value<bool?> breastfeeding,
       Value<DateTime?> breastfeedingSince,
+      Value<String?> sexualHealthBaseline,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -5479,6 +5541,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<String?> knownDiagnoses,
       Value<bool?> breastfeeding,
       Value<DateTime?> breastfeedingSince,
+      Value<String?> sexualHealthBaseline,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -5628,6 +5691,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<DateTime> get breastfeedingSince => $composableBuilder(
     column: $table.breastfeedingSince,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sexualHealthBaseline => $composableBuilder(
+    column: $table.sexualHealthBaseline,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5780,6 +5848,11 @@ class $$AppSettingsTableOrderingComposer
     column: $table.breastfeedingSince,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get sexualHealthBaseline => $composableBuilder(
+    column: $table.sexualHealthBaseline,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -5918,6 +5991,11 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.breastfeedingSince,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get sexualHealthBaseline => $composableBuilder(
+    column: $table.sexualHealthBaseline,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -5979,6 +6057,7 @@ class $$AppSettingsTableTableManager
                 Value<String?> knownDiagnoses = const Value.absent(),
                 Value<bool?> breastfeeding = const Value.absent(),
                 Value<DateTime?> breastfeedingSince = const Value.absent(),
+                Value<String?> sexualHealthBaseline = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 mode: mode,
@@ -6008,6 +6087,7 @@ class $$AppSettingsTableTableManager
                 knownDiagnoses: knownDiagnoses,
                 breastfeeding: breastfeeding,
                 breastfeedingSince: breastfeedingSince,
+                sexualHealthBaseline: sexualHealthBaseline,
               ),
           createCompanionCallback:
               ({
@@ -6039,6 +6119,7 @@ class $$AppSettingsTableTableManager
                 Value<String?> knownDiagnoses = const Value.absent(),
                 Value<bool?> breastfeeding = const Value.absent(),
                 Value<DateTime?> breastfeedingSince = const Value.absent(),
+                Value<String?> sexualHealthBaseline = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 mode: mode,
@@ -6068,6 +6149,7 @@ class $$AppSettingsTableTableManager
                 knownDiagnoses: knownDiagnoses,
                 breastfeeding: breastfeeding,
                 breastfeedingSince: breastfeedingSince,
+                sexualHealthBaseline: sexualHealthBaseline,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

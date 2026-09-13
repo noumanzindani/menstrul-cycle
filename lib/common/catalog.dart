@@ -431,6 +431,119 @@ const List<TrackOption> kDiagnosisOptions = [
   TrackOption('dx_thyroid', 'Thyroid condition'),
 ];
 
+/// How often something typically happens. Asked ONCE, at signup, for the
+/// questions where a per-day chip cannot answer on day one.
+const List<TrackOption> kFrequencyOptions = [
+  TrackOption('freq_never', 'Never'),
+  TrackOption('freq_rarely', 'Rarely'),
+  TrackOption('freq_weekly', 'Weekly'),
+  TrackOption('freq_often', 'Several times a week'),
+];
+
+/// Things the user has EVER experienced, asked once at signup.
+///
+/// Reuses the day-tag keys deliberately. "Ever had pain during sex" and the
+/// `shx_pain` chip are the same fact at two time scales; a separate vocabulary
+/// for the baseline would let the two drift into meaning different things, and
+/// nothing could then reconcile them.
+const List<TrackOption> kSexualHistoryOptions = [
+  TrackOption('shx_pain', 'Pain during sex'),
+  TrackOption('shx_post_coital', 'Bleeding after sex'),
+  TrackOption('vag_dryness', 'Dryness'),
+];
+
+/// The signup answers to the questions a first-run wizard can meaningfully ask:
+/// what is TYPICALLY true, rather than what happened today.
+///
+/// Deliberately never merged with logged days. The baseline answers "how often,
+/// generally"; the logs answer "what happened on the 3rd". A field that tries
+/// to be both ends up disagreeing with itself — which is exactly why frequency
+/// questions do not belong in the day-tags blob.
+class SexualBaseline {
+  const SexualBaseline({
+    this.sexFrequency,
+    this.soloFrequency,
+    this.libido,
+    this.history = const {},
+  });
+
+  /// A `freq_` key from [kFrequencyOptions], or null when skipped.
+  final String? sexFrequency;
+  final String? soloFrequency;
+
+  /// An `lbd_` key from [kLibidoOptions] — the user's GENERAL level, not a
+  /// day's. Null when skipped.
+  final String? libido;
+
+  /// Keys from [kSexualHistoryOptions] the user has ever experienced.
+  final Set<String> history;
+
+  bool get isEmpty =>
+      sexFrequency == null &&
+      soloFrequency == null &&
+      libido == null &&
+      history.isEmpty;
+}
+
+String? _validKey(List<TrackOption> options, Object? raw) {
+  if (raw is! String) return null;
+  for (final o in options) {
+    if (o.key == raw) return raw;
+  }
+  return null;
+}
+
+/// Encodes the signup baseline, or NULL when nothing was answered.
+///
+/// Null is what "never asked" looks like in the column. An empty `{}` would
+/// read as "asked, and answered nothing" — a different claim, and one that
+/// would print an empty section in the doctor report.
+String? encodeSexualBaseline({
+  String? sexFrequency,
+  String? soloFrequency,
+  String? libido,
+  Set<String> history = const {},
+}) {
+  if (sexFrequency == null &&
+      soloFrequency == null &&
+      libido == null &&
+      history.isEmpty) {
+    return null;
+  }
+  return jsonEncode({
+    'sexFrequency': ?sexFrequency,
+    'soloFrequency': ?soloFrequency,
+    'libido': ?libido,
+    if (history.isNotEmpty) 'history': history.toList(),
+  });
+}
+
+/// Tolerant decode. Malformed JSON, the wrong shape, and keys written by a
+/// NEWER build all read as "not answered" rather than throwing or surfacing a
+/// raw key — a settings getter that throws takes the whole screen down, and a
+/// raw `freq_from_the_future` in a clinical summary is worse than an omission.
+SexualBaseline decodeSexualBaseline(String? json) {
+  if (json == null || json.isEmpty) return const SexualBaseline();
+  try {
+    final decoded = jsonDecode(json);
+    if (decoded is! Map) return const SexualBaseline();
+    final rawHistory = decoded['history'];
+    return SexualBaseline(
+      sexFrequency: _validKey(kFrequencyOptions, decoded['sexFrequency']),
+      soloFrequency: _validKey(kFrequencyOptions, decoded['soloFrequency']),
+      libido: _validKey(kLibidoOptions, decoded['libido']),
+      history: rawHistory is! List
+          ? const {}
+          : {
+              for (final e in rawHistory)
+                if (_validKey(kSexualHistoryOptions, e) != null) e as String,
+            },
+    );
+  } catch (_) {
+    return const SexualBaseline();
+  }
+}
+
 bool _isReserved(String key) => kReservedTagPrefixes.any(key.startsWith);
 
 /// Encodes a full day's tags into the JSON blob: boolean [flags] (symptoms plus

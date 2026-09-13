@@ -26,7 +26,7 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('v8 -> v9 adds the clinical columns and preserves existing data',
+  test('v8 -> current adds the clinical columns and preserves existing data',
       () async {
     final schema = await verifier.schemaAt(8);
 
@@ -66,7 +66,7 @@ void main() {
     await oldDb.close();
 
     final db = AppDatabase.forTesting(schema.newConnection());
-    await verifier.migrateAndValidate(db, 9);
+    await verifier.migrateAndValidate(db, 10);
 
     final settings = await db.getSettings();
     expect(settings.defaultCycleLength, 33);

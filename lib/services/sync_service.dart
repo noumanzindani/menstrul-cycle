@@ -690,7 +690,7 @@ class SyncService {
       // fertile window. So each generation raises this, and each generation's
       // columns are gated on their own minimum. Bump it again whenever the
       // field set grows.
-      'profileFields': 2,
+      'profileFields': 3,
       'dateOfBirth': row.dateOfBirth?.millisecondsSinceEpoch,
       'heightCm': row.heightCm,
       'profileWeightKg': row.profileWeightKg,
@@ -705,6 +705,10 @@ class SyncService {
       'knownDiagnoses': row.knownDiagnoses,
       'breastfeeding': row.breastfeeding,
       'breastfeedingSince': row.breastfeedingSince?.millisecondsSinceEpoch,
+      // The signup baseline (marker 3). Travels as the raw JSON string the
+      // column stores, for the same reason `knownDiagnoses` does: the column
+      // owns the shape, and re-encoding here would create a second format.
+      'sexualHealthBaseline': row.sexualHealthBaseline,
       'updatedAt': changed.millisecondsSinceEpoch,
       // `syncedAt` is written here for consistency with `dailyLogs` and
       // `deletions` (every remote document carries it), even though the
@@ -750,6 +754,10 @@ class SyncService {
     // presence alone is not enough -- only the version is.
     final knowsClinicalProfile =
         (_asOrNull<int>(data['profileFields']) ?? 0) >= 2;
+    // And absent, `1` or `2` on anything written before schema v10. Each
+    // generation gates on its OWN minimum; a v9 writer knew nothing of this.
+    final knowsSexualBaseline =
+        (_asOrNull<int>(data['profileFields']) ?? 0) >= 3;
     final dobMillis = _asOrNull<int>(data['dateOfBirth']);
     // `num`, not `double`: Firestore number typing is not stable across
     // writers, so a whole-number height (170) can arrive as an `int`, for
@@ -764,6 +772,7 @@ class SyncService {
     final knownDiagnoses = _asOrNull<String>(data['knownDiagnoses']);
     final breastfeeding = _asOrNull<bool>(data['breastfeeding']);
     final breastfeedingMillis = _asOrNull<int>(data['breastfeedingSince']);
+    final sexualBaseline = _asOrNull<String>(data['sexualHealthBaseline']);
 
     await _settings.updateSyncState(
       AppSettingsCompanion(
@@ -841,6 +850,9 @@ class SyncService {
             ? Value(breastfeedingMillis == null
                 ? null
                 : DateTime.fromMillisecondsSinceEpoch(breastfeedingMillis))
+            : const Value.absent(),
+        sexualHealthBaseline: knowsSexualBaseline
+            ? Value(sexualBaseline)
             : const Value.absent(),
         settingsUpdatedAt: Value(remoteUpdated),
       ),

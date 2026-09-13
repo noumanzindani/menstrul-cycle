@@ -259,6 +259,19 @@ class AppSettings extends Table {
   // Breastfeeding since. Lactational amenorrhoea suppresses cycles outright, so
   // a gap in the log after this date is expected rather than a missed period.
   DateTimeColumn get breastfeedingSince => dateTime().nullable()();
+  // The signup sexual-health baseline, as a JSON object (see
+  // `SexualBaseline` in common/catalog.dart): typical frequency of sex and of
+  // masturbation, general libido, and anything ever experienced.
+  //
+  // ONE column rather than four, and the reason is the same one behind
+  // `trackingCategories` and `knownDiagnoses`: this question set will grow, and
+  // a column per question means a migration per question.
+  //
+  // NULL means the wizard was skipped. It is never merged with the day-tags
+  // blob — the baseline answers "how often, generally", the logs answer "what
+  // happened on the 3rd", and a value that tries to be both ends up
+  // disagreeing with itself.
+  TextColumn get sexualHealthBaseline => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

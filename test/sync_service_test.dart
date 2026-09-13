@@ -777,7 +777,7 @@ void main() {
       'trackingCategories': null,
       'weightUnit': 'lb',
       // A CURRENT build wrote this document, so it carries the marker.
-      'profileFields': 1,
+      'profileFields': 3,
       'dateOfBirth': DateTime(1994, 3, 17).millisecondsSinceEpoch,
       'heightCm': 168.5,
       'profileWeightKg': 61.2,
@@ -817,7 +817,7 @@ void main() {
       'trackingCategories': null,
       'weightUnit': null,
       // A CURRENT build wrote this document, so it carries the marker.
-      'profileFields': 1,
+      'profileFields': 3,
       'dateOfBirth': DateTime(1988, 12, 1).millisecondsSinceEpoch,
       'heightCm': 171.0,
       'profileWeightKg': 64.0,
@@ -861,7 +861,7 @@ void main() {
       'weightUnit': null,
       // Stale profile values -- an earlier answer from another device.
       // A CURRENT build wrote this document, so it carries the marker.
-      'profileFields': 1,
+      'profileFields': 3,
       'dateOfBirth': DateTime(1988, 12, 1).millisecondsSinceEpoch,
       'heightCm': 150.0,
       'profileWeightKg': 50.0,
@@ -953,7 +953,7 @@ void main() {
       'trackingCategories': null,
       'weightUnit': null,
       // A CURRENT build wrote this document, so it carries the marker.
-      'profileFields': 1,
+      'profileFields': 3,
       'dateOfBirth': null,
       'heightCm': 170, // int, not double
       'profileWeightKg': 60, // int, not double
@@ -1033,7 +1033,7 @@ void main() {
       'pregnancyStartDate': null,
       'trackingCategories': null,
       'weightUnit': 'kg',
-      'profileFields': 1,
+      'profileFields': 3,
       'dateOfBirth': null,
       'heightCm': null,
       'profileWeightKg': null,
@@ -1066,7 +1066,7 @@ void main() {
       'weightUnit': 'kg',
       // 'dateOfBirth' is missing entirely.
       // A CURRENT build wrote this document, so it carries the marker.
-      'profileFields': 1,
+      'profileFields': 3,
       'heightCm': 'tall', // present but the WRONG type (should be a number).
       'profileWeightKg': 58.0, // present and well-typed.
       'menarcheAge': 13, // present and well-typed.
@@ -1176,7 +1176,7 @@ void main() {
         'pregnancyStartDate': null,
         'trackingCategories': null,
         'weightUnit': 'kg',
-        'profileFields': 2,
+        'profileFields': 3,
         'dateOfBirth': null,
         'heightCm': null,
         'profileWeightKg': null,
@@ -1199,6 +1199,47 @@ void main() {
       expect(local.breastfeedingSince, isNull);
     });
 
+    test('a v9 document leaves the signup baseline alone', () async {
+      // The same class of bug as the v8 case above, one schema on. A v9 writer
+      // sets marker 2 honestly and has never heard of the baseline column, so
+      // only the VERSION can tell it apart from a v10 writer clearing it.
+      final settings = SettingsRepository(db);
+      await settings.update(const AppSettingsCompanion(
+        sexualHealthBaseline: Value('{"sexFrequency":"freq_weekly"}'),
+      ));
+
+      await firestore.doc('users/uid-1/settings/current').set({
+        'mode': TrackingMode.track.index,
+        'themeMode': 'dark',
+        'language': 'en',
+        'genderNeutralLanguage': false,
+        'pregnancyStartDate': null,
+        'trackingCategories': null,
+        'weightUnit': 'kg',
+        'profileFields': 2,
+        'dateOfBirth': null,
+        'heightCm': null,
+        'profileWeightKg': null,
+        'menarcheAge': null,
+        'contraceptionMethod': 'contra_implant',
+        'contraceptionStartDate': null,
+        'knownDiagnoses': null,
+        'breastfeeding': null,
+        'breastfeedingSince': null,
+        'updatedAt':
+            DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+      });
+
+      await sync.syncNow();
+
+      final local = await settings.get();
+      // What the v9 writer DID know is applied...
+      expect(local.contraceptionMethod, 'contra_implant');
+      expect(local.themeMode, 'dark');
+      // ...and what it could not know is untouched.
+      expect(local.sexualHealthBaseline, '{"sexFrequency":"freq_weekly"}');
+    });
+
     test('the push sends the clinical columns under marker 2', () async {
       await SettingsRepository(db).update(AppSettingsCompanion(
         contraceptionMethod: const Value('contra_copper_iud'),
@@ -1212,7 +1253,7 @@ void main() {
 
       final doc =
           (await firestore.doc('users/uid-1/settings/current').get()).data()!;
-      expect(doc['profileFields'], 2,
+      expect(doc['profileFields'], 3,
           reason: 'a reader distinguishes v9 writers by this value alone');
       expect(doc['contraceptionMethod'], 'contra_copper_iud');
       expect(doc['contraceptionStartDate'],

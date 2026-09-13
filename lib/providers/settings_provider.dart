@@ -272,6 +272,29 @@ class SettingsProvider extends ChangeNotifier {
         AppSettingsCompanion(knownDiagnoses: Value(jsonEncode(ids.toList()))),
       );
 
+  /// The signup sexual-health baseline. Decoded on every read rather than
+  /// cached: the column is the single source of truth, and a cache here is a
+  /// second one that goes stale on the next sync pull.
+  SexualBaseline get sexualBaseline =>
+      decodeSexualBaseline(_settings?.sexualHealthBaseline);
+
+  /// Stores the baseline. A wholly-skipped one writes NULL, not `{}` — see
+  /// [encodeSexualBaseline] for why the two must stay distinguishable.
+  Future<void> setSexualBaseline({
+    String? sexFrequency,
+    String? soloFrequency,
+    String? libido,
+    Set<String> history = const {},
+  }) =>
+      update(AppSettingsCompanion(
+        sexualHealthBaseline: Value(encodeSexualBaseline(
+          sexFrequency: sexFrequency,
+          soloFrequency: soloFrequency,
+          libido: libido,
+          history: history,
+        )),
+      ));
+
   /// Sets breastfeeding status, or clears it to "never asked" with null.
   Future<void> setBreastfeeding(bool? value, {DateTime? since}) =>
       update(AppSettingsCompanion(
