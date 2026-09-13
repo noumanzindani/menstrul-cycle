@@ -2054,6 +2054,64 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _contraceptionMethodMeta =
+      const VerificationMeta('contraceptionMethod');
+  @override
+  late final GeneratedColumn<String> contraceptionMethod =
+      GeneratedColumn<String>(
+        'contraception_method',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _contraceptionStartDateMeta =
+      const VerificationMeta('contraceptionStartDate');
+  @override
+  late final GeneratedColumn<DateTime> contraceptionStartDate =
+      GeneratedColumn<DateTime>(
+        'contraception_start_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _knownDiagnosesMeta = const VerificationMeta(
+    'knownDiagnoses',
+  );
+  @override
+  late final GeneratedColumn<String> knownDiagnoses = GeneratedColumn<String>(
+    'known_diagnoses',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _breastfeedingMeta = const VerificationMeta(
+    'breastfeeding',
+  );
+  @override
+  late final GeneratedColumn<bool> breastfeeding = GeneratedColumn<bool>(
+    'breastfeeding',
+    aliasedName,
+    true,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("breastfeeding" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _breastfeedingSinceMeta =
+      const VerificationMeta('breastfeedingSince');
+  @override
+  late final GeneratedColumn<DateTime> breastfeedingSince =
+      GeneratedColumn<DateTime>(
+        'breastfeeding_since',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2079,6 +2137,11 @@ class $AppSettingsTable extends AppSettings
     heightCm,
     profileWeightKg,
     menarcheAge,
+    contraceptionMethod,
+    contraceptionStartDate,
+    knownDiagnoses,
+    breastfeeding,
+    breastfeedingSince,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2266,6 +2329,51 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('contraception_method')) {
+      context.handle(
+        _contraceptionMethodMeta,
+        contraceptionMethod.isAcceptableOrUnknown(
+          data['contraception_method']!,
+          _contraceptionMethodMeta,
+        ),
+      );
+    }
+    if (data.containsKey('contraception_start_date')) {
+      context.handle(
+        _contraceptionStartDateMeta,
+        contraceptionStartDate.isAcceptableOrUnknown(
+          data['contraception_start_date']!,
+          _contraceptionStartDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('known_diagnoses')) {
+      context.handle(
+        _knownDiagnosesMeta,
+        knownDiagnoses.isAcceptableOrUnknown(
+          data['known_diagnoses']!,
+          _knownDiagnosesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('breastfeeding')) {
+      context.handle(
+        _breastfeedingMeta,
+        breastfeeding.isAcceptableOrUnknown(
+          data['breastfeeding']!,
+          _breastfeedingMeta,
+        ),
+      );
+    }
+    if (data.containsKey('breastfeeding_since')) {
+      context.handle(
+        _breastfeedingSinceMeta,
+        breastfeedingSince.isAcceptableOrUnknown(
+          data['breastfeeding_since']!,
+          _breastfeedingSinceMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2369,6 +2477,26 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.int,
         data['${effectivePrefix}menarche_age'],
       ),
+      contraceptionMethod: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}contraception_method'],
+      ),
+      contraceptionStartDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}contraception_start_date'],
+      ),
+      knownDiagnoses: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}known_diagnoses'],
+      ),
+      breastfeeding: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}breastfeeding'],
+      ),
+      breastfeedingSince: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}breastfeeding_since'],
+      ),
     );
   }
 
@@ -2405,6 +2533,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final double? heightCm;
   final double? profileWeightKg;
   final int? menarcheAge;
+  final String? contraceptionMethod;
+  final DateTime? contraceptionStartDate;
+  final String? knownDiagnoses;
+  final bool? breastfeeding;
+  final DateTime? breastfeedingSince;
   const AppSetting({
     required this.id,
     required this.mode,
@@ -2429,6 +2562,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.heightCm,
     this.profileWeightKg,
     this.menarcheAge,
+    this.contraceptionMethod,
+    this.contraceptionStartDate,
+    this.knownDiagnoses,
+    this.breastfeeding,
+    this.breastfeedingSince,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2484,6 +2622,23 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || menarcheAge != null) {
       map['menarche_age'] = Variable<int>(menarcheAge);
     }
+    if (!nullToAbsent || contraceptionMethod != null) {
+      map['contraception_method'] = Variable<String>(contraceptionMethod);
+    }
+    if (!nullToAbsent || contraceptionStartDate != null) {
+      map['contraception_start_date'] = Variable<DateTime>(
+        contraceptionStartDate,
+      );
+    }
+    if (!nullToAbsent || knownDiagnoses != null) {
+      map['known_diagnoses'] = Variable<String>(knownDiagnoses);
+    }
+    if (!nullToAbsent || breastfeeding != null) {
+      map['breastfeeding'] = Variable<bool>(breastfeeding);
+    }
+    if (!nullToAbsent || breastfeedingSince != null) {
+      map['breastfeeding_since'] = Variable<DateTime>(breastfeedingSince);
+    }
     return map;
   }
 
@@ -2538,6 +2693,21 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       menarcheAge: menarcheAge == null && nullToAbsent
           ? const Value.absent()
           : Value(menarcheAge),
+      contraceptionMethod: contraceptionMethod == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contraceptionMethod),
+      contraceptionStartDate: contraceptionStartDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contraceptionStartDate),
+      knownDiagnoses: knownDiagnoses == null && nullToAbsent
+          ? const Value.absent()
+          : Value(knownDiagnoses),
+      breastfeeding: breastfeeding == null && nullToAbsent
+          ? const Value.absent()
+          : Value(breastfeeding),
+      breastfeedingSince: breastfeedingSince == null && nullToAbsent
+          ? const Value.absent()
+          : Value(breastfeedingSince),
     );
   }
 
@@ -2584,6 +2754,17 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       heightCm: serializer.fromJson<double?>(json['heightCm']),
       profileWeightKg: serializer.fromJson<double?>(json['profileWeightKg']),
       menarcheAge: serializer.fromJson<int?>(json['menarcheAge']),
+      contraceptionMethod: serializer.fromJson<String?>(
+        json['contraceptionMethod'],
+      ),
+      contraceptionStartDate: serializer.fromJson<DateTime?>(
+        json['contraceptionStartDate'],
+      ),
+      knownDiagnoses: serializer.fromJson<String?>(json['knownDiagnoses']),
+      breastfeeding: serializer.fromJson<bool?>(json['breastfeeding']),
+      breastfeedingSince: serializer.fromJson<DateTime?>(
+        json['breastfeedingSince'],
+      ),
     );
   }
   @override
@@ -2615,6 +2796,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'heightCm': serializer.toJson<double?>(heightCm),
       'profileWeightKg': serializer.toJson<double?>(profileWeightKg),
       'menarcheAge': serializer.toJson<int?>(menarcheAge),
+      'contraceptionMethod': serializer.toJson<String?>(contraceptionMethod),
+      'contraceptionStartDate': serializer.toJson<DateTime?>(
+        contraceptionStartDate,
+      ),
+      'knownDiagnoses': serializer.toJson<String?>(knownDiagnoses),
+      'breastfeeding': serializer.toJson<bool?>(breastfeeding),
+      'breastfeedingSince': serializer.toJson<DateTime?>(breastfeedingSince),
     };
   }
 
@@ -2642,6 +2830,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<double?> heightCm = const Value.absent(),
     Value<double?> profileWeightKg = const Value.absent(),
     Value<int?> menarcheAge = const Value.absent(),
+    Value<String?> contraceptionMethod = const Value.absent(),
+    Value<DateTime?> contraceptionStartDate = const Value.absent(),
+    Value<String?> knownDiagnoses = const Value.absent(),
+    Value<bool?> breastfeeding = const Value.absent(),
+    Value<DateTime?> breastfeedingSince = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     mode: mode ?? this.mode,
@@ -2680,6 +2873,21 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         ? profileWeightKg.value
         : this.profileWeightKg,
     menarcheAge: menarcheAge.present ? menarcheAge.value : this.menarcheAge,
+    contraceptionMethod: contraceptionMethod.present
+        ? contraceptionMethod.value
+        : this.contraceptionMethod,
+    contraceptionStartDate: contraceptionStartDate.present
+        ? contraceptionStartDate.value
+        : this.contraceptionStartDate,
+    knownDiagnoses: knownDiagnoses.present
+        ? knownDiagnoses.value
+        : this.knownDiagnoses,
+    breastfeeding: breastfeeding.present
+        ? breastfeeding.value
+        : this.breastfeeding,
+    breastfeedingSince: breastfeedingSince.present
+        ? breastfeedingSince.value
+        : this.breastfeedingSince,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -2740,6 +2948,21 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       menarcheAge: data.menarcheAge.present
           ? data.menarcheAge.value
           : this.menarcheAge,
+      contraceptionMethod: data.contraceptionMethod.present
+          ? data.contraceptionMethod.value
+          : this.contraceptionMethod,
+      contraceptionStartDate: data.contraceptionStartDate.present
+          ? data.contraceptionStartDate.value
+          : this.contraceptionStartDate,
+      knownDiagnoses: data.knownDiagnoses.present
+          ? data.knownDiagnoses.value
+          : this.knownDiagnoses,
+      breastfeeding: data.breastfeeding.present
+          ? data.breastfeeding.value
+          : this.breastfeeding,
+      breastfeedingSince: data.breastfeedingSince.present
+          ? data.breastfeedingSince.value
+          : this.breastfeedingSince,
     );
   }
 
@@ -2768,7 +2991,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('dateOfBirth: $dateOfBirth, ')
           ..write('heightCm: $heightCm, ')
           ..write('profileWeightKg: $profileWeightKg, ')
-          ..write('menarcheAge: $menarcheAge')
+          ..write('menarcheAge: $menarcheAge, ')
+          ..write('contraceptionMethod: $contraceptionMethod, ')
+          ..write('contraceptionStartDate: $contraceptionStartDate, ')
+          ..write('knownDiagnoses: $knownDiagnoses, ')
+          ..write('breastfeeding: $breastfeeding, ')
+          ..write('breastfeedingSince: $breastfeedingSince')
           ..write(')'))
         .toString();
   }
@@ -2798,6 +3026,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     heightCm,
     profileWeightKg,
     menarcheAge,
+    contraceptionMethod,
+    contraceptionStartDate,
+    knownDiagnoses,
+    breastfeeding,
+    breastfeedingSince,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2825,7 +3058,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.dateOfBirth == this.dateOfBirth &&
           other.heightCm == this.heightCm &&
           other.profileWeightKg == this.profileWeightKg &&
-          other.menarcheAge == this.menarcheAge);
+          other.menarcheAge == this.menarcheAge &&
+          other.contraceptionMethod == this.contraceptionMethod &&
+          other.contraceptionStartDate == this.contraceptionStartDate &&
+          other.knownDiagnoses == this.knownDiagnoses &&
+          other.breastfeeding == this.breastfeeding &&
+          other.breastfeedingSince == this.breastfeedingSince);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -2852,6 +3090,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<double?> heightCm;
   final Value<double?> profileWeightKg;
   final Value<int?> menarcheAge;
+  final Value<String?> contraceptionMethod;
+  final Value<DateTime?> contraceptionStartDate;
+  final Value<String?> knownDiagnoses;
+  final Value<bool?> breastfeeding;
+  final Value<DateTime?> breastfeedingSince;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.mode = const Value.absent(),
@@ -2876,6 +3119,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.heightCm = const Value.absent(),
     this.profileWeightKg = const Value.absent(),
     this.menarcheAge = const Value.absent(),
+    this.contraceptionMethod = const Value.absent(),
+    this.contraceptionStartDate = const Value.absent(),
+    this.knownDiagnoses = const Value.absent(),
+    this.breastfeeding = const Value.absent(),
+    this.breastfeedingSince = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -2901,6 +3149,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.heightCm = const Value.absent(),
     this.profileWeightKg = const Value.absent(),
     this.menarcheAge = const Value.absent(),
+    this.contraceptionMethod = const Value.absent(),
+    this.contraceptionStartDate = const Value.absent(),
+    this.knownDiagnoses = const Value.absent(),
+    this.breastfeeding = const Value.absent(),
+    this.breastfeedingSince = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -2926,6 +3179,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<double>? heightCm,
     Expression<double>? profileWeightKg,
     Expression<int>? menarcheAge,
+    Expression<String>? contraceptionMethod,
+    Expression<DateTime>? contraceptionStartDate,
+    Expression<String>? knownDiagnoses,
+    Expression<bool>? breastfeeding,
+    Expression<DateTime>? breastfeedingSince,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2957,6 +3215,13 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (heightCm != null) 'height_cm': heightCm,
       if (profileWeightKg != null) 'profile_weight_kg': profileWeightKg,
       if (menarcheAge != null) 'menarche_age': menarcheAge,
+      if (contraceptionMethod != null)
+        'contraception_method': contraceptionMethod,
+      if (contraceptionStartDate != null)
+        'contraception_start_date': contraceptionStartDate,
+      if (knownDiagnoses != null) 'known_diagnoses': knownDiagnoses,
+      if (breastfeeding != null) 'breastfeeding': breastfeeding,
+      if (breastfeedingSince != null) 'breastfeeding_since': breastfeedingSince,
     });
   }
 
@@ -2984,6 +3249,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<double?>? heightCm,
     Value<double?>? profileWeightKg,
     Value<int?>? menarcheAge,
+    Value<String?>? contraceptionMethod,
+    Value<DateTime?>? contraceptionStartDate,
+    Value<String?>? knownDiagnoses,
+    Value<bool?>? breastfeeding,
+    Value<DateTime?>? breastfeedingSince,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -3010,6 +3280,12 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       heightCm: heightCm ?? this.heightCm,
       profileWeightKg: profileWeightKg ?? this.profileWeightKg,
       menarcheAge: menarcheAge ?? this.menarcheAge,
+      contraceptionMethod: contraceptionMethod ?? this.contraceptionMethod,
+      contraceptionStartDate:
+          contraceptionStartDate ?? this.contraceptionStartDate,
+      knownDiagnoses: knownDiagnoses ?? this.knownDiagnoses,
+      breastfeeding: breastfeeding ?? this.breastfeeding,
+      breastfeedingSince: breastfeedingSince ?? this.breastfeedingSince,
     );
   }
 
@@ -3091,6 +3367,23 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (menarcheAge.present) {
       map['menarche_age'] = Variable<int>(menarcheAge.value);
     }
+    if (contraceptionMethod.present) {
+      map['contraception_method'] = Variable<String>(contraceptionMethod.value);
+    }
+    if (contraceptionStartDate.present) {
+      map['contraception_start_date'] = Variable<DateTime>(
+        contraceptionStartDate.value,
+      );
+    }
+    if (knownDiagnoses.present) {
+      map['known_diagnoses'] = Variable<String>(knownDiagnoses.value);
+    }
+    if (breastfeeding.present) {
+      map['breastfeeding'] = Variable<bool>(breastfeeding.value);
+    }
+    if (breastfeedingSince.present) {
+      map['breastfeeding_since'] = Variable<DateTime>(breastfeedingSince.value);
+    }
     return map;
   }
 
@@ -3119,7 +3412,12 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('dateOfBirth: $dateOfBirth, ')
           ..write('heightCm: $heightCm, ')
           ..write('profileWeightKg: $profileWeightKg, ')
-          ..write('menarcheAge: $menarcheAge')
+          ..write('menarcheAge: $menarcheAge, ')
+          ..write('contraceptionMethod: $contraceptionMethod, ')
+          ..write('contraceptionStartDate: $contraceptionStartDate, ')
+          ..write('knownDiagnoses: $knownDiagnoses, ')
+          ..write('breastfeeding: $breastfeeding, ')
+          ..write('breastfeedingSince: $breastfeedingSince')
           ..write(')'))
         .toString();
   }
@@ -5145,6 +5443,11 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<double?> heightCm,
       Value<double?> profileWeightKg,
       Value<int?> menarcheAge,
+      Value<String?> contraceptionMethod,
+      Value<DateTime?> contraceptionStartDate,
+      Value<String?> knownDiagnoses,
+      Value<bool?> breastfeeding,
+      Value<DateTime?> breastfeedingSince,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -5171,6 +5474,11 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<double?> heightCm,
       Value<double?> profileWeightKg,
       Value<int?> menarcheAge,
+      Value<String?> contraceptionMethod,
+      Value<DateTime?> contraceptionStartDate,
+      Value<String?> knownDiagnoses,
+      Value<bool?> breastfeeding,
+      Value<DateTime?> breastfeedingSince,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -5295,6 +5603,31 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<int> get menarcheAge => $composableBuilder(
     column: $table.menarcheAge,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contraceptionMethod => $composableBuilder(
+    column: $table.contraceptionMethod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get contraceptionStartDate => $composableBuilder(
+    column: $table.contraceptionStartDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get knownDiagnoses => $composableBuilder(
+    column: $table.knownDiagnoses,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get breastfeeding => $composableBuilder(
+    column: $table.breastfeeding,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get breastfeedingSince => $composableBuilder(
+    column: $table.breastfeedingSince,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5422,6 +5755,31 @@ class $$AppSettingsTableOrderingComposer
     column: $table.menarcheAge,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get contraceptionMethod => $composableBuilder(
+    column: $table.contraceptionMethod,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get contraceptionStartDate => $composableBuilder(
+    column: $table.contraceptionStartDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get knownDiagnoses => $composableBuilder(
+    column: $table.knownDiagnoses,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get breastfeeding => $composableBuilder(
+    column: $table.breastfeeding,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get breastfeedingSince => $composableBuilder(
+    column: $table.breastfeedingSince,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -5535,6 +5893,31 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.menarcheAge,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get contraceptionMethod => $composableBuilder(
+    column: $table.contraceptionMethod,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get contraceptionStartDate => $composableBuilder(
+    column: $table.contraceptionStartDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get knownDiagnoses => $composableBuilder(
+    column: $table.knownDiagnoses,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get breastfeeding => $composableBuilder(
+    column: $table.breastfeeding,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get breastfeedingSince => $composableBuilder(
+    column: $table.breastfeedingSince,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -5591,6 +5974,11 @@ class $$AppSettingsTableTableManager
                 Value<double?> heightCm = const Value.absent(),
                 Value<double?> profileWeightKg = const Value.absent(),
                 Value<int?> menarcheAge = const Value.absent(),
+                Value<String?> contraceptionMethod = const Value.absent(),
+                Value<DateTime?> contraceptionStartDate = const Value.absent(),
+                Value<String?> knownDiagnoses = const Value.absent(),
+                Value<bool?> breastfeeding = const Value.absent(),
+                Value<DateTime?> breastfeedingSince = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 mode: mode,
@@ -5615,6 +6003,11 @@ class $$AppSettingsTableTableManager
                 heightCm: heightCm,
                 profileWeightKg: profileWeightKg,
                 menarcheAge: menarcheAge,
+                contraceptionMethod: contraceptionMethod,
+                contraceptionStartDate: contraceptionStartDate,
+                knownDiagnoses: knownDiagnoses,
+                breastfeeding: breastfeeding,
+                breastfeedingSince: breastfeedingSince,
               ),
           createCompanionCallback:
               ({
@@ -5641,6 +6034,11 @@ class $$AppSettingsTableTableManager
                 Value<double?> heightCm = const Value.absent(),
                 Value<double?> profileWeightKg = const Value.absent(),
                 Value<int?> menarcheAge = const Value.absent(),
+                Value<String?> contraceptionMethod = const Value.absent(),
+                Value<DateTime?> contraceptionStartDate = const Value.absent(),
+                Value<String?> knownDiagnoses = const Value.absent(),
+                Value<bool?> breastfeeding = const Value.absent(),
+                Value<DateTime?> breastfeedingSince = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 mode: mode,
@@ -5665,6 +6063,11 @@ class $$AppSettingsTableTableManager
                 heightCm: heightCm,
                 profileWeightKg: profileWeightKg,
                 menarcheAge: menarcheAge,
+                contraceptionMethod: contraceptionMethod,
+                contraceptionStartDate: contraceptionStartDate,
+                knownDiagnoses: knownDiagnoses,
+                breastfeeding: breastfeeding,
+                breastfeedingSince: breastfeedingSince,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

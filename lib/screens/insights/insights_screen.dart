@@ -90,6 +90,13 @@ class InsightsScreen extends StatelessWidget {
     final heightCm = settings.heightCm;
     final profileWeightKg = settings.profileWeightKg;
     final menarcheAge = settings.menarcheAge;
+    // The clinical context a reader needs before the cycle numbers mean
+    // anything. Read here with the rest, before the async gap.
+    final contraceptionMethod = settings.contraceptionMethod;
+    final contraceptionStartDate = settings.contraceptionStartDate;
+    final knownDiagnoses = settings.knownDiagnoses;
+    final breastfeeding = settings.breastfeeding;
+    final breastfeedingSince = settings.breastfeedingSince;
     final messenger = ScaffoldMessenger.of(context);
     try {
       final bytes = await PdfReportService.build(
@@ -103,6 +110,11 @@ class InsightsScreen extends StatelessWidget {
         heightCm: heightCm,
         profileWeightKg: profileWeightKg,
         menarcheAge: menarcheAge,
+        contraceptionMethod: contraceptionMethod,
+        contraceptionStartDate: contraceptionStartDate,
+        knownDiagnoses: knownDiagnoses,
+        breastfeeding: breastfeeding,
+        breastfeedingSince: breastfeedingSince,
       );
       await Printing.sharePdf(bytes: bytes, filename: 'lunatrack_summary.pdf');
     } catch (e) {

@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:menstrul_track/db/database.dart';
+import 'package:menstrul_track/common/catalog.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/models/prediction.dart';
 import 'package:menstrul_track/services/prediction_service.dart';
@@ -66,6 +69,113 @@ void main() {
       asOf: asOf,
     );
     expect(r.hasPrediction, isFalse);
+  });
+
+  // Structural, because the risk here is not a wrong answer but a MISSING one:
+  // three separate call sites recompute this -- the foreground ProxyProvider,
+  // the background isolate behind a notification action, and the home-widget
+  // refresh -- and a fourth will appear eventually. One that forgets the gate
+  // shows a fertile window the rest of the app suppresses, on the same data,
+  // and nothing else in the suite would notice.
+  test('GUARDRAIL: every predictFromLogs caller passes the contraception gate',
+      () {
+    final callers = <String>[];
+    final missing = <String>[];
+    for (final f in Directory('lib').listSync(recursive: true)) {
+      if (f is! File || !f.path.endsWith('.dart')) continue;
+      final src = f.readAsStringSync();
+      var from = 0;
+      while (true) {
+        final at = src.indexOf('PredictionService.predictFromLogs(', from);
+        if (at < 0) break;
+        from = at + 1;
+        callers.add(f.path);
+        // The argument list ends at the first ');' after the call opens; a
+        // fixed line window would silently pass a call that grew longer.
+        final end = src.indexOf(');', at);
+        final args = end < 0 ? src.substring(at) : src.substring(at, end);
+        if (!args.contains('contraceptionSuppressesOvulation:')) {
+          missing.add(f.path);
+        }
+      }
+    }
+
+    expect(callers, hasLength(greaterThanOrEqualTo(3)),
+        reason: 'the scan found almost nothing — it has stopped matching');
+    expect(missing, isEmpty,
+        reason: 'these recompute predictions without the contraception gate');
+  });
+
+  group('hormonal contraception suppresses the fertile window', () {
+    // The same suppression perimenopause gets, for a different reason: someone
+    // on a method in `kOvulationSuppressingContraception` does not ovulate, so
+    // a predicted fertile window is the app asserting something false about
+    // their body. Capping confidence to low is what self-suppresses the
+    // ovulation marker and the fertility band app-wide.
+    test('a suppressing method caps confidence to low', () {
+      final r = PredictionService.predictFromLogs(
+        logs: logs,
+        mode: TrackingMode.track,
+        cycleLength: 28,
+        periodLength: 5,
+        asOf: asOf,
+        contraceptionSuppressesOvulation:
+            contraceptionSuppressesOvulation('contra_combined_pill'),
+      );
+      expect(r.confidence, PredictionConfidence.low);
+      // The cap is not cosmetic: `fertilityBand` returns `none` for low
+      // confidence, which is what actually removes the band from the calendar,
+      // the ring and the home card.
+      expect(
+        PredictionService.fertilityBand(
+          today: r.ovulationDay ?? asOf,
+          ovulation: r.ovulationDay,
+          fertileWindowStart: r.fertileWindowStart,
+          fertileWindowEnd: r.fertileWindowEnd,
+          confidence: r.confidence,
+        ),
+        FertilityBand.none,
+      );
+    });
+
+    test('a non-hormonal method does NOT suppress it', () {
+      // The copper IUD is the case that proves the gate discriminates rather
+      // than firing on "any contraception answered". Ovulation continues, so
+      // blanking the window would remove a real signal.
+      final r = PredictionService.predictFromLogs(
+        logs: logs,
+        mode: TrackingMode.track,
+        cycleLength: 28,
+        periodLength: 5,
+        asOf: asOf,
+        contraceptionSuppressesOvulation:
+            contraceptionSuppressesOvulation('contra_copper_iud'),
+      );
+      expect(r.confidence, isNot(PredictionConfidence.low));
+    });
+
+    test('never asked reads as no suppression', () {
+      expect(contraceptionSuppressesOvulation(null), isFalse);
+      expect(contraceptionSuppressesOvulation(kContraceptionNone), isFalse);
+      // An answer written by a newer build is unknown here, and unknown must
+      // not suppress -- silently blanking the fertile window on a value this
+      // build cannot read would be a change nobody could explain.
+      expect(contraceptionSuppressesOvulation('contra_from_the_future'),
+          isFalse);
+    });
+
+    test('still predicts the next period -- only fertility is suppressed', () {
+      final r = PredictionService.predictFromLogs(
+        logs: logs,
+        mode: TrackingMode.track,
+        cycleLength: 28,
+        periodLength: 5,
+        asOf: asOf,
+        contraceptionSuppressesOvulation: true,
+      );
+      expect(r.hasPrediction, isTrue,
+          reason: 'a bleed on the pill is still a bleed worth predicting');
+    });
   });
 
   test('perimenopause mode: caps confidence to low (suppresses fertility)', () {

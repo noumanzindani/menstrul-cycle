@@ -564,6 +564,146 @@ class SettingsScreen extends StatelessWidget {
     if (picked != null) await settings.setMenarcheAge(picked);
   }
 
+
+  /// The label for [key] in [options], or null when it is unanswered or was
+  /// written by a newer build. Never falls back to the raw key: a screen
+  /// showing `contra_combined_pill` to a user is worse than showing nothing.
+  static String? _optionLabel(List<TrackOption> options, String? key) {
+    if (key == null) return null;
+    for (final o in options) {
+      if (o.key == key) return o.label;
+    }
+    return null;
+  }
+
+  /// Contraception method. The one row on this screen that changes what the
+  /// app PREDICTS: a method in `kOvulationSuppressingContraception` caps
+  /// prediction confidence to low, which removes the fertile window app-wide.
+  ///
+  /// The dialog scrolls — thirteen methods do not fit a phone dialog, and a
+  /// `SimpleDialog` does not scroll its children for you.
+  Future<void> _pickContraception(
+      BuildContext context, SettingsProvider settings) async {
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(ctx.l10n.settingsClinicalContraceptionTitle),
+        children: [
+          SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: RadioGroup<String>(
+                groupValue: settings.contraceptionMethod,
+                onChanged: (m) => Navigator.pop(ctx, m),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final o in kContraceptionOptions)
+                      RadioListTile(value: o.key, title: Text(o.label)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    // Keeps any existing start date when the method is unchanged; a genuinely
+    // new method drops it, since a date belonging to the previous method would
+    // be worse than none.
+    if (picked != null) {
+      await settings.setContraception(
+        picked,
+        startDate: picked == settings.contraceptionMethod
+            ? settings.contraceptionStartDate
+            : null,
+      );
+    }
+  }
+
+  Future<void> _pickContraceptionStart(
+      BuildContext context, SettingsProvider settings) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: settings.contraceptionStartDate ?? now,
+      firstDate: DateTime(now.year - 50),
+      lastDate: now,
+      helpText: context.l10n.settingsClinicalContraceptionStartHelp,
+    );
+    if (picked != null) {
+      await settings.setContraception(settings.contraceptionMethod,
+          startDate: picked);
+    }
+  }
+
+  /// Diagnoses already given by a clinician. A multi-select, so it commits on
+  /// Save rather than on each tap — unlike every single-select dialog here,
+  /// which commits on the tap that also closes it.
+  Future<void> _editDiagnoses(
+      BuildContext context, SettingsProvider settings) async {
+    final picked = await showDialog<Set<String>>(
+      context: context,
+      builder: (_) => _DiagnosesDialog(initial: settings.knownDiagnoses),
+    );
+    if (picked != null) await settings.setKnownDiagnoses(picked);
+  }
+
+  /// Breastfeeding. THREE states, and the third is not decoration: null means
+  /// nobody asked, and the doctor report must not print "no" on its behalf.
+  Future<void> _pickBreastfeeding(
+      BuildContext context, SettingsProvider settings) async {
+    final l10n = context.l10n;
+    final picked = await showDialog<_Tristate>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(l10n.settingsClinicalBreastfeedingTitle),
+        children: [
+          RadioGroup<_Tristate>(
+            groupValue: _Tristate.of(settings.breastfeeding),
+            onChanged: (v) => Navigator.pop(ctx, v),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile(
+                  value: _Tristate.yes,
+                  title: Text(l10n.settingsClinicalBreastfeedingYes),
+                ),
+                RadioListTile(
+                  value: _Tristate.no,
+                  title: Text(l10n.settingsClinicalBreastfeedingNo),
+                ),
+                RadioListTile(
+                  value: _Tristate.unknown,
+                  title: Text(l10n.settingsClinicalContraceptionNotAsked),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked != null) {
+      await settings.setBreastfeeding(picked.value,
+          since: settings.breastfeedingSince);
+    }
+  }
+
+  Future<void> _pickBreastfeedingSince(
+      BuildContext context, SettingsProvider settings) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: settings.breastfeedingSince ?? now,
+      firstDate: DateTime(now.year - 10),
+      lastDate: now,
+      helpText: context.l10n.settingsClinicalBreastfeedingSinceHelp,
+    );
+    if (picked != null) {
+      await settings.setBreastfeeding(true, since: picked);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
@@ -652,6 +792,103 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => _editMenarcheAge(context, settings),
               ),
             ],
+          ),
+          // Health context (Tier 1). Ongoing clinical state rather than
+          // anything that happens on a day, which is why it lives in settings
+          // and not the day editor.
+          //
+          // Every row here distinguishes "never asked" from a real answer. The
+          // contraception row is the one with teeth: an ovulation-suppressing
+          // method removes the fertile window app-wide, so the row says so
+          // rather than letting an estimate disappear unexplained.
+          SettingsGroup(
+            title: l10n.settingsSectionClinical,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.medication_liquid_outlined),
+                title: Text(l10n.settingsClinicalContraceptionTitle),
+                subtitle: settings.suppressesOvulation
+                    ? Text(l10n.settingsClinicalFertilityPaused)
+                    : null,
+                trailing: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 168),
+                  child: SettingsValue(
+                    _optionLabel(kContraceptionOptions,
+                            settings.contraceptionMethod) ??
+                        l10n.settingsClinicalContraceptionNotAsked,
+                  ),
+                ),
+                onTap: () => _pickContraception(context, settings),
+              ),
+              // Only meaningful once a method other than "none" is recorded —
+              // a start date for no contraception says nothing.
+              if (settings.contraceptionMethod != null &&
+                  settings.contraceptionMethod != kContraceptionNone)
+                ListTile(
+                  leading: const Icon(Icons.event_outlined),
+                  title: Text(l10n.settingsClinicalContraceptionStartTitle),
+                  trailing: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 168),
+                    child: SettingsValue(
+                      settings.contraceptionStartDate == null
+                          ? l10n.settingsProfileNotSet
+                          : MaterialLocalizations.of(context)
+                              .formatFullDate(settings.contraceptionStartDate!),
+                    ),
+                  ),
+                  onTap: () => _pickContraceptionStart(context, settings),
+                ),
+              ListTile(
+                leading: const Icon(Icons.assignment_outlined),
+                title: Text(l10n.settingsClinicalDiagnosesTitle),
+                subtitle: Text(l10n.settingsClinicalDiagnosesSubtitle),
+                trailing: SettingsValue(
+                  settings.knownDiagnoses.isEmpty
+                      ? l10n.settingsClinicalDiagnosesNone
+                      : l10n.settingsClinicalDiagnosesCount(
+                          settings.knownDiagnoses.length),
+                ),
+                onTap: () => _editDiagnoses(context, settings),
+              ),
+              ListTile(
+                leading: const Icon(Icons.child_care_outlined),
+                title: Text(l10n.settingsClinicalBreastfeedingTitle),
+                trailing: SettingsValue(switch (settings.breastfeeding) {
+                  true => l10n.settingsClinicalBreastfeedingYes,
+                  false => l10n.settingsClinicalBreastfeedingNo,
+                  null => l10n.settingsClinicalContraceptionNotAsked,
+                }),
+                onTap: () => _pickBreastfeeding(context, settings),
+              ),
+              if (settings.breastfeeding == true)
+                ListTile(
+                  leading: const Icon(Icons.event_outlined),
+                  title: Text(l10n.settingsClinicalBreastfeedingSinceTitle),
+                  trailing: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 168),
+                    child: SettingsValue(
+                      settings.breastfeedingSince == null
+                          ? l10n.settingsProfileNotSet
+                          : MaterialLocalizations.of(context)
+                              .formatFullDate(settings.breastfeedingSince!),
+                    ),
+                  ),
+                  onTap: () => _pickBreastfeedingSince(context, settings),
+                ),
+            ],
+          ),
+          // Outside the card, as a caption. The app collects this to give the
+          // user better context and a report they can hand over — it is not a
+          // screening tool, and this is the only place that says so in the
+          // same glance as the questions.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+            child: Text(
+              l10n.settingsClinicalNote,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
           ),
           SettingsGroup(
             title: l10n.settingsSectionGoal,
@@ -1113,6 +1350,79 @@ const int _kMenarcheSeed = 13;
 /// Bounds are enforced by DISABLING the button, never by clamping a value the
 /// user asked for — the same rule `_StepperTile` follows for the cycle
 /// defaults, and the same rule the product timer's caps follow.
+/// The three states of a nullable bool, as something a `RadioGroup` can hold.
+/// A `RadioGroup<bool?>` cannot express "unanswered" as a distinct option — the
+/// null group value already means "nothing selected" — so the third state needs
+/// a value of its own.
+enum _Tristate {
+  yes(true),
+  no(false),
+  unknown(null);
+
+  const _Tristate(this.value);
+  final bool? value;
+
+  static _Tristate of(bool? v) => switch (v) {
+        true => _Tristate.yes,
+        false => _Tristate.no,
+        null => _Tristate.unknown,
+      };
+}
+
+/// Diagnoses a clinician has already given. A MULTI-select, so unlike every
+/// single-select dialog on this screen it commits on Save rather than on the
+/// tap that closes it — otherwise each tick would be a separate write, and a
+/// separate sync push.
+class _DiagnosesDialog extends StatefulWidget {
+  const _DiagnosesDialog({required this.initial});
+
+  final Set<String> initial;
+
+  @override
+  State<_DiagnosesDialog> createState() => _DiagnosesDialogState();
+}
+
+class _DiagnosesDialogState extends State<_DiagnosesDialog> {
+  late final Set<String> _selected = {...widget.initial};
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(l10n.settingsClinicalDiagnosesTitle),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final o in kDiagnosisOptions)
+                CheckboxListTile(
+                  value: _selected.contains(o.key),
+                  title: Text(o.label),
+                  onChanged: (on) => setState(() =>
+                      on == true ? _selected.add(o.key) : _selected.remove(o.key)),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.actionCancel),
+        ),
+        FilledButton(
+          // An EMPTY set is a real answer ("asked, none"), so it is returned
+          // rather than treated as a cancel.
+          onPressed: () => Navigator.pop(context, _selected),
+          child: Text(l10n.actionSave),
+        ),
+      ],
+    );
+  }
+}
+
 class _MenarcheDialog extends StatefulWidget {
   const _MenarcheDialog({this.initial});
 

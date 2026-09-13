@@ -4,6 +4,7 @@ import '../common/catalog.dart';
 import '../common/date_utils.dart';
 import '../db/database.dart';
 import '../models/cycle.dart';
+import '../models/enums.dart';
 import '../models/insights.dart';
 
 /// Computes cycle statistics and gentle red-flag notices from cycle history.
@@ -130,6 +131,11 @@ class InsightsService {
   /// "you have X".
   static const int _severePain = 7; // on the 0–10 pain scale
   static const int _premenstrualDays = 5;
+  /// A bleeding run this short, and spotting throughout, is not a period.
+  static const int _spottingRunDays = 2;
+  /// A run starting fewer than this many days after the previous one cut that
+  /// interval short — no cycle is genuinely this brief.
+  static const int _earlyBleedDay = 21;
   static const Set<String> _negativeMoods = {
     'sad', 'anxious', 'irritable', 'angry',
   };
@@ -190,7 +196,125 @@ class InsightsService {
       ));
     }
 
+    // ---- Tier 2 red flags -------------------------------------------------
+    //
+    // Everything below is a "worth mentioning to a clinician" prompt, not an
+    // interpretation. Two of them are DERIVED from days the user already logs
+    // and needed no new question; the other two come from day tags that cannot
+    // be derived from anything.
+
+    // Bleeding between periods. `CycleCalculator` splits every bleeding run
+    // into its own cycle, so intermenstrual bleeding does NOT appear as
+    // bleeding outside a cycle — it appears as a short, spotting-only run that
+    // cuts the previous interval short. That is what is counted here.
+    if (_intermenstrualEpisodes(cycles, logs) >= 2) {
+      nudges.add(const PatternNudge(
+        'intermenstrual',
+        "You've logged bleeding between periods",
+        'On a few occasions you logged light bleeding well before your next '
+            'period was due. Bleeding between periods has many possible '
+            'causes, most of them benign, and it is one of the things '
+            'clinicians generally ask to be told about. Worth raising at your '
+            'next appointment.',
+      ));
+    }
+
+    // Pelvic pain away from bleeding days. Period pain is already covered by
+    // the severe-pain nudge above; this is the pattern that is easy to live
+    // with for years without mentioning.
+    if (_painDaysOutsidePeriod(cycles, logs) >= 3) {
+      nudges.add(const PatternNudge(
+        'pelvic_pain_outside',
+        "You've logged pelvic pain away from your period",
+        'Pelvic pain on days when you were not bleeding has come up several '
+            'times in your log. Pain outside a period is worth describing to a '
+            'clinician — it is often put down to period pain for years before '
+            'anyone looks into it.',
+      ));
+    }
+
+    // Bleeding after sex. The only threshold of ONE on this list: it is the
+    // most significant single item, and there is no benign pattern that a
+    // larger sample would rule out.
+    if (logs.any((l) =>
+        decodeGroup(l.symptoms, kSexualHealthKeyPrefix)
+            .contains('shx_post_coital'))) {
+      nudges.add(const PatternNudge(
+        'post_coital',
+        "You've logged bleeding after sex",
+        'Bleeding after sex is something clinicians ask to be told about, even '
+            'once. It usually turns out to be something straightforward, and '
+            'it is checked easily.',
+      ));
+    }
+
+    // Heavy bleeding. `flooding` already exists as a flow LEVEL; neither of
+    // these is a level, which is why they are their own symptoms.
+    final heavyDays = logs
+        .where((l) => decodeSymptoms(l.symptoms).any(const {
+              kSymptomLargeClots,
+              kSymptomSoakingHourly,
+            }.contains))
+        .length;
+    if (heavyDays >= 2) {
+      nudges.add(const PatternNudge(
+        'heavy_bleeding',
+        "You've logged signs of heavy bleeding",
+        'Large clots, or soaking through protection every hour, are the two '
+            'things clinicians use to describe bleeding as heavy. Heavy '
+            'periods are treatable and are worth raising rather than working '
+            'around.',
+      ));
+    }
+
     return nudges;
+  }
+
+  /// Days on which the user logged bleeding, by date.
+  static Map<DateTime, FlowIntensity> _bleedingDays(List<DailyLog> logs) => {
+        for (final l in logs)
+          if (l.flow != null && l.flow != FlowIntensity.none)
+            dateOnly(l.date): l.flow!,
+      };
+
+  /// How many bleeding runs look like intermenstrual bleeding rather than a
+  /// period.
+  ///
+  /// A run qualifies when it is SHORT (at most [_spottingRunDays] days), every
+  /// one of its days is spotting, and it begins early enough that it cut the
+  /// previous interval short. That last condition is what separates it from
+  /// somebody whose period simply is light: four spotting days arriving on
+  /// schedule every month are a period, not bleeding between periods.
+  static int _intermenstrualEpisodes(List<Cycle> cycles, List<DailyLog> logs) {
+    final flows = _bleedingDays(logs);
+    var episodes = 0;
+    for (var i = 1; i < cycles.length; i++) {
+      final c = cycles[i];
+      if (c.periodLengthDays > _spottingRunDays) continue;
+      // Only-spotting: a single heavier day makes this a period.
+      var allSpotting = true;
+      for (var d = 0; d < c.periodLengthDays; d++) {
+        final flow = flows[dateOnly(c.start.add(Duration(days: d)))];
+        if (flow != null && flow != FlowIntensity.spotting) allSpotting = false;
+      }
+      if (!allSpotting) continue;
+      // It interrupted the previous cycle rather than ending it on schedule.
+      final previousLength = cycles[i - 1].lengthDays;
+      if (previousLength != null && previousLength < _earlyBleedDay) episodes++;
+    }
+    return episodes;
+  }
+
+  /// Days carrying the `pelvic_pain` symptom that fall on no bleeding day.
+  static int _painDaysOutsidePeriod(List<Cycle> cycles, List<DailyLog> logs) {
+    final bleeding = _bleedingDays(logs).keys.toSet();
+    var days = 0;
+    for (final l in logs) {
+      if (!decodeSymptoms(l.symptoms).contains('pelvic_pain')) continue;
+      if (bleeding.contains(dateOnly(l.date))) continue;
+      days++;
+    }
+    return days;
   }
 
   static bool _isNegativeAffect(DailyLog log) {

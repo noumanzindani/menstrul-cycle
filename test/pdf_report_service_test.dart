@@ -70,6 +70,11 @@ void main() {
       double? heightCm,
       double? profileWeightKg,
       int? menarcheAge,
+      String? contraceptionMethod,
+      DateTime? contraceptionStartDate,
+      Set<String> knownDiagnoses = const {},
+      bool? breastfeeding,
+      DateTime? breastfeedingSince,
       List<DailyLog> logs = const [],
     }) async {
       final bytes = await PdfReportService.build(
@@ -81,9 +86,87 @@ void main() {
         heightCm: heightCm,
         profileWeightKg: profileWeightKg,
         menarcheAge: menarcheAge,
+        contraceptionMethod: contraceptionMethod,
+        contraceptionStartDate: contraceptionStartDate,
+        knownDiagnoses: knownDiagnoses,
+        breastfeeding: breastfeeding,
+        breastfeedingSince: breastfeedingSince,
       );
       return bytes.length;
     }
+
+    /// The clinical profile, which a clinician needs BEFORE reading a single
+    /// cycle number: hormonal contraception, a known diagnosis and lactation
+    /// each change what a normal cycle even looks like.
+    ///
+    /// Size probes, for the same reason as the rest of this group — the `pdf`
+    /// package compresses its text streams, so a substring search finds
+    /// nothing even for content that is definitely there.
+    group('clinical context', () {
+      test('an answered contraception method adds a row', () async {
+        final without = await pdfSize();
+        final with_ = await pdfSize(contraceptionMethod: 'contra_implant');
+        expect(with_, greaterThan(without));
+      });
+
+      test('a start date adds to that row rather than replacing it', () async {
+        final methodOnly = await pdfSize(contraceptionMethod: 'contra_ring');
+        final withDate = await pdfSize(
+          contraceptionMethod: 'contra_ring',
+          contraceptionStartDate: DateTime(2024, 6, 1),
+        );
+        expect(withDate, greaterThan(methodOnly));
+      });
+
+      test('a start date with NO method is not printed on its own', () async {
+        // A date belonging to a method that was never recorded would be a
+        // clinical fact attached to nothing.
+        expect(
+          await pdfSize(contraceptionStartDate: DateTime(2024, 6, 1)),
+          await pdfSize(),
+        );
+      });
+
+      test('diagnoses are printed, and an empty set is not', () async {
+        final none = await pdfSize();
+        expect(await pdfSize(knownDiagnoses: const {}), none);
+        expect(await pdfSize(knownDiagnoses: const {'dx_pcos'}),
+            greaterThan(none));
+      });
+
+      test('an unrecognised diagnosis key is dropped, not printed raw',
+          () async {
+        // Written by a newer build. Printing `dx_from_the_future` into a
+        // document a clinician reads is worse than omitting it.
+        expect(
+          await pdfSize(knownDiagnoses: const {'dx_from_the_future'}),
+          await pdfSize(),
+        );
+      });
+
+      test('breastfeeding prints yes and no, but never on "not asked"',
+          () async {
+        final notAsked = await pdfSize();
+        expect(await pdfSize(breastfeeding: null), notAsked,
+            reason: 'a report must not answer a question nobody asked');
+        expect(await pdfSize(breastfeeding: false), greaterThan(notAsked));
+        expect(await pdfSize(breastfeeding: true), greaterThan(notAsked));
+      });
+
+      test('a since-date only prints alongside a yes', () async {
+        final yes = await pdfSize(breastfeeding: true);
+        expect(
+          await pdfSize(
+              breastfeeding: false, breastfeedingSince: DateTime(2025, 9, 9)),
+          lessThan(yes + 40),
+        );
+        expect(
+          await pdfSize(
+              breastfeeding: true, breastfeedingSince: DateTime(2025, 9, 9)),
+          greaterThan(yes),
+        );
+      });
+    });
 
     test('age is counted from the date of birth as of the generation date', () {
       // Birthday already passed in the generation year.

@@ -5,7 +5,7 @@ import 'package:menstrul_track/db/database.dart';
 import 'generated_migrations/schema.dart';
 import 'generated_migrations/schema_v7.dart';
 
-/// v7 → v8 must ADD the four profile columns (date of birth, height, profile
+/// v7 → current must ADD the four profile columns (date of birth, height, profile
 /// weight, menarche age) without disturbing existing rows. Seeds NON-DEFAULT
 /// values on purpose: asserting defaults survive would also pass against a
 /// wipe-and-recreate migration.
@@ -25,7 +25,7 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('v7 -> v8 adds the profile columns and preserves existing data',
+  test('v7 -> current adds the profile columns and preserves existing data',
       () async {
     final schema = await verifier.schemaAt(7);
 
@@ -80,7 +80,7 @@ void main() {
     await oldDb.close();
 
     final db = AppDatabase.forTesting(schema.newConnection());
-    await verifier.migrateAndValidate(db, 8);
+    await verifier.migrateAndValidate(db, 9);
 
     final settings = await db.getSettings();
     expect(settings.defaultCycleLength, 31);

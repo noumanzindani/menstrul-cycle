@@ -31,6 +31,7 @@ const String kCatUrine = 'urine';
 const String kCatDigestion = 'digestion';
 const String kCatSkin = 'skin';
 const String kCatWeight = 'weight';
+const String kCatIntimacy = 'intimacy';
 
 const List<TrackingCategory> kTrackingCategories = [
   TrackingCategory(kCatPhysicalSymptoms, 'Physical symptoms'),
@@ -47,6 +48,21 @@ const List<TrackingCategory> kTrackingCategories = [
   TrackingCategory(kCatDigestion, 'Digestion', defaultOn: false),
   TrackingCategory(kCatSkin, 'Skin & hair', defaultOn: false),
   TrackingCategory(kCatWeight, 'Weight', defaultOn: false),
+  // Solo sexual activity. Off by default like every new category, and the
+  // reason lands harder here than elsewhere: this group syncs to Firestore in
+  // plaintext, so switching it on is the user consenting to that, not just
+  // asking for another row of chips.
+  //
+  // Libido deliberately does NOT live here. It was already visible inside
+  // Sexual health as a boolean, and moving it behind a switch that defaults to
+  // off would make an existing control vanish for everyone who had used it.
+  //
+  // Named 'Intimacy', not after its single chip. Two reasons, both real: a
+  // section whose heading repeats its only option makes `find.text` ambiguous
+  // (it matched both and took the widget tests down), and a discreet heading is
+  // the same shoulder-surf judgement that keeps this group text-only in
+  // `option_art.dart`.
+  TrackingCategory(kCatIntimacy, 'Intimacy', defaultOn: false),
 ];
 
 /// The ids enabled for a user who has never opened Customize tracking.

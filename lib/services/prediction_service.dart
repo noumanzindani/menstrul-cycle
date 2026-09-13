@@ -87,19 +87,28 @@ class PredictionService {
   ///   show, so cycles AND logs are dropped → no prediction.
   /// - **Perimenopause**: cycles are erratic, so confidence is capped to low,
   ///   which self-suppresses the ovulation marker + fertility band app-wide.
+  /// - **Ovulation-suppressing contraception**: the same cap, for a different
+  ///   reason. The user does not ovulate, so a fertile window is not merely
+  ///   uncertain — it is false. The next-period estimate is left alone: a
+  ///   withdrawal bleed is still a bleed worth predicting. Callers pass the
+  ///   already-resolved bool (`contraceptionSuppressesOvulation` in
+  ///   `catalog.dart`) rather than the method key, so this file stays free of
+  ///   any Flutter import.
   static PredictionResult predictFromLogs({
     required List<DailyLog> logs,
     required TrackingMode mode,
     required int cycleLength,
     required int periodLength,
     DateTime? asOf,
+    bool contraceptionSuppressesOvulation = false,
   }) {
     final pregnancy = mode == TrackingMode.pregnancy;
     return predict(
       pregnancy ? const <Cycle>[] : CycleCalculator.computeCycles(logs),
       fallbackCycleLength: cycleLength,
       fallbackPeriodLength: periodLength,
-      capConfidenceToLow: mode == TrackingMode.perimenopause,
+      capConfidenceToLow: mode == TrackingMode.perimenopause ||
+          contraceptionSuppressesOvulation,
       asOf: asOf,
       logs: pregnancy ? const <DailyLog>[] : logs,
     );

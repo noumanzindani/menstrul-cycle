@@ -84,6 +84,7 @@ class _HomeWidgetSyncState extends State<HomeWidgetSync>
       mode: settings.mode,
       cycleLength: settings.cycleLength,
       periodLength: settings.periodLength,
+      contraceptionSuppressesOvulation: settings.suppressesOvulation,
     );
     await reminders.reschedule(prediction, log.logs);
   }

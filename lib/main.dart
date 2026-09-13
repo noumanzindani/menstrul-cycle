@@ -205,6 +205,7 @@ class LunaTrackApp extends StatelessWidget {
             mode: settings.mode,
             cycleLength: settings.cycleLength,
             periodLength: settings.periodLength,
+            contraceptionSuppressesOvulation: settings.suppressesOvulation,
           ),
         ),
         // Multi-month forecast: projects future periods from the user's entered

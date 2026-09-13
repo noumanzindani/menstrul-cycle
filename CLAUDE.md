@@ -102,7 +102,7 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   keys out, so sex never pollutes the symptom-chip list — and it is **excluded by default
   from the doctor PDF**. JSON-object storage (`{key:true}`) is used so tags extend with
   zero migration. **Many groups now ride this one blob** under reserved key prefixes
-  (`med_`, `sex_`, `cm_`, `vag_`, `shx_`, `habit_`, `urn_`, `dig_`, `skin_` — all listed in
+  (`med_`, `sex_`, `cm_`, `vag_`, `shx_`, `habit_`, `urn_`, `dig_`, `skin_`, `slf_`, `lbd_` — all listed in
   `kReservedTagPrefixes`); `decodeSymptoms` strips every reserved prefix, so none of them
   reach the symptom list, Insights, or the doctor PDF. `encodeDayTags` is a full **REPLACE**
   (rebuilds the whole blob from form state), so the day editor must decode/encode EVERY
@@ -110,7 +110,7 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   Numeric metrics (`pain`, `water`, `sleep`, `energy`, `stress`, `sleep_quality`, `weight`)
   ride the same blob as real JSON numbers, so they never satisfy the `== true` symptom check
   and need no key prefix. **`0` means "unset" for every numeric metric**, weight included.
-- **Schema & migrations.** `schemaVersion` is **8**. `onUpgrade` uses independent additive
+- **Schema & migrations.** `schemaVersion` is **9**. `onUpgrade` uses independent additive
   `if (from < n)` branches (not else-if), one nullable column each, so a user on any old
   version runs every intervening branch and existing rows need no backfill: v1→v2 added
   `AppSettings.pregnancyStartDate`; v2→v3 added `AppSettings.trackingCategories`; v3→v4
@@ -120,17 +120,21 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   `AppSettings.analysisConsentUid` plus `analysisCountDay` / `analysisCountToday`**
   (photo descriptions and their daily cap); **v7→v8 added the four profile columns
   `AppSettings.dateOfBirth`, `heightCm`, `profileWeightKg` and `menarcheAge`** (all
-  nullable — null means "not answered", which is a real answer here, not a default).
+  nullable — null means "not answered", which is a real answer here, not a default);
+  **v8→v9 added the five clinical-profile columns `AppSettings.contraceptionMethod`,
+  `contraceptionStartDate`, `knownDiagnoses`, `breastfeeding` and `breastfeedingSince`**
+  (Tier 1 of the gynaecological intake; `breastfeeding` is a NULLABLE bool precisely so
+  "never asked" stays distinct from "answered no").
   v4→v5 and v5→v6 are the only branches that
   create a table rather than adding a column; both are still purely additive. Note the two `SettingsRepository` entry
   points that write those columns: **`update()` stamps `settingsUpdatedAt`** (a user
   edit, so it pushes on the next sync), **`updateSyncState()` deliberately does not** —
   it is sync bookkeeping, and stamping it would make every sync look like a settings
   change and push forever. A committed JSON snapshot per version lives in
-  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v8.json` /
-  `schema_v8.dart`); `test/db_migration_v8_test.dart` uses drift's `SchemaVerifier` to run
-  the REAL `onUpgrade` against a v7 DB seeded with non-default rows. The suite runs one
-  such test per hop, `db_migration_v3_test.dart` through `db_migration_v8_test.dart`.
+  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v9.json` /
+  `schema_v9.dart`); `test/db_migration_v9_test.dart` uses drift's `SchemaVerifier` to run
+  the REAL `onUpgrade` against a v8 DB seeded with non-default rows. The suite runs one
+  such test per hop, `db_migration_v3_test.dart` through `db_migration_v9_test.dart`.
   In-memory `AppDatabase.forTesting` runs `onCreate` at the current schema and NEVER
   exercises `onUpgrade`, so every new migration needs a snapshot dumped BEFORE the version
   bump (only derivable while that version is current) and its own SchemaVerifier test.
@@ -151,6 +155,46 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   so the form stays pumpable without a `SettingsProvider`. All tracking is FREE (no
   `PremiumProvider` read anywhere in this feature). Flow, Period-ended, Mood, Pain, BBT/OPK
   and Notes are core cycle/fertility data and deliberately NOT toggleable.
+- **Gynaecological intake (Tier 1 + Tier 2, 2026-09-13).** Owner asked for richer
+  gyn-health context. Scoped deliberately, and one thing was REFUSED: a "gyn health level"
+  score. No validated instrument maps discharge or masturbation habits to gynaecological
+  health, so a number built from them would be invented, and invented numbers about
+  someone's body read as clinical fact — the same ground that vetoed LH auto-interpretation
+  and a synthesized fertility %. The defensible version shipped instead is **red-flag
+  surfacing**: descriptive, attributed, pointing at a clinician.
+  - **Tier 1 → `AppSettings` (v9), synced.** Contraception + start date, known diagnoses,
+    breastfeeding + since-date. Vocabularies are `kContraceptionOptions` / `kDiagnosisOptions`.
+    Stored as STABLE STRING KEYS, never enum indices — the lists will grow, and an index
+    renumbers every stored answer the day someone inserts a value in the middle.
+  - **Frequency questions were deliberately NOT asked.** "Do you get discharge daily /
+    weekly / monthly?" asks the user to summarise data the app already holds better; the
+    answer goes stale immediately and disagrees with the logs. Log the thing, derive the
+    frequency. Same reason preferred methods and time-to-orgasm are absent: no
+    gynaecological signal, maximum sensitivity.
+  - **Tier 2 is half derived.** Intermenstrual bleeding and pelvic-pain-outside-period
+    needed no new question — both fall out of days already logged, in
+    `InsightsService.patternNudges`. Note the trap: `CycleCalculator` splits EVERY bleeding
+    run into its own cycle, so intermenstrual bleeding is not "bleeding outside a cycle", it
+    is a short spotting-only run that cut the previous interval short. Bleeding after sex
+    (`shx_post_coital`, threshold of ONE) and the heavy-bleeding markers
+    (`kSymptomLargeClots` / `kSymptomSoakingHourly`) cannot be derived and are day tags.
+  - **The heavy-bleeding markers are PLAIN symptom keys, not a reserved prefix.** Every
+    reserved prefix is PDF-excluded by default; these two are exactly what the doctor report
+    exists to carry, so they must ride `decodeSymptoms`.
+  - **`shx_high_libido` is retired but NOT dead.** It shipped as a boolean and users logged
+    it. Libido is now the three-point `kLibidoOptions` scale under `lbd_`, and
+    **`decodeLibido` reads the old key as `lbd_high`** — the day-tags blob has no migration
+    path, so a decoder shim is the only place this can be honoured. `DayEntryForm` drops the
+    old key on save, migrating one day at a time. Never reuse that key.
+  - **The intimate group (`slf_`) SYNCS.** The owner reversed an earlier local-only decision
+    on 2026-09-13, for backup. The trade-off accepted: it reaches Firestore in plaintext
+    where the audited operator route can display it (hence `slf_`/`lbd_` in
+    `admin/src/paths.js` `TAG_PREFIXES`, so it renders grouped rather than as raw keys).
+    Reserved keeps it out of the symptom chips, Insights and the doctor PDF; it does not
+    keep it off the network. Category `kCatIntimacy` ships OFF.
+  - **Sync marker is a VERSION.** `profileFields` is now `2`. A v8 device writes `1`
+    truthfully while knowing nothing of the v9 columns, so presence alone is not enough —
+    `knowsClinicalProfile` gates on `>= 2`. Bump it again whenever the field set grows.
 - **Prediction is the calendar method**, always labelled an estimate and **never a
   contraceptive method**. Fertile window is awareness-only.
 - **Fertility indicator is a qualitative band, never a number** (`FertilityBand` enum,
@@ -165,6 +209,16 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   It only ever RAISES, is skipped while `capConfidenceToLow` is set (perimenopause cap is
   the ceiling), and the band still self-suppresses outside the window — so it can never
   manufacture a "safe" reading. `fertilityConfidence` falls back to `confidence` when unset.
+- **Ovulation-suppressing contraception caps confidence too** (2026-09-13). A method in
+  `kOvulationSuppressingContraception` (`catalog.dart`) makes `predictFromLogs` set
+  `capConfidenceToLow`, exactly as perimenopause does — the user does not ovulate, so a
+  fertile window is not merely uncertain, it is FALSE. The next-period estimate is left
+  alone (a withdrawal bleed is still a bleed). The **copper IUD and sterilisation are
+  deliberately absent** from that set: ovulation continues, and blanking the window would
+  remove a real signal. A method key this build does not recognise reads as NO suppression.
+  Three call sites recompute predictions (`main.dart`, `check_in_writer.dart`,
+  `home_widget_sync.dart`) and a structural test in `prediction_from_logs_test.dart` scans
+  `lib/` so a fourth cannot forget the gate.
 - **DB encryption is ON and device-verified** (2026-07-16).
   `sqlcipher_flutter_libs`/`sqlite3_flutter_libs` are no-op stubs in `sqlite3` v3;
   encryption is a build hook (`hooks.user_defines.sqlite3.source: sqlite3mc` in pubspec)

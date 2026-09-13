@@ -210,6 +210,78 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setMenarcheAge(int? years) =>
       update(AppSettingsCompanion(menarcheAge: Value(years)));
 
+  /// The clinical profile: contraception method and when it started, diagnoses
+  /// the user has already been given, and breastfeeding status.
+  ///
+  /// Every one is null until answered, and here that distinction does real
+  /// work: [contraceptionMethod] of null means "never asked", while
+  /// [kContraceptionNone] means "using nothing". Only the second may be printed
+  /// in a doctor report, and only the second says anything about the user.
+  String? get contraceptionMethod => _settings?.contraceptionMethod;
+  DateTime? get contraceptionStartDate => _settings?.contraceptionStartDate;
+
+  /// True when the method in use suppresses ovulation, which makes a predicted
+  /// fertile window meaningless. Read by `main.dart` and the background
+  /// isolate, both of which hand it to `PredictionService.predictFromLogs`.
+  bool get suppressesOvulation =>
+      kOvulationSuppressingContraception.contains(contraceptionMethod);
+
+  /// Diagnoses the user has been told they have, decoded from the JSON array.
+  ///
+  /// Same tolerant posture as [enabledCategories]: malformed JSON, a non-list,
+  /// and ids written by a newer build all read as "nothing known" rather than
+  /// throwing. A settings getter that can throw takes the whole screen down.
+  Set<String> get knownDiagnoses {
+    final raw = _settings?.knownDiagnoses;
+    if (raw == null) return const {};
+    final known = {for (final o in kDiagnosisOptions) o.key};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const {};
+      return {
+        for (final e in decoded)
+          if (e is String && known.contains(e)) e,
+      };
+    } on FormatException {
+      return const {};
+    }
+  }
+
+  /// Null = never asked, false = answered no, true = answered yes. Never
+  /// collapse the first two: a doctor report that prints "not breastfeeding"
+  /// for somebody who was never asked has invented a clinical fact.
+  bool? get breastfeeding => _settings?.breastfeeding;
+  DateTime? get breastfeedingSince => _settings?.breastfeedingSince;
+
+  /// Sets the contraception method (a `contra_` key) and optionally when it
+  /// started. Passing null for [method] clears the answer back to "never
+  /// asked"; `kContraceptionNone` is how "using nothing" is recorded.
+  Future<void> setContraception(String? method, {DateTime? startDate}) =>
+      update(AppSettingsCompanion(
+        contraceptionMethod: Value(method),
+        // Clearing the method clears its date too. A start date belonging to a
+        // method that is no longer recorded is worse than no date: it would
+        // print in the report attached to nothing.
+        contraceptionStartDate:
+            method == null ? const Value(null) : Value(startDate),
+      ));
+
+  /// Replaces the set of known diagnoses. An EMPTY set is written as an empty
+  /// array, not null — "I was asked and have none" is a real answer.
+  Future<void> setKnownDiagnoses(Set<String> ids) => update(
+        AppSettingsCompanion(knownDiagnoses: Value(jsonEncode(ids.toList()))),
+      );
+
+  /// Sets breastfeeding status, or clears it to "never asked" with null.
+  Future<void> setBreastfeeding(bool? value, {DateTime? since}) =>
+      update(AppSettingsCompanion(
+        breastfeeding: Value(value),
+        // Same rule as the contraception date, plus one more: answering "no"
+        // must drop a since-date left over from a previous "yes".
+        breastfeedingSince:
+            value == true ? Value(since) : const Value(null),
+      ));
+
   Future<void> completeOnboarding() =>
       update(const AppSettingsCompanion(onboardingComplete: Value(true)));
 

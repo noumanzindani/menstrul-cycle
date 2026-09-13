@@ -227,6 +227,38 @@ class AppSettings extends Table {
   // Age in years at the first period (menarche). A whole number of years is
   // what people actually remember; a date would be false precision.
   IntColumn get menarcheAge => integer().nullable()();
+  // The contraception method in use, as a `contra_` key from
+  // `kContraceptionOptions`. A STRING, not an enum index: the list will grow,
+  // and an index would renumber every stored answer the day somebody inserts a
+  // method in the middle of it.
+  //
+  // NULL means never asked, which is NOT the same as `contra_none`. Only the
+  // second one says the user is using nothing, and only the second one is safe
+  // to print in a doctor report.
+  //
+  // This is the highest-consequence column in the table: the subset in
+  // `kOvulationSuppressingContraception` suppresses the fertile window
+  // (`PredictionService.predictFromLogs`), because showing one to somebody who
+  // does not ovulate is the app asserting something false about their body.
+  TextColumn get contraceptionMethod => text().nullable()();
+  // When that method started. Cycle data from before it is not comparable with
+  // cycle data after it, which is exactly what makes the date worth storing
+  // rather than just the method.
+  DateTimeColumn get contraceptionStartDate => dateTime().nullable()();
+  // Diagnoses a clinician has ALREADY GIVEN the user, as a JSON array of `dx_`
+  // keys (`kDiagnosisOptions`) — the same shape as `trackingCategories`, and
+  // for the same reason: a set that grows must not become a set of columns.
+  //
+  // What the user has been told, never what the app concluded. Nothing in this
+  // codebase infers, suggests or scores any of these.
+  TextColumn get knownDiagnoses => text().nullable()();
+  // Currently breastfeeding. A NULLABLE bool, so the three states stay
+  // distinct: null = never asked, false = answered no, true = answered yes.
+  // A non-null default would silently answer "no" for every existing user.
+  BoolColumn get breastfeeding => boolean().nullable()();
+  // Breastfeeding since. Lactational amenorrhoea suppresses cycles outright, so
+  // a gap in the log after this date is expected rather than a missed period.
+  DateTimeColumn get breastfeedingSince => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

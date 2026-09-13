@@ -123,6 +123,8 @@ class DayEntryFormState extends State<DayEntryForm> {
   final Set<String> _urine = {};
   final Set<String> _digestion = {};
   final Set<String> _skin = {};
+  final Set<String> _intimacy = {};
+  String? _libido; // low/medium/high (single-select)
   final Map<String, int> _metrics = {}; // includes pain + the lifestyle metrics
   late final TextEditingController _notes;
   late final TextEditingController _bbt; // basal body temperature (°C)
@@ -153,6 +155,14 @@ class DayEntryFormState extends State<DayEntryForm> {
     _urine.addAll(decodeGroup(tags, kUrineKeyPrefix));
     _digestion.addAll(decodeGroup(tags, kDigestionKeyPrefix));
     _skin.addAll(decodeGroup(tags, kSkinKeyPrefix));
+    _intimacy.addAll(decodeGroup(tags, kIntimacyKeyPrefix));
+    // Reads the retired `shx_high_libido` boolean as high when that is all the
+    // day carries, then DROPS it from the sexual-health set so the save below
+    // rewrites the day under the new key. The answer is carried forward in
+    // `_libido`, so nothing is lost — this is the only migration the day-tags
+    // blob can have, and it happens one day at a time as days are re-saved.
+    _libido = decodeLibido(tags);
+    _sexualHealth.remove(kLegacyHighLibidoKey);
     _metrics[kMetricPain] = decodeNumber(tags, kMetricPain)?.round() ?? 0;
     for (final m in _metricConfigs) {
       _metrics[m.key] = decodeNumber(tags, m.key)?.round() ?? 0;
@@ -209,8 +219,10 @@ class DayEntryFormState extends State<DayEntryForm> {
       ..._urine,
       ..._digestion,
       ..._skin,
+      ..._intimacy,
       ?_sex,
       ?_discharge,
+      ?_libido,
     };
     final numbers = <String, num>{
       for (final e in _metrics.entries)
@@ -420,6 +432,25 @@ class DayEntryFormState extends State<DayEntryForm> {
             isSelected: _sexualHealth.contains,
             onToggle: (key, sel) => setState(() =>
                 sel ? _sexualHealth.add(key) : _sexualHealth.remove(key)),
+          ),
+          // Single-select, and inside this section rather than under a heading
+          // of its own: it replaced a chip that already lived here, and the
+          // three labels say "libido" themselves, so a fourth section label
+          // would add a row of chrome and no information.
+          _SingleChips(
+            options: kLibidoOptions,
+            selected: _libido,
+            onSelect: (key) => setState(() => _libido = key),
+          ),
+        ],
+        if (_cats.contains(kCatIntimacy)) ...[
+          const SizedBox(height: _kSectionGap),
+          _SectionLabel('Intimacy'),
+          _FilterChips(
+            options: kIntimacyOptions,
+            isSelected: _intimacy.contains,
+            onToggle: (key, sel) => setState(
+                () => sel ? _intimacy.add(key) : _intimacy.remove(key)),
           ),
         ],
         if (_cats.contains(kCatLifestyle)) ...[

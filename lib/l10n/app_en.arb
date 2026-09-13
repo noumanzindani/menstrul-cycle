@@ -73,6 +73,31 @@
   },
   "settingsProfileMenarcheTitle": "Age at first period",
   "settingsProfileUnitYears": "years",
+  "settingsSectionClinical": "Health context",
+  "settingsClinicalNote": "Optional, and only for your own insights and the report you can export. LunaTrack never diagnoses anything.",
+  "settingsClinicalContraceptionTitle": "Contraception",
+  "settingsClinicalContraceptionNotAsked": "Not answered",
+  "settingsClinicalContraceptionSince": "Since {date}",
+  "@settingsClinicalContraceptionSince": {
+    "placeholders": { "date": { "type": "String" } }
+  },
+  "settingsClinicalContraceptionStartTitle": "Using it since",
+  "settingsClinicalContraceptionStartHelp": "When this method started",
+  "settingsClinicalFertilityPaused": "Fertile-window estimates are paused while you are on this method",
+  "settingsClinicalDiagnosesTitle": "Diagnoses",
+  "settingsClinicalDiagnosesSubtitle": "Conditions a clinician has told you about",
+  "settingsClinicalDiagnosesNone": "None recorded",
+  "settingsClinicalDiagnosesCount": "{count, plural, =1{1 recorded} other{{count} recorded}}",
+  "@settingsClinicalDiagnosesCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsClinicalBreastfeedingTitle": "Breastfeeding",
+  "settingsClinicalBreastfeedingYes": "Yes",
+  "settingsClinicalBreastfeedingNo": "No",
+  "settingsClinicalBreastfeedingSinceTitle": "Breastfeeding since",
+  "settingsClinicalBreastfeedingSinceHelp": "When breastfeeding started",
+  "onboardingContraceptionTitle": "Are you using contraception?",
+  "onboardingContraceptionBody": "This changes how your cycle reads, so LunaTrack pauses fertile-window estimates on methods that stop ovulation. You can skip this or change it later.",
 
   "settingsSectionCycleDefaults": "Cycle defaults",
   "settingsAvgCycleLength": "Average cycle length",

@@ -680,12 +680,31 @@ class SyncService {
       // fields, so a reader can tell "the user cleared these" from "the writer
       // had never heard of them". Without it those two are indistinguishable
       // and the pull has to guess; guessing wrong in one direction silently
-      // wipes four answered questions. Bump it if the field set ever changes.
-      'profileFields': 1,
+      // wipes answered questions.
+      //
+      // A VERSION, not a flag, and schema v9 is why. A v8 device writes `1`
+      // truthfully -- it really does know all four profile fields -- while
+      // having never heard of contraception, diagnoses or breastfeeding. A
+      // reader that treated "marker present" as "knows everything" would let
+      // that device wipe five clinical answers, including the one gating the
+      // fertile window. So each generation raises this, and each generation's
+      // columns are gated on their own minimum. Bump it again whenever the
+      // field set grows.
+      'profileFields': 2,
       'dateOfBirth': row.dateOfBirth?.millisecondsSinceEpoch,
       'heightCm': row.heightCm,
       'profileWeightKg': row.profileWeightKg,
       'menarcheAge': row.menarcheAge,
+      // The clinical profile (marker 2). `knownDiagnoses` travels as the raw
+      // JSON array string it is stored as, NOT as a Firestore array: the column
+      // is the source of truth for its shape, and re-encoding it here would
+      // create a second format to keep in step.
+      'contraceptionMethod': row.contraceptionMethod,
+      'contraceptionStartDate':
+          row.contraceptionStartDate?.millisecondsSinceEpoch,
+      'knownDiagnoses': row.knownDiagnoses,
+      'breastfeeding': row.breastfeeding,
+      'breastfeedingSince': row.breastfeedingSince?.millisecondsSinceEpoch,
       'updatedAt': changed.millisecondsSinceEpoch,
       // `syncedAt` is written here for consistency with `dailyLogs` and
       // `deletions` (every remote document carries it), even though the
@@ -726,6 +745,11 @@ class SyncService {
     // Absent on any document written before schema v8 -- see the companion
     // comment below for why that has to be distinguishable from `null`.
     final knowsProfileFields = data.containsKey('profileFields');
+    // And absent OR `1` on any document written before schema v9. A v8 writer
+    // sets the marker honestly and still knows nothing about these five, so
+    // presence alone is not enough -- only the version is.
+    final knowsClinicalProfile =
+        (_asOrNull<int>(data['profileFields']) ?? 0) >= 2;
     final dobMillis = _asOrNull<int>(data['dateOfBirth']);
     // `num`, not `double`: Firestore number typing is not stable across
     // writers, so a whole-number height (170) can arrive as an `int`, for
@@ -735,6 +759,11 @@ class SyncService {
     final heightCm = _asOrNull<num>(data['heightCm'])?.toDouble();
     final profileWeightKg = _asOrNull<num>(data['profileWeightKg'])?.toDouble();
     final menarcheAge = _asOrNull<int>(data['menarcheAge']);
+    final contraceptionMethod = _asOrNull<String>(data['contraceptionMethod']);
+    final contraceptionMillis = _asOrNull<int>(data['contraceptionStartDate']);
+    final knownDiagnoses = _asOrNull<String>(data['knownDiagnoses']);
+    final breastfeeding = _asOrNull<bool>(data['breastfeeding']);
+    final breastfeedingMillis = _asOrNull<int>(data['breastfeedingSince']);
 
     await _settings.updateSyncState(
       AppSettingsCompanion(
@@ -795,6 +824,24 @@ class SyncService {
             : const Value.absent(),
         menarcheAge:
             knowsProfileFields ? Value(menarcheAge) : const Value.absent(),
+        contraceptionMethod: knowsClinicalProfile
+            ? Value(contraceptionMethod)
+            : const Value.absent(),
+        contraceptionStartDate: knowsClinicalProfile
+            ? Value(contraceptionMillis == null
+                ? null
+                : DateTime.fromMillisecondsSinceEpoch(contraceptionMillis))
+            : const Value.absent(),
+        knownDiagnoses: knowsClinicalProfile
+            ? Value(knownDiagnoses)
+            : const Value.absent(),
+        breastfeeding:
+            knowsClinicalProfile ? Value(breastfeeding) : const Value.absent(),
+        breastfeedingSince: knowsClinicalProfile
+            ? Value(breastfeedingMillis == null
+                ? null
+                : DateTime.fromMillisecondsSinceEpoch(breastfeedingMillis))
+            : const Value.absent(),
         settingsUpdatedAt: Value(remoteUpdated),
       ),
     );

@@ -26,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -83,6 +83,14 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(appSettings, appSettings.heightCm);
             await m.addColumn(appSettings, appSettings.profileWeightKg);
             await m.addColumn(appSettings, appSettings.menarcheAge);
+          }
+          if (from < 9) {
+            await m.addColumn(appSettings, appSettings.contraceptionMethod);
+            await m
+                .addColumn(appSettings, appSettings.contraceptionStartDate);
+            await m.addColumn(appSettings, appSettings.knownDiagnoses);
+            await m.addColumn(appSettings, appSettings.breastfeeding);
+            await m.addColumn(appSettings, appSettings.breastfeedingSince);
           }
         },
       );

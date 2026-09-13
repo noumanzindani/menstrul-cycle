@@ -1101,6 +1101,129 @@ void main() {
     expect(local.lastSyncedAt, isNotNull);
   });
 
+  group('the clinical profile survives a device on an older build', () {
+    // Exactly the bug the `profileFields` marker was introduced for, one
+    // schema later. A v8 device writes `profileFields: 1` -- truthfully, it
+    // knows about all four of THOSE columns -- but has never heard of
+    // contraception, diagnoses or breastfeeding. Reading its document as
+    // authoritative for the v9 columns would wipe five clinical answers,
+    // including the one that gates the fertile window.
+    //
+    // Hence the marker is a VERSION, not a flag: `>= 2` is what says "this
+    // writer knew about the clinical columns", and a v8 writer's `1` fails it
+    // while still correctly claiming the v8 four.
+    test('a v8 document leaves the clinical columns alone, and still applies '
+        'the profile fields it does carry', () async {
+      final settings = SettingsRepository(db);
+      await settings.update(AppSettingsCompanion(
+        dateOfBirth: Value(DateTime(1994, 3, 17)),
+        contraceptionMethod: const Value('contra_combined_pill'),
+        contraceptionStartDate: Value(DateTime(2024, 6, 1)),
+        knownDiagnoses: const Value('["dx_pcos"]'),
+        breastfeeding: const Value(false),
+      ));
+
+      await firestore.doc('users/uid-1/settings/current').set({
+        'mode': TrackingMode.track.index,
+        'defaultCycleLength': 30,
+        'themeMode': 'dark',
+        'language': 'en',
+        'genderNeutralLanguage': false,
+        'pregnancyStartDate': null,
+        'trackingCategories': null,
+        'weightUnit': 'kg',
+        // A v8 build: it knows the profile fields and says so, but carries no
+        // key at all for anything added in v9.
+        'profileFields': 1,
+        'dateOfBirth': DateTime(1990, 1, 2).millisecondsSinceEpoch,
+        'heightCm': 170.0,
+        'profileWeightKg': null,
+        'menarcheAge': 12,
+        'updatedAt':
+            DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+      });
+
+      await sync.syncNow();
+
+      final local = await settings.get();
+      // What the old build DID know is applied, nulls included -- the fix must
+      // not over-correct into ignoring the document.
+      expect(local.themeMode, 'dark');
+      expect(local.dateOfBirth, DateTime(1990, 1, 2));
+      expect(local.heightCm, 170.0);
+      expect(local.profileWeightKg, isNull);
+      // What it could not know is untouched.
+      expect(local.contraceptionMethod, 'contra_combined_pill');
+      expect(local.contraceptionStartDate, DateTime(2024, 6, 1));
+      expect(local.knownDiagnoses, '["dx_pcos"]');
+      expect(local.breastfeeding, isFalse);
+    });
+
+    test('a v9 document carrying nulls really does clear them', () async {
+      final settings = SettingsRepository(db);
+      await settings.update(AppSettingsCompanion(
+        contraceptionMethod: const Value('contra_implant'),
+        knownDiagnoses: const Value('["dx_pcos"]'),
+        breastfeeding: const Value(true),
+        breastfeedingSince: Value(DateTime(2025, 9, 9)),
+      ));
+
+      await firestore.doc('users/uid-1/settings/current').set({
+        'mode': TrackingMode.track.index,
+        'themeMode': 'system',
+        'language': 'en',
+        'genderNeutralLanguage': false,
+        'pregnancyStartDate': null,
+        'trackingCategories': null,
+        'weightUnit': 'kg',
+        'profileFields': 2,
+        'dateOfBirth': null,
+        'heightCm': null,
+        'profileWeightKg': null,
+        'menarcheAge': null,
+        'contraceptionMethod': null,
+        'contraceptionStartDate': null,
+        'knownDiagnoses': null,
+        'breastfeeding': null,
+        'breastfeedingSince': null,
+        'updatedAt':
+            DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+      });
+
+      await sync.syncNow();
+
+      final local = await settings.get();
+      expect(local.contraceptionMethod, isNull);
+      expect(local.knownDiagnoses, isNull);
+      expect(local.breastfeeding, isNull);
+      expect(local.breastfeedingSince, isNull);
+    });
+
+    test('the push sends the clinical columns under marker 2', () async {
+      await SettingsRepository(db).update(AppSettingsCompanion(
+        contraceptionMethod: const Value('contra_copper_iud'),
+        contraceptionStartDate: Value(DateTime(2023, 4, 5)),
+        knownDiagnoses: const Value('["dx_endometriosis","dx_fibroids"]'),
+        breastfeeding: const Value(true),
+        breastfeedingSince: Value(DateTime(2026, 1, 20)),
+      ));
+
+      await sync.syncNow();
+
+      final doc =
+          (await firestore.doc('users/uid-1/settings/current').get()).data()!;
+      expect(doc['profileFields'], 2,
+          reason: 'a reader distinguishes v9 writers by this value alone');
+      expect(doc['contraceptionMethod'], 'contra_copper_iud');
+      expect(doc['contraceptionStartDate'],
+          DateTime(2023, 4, 5).millisecondsSinceEpoch);
+      expect(doc['knownDiagnoses'], '["dx_endometriosis","dx_fibroids"]');
+      expect(doc['breastfeeding'], isTrue);
+      expect(doc['breastfeedingSince'],
+          DateTime(2026, 1, 20).millisecondsSinceEpoch);
+    });
+  });
+
   group('cross-device deletion propagation', () {
     // A second SyncService over a SECOND in-memory database, sharing the
     // outer test's fake Firestore and uid -- simulating a second physical

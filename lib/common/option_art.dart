@@ -132,7 +132,24 @@ const Set<String> kNoArtKeys = {
   'shx_condom',
   'shx_emergency',
   'shx_pain',
-  'shx_high_libido',
+  'shx_post_coital',
+  // Solo sexual activity and libido level. The strongest case on this list:
+  // `shx_` was already text-only for shoulder-surf reasons, and these are more
+  // sensitive again. A libido level in particular is a three-state scale, and
+  // any glanceable mark for it (a gauge, a flame, arrows) reads as a score of
+  // the person rather than a note about a day.
+  'slf_masturbation',
+  'lbd_low',
+  'lbd_medium',
+  'lbd_high',
+  // Heavy-bleeding red flags. Not a shoulder-surf decision and not a backlog
+  // item: the entire clinical content of these two is a THRESHOLD -- 2.5 cm,
+  // once an hour -- and no pictogram can carry a number. A drawn clot would be
+  // both undignified and silent about the only thing that matters about it, so
+  // the mark would be read and still leave the user guessing. Same conclusion
+  // as `tender_breasts` below, reached from the opposite direction.
+  'clots_large',
+  'soaking_hourly',
   // Tender breasts. Not a backlog item — this was DRAWN, shipped to a device,
   // and withdrawn. The constraint is that it must convey tenderness without
   // drawing anatomy (this chip is glanceable on a shared screen), and every

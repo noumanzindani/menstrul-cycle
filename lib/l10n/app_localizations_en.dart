@@ -169,6 +169,79 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsProfileUnitYears => 'years';
 
   @override
+  String get settingsSectionClinical => 'Health context';
+
+  @override
+  String get settingsClinicalNote =>
+      'Optional, and only for your own insights and the report you can export. LunaTrack never diagnoses anything.';
+
+  @override
+  String get settingsClinicalContraceptionTitle => 'Contraception';
+
+  @override
+  String get settingsClinicalContraceptionNotAsked => 'Not answered';
+
+  @override
+  String settingsClinicalContraceptionSince(String date) {
+    return 'Since $date';
+  }
+
+  @override
+  String get settingsClinicalContraceptionStartTitle => 'Using it since';
+
+  @override
+  String get settingsClinicalContraceptionStartHelp =>
+      'When this method started';
+
+  @override
+  String get settingsClinicalFertilityPaused =>
+      'Fertile-window estimates are paused while you are on this method';
+
+  @override
+  String get settingsClinicalDiagnosesTitle => 'Diagnoses';
+
+  @override
+  String get settingsClinicalDiagnosesSubtitle =>
+      'Conditions a clinician has told you about';
+
+  @override
+  String get settingsClinicalDiagnosesNone => 'None recorded';
+
+  @override
+  String settingsClinicalDiagnosesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count recorded',
+      one: '1 recorded',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsClinicalBreastfeedingTitle => 'Breastfeeding';
+
+  @override
+  String get settingsClinicalBreastfeedingYes => 'Yes';
+
+  @override
+  String get settingsClinicalBreastfeedingNo => 'No';
+
+  @override
+  String get settingsClinicalBreastfeedingSinceTitle => 'Breastfeeding since';
+
+  @override
+  String get settingsClinicalBreastfeedingSinceHelp =>
+      'When breastfeeding started';
+
+  @override
+  String get onboardingContraceptionTitle => 'Are you using contraception?';
+
+  @override
+  String get onboardingContraceptionBody =>
+      'This changes how your cycle reads, so LunaTrack pauses fertile-window estimates on methods that stop ovulation. You can skip this or change it later.';
+
+  @override
   String get settingsSectionCycleDefaults => 'Cycle defaults';
 
   @override

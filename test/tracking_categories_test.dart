@@ -22,6 +22,7 @@ void main() {
       kCatDigestion,
       kCatSkin,
       kCatWeight,
+      kCatIntimacy,
     });
     expect(idsWhere(true), contains(kCatPhysicalSymptoms));
     expect(idsWhere(true), contains(kCatMedications));

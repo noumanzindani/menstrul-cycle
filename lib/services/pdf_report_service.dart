@@ -19,6 +19,22 @@ import 'weight_trend_service.dart';
 class PdfReportService {
   const PdfReportService._();
 
+  /// The label for [key] in [options], or null when it is absent or unknown to
+  /// this build.
+  ///
+  /// Deliberately NOT the same contract as [_labelFor] below, which falls back
+  /// to the raw key. That fallback is right for symptom rows — every key there
+  /// comes from this build's own catalog — and wrong here, where a key may have
+  /// been written by a NEWER build and `dx_from_the_future` in a clinical
+  /// summary is worse than an omitted line.
+  static String? _knownLabel(List<TrackOption> options, String? key) {
+    if (key == null) return null;
+    for (final o in options) {
+      if (o.key == key) return o.label;
+    }
+    return null;
+  }
+
   static Future<Uint8List> build({
     required Insights insights,
     required List<Cycle> cycles,
@@ -30,6 +46,11 @@ class PdfReportService {
     double? heightCm,
     double? profileWeightKg,
     int? menarcheAge,
+    String? contraceptionMethod,
+    DateTime? contraceptionStartDate,
+    Set<String> knownDiagnoses = const {},
+    bool? breastfeeding,
+    DateTime? breastfeedingSince,
   }) async {
     final doc = pw.Document();
     final stats = insights.stats;
@@ -55,6 +76,16 @@ class PdfReportService {
     // different questions: "what do you weigh now" versus "how has it moved
     // over 90 days". Never make one read from the other.
     final age = ageInYears(dateOfBirth, on: generatedOn);
+    // Resolved to LABELS, never printed as raw keys. A key this build does not
+    // recognise (written by a newer one) resolves to null and is dropped: a
+    // clinician reading `dx_from_the_future` in a summary is worse served than
+    // by an omission.
+    final contraceptionLabel =
+        _knownLabel(kContraceptionOptions, contraceptionMethod);
+    final diagnosisLabels = [
+      for (final o in kDiagnosisOptions)
+        if (knownDiagnoses.contains(o.key)) o.label,
+    ];
     final profileRows = <List<String>>[
       if (age != null) ['Age', '$age years'],
       if (heightCm != null)
@@ -65,6 +96,32 @@ class PdfReportService {
           '${formatWeightFromKg(profileWeightKg, kWeightUnitKg)} kg',
         ],
       if (menarcheAge != null) ['Age at first period', '$menarcheAge years'],
+      // The clinical context. Placed after the body measurements because that
+      // is the order a clinician reads them in, and because each of these
+      // changes what the cycle numbers further down MEAN: hormonal
+      // contraception, a known diagnosis and lactation each redefine a normal
+      // cycle.
+      //
+      // Every row is omitted when the question was never answered. A report
+      // that printed "Breastfeeding: No" for somebody who was never asked would
+      // be inventing a clinical fact, which is worse than an absent line.
+      if (contraceptionLabel != null)
+        [
+          'Contraception',
+          contraceptionStartDate == null
+              ? contraceptionLabel
+              : '$contraceptionLabel (since ${df.format(contraceptionStartDate)})',
+        ],
+      if (diagnosisLabels.isNotEmpty)
+        ['Known diagnoses', diagnosisLabels.join(', ')],
+      if (breastfeeding != null)
+        [
+          'Breastfeeding',
+          if (breastfeeding && breastfeedingSince != null)
+            'Yes (since ${df.format(breastfeedingSince)})'
+          else
+            breastfeeding ? 'Yes' : 'No',
+        ],
     ];
     // Read out verbatim, never reassembled here: `bmi_service.dart` is the one
     // file in `lib/` permitted to carry body-judgement copy, and a structural

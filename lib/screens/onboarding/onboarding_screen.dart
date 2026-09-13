@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../common/catalog.dart';
+import '../../common/l10n.dart';
 import '../../models/enums.dart';
 import '../../providers/log_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -38,7 +39,7 @@ final OutlineInputBorder _kOnboardingFieldBorder = OutlineInputBorder(
 );
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  static const _pageCount = 7;
+  static const _pageCount = 8;
 
   /// Index of the height / weight / first-period page. Its two typed
   /// measurements are the only answers in the wizard that can be WRONG rather
@@ -73,6 +74,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   double? _heightCm;
   double? _profileWeightKg;
   int? _menarcheAge;
+  // Contraception. The only Tier 1 clinical question the wizard asks, because
+  // it is the only one that changes what the app PREDICTS from day one: a
+  // method that suppresses ovulation removes the fertile window. Diagnoses and
+  // breastfeeding colour how results READ, so they live in Settings rather
+  // than lengthening a first-run wizard.
+  String? _contraception;
   String? _heightError;
   String? _weightError;
 
@@ -127,6 +134,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await settings.setHeightCm(_heightCm);
     await settings.setProfileWeightKg(_profileWeightKg);
     await settings.setMenarcheAge(_menarcheAge);
+    // Null when skipped, which is not the same as `kContraceptionNone`: one
+    // says nobody asked, the other says the user uses nothing. Only the second
+    // belongs in a doctor report.
+    await settings.setContraception(_contraception);
 
     // Seed the last period so cycle stats have a starting anchor.
     if (_lastPeriod != null) {
@@ -241,6 +252,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     menarcheAge: _menarcheAge,
                     menarcheSeed: _menarcheSeed,
                     onMenarcheChanged: (v) => setState(() => _menarcheAge = v),
+                  ),
+                  _ContraceptionPage(
+                    method: _contraception,
+                    onChanged: (m) => setState(() => _contraception = m),
                   ),
                   _ModePage(
                     mode: _mode,
@@ -612,6 +627,58 @@ class _ProfilePage extends StatelessWidget {
 
 /// Step 7 — what the app is for, plus the wording preference. Two equal cards,
 /// neither styled as the recommended answer.
+/// Contraception method. Scrolls, because thirteen methods do not fit a phone
+/// page — and the list is deliberately long rather than collapsed into
+/// "hormonal / non-hormonal": the distinction the app acts on is which specific
+/// methods suppress ovulation, and asking the user to make that call for us
+/// would be asking them a clinical question instead of a factual one.
+///
+/// Skippable like every other wizard answer: walking past leaves the column
+/// null, and the app behaves exactly as it did before the question existed.
+class _ContraceptionPage extends StatelessWidget {
+  const _ContraceptionPage({required this.method, required this.onChanged});
+
+  final String? method;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final scheme = Theme.of(context).colorScheme;
+    return _QuestionPage(
+      question: l10n.onboardingContraceptionTitle,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 12),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text(
+              l10n.onboardingContraceptionBody,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ),
+          for (final o in kContraceptionOptions) ...[
+            _ChoiceCard(
+              title: o.label,
+              description: o.key == kContraceptionNone
+                  ? 'Not using contraception right now'
+                  : '',
+              selected: method == o.key,
+              // Tapping the selected card again clears it, so a mis-tap is
+              // recoverable without a separate Skip control.
+              onTap: () => onChanged(method == o.key ? null : o.key),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _ModePage extends StatelessWidget {
   const _ModePage({
     required this.mode,

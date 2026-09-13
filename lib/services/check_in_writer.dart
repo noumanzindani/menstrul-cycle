@@ -1,3 +1,4 @@
+import '../common/catalog.dart';
 import '../data/daily_log_repository.dart';
 import '../data/reminder_repository.dart';
 import '../data/settings_repository.dart';
@@ -54,6 +55,12 @@ class CheckInWriter {
         mode: settings.mode,
         cycleLength: settings.defaultCycleLength,
         periodLength: settings.defaultPeriodLength,
+        // The row, not a provider: this runs in the background isolate, where
+        // no Provider tree exists. Same helper as the foreground call site, so
+        // a notification-driven recompute cannot show a fertile window the app
+        // itself suppresses.
+        contraceptionSuppressesOvulation:
+            contraceptionSuppressesOvulation(settings.contraceptionMethod),
       );
 
       final logNudge =

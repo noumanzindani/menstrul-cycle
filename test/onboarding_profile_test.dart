@@ -51,6 +51,7 @@ SyncTrigger _testSyncTrigger(AppDatabase db) => SyncTrigger(
 const _dobQuestion = 'When were you born?';
 const _bodyQuestion = 'A few more details about you';
 const _modeQuestion = 'What are you using LunaTrack for?';
+const _contraceptionQuestion = 'Are you using contraception?';
 
 Future<AppDatabase> _pumpOnboarding(WidgetTester tester) async {
   // Phone-sized, per the app_theme lesson in CLAUDE.md: an 800x600 default
@@ -113,6 +114,9 @@ void main() {
     expect(find.text(_dobQuestion), findsOneWidget);
     await _continue(tester);
     expect(find.text(_bodyQuestion), findsOneWidget);
+
+    await _continue(tester);
+    expect(find.text(_contraceptionQuestion), findsOneWidget);
 
     await _continue(tester);
     expect(find.text(_modeQuestion), findsOneWidget);
@@ -245,5 +249,45 @@ void main() {
     final settings = await db.getSettings();
     expect(settings.onboardingComplete, isFalse);
     expect(settings.profileWeightKg, isNull);
+  });
+
+  group('contraception, the one clinical question the wizard asks', () {
+    // Only this one, out of five Tier 1 fields. It earns a wizard page because
+    // it changes what the app PREDICTS from day one — a method that suppresses
+    // ovulation removes the fertile window — while diagnoses and breastfeeding
+    // only colour how results are read, and can wait for Settings.
+    testWidgets('skipping it leaves the column null, as before', (tester) async {
+      final db = await _pumpOnboarding(tester);
+      await _walkTo(tester, _contraceptionQuestion);
+
+      final settings = await _finishAndRead(tester, db);
+      expect(settings.contraceptionMethod, isNull,
+          reason: 'never asked must not become an answer');
+    });
+
+    testWidgets('a chosen method persists as its stable key', (tester) async {
+      final db = await _pumpOnboarding(tester);
+      await _walkTo(tester, _contraceptionQuestion);
+
+      await tester.dragUntilVisible(find.text('Hormonal IUD'),
+          find.byType(Scrollable).last, const Offset(0, -120));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Hormonal IUD'));
+      await tester.pumpAndSettle();
+
+      final settings = await _finishAndRead(tester, db);
+      expect(settings.contraceptionMethod, 'contra_hormonal_iud');
+    });
+
+    testWidgets('"None" is answerable and is not the same as skipping',
+        (tester) async {
+      final db = await _pumpOnboarding(tester);
+      await _walkTo(tester, _contraceptionQuestion);
+      await tester.tap(find.text('None'));
+      await tester.pumpAndSettle();
+
+      final settings = await _finishAndRead(tester, db);
+      expect(settings.contraceptionMethod, 'contra_none');
+    });
   });
 }

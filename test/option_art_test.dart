@@ -22,6 +22,8 @@ void main() {
     kUrineOptions,
     kDigestionOptions,
     kSkinOptions,
+    kIntimacyOptions,
+    kLibidoOptions,
   ];
   final allKeys = [for (final l in allLists) ...l.map((o) => o.key)];
 
@@ -72,8 +74,16 @@ void main() {
     // backlog item. This is the only mechanical way to hold them: a test cannot
     // fail because a drawing is undignified, but it can fail because a drawing
     // exists at all where one was forbidden.
-    test('sexual-activity and sexual-health options have NO art', () {
-      for (final o in [...kSexOptions, ...kSexualHealthOptions]) {
+    test('sexual-activity, sexual-health and intimate options have NO art',
+        () {
+      for (final o in [
+        ...kSexOptions,
+        ...kSexualHealthOptions,
+        // The intimate group joins the same rule it was added under, rather
+        // than relying on nobody drawing for it later.
+        ...kIntimacyOptions,
+        ...kLibidoOptions,
+      ]) {
         expect(
           kOptionArt.containsKey(o.key),
           isFalse,

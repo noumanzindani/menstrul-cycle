@@ -394,6 +394,120 @@ abstract class AppLocalizations {
   /// **'years'**
   String get settingsProfileUnitYears;
 
+  /// No description provided for @settingsSectionClinical.
+  ///
+  /// In en, this message translates to:
+  /// **'Health context'**
+  String get settingsSectionClinical;
+
+  /// No description provided for @settingsClinicalNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional, and only for your own insights and the report you can export. LunaTrack never diagnoses anything.'**
+  String get settingsClinicalNote;
+
+  /// No description provided for @settingsClinicalContraceptionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Contraception'**
+  String get settingsClinicalContraceptionTitle;
+
+  /// No description provided for @settingsClinicalContraceptionNotAsked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not answered'**
+  String get settingsClinicalContraceptionNotAsked;
+
+  /// No description provided for @settingsClinicalContraceptionSince.
+  ///
+  /// In en, this message translates to:
+  /// **'Since {date}'**
+  String settingsClinicalContraceptionSince(String date);
+
+  /// No description provided for @settingsClinicalContraceptionStartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Using it since'**
+  String get settingsClinicalContraceptionStartTitle;
+
+  /// No description provided for @settingsClinicalContraceptionStartHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'When this method started'**
+  String get settingsClinicalContraceptionStartHelp;
+
+  /// No description provided for @settingsClinicalFertilityPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Fertile-window estimates are paused while you are on this method'**
+  String get settingsClinicalFertilityPaused;
+
+  /// No description provided for @settingsClinicalDiagnosesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnoses'**
+  String get settingsClinicalDiagnosesTitle;
+
+  /// No description provided for @settingsClinicalDiagnosesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Conditions a clinician has told you about'**
+  String get settingsClinicalDiagnosesSubtitle;
+
+  /// No description provided for @settingsClinicalDiagnosesNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None recorded'**
+  String get settingsClinicalDiagnosesNone;
+
+  /// No description provided for @settingsClinicalDiagnosesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 recorded} other{{count} recorded}}'**
+  String settingsClinicalDiagnosesCount(int count);
+
+  /// No description provided for @settingsClinicalBreastfeedingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Breastfeeding'**
+  String get settingsClinicalBreastfeedingTitle;
+
+  /// No description provided for @settingsClinicalBreastfeedingYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get settingsClinicalBreastfeedingYes;
+
+  /// No description provided for @settingsClinicalBreastfeedingNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get settingsClinicalBreastfeedingNo;
+
+  /// No description provided for @settingsClinicalBreastfeedingSinceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Breastfeeding since'**
+  String get settingsClinicalBreastfeedingSinceTitle;
+
+  /// No description provided for @settingsClinicalBreastfeedingSinceHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'When breastfeeding started'**
+  String get settingsClinicalBreastfeedingSinceHelp;
+
+  /// No description provided for @onboardingContraceptionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you using contraception?'**
+  String get onboardingContraceptionTitle;
+
+  /// No description provided for @onboardingContraceptionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This changes how your cycle reads, so LunaTrack pauses fertile-window estimates on methods that stop ovulation. You can skip this or change it later.'**
+  String get onboardingContraceptionBody;
+
   /// No description provided for @settingsSectionCycleDefaults.
   ///
   /// In en, this message translates to:

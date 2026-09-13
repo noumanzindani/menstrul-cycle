@@ -75,6 +75,8 @@ export const TAG_PREFIXES = {
   urn_: 'Urinary',
   dig_: 'Digestion',
   skin_: 'Skin & hair',
+  slf_: 'Intimacy',
+  lbd_: 'Libido',
 };
 
 /**
