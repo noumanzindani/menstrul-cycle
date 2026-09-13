@@ -120,6 +120,68 @@ String formatWeightFromKg(double kg, String unit) {
   return shown.toStringAsFixed(1);
 }
 
+/// Plausible-human bounds, checked in canonical cm. Height is a profile fact
+/// nothing else ever corrects, so a fat-fingered entry would sit in the doctor
+/// report until the user noticed it themselves.
+const double kMinHeightCm = 80.0;
+const double kMaxHeightCm = 250.0;
+
+const double _cmPerInch = 2.54;
+
+double inchToCm(double inch) => inch * _cmPerInch;
+double cmToInch(double cm) => cm / _cmPerInch;
+
+/// Feet-and-inches input, e.g. `5'5"`, `5' 5`, `5ft 5in`, or a bare `5'`. The
+/// inches part and both unit marks are optional; `\x22` is the double quote,
+/// spelled as an escape so the pattern itself can stay a raw string.
+final RegExp _feetInchesPattern = RegExp(
+  r"^(\d+(?:\.\d+)?)\s*(?:'|ft|feet)\.?\s*"
+  r"(?:(\d+(?:\.\d+)?)\s*(?:\x22|''|in|inch|inches)?\.?)?$",
+  caseSensitive: false,
+);
+
+/// Parses user input in [unit] into canonical cm, or null when it is blank,
+/// unparseable, or outside [kMinHeightCm]..[kMaxHeightCm]. The range is applied
+/// AFTER conversion so the same rule holds in both units.
+///
+/// Height rides the EXISTING weight-unit preference rather than a column of its
+/// own: [kWeightUnitKg] means the input is centimetres, [kWeightUnitLb] means
+/// feet and inches (or a bare number of inches).
+double? parseHeightToCm(String input, String unit) {
+  final text = input.trim();
+  final double cm;
+  if (unit == kWeightUnitLb) {
+    final match = _feetInchesPattern.firstMatch(text);
+    if (match != null) {
+      final feet = double.parse(match.group(1)!);
+      final inches = double.tryParse(match.group(2) ?? '') ?? 0.0;
+      cm = inchToCm(feet * 12 + inches);
+    } else {
+      // No feet mark: a bare number is inches. Someone who types a centimetre
+      // value here lands far above the maximum and is REFUSED, not reinterpreted.
+      final bareInches = double.tryParse(text);
+      if (bareInches == null) return null;
+      cm = inchToCm(bareInches);
+    }
+  } else {
+    final parsed = double.tryParse(text);
+    if (parsed == null) return null;
+    cm = parsed;
+  }
+  if (cm < kMinHeightCm || cm > kMaxHeightCm) return null;
+  return cm;
+}
+
+/// Formats canonical [cm] for display in [unit] WITHOUT a unit suffix (the field
+/// renders it). Centimetres get one decimal, like weight; feet and inches are
+/// one readable combined string (`5'5"`), rounded to the nearest whole inch —
+/// the total is rounded BEFORE the split, so 59.96in reads 5'0", never 4'12".
+String formatHeightFromCm(double cm, String unit) {
+  if (unit != kWeightUnitLb) return cm.toStringAsFixed(1);
+  final totalInches = cmToInch(cm).round();
+  return "${totalInches ~/ 12}'${totalInches % 12}\"";
+}
+
 /// Sexual-activity options (single-select). Keys share the same day-tags JSON as
 /// symptoms but are namespaced with [kSexKeyPrefix] so they never surface in the
 /// symptom chips. Stored on-device only, never transmitted.

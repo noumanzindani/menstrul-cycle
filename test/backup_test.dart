@@ -93,6 +93,63 @@ void main() {
       await dst.close();
     });
 
+    test('the profile settings columns survive the encrypted round-trip',
+        () async {
+      // `backup_service.dart` serialises settings with drift's GENERATED
+      // `toJson()`, so a new column rides the `.lunabak` file with no code
+      // change at all. That automatic behaviour is exactly why it needs a
+      // test: nothing in `lib/` names these four fields, so nothing would
+      // fail if a future edit replaced `toJson()` with a hand-written map and
+      // quietly dropped them from every user's backup.
+      await src.into(src.appSettings).insertOnConflictUpdate(
+            AppSettingsCompanion(
+              id: const Value(0),
+              dateOfBirth: Value(DateTime(1994, 3, 17)),
+              heightCm: const Value(168.5), // canonical CENTIMETRES
+              profileWeightKg: const Value(61.2), // canonical KILOGRAMS
+              menarcheAge: const Value(13),
+            ),
+          );
+
+      final bytes = await BackupService.exportEncrypted(src, 'pass123');
+
+      final dst = AppDatabase.forTesting(NativeDatabase.memory());
+      await BackupService.importEncrypted(dst, bytes, 'pass123');
+
+      final settings =
+          await (dst.select(dst.appSettings)..where((t) => t.id.equals(0)))
+              .getSingle();
+      expect(settings.dateOfBirth, DateTime(1994, 3, 17));
+      expect(settings.heightCm, 168.5);
+      expect(settings.profileWeightKg, 61.2);
+      expect(settings.menarcheAge, 13);
+      // The restored row is the seeded row, not a default one drift created.
+      expect(settings.mode, TrackingMode.conceive);
+      await dst.close();
+    });
+
+    test('an unanswered profile field restores as null, not as a default',
+        () async {
+      // The seeded row never answers any of the four. A restore must not
+      // invent a value for them -- "not answered" is a real, distinct state
+      // everywhere else in this feature.
+      final bytes = await BackupService.exportEncrypted(src, 'pass123');
+
+      final dst = AppDatabase.forTesting(NativeDatabase.memory());
+      await BackupService.importEncrypted(dst, bytes, 'pass123');
+
+      final settings =
+          await (dst.select(dst.appSettings)..where((t) => t.id.equals(0)))
+              .getSingle();
+      // `null`, not `isNull`: drift exports its own `isNull` into this file
+      // (see the note in the product-session test below).
+      expect(settings.dateOfBirth, null);
+      expect(settings.heightCm, null);
+      expect(settings.profileWeightKg, null);
+      expect(settings.menarcheAge, null);
+      await dst.close();
+    });
+
     test('a wrong passphrase throws and leaves existing data untouched',
         () async {
       final bytes = await BackupService.exportEncrypted(src, 'correct');

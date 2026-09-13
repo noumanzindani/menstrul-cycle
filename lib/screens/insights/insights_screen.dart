@@ -16,6 +16,7 @@ import '../../providers/log_provider.dart';
 import '../../providers/medication_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../services/bbt_service.dart';
+import '../../services/bmi_service.dart';
 import '../../services/cycle_overview_service.dart';
 import '../../services/flow_analysis_service.dart';
 import '../../services/insights_narrator.dart';
@@ -27,6 +28,40 @@ import '../../services/weight_trend_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/disclaimer_banner.dart';
 import 'cycle_overview_screen.dart';
+
+/// Years since the user's first period: the age they have reached today minus
+/// the age they gave for menarche.
+///
+/// DERIVED, never stored. Two independent reasons, either one sufficient: a
+/// stored copy would keep disagreeing with the profile after any edit to
+/// either field, and this figure changes on its own every birthday, so it
+/// would be wrong within a year even if nothing were ever edited.
+///
+/// Null unless both fields are answered and the arithmetic is possible. A
+/// menarche age the user has not lived to yet is a typo, not a negative
+/// gynaecological age, so it is refused and nothing is shown - the same
+/// posture the profile fields take at the input boundary.
+@visibleForTesting
+int? gynaecologicalAgeYears({
+  required DateTime? dateOfBirth,
+  required int? menarcheAge,
+  required DateTime asOf,
+}) {
+  if (dateOfBirth == null || menarcheAge == null) return null;
+  if (menarcheAge < 0) return null;
+  // Whole years actually lived: a birthday later this calendar year has not
+  // been reached, so the year difference alone would over-count by one.
+  var age = asOf.year - dateOfBirth.year;
+  final reachedBirthday = asOf.month > dateOfBirth.month ||
+      (asOf.month == dateOfBirth.month && asOf.day >= dateOfBirth.day);
+  if (!reachedBirthday) age -= 1;
+  if (age < 0) return null;
+  final years = age - menarcheAge;
+  return years < 0 ? null : years;
+}
+
+/// "1 year" / "N years" - a lone "1 years" in the card reads as a bug.
+String _yearsLabel(int years) => years == 1 ? '1 year' : '$years years';
 
 /// Stats dashboard: summary tiles, a cycle-length trend, gentle red-flag
 /// notices, and a "share with your doctor" PDF export.
@@ -45,7 +80,16 @@ class InsightsScreen extends StatelessWidget {
     final cycles = log.cycles;
     final logs = log.logs;
     final prediction = context.read<PredictionResult>();
-    final mode = context.read<SettingsProvider>().mode;
+    final settings = context.read<SettingsProvider>();
+    final mode = settings.mode;
+    // The clinician profile header. Passed in canonical units — the report
+    // prints cm/kg regardless of `weightUnit`, as a clinical document should.
+    // These are the PROFILE fields, not the per-day `kMetricWeight` metric that
+    // feeds the trend chart further down the same report.
+    final dateOfBirth = settings.dateOfBirth;
+    final heightCm = settings.heightCm;
+    final profileWeightKg = settings.profileWeightKg;
+    final menarcheAge = settings.menarcheAge;
     final messenger = ScaffoldMessenger.of(context);
     try {
       final bytes = await PdfReportService.build(
@@ -55,6 +99,10 @@ class InsightsScreen extends StatelessWidget {
         prediction: prediction,
         mode: mode,
         generatedOn: DateTime.now(),
+        dateOfBirth: dateOfBirth,
+        heightCm: heightCm,
+        profileWeightKg: profileWeightKg,
+        menarcheAge: menarcheAge,
       );
       await Printing.sharePdf(bytes: bytes, filename: 'lunatrack_summary.pdf');
     } catch (e) {
@@ -93,14 +141,36 @@ class InsightsScreen extends StatelessWidget {
     // this screen is about history/patterns, not "where am I right now".
     final narratives =
         InsightsNarrator.narrate(cycles: cycles, logs: logProvider.logs);
-    // Weight: descriptive series only. No BMI, no height, no classification —
-    // a judgeable body label is the same class of harm as a synthesized
-    // fertility percentage.
-    final weightUnit =
-        context.watch<SettingsProvider?>()?.weightUnit ?? kWeightUnitKg;
+    // The saved profile answers, read once for everything that needs them.
+    // Optional, like every other provider read in this build: the screen has
+    // to stay pumpable without a SettingsProvider (see ad_placement_test).
+    final settings = context.watch<SettingsProvider?>();
+    // Weight trend: a descriptive series only, one value and one direction,
+    // never a category. The judgeable figure the owner approved on 2026-09-13
+    // is a separate card below, composed entirely inside BmiService, and it
+    // reads the PROFILE weight rather than this per-day metric.
+    final weightUnit = settings?.weightUnit ?? kWeightUnitKg;
     final weightTrend = WeightTrendService.compute(
       logProvider.logs,
       asOf: DateTime.now(),
+    );
+    // Both profile figures are DERIVED at read time from the four raw answers
+    // and never stored: a stored copy would silently disagree with the profile
+    // after any edit, and the first one moves on its own every birthday.
+    // They degrade independently - two answers feed each, and a missing pair
+    // hides only its own line, never the other.
+    final gynYears = gynaecologicalAgeYears(
+      dateOfBirth: settings?.dateOfBirth,
+      menarcheAge: settings?.menarcheAge,
+      asOf: DateTime.now(),
+    );
+    // Read out verbatim, never re-composed here. BmiService owns every
+    // user-facing word of this line, prefix and band label included, and the
+    // structural scan in test/weight_trend_service_test.dart exempts that one
+    // file alone; a string assembled here would fail it, correctly.
+    final profileIndex = BmiService.bmiReadout(
+      heightCm: settings?.heightCm,
+      weightKg: settings?.profileWeightKg,
     );
     final stats = insights.stats;
     // The full app theme carries the phase tokens; a bare `ThemeData` (as used
@@ -132,6 +202,36 @@ class InsightsScreen extends StatelessWidget {
                   _RegularityCard(
                       regularity: stats.regularity,
                       variability: stats.variability),
+                if (gynYears != null || profileIndex != null)
+                  _SectionCard(
+                    title: 'From your profile',
+                    dotColor: phases?.follicular,
+                    subtitle: 'Worked out from the answers you saved in your '
+                        'profile, not from your logs. Descriptions, not a '
+                        'diagnosis.',
+                    child: Column(
+                      children: [
+                        if (gynYears != null)
+                          _NoticeRow(
+                            icon: Icons.timelapse_outlined,
+                            title:
+                                'Gynaecological age: ${_yearsLabel(gynYears)}',
+                            message: 'The time since your first period, from '
+                                'your date of birth and the age you gave for '
+                                'it. Cycle length is commonly more variable in '
+                                'the years soon after a first period.',
+                          ),
+                        if (profileIndex != null)
+                          _NoticeRow(
+                            icon: Icons.straighten_outlined,
+                            title: profileIndex,
+                            message: 'From the height and current weight you '
+                                'saved on your profile, not from the weights '
+                                'you log day to day.',
+                          ),
+                      ],
+                    ),
+                  ),
                 if (narratives.isNotEmpty)
                   _SectionCard(
                     title: 'Your patterns',

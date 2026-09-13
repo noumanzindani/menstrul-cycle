@@ -730,11 +730,17 @@ void main() {
 
   test('syncs preference settings but never device-local ones', () async {
     final settings = SettingsRepository(db);
-    await settings.update(const AppSettingsCompanion(
-      defaultCycleLength: Value(31),
-      weightUnit: Value('lb'),
-      premium: Value(true),
-      appLockEnabled: Value(true),
+    await settings.update(AppSettingsCompanion(
+      defaultCycleLength: const Value(31),
+      weightUnit: const Value('lb'),
+      premium: const Value(true),
+      appLockEnabled: const Value(true),
+      // The profile fields are preferences like any other: they describe the
+      // person, not the device, so they travel.
+      dateOfBirth: Value(DateTime(1994, 3, 17)),
+      heightCm: const Value(168.5),
+      profileWeightKg: const Value(61.2),
+      menarcheAge: const Value(13),
     ));
 
     await sync.syncNow();
@@ -743,6 +749,15 @@ void main() {
         await firestore.doc('users/uid-1/settings/current').get();
     expect(doc.data()!['defaultCycleLength'], 31);
     expect(doc.data()!['weightUnit'], 'lb');
+    // A date travels as epoch millis, exactly like `pregnancyStartDate`.
+    expect(doc.data()!['dateOfBirth'],
+        DateTime(1994, 3, 17).millisecondsSinceEpoch);
+    // Canonical units on the wire: CENTIMETRES and KILOGRAMS, never the
+    // user's display unit -- `weightUnit` above is a display choice and is
+    // deliberately not applied to either number.
+    expect(doc.data()!['heightCm'], 168.5);
+    expect(doc.data()!['profileWeightKg'], 61.2);
+    expect(doc.data()!['menarcheAge'], 13);
     // Device-local concerns must NOT travel: `premium` is an IAP entitlement
     // tied to a Play account, and app lock is a per-device security choice.
     expect(doc.data()!.containsKey('premium'), isFalse);
@@ -761,6 +776,10 @@ void main() {
       'pregnancyStartDate': null,
       'trackingCategories': null,
       'weightUnit': 'lb',
+      'dateOfBirth': DateTime(1994, 3, 17).millisecondsSinceEpoch,
+      'heightCm': 168.5,
+      'profileWeightKg': 61.2,
+      'menarcheAge': 13,
       'updatedAt':
           DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
     });
@@ -770,6 +789,10 @@ void main() {
     final local = await settings.get();
     expect(local.defaultCycleLength, 33);
     expect(local.weightUnit, 'lb');
+    expect(local.dateOfBirth, DateTime(1994, 3, 17));
+    expect(local.heightCm, 168.5);
+    expect(local.profileWeightKg, 61.2);
+    expect(local.menarcheAge, 13);
   });
 
   test('a newer remote settings document is not clobbered by a stale local push',
@@ -791,6 +814,10 @@ void main() {
       'pregnancyStartDate': null,
       'trackingCategories': null,
       'weightUnit': null,
+      'dateOfBirth': DateTime(1988, 12, 1).millisecondsSinceEpoch,
+      'heightCm': 171.0,
+      'profileWeightKg': 64.0,
+      'menarcheAge': 12,
       'updatedAt':
           DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
     });
@@ -799,6 +826,11 @@ void main() {
 
     // (a) the local row took the remote's newer value.
     expect((await settings.get()).defaultCycleLength, 40);
+    final pulled = await settings.get();
+    expect(pulled.dateOfBirth, DateTime(1988, 12, 1));
+    expect(pulled.heightCm, 171.0);
+    expect(pulled.profileWeightKg, 64.0);
+    expect(pulled.menarcheAge, 12);
 
     // (b) the remote document still holds the remote's value -- a blind push
     // of the pre-sync local row (21) would have clobbered it before the pull
@@ -823,22 +855,110 @@ void main() {
       'pregnancyStartDate': null,
       'trackingCategories': null,
       'weightUnit': null,
+      // Stale profile values -- an earlier answer from another device.
+      'dateOfBirth': DateTime(1988, 12, 1).millisecondsSinceEpoch,
+      'heightCm': 150.0,
+      'profileWeightKg': 50.0,
+      'menarcheAge': 11,
       'updatedAt': DateTime(2020, 1, 1).millisecondsSinceEpoch,
     });
 
-    await settings.update(const AppSettingsCompanion(
-      defaultCycleLength: Value(19),
+    await settings.update(AppSettingsCompanion(
+      defaultCycleLength: const Value(19),
+      dateOfBirth: Value(DateTime(1994, 3, 17)),
+      heightCm: const Value(168.5),
+      profileWeightKg: const Value(61.2),
+      menarcheAge: const Value(13),
     ));
 
     await sync.syncNow();
 
     // Local keeps its own, genuinely newer value.
-    expect((await settings.get()).defaultCycleLength, 19);
+    final local = await settings.get();
+    expect(local.defaultCycleLength, 19);
+    // Including the profile fields: the stale remote answers lose.
+    expect(local.dateOfBirth, DateTime(1994, 3, 17));
+    expect(local.heightCm, 168.5);
+    expect(local.profileWeightKg, 61.2);
+    expect(local.menarcheAge, 13);
 
     // And it still reaches the remote -- proving the pull-before-push reorder
     // did not simply invert the bug so that local changes are the ones lost.
     final doc = await firestore.doc('users/uid-1/settings/current').get();
     expect(doc.data()!['defaultCycleLength'], 19);
+    expect(doc.data()!['dateOfBirth'],
+        DateTime(1994, 3, 17).millisecondsSinceEpoch);
+    expect(doc.data()!['heightCm'], 168.5);
+    expect(doc.data()!['profileWeightKg'], 61.2);
+    expect(doc.data()!['menarcheAge'], 13);
+  });
+
+  test('a remote settings document written before the profile fields existed '
+      'pulls cleanly and leaves them null', () async {
+    final settings = SettingsRepository(db);
+    // EXACTLY the document an older build of the app writes: the old
+    // preference set, and not one of the four profile keys. This is the real
+    // upgrade path -- every existing user's cloud document looks like this
+    // until the first device on the new build pushes.
+    await firestore.doc('users/uid-1/settings/current').set({
+      'mode': TrackingMode.track.index,
+      'defaultCycleLength': 29,
+      'defaultPeriodLength': 4,
+      'themeMode': 'dark',
+      'language': 'en',
+      'genderNeutralLanguage': false,
+      'pregnancyStartDate': null,
+      'trackingCategories': null,
+      'weightUnit': 'kg',
+      'updatedAt':
+          DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+    });
+
+    // Must not throw: a missing key is the NORMAL case here, not a defect.
+    await sync.syncNow();
+
+    final local = await settings.get();
+    // The document was genuinely applied (otherwise the null assertions below
+    // would pass vacuously, on a row the pull never touched at all).
+    expect(local.defaultCycleLength, 29);
+    expect(local.themeMode, 'dark');
+    // Unanswered stays unanswered -- no invented defaults anywhere.
+    expect(local.dateOfBirth, isNull);
+    expect(local.heightCm, isNull);
+    expect(local.profileWeightKg, isNull);
+    expect(local.menarcheAge, isNull);
+    expect(local.lastSyncedAt, isNotNull);
+  });
+
+  test('a whole-number height/weight arriving as an int still lands', () async {
+    final settings = SettingsRepository(db);
+    // Firestore number typing is not stable across writers: a whole number
+    // hand-entered in the console, or written by a non-Dart client, comes back
+    // as an `int`. `value is double` is false for it, so a `double`-typed
+    // defensive cast would silently drop a height the user really did answer.
+    await firestore.doc('users/uid-1/settings/current').set({
+      'mode': TrackingMode.track.index,
+      'defaultCycleLength': 28,
+      'defaultPeriodLength': 5,
+      'themeMode': 'system',
+      'language': 'en',
+      'genderNeutralLanguage': false,
+      'pregnancyStartDate': null,
+      'trackingCategories': null,
+      'weightUnit': null,
+      'dateOfBirth': null,
+      'heightCm': 170, // int, not double
+      'profileWeightKg': 60, // int, not double
+      'menarcheAge': 13,
+      'updatedAt':
+          DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+    });
+
+    await sync.syncNow();
+
+    final local = await settings.get();
+    expect(local.heightCm, 170.0);
+    expect(local.profileWeightKg, 60.0);
   });
 
   test('a settings pull with missing/malformed fields applies what it can '
@@ -854,6 +974,10 @@ void main() {
       'pregnancyStartDate': null,
       'trackingCategories': null,
       'weightUnit': 'kg',
+      // 'dateOfBirth' is missing entirely.
+      'heightCm': 'tall', // present but the WRONG type (should be a number).
+      'profileWeightKg': 58.0, // present and well-typed.
+      'menarcheAge': 13, // present and well-typed.
       'updatedAt':
           DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
     });
@@ -874,6 +998,13 @@ void main() {
     expect(local.mode, TrackingMode.track);
     expect(local.defaultPeriodLength, 5);
     expect(local.language, 'en');
+    // The profile fields follow the same rule, except that `null` is a
+    // legitimate answer for them ("not answered"), so a missing or malformed
+    // one collapses to null rather than leaving a stale value behind.
+    expect(local.profileWeightKg, 58.0);
+    expect(local.menarcheAge, 13);
+    expect(local.dateOfBirth, isNull);
+    expect(local.heightCm, isNull);
     // Sync completed and advanced the high-water mark -- it did not wedge.
     expect(local.lastSyncedAt, isNotNull);
   });

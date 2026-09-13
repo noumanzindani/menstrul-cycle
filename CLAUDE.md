@@ -110,7 +110,7 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   Numeric metrics (`pain`, `water`, `sleep`, `energy`, `stress`, `sleep_quality`, `weight`)
   ride the same blob as real JSON numbers, so they never satisfy the `== true` symptom check
   and need no key prefix. **`0` means "unset" for every numeric metric**, weight included.
-- **Schema & migrations.** `schemaVersion` is **7**. `onUpgrade` uses independent additive
+- **Schema & migrations.** `schemaVersion` is **8**. `onUpgrade` uses independent additive
   `if (from < n)` branches (not else-if), one nullable column each, so a user on any old
   version runs every intervening branch and existing rows need no backfill: v1→v2 added
   `AppSettings.pregnancyStartDate`; v2→v3 added `AppSettings.trackingCategories`; v3→v4
@@ -118,15 +118,19 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   `AppSettings.lastSyncedAt` and `AppSettings.settingsUpdatedAt`**; **v5→v6 added the
   `MediaItems` table** (the media timeline); **v6→v7 added
   `AppSettings.analysisConsentUid` plus `analysisCountDay` / `analysisCountToday`**
-  (photo descriptions and their daily cap). v4→v5 and v5→v6 are the only branches that
+  (photo descriptions and their daily cap); **v7→v8 added the four profile columns
+  `AppSettings.dateOfBirth`, `heightCm`, `profileWeightKg` and `menarcheAge`** (all
+  nullable — null means "not answered", which is a real answer here, not a default).
+  v4→v5 and v5→v6 are the only branches that
   create a table rather than adding a column; both are still purely additive. Note the two `SettingsRepository` entry
   points that write those columns: **`update()` stamps `settingsUpdatedAt`** (a user
   edit, so it pushes on the next sync), **`updateSyncState()` deliberately does not** —
   it is sync bookkeeping, and stamping it would make every sync look like a settings
   change and push forever. A committed JSON snapshot per version lives in
-  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v7.json` /
-  `schema_v7.dart`); `test/db_migration_v7_test.dart` uses drift's `SchemaVerifier` to run
-  the REAL `onUpgrade` against a v4 DB seeded with non-default rows.
+  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v8.json` /
+  `schema_v8.dart`); `test/db_migration_v8_test.dart` uses drift's `SchemaVerifier` to run
+  the REAL `onUpgrade` against a v7 DB seeded with non-default rows. The suite runs one
+  such test per hop, `db_migration_v3_test.dart` through `db_migration_v8_test.dart`.
   In-memory `AppDatabase.forTesting` runs `onCreate` at the current schema and NEVER
   exercises `onUpgrade`, so every new migration needs a snapshot dumped BEFORE the version
   bump (only derivable while that version is current) and its own SchemaVerifier test.
@@ -199,7 +203,8 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   local `demo-lunatrack` emulator only). Nothing is live until someone deploys.
 - **Only preference settings sync.** `SyncService._pushSettings` sends mode, cycle/period
   defaults, theme, language, gender-neutral language, pregnancy start date, tracking
-  categories and weight unit. `premium` (a Play-account IAP entitlement), `appLockEnabled`
+  categories, weight unit and the four profile fields (date of birth as epoch millis, height,
+  profile weight, age at first period). `premium` (a Play-account IAP entitlement), `appLockEnabled`
   (a per-device security choice), `onboardingComplete`, `lastSyncedAt` and `id` are
   deliberately device-local. Syncing `premium` would unlock ads on every device signed
   into the account, which is not what was purchased.
@@ -261,7 +266,9 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   visible; it may never name a condition, estimate severity or advise treatment. That is
   enforced by `kAnalysisSystemInstruction` (asserted clause-by-clause in
   `media_analysis_test.dart`), and LunaTrack itself never synthesizes a reading from the
-  answer. Same ground that vetoed LH-strip auto-interpretation and a BMI label. The
+  answer. Same ground that vetoed LH-strip auto-interpretation. (It once vetoed a BMI label
+  too; the owner reversed that on 2026-09-13 — see Weight tracking. The photo-description
+  ruling is untouched by that reversal.) The
   caveat line under every description is fixed and unconditional — one shown only
   sometimes teaches the user that its absence means the answer is reliable.
 - **User-facing copy must describe what the code does today, not what is planned.** The
@@ -429,10 +436,53 @@ question about whether the ruling changed — not about how to make the test pas
   (`test/weight_form_test.dart` has the regression test). Trend (90-day series + net change,
   null below two readings) is a pure `WeightTrendService`, charted on Insights and summarised
   in the doctor PDF (always kg there — it is a clinical document).
-  **Deliberately no BMI, no height, and no classification of any kind** — a judgeable body
-  label is the same class of harm as a synthesized fertility %. Enforced by a structural test
-  scanning `lib/` string literals for body-judgement copy; note a naive `/bmi/` search
-  matches "su**bmi**t", so it is scoped to quoted strings with word boundaries.
+  **RULING REVERSED 2026-09-13.** This bullet used to end "deliberately no BMI, no height,
+  and no classification of any kind", on the grounds that a judgeable body label is the same
+  class of harm as a synthesized fertility %. **The owner deliberately overturned that on
+  2026-09-13**, giving two reasons: better predictions and insights from a fuller profile,
+  and a doctor report that a clinician can actually read. Height is now collected, and a BMI
+  figure **with a WHO band label** is shown on Insights and printed in the PDF. Do not
+  "fix" that as a defect — it is the decision.
+  The structural guardrail was **narrowed, not deleted**: `test/weight_trend_service_test.dart`
+  still scans every `lib/` string literal for body-judgement copy and now exempts exactly one
+  path, `lib/services/bmi_service.dart`, which owns every such string (the band labels and
+  the `'BMI '` prefix) so the UI reads them out instead of writing its own. The original
+  ruling therefore still holds in every other file — a new offender anywhere else is a
+  question for the owner about widening the reversal, **not** an invitation to add a second
+  exemption. Two extra assertions keep the exemption live and earned (the file must still
+  exist and must still carry the copy), so renaming it cannot silently disarm the scan. Note
+  a naive `/bmi/` search matches "su**bmi**t", so it stays scoped to quoted strings with word
+  boundaries.
+- **Profile fields (the four "about you" answers)** — `dateOfBirth`, `heightCm`,
+  `profileWeightKg` and `menarcheAge` on the single `AppSettings` row (v7→v8), read/written
+  through `SettingsProvider`'s four getters and four nullable setters, all routed via
+  `update()` so they stamp `settingsUpdatedAt`. **Collected in onboarding** (the wizard is
+  now 7 pages: a date-of-birth page and a height / current-weight / age-at-first-period
+  page), where **every one is skippable and a skip stores null** — null is "not answered",
+  never a default. **Edited in Settings** → the "Profile" group under `AccountSection`.
+  Both hosts parse through the `catalog.dart` helpers into canonical cm/kg and **refuse**
+  out-of-range input inline (range checked AFTER unit conversion) rather than clamping.
+  **Height has no unit column of its own** — it reuses `AppSettings.weightUnit`
+  (kg ⇒ centimetres, lb ⇒ feet+inches), so there is one unit preference, not two.
+  The doctor PDF renders a **Profile block** under the header (age derived from
+  `dateOfBirth` as of the injected `generatedOn`, height, current weight, age at first
+  period, then the BMI readout), always metric; each row is omitted when unanswered and the
+  whole block disappears when nothing was answered. Wired from
+  `insights_screen.dart`'s `_exportPdf` — `PdfReportService.build` takes the four as
+  OPTIONAL named params, so a call site that forgets them silently ships a report with no
+  header (`test/insights_pdf_export_profile_test.dart` pins that call site).
+  They **sync** — `SyncService` pushes `dateOfBirth` as epoch millis and the rest raw, and
+  pulls with the `Value(null)` posture (so "clear my date of birth" is syncable; the cost,
+  documented at the pull site, is that an OLD build pushing a settings doc without these
+  keys will clear them on a new device). They ride the encrypted `.lunabak` automatically
+  via drift's generated `toJson()` — no backup code change was needed. The **operator panel
+  never sees them**: `admin/src/account.js` `settingsMeta()` projects the settings doc with
+  `.select('updatedAt', 'syncedAt')`, so the values never enter that process at all.
+  **`profileWeightKg` is deliberately a SEPARATE field from the per-day `kMetricWeight`
+  metric** and neither reads from the other: the profile weight is the PDF header's "current
+  weight" and the BMI input; `kMetricWeight` alone drives the 90-day `WeightTrendService`
+  chart. Label them differently in the UI. Derived figures (gynaecological age, the BMI
+  readout) are recomputed at read time and **never stored**.
 - **Diary** — `DiaryService` + `DiaryScreen` read back the notes users already write:
   non-blank notes only, newest first, case-insensitive search over the **note text only**
   (matching symptoms or dates would surface days the user never wrote about), with the cycle

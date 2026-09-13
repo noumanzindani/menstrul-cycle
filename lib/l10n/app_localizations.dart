@@ -316,6 +316,84 @@ abstract class AppLocalizations {
   /// **'Track a pregnancy'**
   String get settingsPregnancyOff;
 
+  /// No description provided for @settingsSectionProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get settingsSectionProfile;
+
+  /// No description provided for @settingsProfileNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get settingsProfileNotSet;
+
+  /// No description provided for @settingsProfileDobTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Date of birth'**
+  String get settingsProfileDobTitle;
+
+  /// No description provided for @settingsProfileDobHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Your date of birth'**
+  String get settingsProfileDobHelp;
+
+  /// No description provided for @settingsProfileHeightTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Height'**
+  String get settingsProfileHeightTitle;
+
+  /// No description provided for @settingsProfileHeightUnitCm.
+  ///
+  /// In en, this message translates to:
+  /// **'cm'**
+  String get settingsProfileHeightUnitCm;
+
+  /// No description provided for @settingsProfileHeightUnitFtIn.
+  ///
+  /// In en, this message translates to:
+  /// **'ft, in'**
+  String get settingsProfileHeightUnitFtIn;
+
+  /// Refusal shown when a typed height falls outside the plausible range. Both bounds arrive already formatted for the user's unit, marks included (5'5"), so no unit is appended here.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a height between {min} and {max}'**
+  String settingsProfileHeightRange(String min, String max);
+
+  /// No description provided for @settingsProfileWeightTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Current weight'**
+  String get settingsProfileWeightTitle;
+
+  /// No description provided for @settingsProfileWeightSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'For your health profile — separate from the weight you log on a day'**
+  String get settingsProfileWeightSubtitle;
+
+  /// Refusal shown when a typed profile weight falls outside the plausible range. Both bounds arrive already formatted for the user's unit, suffix included.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a weight between {min} and {max}'**
+  String settingsProfileWeightRange(String min, String max);
+
+  /// No description provided for @settingsProfileMenarcheTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Age at first period'**
+  String get settingsProfileMenarcheTitle;
+
+  /// No description provided for @settingsProfileUnitYears.
+  ///
+  /// In en, this message translates to:
+  /// **'years'**
+  String get settingsProfileUnitYears;
+
   /// No description provided for @settingsSectionCycleDefaults.
   ///
   /// In en, this message translates to:

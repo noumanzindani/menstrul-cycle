@@ -641,6 +641,12 @@ class SyncService {
 
   /// Preference fields only.
   ///
+  /// The profile fields (date of birth, height, profile weight, menarche age)
+  /// are preferences in this sense: they describe the person, not the device,
+  /// so they travel. Note `profileWeightKg` is NOT the per-day `weight` metric
+  /// -- that one rides `DailyLogs.symptoms` and syncs with the day it belongs
+  /// to. The two are deliberately separate values.
+  ///
   /// `premium` (a Play-account IAP entitlement), `appLockEnabled` (a per-device
   /// security choice), `onboardingComplete`, `lastSyncedAt` and `id` are
   /// deliberately device-local and never travel. Syncing `premium` in
@@ -665,6 +671,15 @@ class SyncService {
       'pregnancyStartDate': row.pregnancyStartDate?.millisecondsSinceEpoch,
       'trackingCategories': row.trackingCategories,
       'weightUnit': row.weightUnit,
+      // The profile fields. A date travels as epoch millis, like
+      // `pregnancyStartDate` above. The two measurements travel in their
+      // CANONICAL units -- centimetres and kilograms -- never in the user's
+      // display unit: `weightUnit` is a rendering choice, and applying it here
+      // would make the wire format depend on which device pushed last.
+      'dateOfBirth': row.dateOfBirth?.millisecondsSinceEpoch,
+      'heightCm': row.heightCm,
+      'profileWeightKg': row.profileWeightKg,
+      'menarcheAge': row.menarcheAge,
       'updatedAt': changed.millisecondsSinceEpoch,
       // `syncedAt` is written here for consistency with `dailyLogs` and
       // `deletions` (every remote document carries it), even though the
@@ -702,6 +717,15 @@ class SyncService {
     final language = _asOrNull<String>(data['language']);
     final genderNeutralLanguage =
         _asOrNull<bool>(data['genderNeutralLanguage']);
+    final dobMillis = _asOrNull<int>(data['dateOfBirth']);
+    // `num`, not `double`: Firestore number typing is not stable across
+    // writers, so a whole-number height (170) can arrive as an `int`, for
+    // which `value is double` is false -- a `double`-typed cast would silently
+    // drop an answer the user really gave. `_asOrNull` still refuses a String
+    // or a Map, which is the property that matters.
+    final heightCm = _asOrNull<num>(data['heightCm'])?.toDouble();
+    final profileWeightKg = _asOrNull<num>(data['profileWeightKg'])?.toDouble();
+    final menarcheAge = _asOrNull<int>(data['menarcheAge']);
 
     await _settings.updateSyncState(
       AppSettingsCompanion(
@@ -731,15 +755,26 @@ class SyncService {
         genderNeutralLanguage: genderNeutralLanguage == null
             ? const Value.absent()
             : Value(genderNeutralLanguage),
-        // These three are nullable columns where `null` is itself a
-        // meaningful, legitimate value (no pregnancy, no category override,
-        // unit never chosen) -- not a sync failure -- so a missing or
-        // malformed field collapses to `Value(null)`, never `Value.absent()`.
+        // These are nullable columns where `null` is itself a meaningful,
+        // legitimate value (no pregnancy, no category override, unit never
+        // chosen, profile question never answered) -- not a sync failure -- so
+        // a missing or malformed field collapses to `Value(null)`, never
+        // `Value.absent()`. For the four profile fields that also makes the
+        // upgrade path correct in the only direction it can be: a document
+        // written by an older build carries none of these keys, and a device
+        // that pulls it must end up with "not answered", which is the truth
+        // that document expresses.
         pregnancyStartDate: Value(pregnancyMillis == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(pregnancyMillis)),
         trackingCategories: Value(_asOrNull<String>(data['trackingCategories'])),
         weightUnit: Value(_asOrNull<String>(data['weightUnit'])),
+        dateOfBirth: Value(dobMillis == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(dobMillis)),
+        heightCm: Value(heightCm),
+        profileWeightKg: Value(profileWeightKg),
+        menarcheAge: Value(menarcheAge),
         settingsUpdatedAt: Value(remoteUpdated),
       ),
     );

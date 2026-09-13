@@ -5,7 +5,8 @@ import 'package:menstrul_track/db/database.dart';
 import 'generated_migrations/schema.dart';
 import 'generated_migrations/schema_v5.dart';
 
-/// v5 → v6 must ADD the `media_items` table without disturbing existing rows.
+/// The upgrade from v5 must ADD the `media_items` table without disturbing
+/// existing rows, and every branch after it must leave that table alone.
 /// Seeds NON-DEFAULT values on purpose: asserting defaults survive would also
 /// pass against a wipe-and-recreate migration.
 ///
@@ -24,7 +25,7 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('v5 -> v6 adds media_items and preserves existing data', () async {
+  test('v5 -> current adds media_items and preserves existing data', () async {
     final schema = await verifier.schemaAt(5);
 
     final oldDb = DatabaseAtV5(schema.newConnection());
@@ -57,7 +58,7 @@ void main() {
     await oldDb.close();
 
     final db = AppDatabase.forTesting(schema.newConnection());
-    await verifier.migrateAndValidate(db, 7);
+    await verifier.migrateAndValidate(db, 8);
 
     final settings = await db.getSettings();
     expect(settings.defaultCycleLength, 31);

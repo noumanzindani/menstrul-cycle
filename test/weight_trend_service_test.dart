@@ -112,25 +112,47 @@ void main() {
       expect(withLongNote, without);
     });
 
-    test('GUARDRAIL: no body-judgement copy ships in any user-facing string',
+    /// GUARDRAIL: body-judgement copy is confined to ONE owning module.
+    ///
+    /// The original ruling was absolute — no BMI, no height, no classification
+    /// of any kind — on the grounds that a judgeable body label is the same
+    /// class of harm as a synthesized fertility percentage. The project owner
+    /// DELIBERATELY REVERSED that ruling on 2026-09-13, for one feature: a
+    /// height and a date of birth are now collected on the profile, and
+    /// Insights shows a BMI readout with a WHO band label.
+    ///
+    /// The reversal is SCOPED, and this scan is what scopes it.
+    /// `lib/services/bmi_service.dart` is the single exemption; every other
+    /// file under `lib/` is still held to the original ruling. That is the
+    /// entire point of keeping the test rather than deleting it: the exemption
+    /// is what stops "overweight", "obese" or a stray `BMI ` prefix leaking
+    /// into Insights prose, the day-entry form, a notification, the doctor PDF
+    /// or a settings subtitle by accident — diffs where nobody would think to
+    /// re-ask the question. The UI reads these strings out of `BmiService`
+    /// instead of writing its own. A new offender here is a question about
+    /// whether the owner widened the reversal, NOT an invitation to add a
+    /// second exemption.
+    ///
+    /// Scoped to single-quoted Dart string literals with word boundaries: a
+    /// bare /bmi/ search matches "su(bmi)t", and an unscoped one flags the
+    /// comments that discuss these very words, so it would fire forever on a
+    /// clean tree and train everyone to ignore it.
+    test('GUARDRAIL: body-judgement copy stays inside bmi_service.dart',
         () async {
-      // Weight is DESCRIPTIVE only. A classification ("healthy", "obese",
-      // "normal range") or a derived BMI is a judgeable body label — the same
-      // class of harm as a synthesized fertility percentage, and the reason this
-      // feature has no height field to compute one from.
-      //
-      // Scoped to single-quoted Dart string literals with word boundaries: a
-      // bare /bmi/ search matches "su(bmi)t", and an unscoped one flags the
-      // comments that forbid these very words, so it would fire forever on a
-      // clean tree and train everyone to ignore it.
+      const exempt = 'lib/services/bmi_service.dart';
       final forbidden = RegExp(
         r"'[^']*\b(BMI|body mass|overweight|obese|underweight|"
         r"ideal weight|healthy weight|normal range)\b[^']*'",
         caseSensitive: false,
       );
       final offenders = <String>[];
+      var exemptWasScanned = false;
       for (final f in Directory('lib').listSync(recursive: true)) {
         if (f is! File || !f.path.endsWith('.dart')) continue;
+        if (f.path.replaceAll(r'\', '/') == exempt) {
+          exemptWasScanned = true;
+          continue;
+        }
         final lines = f.readAsLinesSync();
         for (var i = 0; i < lines.length; i++) {
           if (forbidden.hasMatch(lines[i])) {
@@ -138,7 +160,20 @@ void main() {
           }
         }
       }
-      expect(offenders, isEmpty, reason: 'body-judgement copy found');
+      expect(offenders, isEmpty,
+          reason: 'body-judgement copy found outside $exempt — the 2026-09-13 '
+              'reversal covers that file ONLY. Read these strings out of '
+              'BmiService instead of writing new ones.');
+
+      // The exemption has to stay LIVE and stay EARNED. If bmi_service.dart is
+      // renamed or deleted, the path above quietly exempts nothing and this
+      // test would keep passing while guarding a file that no longer exists —
+      // the "guardrail nobody re-armed" failure this project keeps finding.
+      expect(exemptWasScanned, isTrue,
+          reason: '$exempt no longer exists; re-point or drop the exemption.');
+      expect(File(exempt).readAsLinesSync().any(forbidden.hasMatch), isTrue,
+          reason: '$exempt carries no body-judgement copy any more. If the '
+              'owner re-tightened the ruling, delete the exemption too.');
     });
 
     test('includes weight when there is a trend', () async {

@@ -125,6 +125,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPregnancyOff => 'Track a pregnancy';
 
   @override
+  String get settingsSectionProfile => 'Profile';
+
+  @override
+  String get settingsProfileNotSet => 'Not set';
+
+  @override
+  String get settingsProfileDobTitle => 'Date of birth';
+
+  @override
+  String get settingsProfileDobHelp => 'Your date of birth';
+
+  @override
+  String get settingsProfileHeightTitle => 'Height';
+
+  @override
+  String get settingsProfileHeightUnitCm => 'cm';
+
+  @override
+  String get settingsProfileHeightUnitFtIn => 'ft, in';
+
+  @override
+  String settingsProfileHeightRange(String min, String max) {
+    return 'Enter a height between $min and $max';
+  }
+
+  @override
+  String get settingsProfileWeightTitle => 'Current weight';
+
+  @override
+  String get settingsProfileWeightSubtitle =>
+      'For your health profile — separate from the weight you log on a day';
+
+  @override
+  String settingsProfileWeightRange(String min, String max) {
+    return 'Enter a weight between $min and $max';
+  }
+
+  @override
+  String get settingsProfileMenarcheTitle => 'Age at first period';
+
+  @override
+  String get settingsProfileUnitYears => 'years';
+
+  @override
   String get settingsSectionCycleDefaults => 'Cycle defaults';
 
   @override

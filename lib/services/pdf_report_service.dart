@@ -10,6 +10,7 @@ import '../models/cycle.dart';
 import '../models/enums.dart';
 import '../models/insights.dart';
 import '../models/prediction.dart';
+import 'bmi_service.dart';
 import 'insights_narrator.dart';
 import 'weight_trend_service.dart';
 
@@ -25,6 +26,10 @@ class PdfReportService {
     List<DailyLog> logs = const [],
     PredictionResult? prediction,
     TrackingMode? mode,
+    DateTime? dateOfBirth,
+    double? heightCm,
+    double? profileWeightKg,
+    int? menarcheAge,
   }) async {
     final doc = pw.Document();
     final stats = insights.stats;
@@ -36,8 +41,42 @@ class PdfReportService {
     // Most recent cycles first, capped for a tidy one-pager.
     final recent = cycles.reversed.take(12).toList();
 
+    // The profile header a clinician reads first. Every line is omitted when
+    // its field was never answered, and the whole block disappears when none of
+    // them were — a user who skipped every question gets the report they always
+    // got, not an empty heading.
+    //
+    // METRIC ALWAYS, never the user's display preference: the same rule the
+    // weight trend below already follows, for the same reason — this document
+    // is read by someone else.
+    //
+    // The weight here is the PROFILE field, deliberately NOT the per-day
+    // `kMetricWeight` that drives the trend section below. They are two
+    // different questions: "what do you weigh now" versus "how has it moved
+    // over 90 days". Never make one read from the other.
+    final age = ageInYears(dateOfBirth, on: generatedOn);
+    final profileRows = <List<String>>[
+      if (age != null) ['Age', '$age years'],
+      if (heightCm != null)
+        ['Height', '${formatHeightFromCm(heightCm, kWeightUnitKg)} cm'],
+      if (profileWeightKg != null)
+        [
+          'Current weight',
+          '${formatWeightFromKg(profileWeightKg, kWeightUnitKg)} kg',
+        ],
+      if (menarcheAge != null) ['Age at first period', '$menarcheAge years'],
+    ];
+    // Read out verbatim, never reassembled here: `bmi_service.dart` is the one
+    // file in `lib/` permitted to carry body-judgement copy, and a structural
+    // test fails the build on a band word or a `BMI ` prefix written anywhere
+    // else. It returns null unless both inputs are present and plausible.
+    final bmi = BmiService.bmiReadout(
+      heightCm: heightCm,
+      weightKg: profileWeightKg,
+    );
+
     // Weight is reported in kg regardless of the display preference — this is a
-    // clinical document. Descriptive only: no BMI, no classification.
+    // clinical document.
     final weight = WeightTrendService.compute(logs, asOf: generatedOn);
 
     // Symptom & mood frequency across logged days. Sex activity is deliberately
@@ -71,6 +110,26 @@ class PdfReportService {
             pw.Text('Tracking focus: ${_modeLabel(mode)}',
                 style: const pw.TextStyle(color: PdfColors.grey700)),
           pw.Divider(),
+          if (profileRows.isNotEmpty || bmi != null) ...[
+            pw.SizedBox(height: 8),
+            pw.Text('Profile',
+                style: pw.TextStyle(
+                    fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 6),
+            pw.TableHelper.fromTextArray(
+              border: null,
+              cellAlignment: pw.Alignment.centerLeft,
+              headerDecoration:
+                  const pw.BoxDecoration(color: PdfColors.grey200),
+              headers: const ['Detail', 'Value'],
+              data: profileRows,
+            ),
+            if (bmi != null) ...[
+              pw.SizedBox(height: 6),
+              pw.Text(bmi),
+            ],
+            pw.SizedBox(height: 8),
+          ],
           pw.SizedBox(height: 8),
           pw.Text('Summary',
               style: pw.TextStyle(
@@ -198,6 +257,26 @@ class PdfReportService {
     );
 
     return doc.save();
+  }
+
+  /// Whole years between [dateOfBirth] and [on], or null when there is no
+  /// honest number to print.
+  ///
+  /// [on] is the report's `generatedOn` rather than the clock: the age in a
+  /// doctor report is the age on the day it was produced, and injecting it is
+  /// also what keeps the output byte-deterministic for the size-based tests.
+  ///
+  /// A birth date after [on] returns null instead of a negative number — an
+  /// impossible answer is omitted, not rendered. A birthday that has not yet
+  /// come round in [on]'s year counts one year fewer, which puts a Feb 29 birth
+  /// date's birthday on March 1 in a non-leap year.
+  static int? ageInYears(DateTime? dateOfBirth, {required DateTime on}) {
+    if (dateOfBirth == null) return null;
+    var years = on.year - dateOfBirth.year;
+    final beforeBirthday = on.month < dateOfBirth.month ||
+        (on.month == dateOfBirth.month && on.day < dateOfBirth.day);
+    if (beforeBirthday) years--;
+    return years < 0 ? null : years;
   }
 
   /// Counts how many logged days include each symptom. Sex keys are excluded

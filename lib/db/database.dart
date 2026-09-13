@@ -26,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -46,6 +46,9 @@ class AppDatabase extends _$AppDatabase {
         //   v5 → v6: the media timeline adds the MediaItems table.
         //   v6 → v7: photo descriptions add AppSettings.analysisConsentUid
         //            plus the two daily-cap columns.
+        //   v7 → v8: the user profile adds AppSettings.dateOfBirth, heightCm,
+        //            profileWeightKg and menarcheAge. All four read NULL for an
+        //            existing user, which is correct — nobody has been asked.
         // Branches are independent `if (from < n)` checks, not else-if, so a
         // user upgrading straight from v1 runs all of them.
         //
@@ -74,6 +77,12 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(appSettings, appSettings.analysisConsentUid);
             await m.addColumn(appSettings, appSettings.analysisCountDay);
             await m.addColumn(appSettings, appSettings.analysisCountToday);
+          }
+          if (from < 8) {
+            await m.addColumn(appSettings, appSettings.dateOfBirth);
+            await m.addColumn(appSettings, appSettings.heightCm);
+            await m.addColumn(appSettings, appSettings.profileWeightKg);
+            await m.addColumn(appSettings, appSettings.menarcheAge);
           }
         },
       );

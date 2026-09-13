@@ -454,6 +454,116 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
+  /// Canonical [cm] rendered for [unit].
+  ///
+  /// Feet-and-inches already carries its own marks (`5'5"`), so the unit is
+  /// appended only for centimetres. That is also why the range refusal takes
+  /// both bounds PRE-FORMATTED rather than appending a bare `$unit` the way the
+  /// day form's weight message does — under lb it would read `between 2'7" and
+  /// 8'2" lb`.
+  static String _heightLabel(BuildContext context, double cm, String unit) =>
+      unit == kWeightUnitLb
+          ? formatHeightFromCm(cm, unit)
+          : '${formatHeightFromCm(cm, unit)} '
+              '${context.l10n.settingsProfileHeightUnitCm}';
+
+  /// Canonical [kg] rendered for [unit]. Unlike height, both weight units need
+  /// the suffix — `62.5` alone says nothing.
+  static String _weightLabel(double kg, String unit) =>
+      '${formatWeightFromKg(kg, unit)} $unit';
+
+  /// Date of birth — a FULL date, never a year or an age, so it stays correct
+  /// as time passes.
+  ///
+  /// Same shape as the app's only other date picker
+  /// (`pregnancy_screen.dart`), `helpText` included. With nothing stored the
+  /// picker OPENS 25 years back: that is where the wheel starts, not a default
+  /// — nothing is written unless the user confirms a date.
+  Future<void> _pickDateOfBirth(
+      BuildContext context, SettingsProvider settings) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: settings.dateOfBirth ??
+          DateTime(now.year - 25, now.month, now.day),
+      firstDate: DateTime(now.year - 100),
+      lastDate: now,
+      helpText: context.l10n.settingsProfileDobHelp,
+    );
+    if (picked != null) await settings.setDateOfBirth(picked);
+  }
+
+  /// Height, stored in canonical CENTIMETRES.
+  ///
+  /// Out of range is a REFUSAL: `parseHeightToCm` returns null, the dialog
+  /// shows the inline error and stays open, and nothing is written — the same
+  /// contract as `DayEntryFormState.save()`, never a silent clamp. The range is
+  /// checked AFTER the ft/in → cm conversion, inside the parser.
+  Future<void> _editHeight(
+      BuildContext context, SettingsProvider settings) async {
+    final l10n = context.l10n;
+    final unit = settings.weightUnit;
+    final lo = _heightLabel(context, kMinHeightCm, unit);
+    final hi = _heightLabel(context, kMaxHeightCm, unit);
+    final cm = settings.heightCm;
+    final result = await showDialog<_MeasureResult>(
+      context: context,
+      builder: (_) => _MeasureDialog(
+        fieldKey: const Key('settings.profile.heightField'),
+        title: l10n.settingsProfileHeightTitle,
+        suffix: unit == kWeightUnitLb
+            ? l10n.settingsProfileHeightUnitFtIn
+            : l10n.settingsProfileHeightUnitCm,
+        initial: cm == null ? '' : formatHeightFromCm(cm, unit),
+        // Feet and inches needs the ' and " characters, so it cannot use the
+        // numeric keyboard.
+        keyboardType: unit == kWeightUnitLb
+            ? TextInputType.text
+            : const TextInputType.numberWithOptions(decimal: true),
+        parse: (raw) => parseHeightToCm(raw, unit),
+        rangeError: l10n.settingsProfileHeightRange(lo, hi),
+      ),
+    );
+    if (result != null) await settings.setHeightCm(result.value);
+  }
+
+  /// The profile's "current weight", in canonical KILOGRAMS.
+  ///
+  /// A SEPARATE value from the per-day `kMetricWeight` the day editor logs and
+  /// the 90-day trend chart reads. Neither ever reads from the other, and the
+  /// row is labelled so they cannot be mistaken for one field.
+  Future<void> _editProfileWeight(
+      BuildContext context, SettingsProvider settings) async {
+    final l10n = context.l10n;
+    final unit = settings.weightUnit;
+    final kg = settings.profileWeightKg;
+    final result = await showDialog<_MeasureResult>(
+      context: context,
+      builder: (_) => _MeasureDialog(
+        fieldKey: const Key('settings.profile.weightField'),
+        title: l10n.settingsProfileWeightTitle,
+        suffix: unit,
+        initial: kg == null ? '' : formatWeightFromKg(kg, unit),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        parse: (raw) => parseWeightToKg(raw, unit),
+        rangeError: l10n.settingsProfileWeightRange(
+          _weightLabel(kMinWeightKg, unit),
+          _weightLabel(kMaxWeightKg, unit),
+        ),
+      ),
+    );
+    if (result != null) await settings.setProfileWeightKg(result.value);
+  }
+
+  Future<void> _editMenarcheAge(
+      BuildContext context, SettingsProvider settings) async {
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (_) => _MenarcheDialog(initial: settings.menarcheAge),
+    );
+    if (picked != null) await settings.setMenarcheAge(picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
@@ -471,6 +581,78 @@ class SettingsScreen extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 8),
         children: [
           const AccountSection(),
+          // Beside the identity row, because this is the rest of "who I am".
+          //
+          // Every row CHOOSES a value, so every row carries a `SettingsValue`
+          // and opens a picker — no chevrons here (see the grammar note on this
+          // class). All four are unanswered until the user answers them: the
+          // profile is skippable and nothing invents a stand-in.
+          //
+          // The rows are direct `SettingsGroup` children on purpose; wrapping
+          // them in a `Column` would hand the group one child and silently lose
+          // the hairlines between them (account_section.dart:613-620).
+          SettingsGroup(
+            title: l10n.settingsSectionProfile,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.cake_outlined),
+                title: Text(l10n.settingsProfileDobTitle),
+                // A full date reads long ("Monday, September 15, 2001"), and a
+                // `ListTile` hands its trailing widget the intrinsic width it
+                // asks for. Unbounded, that starves the title on a 360dp phone
+                // — the width class of bug this project has already shipped
+                // once (see the FilledButton-in-a-Row note in CLAUDE.md, found
+                // on a device because tests default to an 800x600 surface).
+                trailing: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 168),
+                  child: SettingsValue(
+                    settings.dateOfBirth == null
+                        ? l10n.settingsProfileNotSet
+                        : MaterialLocalizations.of(context)
+                            .formatFullDate(settings.dateOfBirth!),
+                  ),
+                ),
+                onTap: () => _pickDateOfBirth(context, settings),
+              ),
+              ListTile(
+                leading: const Icon(Icons.straighten_outlined),
+                title: Text(l10n.settingsProfileHeightTitle),
+                trailing: SettingsValue(
+                  settings.heightCm == null
+                      ? l10n.settingsProfileNotSet
+                      : _heightLabel(
+                          context, settings.heightCm!, settings.weightUnit),
+                ),
+                onTap: () => _editHeight(context, settings),
+              ),
+              ListTile(
+                leading: const Icon(Icons.monitor_weight_outlined),
+                title: Text(l10n.settingsProfileWeightTitle),
+                // The subtitle is load-bearing, not decoration: this is NOT the
+                // weight the day editor logs, and two fields called "Weight"
+                // would read as one.
+                subtitle: Text(l10n.settingsProfileWeightSubtitle),
+                trailing: SettingsValue(
+                  settings.profileWeightKg == null
+                      ? l10n.settingsProfileNotSet
+                      : _weightLabel(
+                          settings.profileWeightKg!, settings.weightUnit),
+                ),
+                onTap: () => _editProfileWeight(context, settings),
+              ),
+              ListTile(
+                leading: const Icon(Icons.event_available_outlined),
+                title: Text(l10n.settingsProfileMenarcheTitle),
+                trailing: SettingsValue(
+                  settings.menarcheAge == null
+                      ? l10n.settingsProfileNotSet
+                      : '${settings.menarcheAge} '
+                          '${l10n.settingsProfileUnitYears}',
+                ),
+                onTap: () => _editMenarcheAge(context, settings),
+              ),
+            ],
+          ),
           SettingsGroup(
             title: l10n.settingsSectionGoal,
             children: [
@@ -807,6 +989,180 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
         FilledButton(
           onPressed: _submit,
           child: Text(widget.action ?? l10n.backupActionBackUp),
+        ),
+      ],
+    );
+  }
+}
+
+/// What a [_MeasureDialog] returns.
+///
+/// A null [value] means the user CLEARED the field (submitted it blank); a null
+/// RESULT from `showDialog` means they cancelled. Collapsing the two would make
+/// Cancel erase a stored answer — which is why this wrapper exists instead of
+/// returning a bare `double?`.
+class _MeasureResult {
+  const _MeasureResult(this.value);
+
+  /// The canonical-unit value to store, or null to clear the field.
+  final double? value;
+}
+
+/// One numeric profile measurement (height, current weight) behind a dialog.
+///
+/// The refusal contract is the point of this widget: [parse] returns null for
+/// anything outside the plausible range — checked AFTER unit conversion, inside
+/// the parser — and the dialog then shows [rangeError] inline and STAYS OPEN
+/// with the typed text intact. Nothing is written and nothing is clamped, the
+/// same posture as `DayEntryFormState.save()` returning false.
+class _MeasureDialog extends StatefulWidget {
+  const _MeasureDialog({
+    required this.fieldKey,
+    required this.title,
+    required this.suffix,
+    required this.initial,
+    required this.keyboardType,
+    required this.parse,
+    required this.rangeError,
+  });
+
+  final Key fieldKey;
+  final String title;
+
+  /// Unit drawn inside the field, so the value itself never carries one.
+  final String suffix;
+  final String initial;
+  final TextInputType keyboardType;
+
+  /// Parses the typed text into the CANONICAL unit, or null to refuse it.
+  final double? Function(String) parse;
+
+  /// Shown when [parse] refuses. Carries both bounds already formatted for the
+  /// user's unit, marks and suffix included.
+  final String rangeError;
+
+  @override
+  State<_MeasureDialog> createState() => _MeasureDialogState();
+}
+
+class _MeasureDialogState extends State<_MeasureDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial);
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final raw = _controller.text.trim();
+    // Blank is a CLEAR, not a refusal — the setters take a nullable argument so
+    // one entry point both sets and unanswers. Only non-blank text can be out
+    // of range, exactly as `DayEntryFormState.save()` guards its parse.
+    if (raw.isEmpty) {
+      Navigator.pop(context, const _MeasureResult(null));
+      return;
+    }
+    final parsed = widget.parse(raw);
+    if (parsed == null) {
+      setState(() => _error = widget.rangeError);
+      return;
+    }
+    Navigator.pop(context, _MeasureResult(parsed));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextFormField(
+        key: widget.fieldKey,
+        controller: _controller,
+        autofocus: true,
+        keyboardType: widget.keyboardType,
+        decoration: InputDecoration(
+          suffixText: widget.suffix,
+          errorText: _error,
+          border: const OutlineInputBorder(),
+        ),
+        onFieldSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.actionCancel),
+        ),
+        FilledButton(onPressed: _submit, child: Text(l10n.actionSave)),
+      ],
+    );
+  }
+}
+
+/// Plausible bounds for an age at menarche, and where the stepper starts when
+/// the question has never been answered. The start is an interaction seed, NOT
+/// a stored default: the row reads "Not set" until the user taps Save.
+const int _kMinMenarcheAge = 8;
+const int _kMaxMenarcheAge = 20;
+const int _kMenarcheSeed = 13;
+
+/// Age at first period, as a stepper behind a dialog.
+///
+/// Bounds are enforced by DISABLING the button, never by clamping a value the
+/// user asked for — the same rule `_StepperTile` follows for the cycle
+/// defaults, and the same rule the product timer's caps follow.
+class _MenarcheDialog extends StatefulWidget {
+  const _MenarcheDialog({this.initial});
+
+  final int? initial;
+
+  @override
+  State<_MenarcheDialog> createState() => _MenarcheDialogState();
+}
+
+class _MenarcheDialogState extends State<_MenarcheDialog> {
+  late int _value = widget.initial ?? _kMenarcheSeed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    return AlertDialog(
+      title: Text(l10n.settingsProfileMenarcheTitle),
+      content: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            key: const Key('settings.profile.menarcheMinus'),
+            icon: const Icon(Icons.remove),
+            onPressed: _value > _kMinMenarcheAge
+                ? () => setState(() => _value--)
+                : null,
+          ),
+          Text(
+            '$_value ${l10n.settingsProfileUnitYears}',
+            style: theme.textTheme.titleMedium,
+          ),
+          IconButton(
+            key: const Key('settings.profile.menarchePlus'),
+            icon: const Icon(Icons.add),
+            onPressed: _value < _kMaxMenarcheAge
+                ? () => setState(() => _value++)
+                : null,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.actionCancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _value),
+          child: Text(l10n.actionSave),
         ),
       ],
     );

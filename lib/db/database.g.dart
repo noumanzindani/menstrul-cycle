@@ -2010,6 +2010,50 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _dateOfBirthMeta = const VerificationMeta(
+    'dateOfBirth',
+  );
+  @override
+  late final GeneratedColumn<DateTime> dateOfBirth = GeneratedColumn<DateTime>(
+    'date_of_birth',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _heightCmMeta = const VerificationMeta(
+    'heightCm',
+  );
+  @override
+  late final GeneratedColumn<double> heightCm = GeneratedColumn<double>(
+    'height_cm',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _profileWeightKgMeta = const VerificationMeta(
+    'profileWeightKg',
+  );
+  @override
+  late final GeneratedColumn<double> profileWeightKg = GeneratedColumn<double>(
+    'profile_weight_kg',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _menarcheAgeMeta = const VerificationMeta(
+    'menarcheAge',
+  );
+  @override
+  late final GeneratedColumn<int> menarcheAge = GeneratedColumn<int>(
+    'menarche_age',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2031,6 +2075,10 @@ class $AppSettingsTable extends AppSettings
     analysisConsentUid,
     analysisCountDay,
     analysisCountToday,
+    dateOfBirth,
+    heightCm,
+    profileWeightKg,
+    menarcheAge,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2185,6 +2233,39 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('date_of_birth')) {
+      context.handle(
+        _dateOfBirthMeta,
+        dateOfBirth.isAcceptableOrUnknown(
+          data['date_of_birth']!,
+          _dateOfBirthMeta,
+        ),
+      );
+    }
+    if (data.containsKey('height_cm')) {
+      context.handle(
+        _heightCmMeta,
+        heightCm.isAcceptableOrUnknown(data['height_cm']!, _heightCmMeta),
+      );
+    }
+    if (data.containsKey('profile_weight_kg')) {
+      context.handle(
+        _profileWeightKgMeta,
+        profileWeightKg.isAcceptableOrUnknown(
+          data['profile_weight_kg']!,
+          _profileWeightKgMeta,
+        ),
+      );
+    }
+    if (data.containsKey('menarche_age')) {
+      context.handle(
+        _menarcheAgeMeta,
+        menarcheAge.isAcceptableOrUnknown(
+          data['menarche_age']!,
+          _menarcheAgeMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2272,6 +2353,22 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.int,
         data['${effectivePrefix}analysis_count_today'],
       ),
+      dateOfBirth: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}date_of_birth'],
+      ),
+      heightCm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}height_cm'],
+      ),
+      profileWeightKg: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}profile_weight_kg'],
+      ),
+      menarcheAge: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}menarche_age'],
+      ),
     );
   }
 
@@ -2304,6 +2401,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final String? analysisConsentUid;
   final String? analysisCountDay;
   final int? analysisCountToday;
+  final DateTime? dateOfBirth;
+  final double? heightCm;
+  final double? profileWeightKg;
+  final int? menarcheAge;
   const AppSetting({
     required this.id,
     required this.mode,
@@ -2324,6 +2425,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.analysisConsentUid,
     this.analysisCountDay,
     this.analysisCountToday,
+    this.dateOfBirth,
+    this.heightCm,
+    this.profileWeightKg,
+    this.menarcheAge,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2367,6 +2472,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || analysisCountToday != null) {
       map['analysis_count_today'] = Variable<int>(analysisCountToday);
     }
+    if (!nullToAbsent || dateOfBirth != null) {
+      map['date_of_birth'] = Variable<DateTime>(dateOfBirth);
+    }
+    if (!nullToAbsent || heightCm != null) {
+      map['height_cm'] = Variable<double>(heightCm);
+    }
+    if (!nullToAbsent || profileWeightKg != null) {
+      map['profile_weight_kg'] = Variable<double>(profileWeightKg);
+    }
+    if (!nullToAbsent || menarcheAge != null) {
+      map['menarche_age'] = Variable<int>(menarcheAge);
+    }
     return map;
   }
 
@@ -2409,6 +2526,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       analysisCountToday: analysisCountToday == null && nullToAbsent
           ? const Value.absent()
           : Value(analysisCountToday),
+      dateOfBirth: dateOfBirth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dateOfBirth),
+      heightCm: heightCm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(heightCm),
+      profileWeightKg: profileWeightKg == null && nullToAbsent
+          ? const Value.absent()
+          : Value(profileWeightKg),
+      menarcheAge: menarcheAge == null && nullToAbsent
+          ? const Value.absent()
+          : Value(menarcheAge),
     );
   }
 
@@ -2451,6 +2580,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       ),
       analysisCountDay: serializer.fromJson<String?>(json['analysisCountDay']),
       analysisCountToday: serializer.fromJson<int?>(json['analysisCountToday']),
+      dateOfBirth: serializer.fromJson<DateTime?>(json['dateOfBirth']),
+      heightCm: serializer.fromJson<double?>(json['heightCm']),
+      profileWeightKg: serializer.fromJson<double?>(json['profileWeightKg']),
+      menarcheAge: serializer.fromJson<int?>(json['menarcheAge']),
     );
   }
   @override
@@ -2478,6 +2611,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'analysisConsentUid': serializer.toJson<String?>(analysisConsentUid),
       'analysisCountDay': serializer.toJson<String?>(analysisCountDay),
       'analysisCountToday': serializer.toJson<int?>(analysisCountToday),
+      'dateOfBirth': serializer.toJson<DateTime?>(dateOfBirth),
+      'heightCm': serializer.toJson<double?>(heightCm),
+      'profileWeightKg': serializer.toJson<double?>(profileWeightKg),
+      'menarcheAge': serializer.toJson<int?>(menarcheAge),
     };
   }
 
@@ -2501,6 +2638,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<String?> analysisConsentUid = const Value.absent(),
     Value<String?> analysisCountDay = const Value.absent(),
     Value<int?> analysisCountToday = const Value.absent(),
+    Value<DateTime?> dateOfBirth = const Value.absent(),
+    Value<double?> heightCm = const Value.absent(),
+    Value<double?> profileWeightKg = const Value.absent(),
+    Value<int?> menarcheAge = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     mode: mode ?? this.mode,
@@ -2533,6 +2674,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     analysisCountToday: analysisCountToday.present
         ? analysisCountToday.value
         : this.analysisCountToday,
+    dateOfBirth: dateOfBirth.present ? dateOfBirth.value : this.dateOfBirth,
+    heightCm: heightCm.present ? heightCm.value : this.heightCm,
+    profileWeightKg: profileWeightKg.present
+        ? profileWeightKg.value
+        : this.profileWeightKg,
+    menarcheAge: menarcheAge.present ? menarcheAge.value : this.menarcheAge,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -2583,6 +2730,16 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       analysisCountToday: data.analysisCountToday.present
           ? data.analysisCountToday.value
           : this.analysisCountToday,
+      dateOfBirth: data.dateOfBirth.present
+          ? data.dateOfBirth.value
+          : this.dateOfBirth,
+      heightCm: data.heightCm.present ? data.heightCm.value : this.heightCm,
+      profileWeightKg: data.profileWeightKg.present
+          ? data.profileWeightKg.value
+          : this.profileWeightKg,
+      menarcheAge: data.menarcheAge.present
+          ? data.menarcheAge.value
+          : this.menarcheAge,
     );
   }
 
@@ -2607,13 +2764,17 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('settingsUpdatedAt: $settingsUpdatedAt, ')
           ..write('analysisConsentUid: $analysisConsentUid, ')
           ..write('analysisCountDay: $analysisCountDay, ')
-          ..write('analysisCountToday: $analysisCountToday')
+          ..write('analysisCountToday: $analysisCountToday, ')
+          ..write('dateOfBirth: $dateOfBirth, ')
+          ..write('heightCm: $heightCm, ')
+          ..write('profileWeightKg: $profileWeightKg, ')
+          ..write('menarcheAge: $menarcheAge')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     mode,
     defaultCycleLength,
@@ -2633,7 +2794,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     analysisConsentUid,
     analysisCountDay,
     analysisCountToday,
-  );
+    dateOfBirth,
+    heightCm,
+    profileWeightKg,
+    menarcheAge,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2656,7 +2821,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.settingsUpdatedAt == this.settingsUpdatedAt &&
           other.analysisConsentUid == this.analysisConsentUid &&
           other.analysisCountDay == this.analysisCountDay &&
-          other.analysisCountToday == this.analysisCountToday);
+          other.analysisCountToday == this.analysisCountToday &&
+          other.dateOfBirth == this.dateOfBirth &&
+          other.heightCm == this.heightCm &&
+          other.profileWeightKg == this.profileWeightKg &&
+          other.menarcheAge == this.menarcheAge);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -2679,6 +2848,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<String?> analysisConsentUid;
   final Value<String?> analysisCountDay;
   final Value<int?> analysisCountToday;
+  final Value<DateTime?> dateOfBirth;
+  final Value<double?> heightCm;
+  final Value<double?> profileWeightKg;
+  final Value<int?> menarcheAge;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.mode = const Value.absent(),
@@ -2699,6 +2872,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.analysisConsentUid = const Value.absent(),
     this.analysisCountDay = const Value.absent(),
     this.analysisCountToday = const Value.absent(),
+    this.dateOfBirth = const Value.absent(),
+    this.heightCm = const Value.absent(),
+    this.profileWeightKg = const Value.absent(),
+    this.menarcheAge = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -2720,6 +2897,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.analysisConsentUid = const Value.absent(),
     this.analysisCountDay = const Value.absent(),
     this.analysisCountToday = const Value.absent(),
+    this.dateOfBirth = const Value.absent(),
+    this.heightCm = const Value.absent(),
+    this.profileWeightKg = const Value.absent(),
+    this.menarcheAge = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -2741,6 +2922,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<String>? analysisConsentUid,
     Expression<String>? analysisCountDay,
     Expression<int>? analysisCountToday,
+    Expression<DateTime>? dateOfBirth,
+    Expression<double>? heightCm,
+    Expression<double>? profileWeightKg,
+    Expression<int>? menarcheAge,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2768,6 +2953,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (analysisCountDay != null) 'analysis_count_day': analysisCountDay,
       if (analysisCountToday != null)
         'analysis_count_today': analysisCountToday,
+      if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
+      if (heightCm != null) 'height_cm': heightCm,
+      if (profileWeightKg != null) 'profile_weight_kg': profileWeightKg,
+      if (menarcheAge != null) 'menarche_age': menarcheAge,
     });
   }
 
@@ -2791,6 +2980,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<String?>? analysisConsentUid,
     Value<String?>? analysisCountDay,
     Value<int?>? analysisCountToday,
+    Value<DateTime?>? dateOfBirth,
+    Value<double?>? heightCm,
+    Value<double?>? profileWeightKg,
+    Value<int?>? menarcheAge,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -2813,6 +3006,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       analysisConsentUid: analysisConsentUid ?? this.analysisConsentUid,
       analysisCountDay: analysisCountDay ?? this.analysisCountDay,
       analysisCountToday: analysisCountToday ?? this.analysisCountToday,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      heightCm: heightCm ?? this.heightCm,
+      profileWeightKg: profileWeightKg ?? this.profileWeightKg,
+      menarcheAge: menarcheAge ?? this.menarcheAge,
     );
   }
 
@@ -2882,6 +3079,18 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (analysisCountToday.present) {
       map['analysis_count_today'] = Variable<int>(analysisCountToday.value);
     }
+    if (dateOfBirth.present) {
+      map['date_of_birth'] = Variable<DateTime>(dateOfBirth.value);
+    }
+    if (heightCm.present) {
+      map['height_cm'] = Variable<double>(heightCm.value);
+    }
+    if (profileWeightKg.present) {
+      map['profile_weight_kg'] = Variable<double>(profileWeightKg.value);
+    }
+    if (menarcheAge.present) {
+      map['menarche_age'] = Variable<int>(menarcheAge.value);
+    }
     return map;
   }
 
@@ -2906,7 +3115,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('settingsUpdatedAt: $settingsUpdatedAt, ')
           ..write('analysisConsentUid: $analysisConsentUid, ')
           ..write('analysisCountDay: $analysisCountDay, ')
-          ..write('analysisCountToday: $analysisCountToday')
+          ..write('analysisCountToday: $analysisCountToday, ')
+          ..write('dateOfBirth: $dateOfBirth, ')
+          ..write('heightCm: $heightCm, ')
+          ..write('profileWeightKg: $profileWeightKg, ')
+          ..write('menarcheAge: $menarcheAge')
           ..write(')'))
         .toString();
   }
@@ -4928,6 +5141,10 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<String?> analysisConsentUid,
       Value<String?> analysisCountDay,
       Value<int?> analysisCountToday,
+      Value<DateTime?> dateOfBirth,
+      Value<double?> heightCm,
+      Value<double?> profileWeightKg,
+      Value<int?> menarcheAge,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -4950,6 +5167,10 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<String?> analysisConsentUid,
       Value<String?> analysisCountDay,
       Value<int?> analysisCountToday,
+      Value<DateTime?> dateOfBirth,
+      Value<double?> heightCm,
+      Value<double?> profileWeightKg,
+      Value<int?> menarcheAge,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -5054,6 +5275,26 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<int> get analysisCountToday => $composableBuilder(
     column: $table.analysisCountToday,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dateOfBirth => $composableBuilder(
+    column: $table.dateOfBirth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get heightCm => $composableBuilder(
+    column: $table.heightCm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get profileWeightKg => $composableBuilder(
+    column: $table.profileWeightKg,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get menarcheAge => $composableBuilder(
+    column: $table.menarcheAge,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5161,6 +5402,26 @@ class $$AppSettingsTableOrderingComposer
     column: $table.analysisCountToday,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get dateOfBirth => $composableBuilder(
+    column: $table.dateOfBirth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get heightCm => $composableBuilder(
+    column: $table.heightCm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get profileWeightKg => $composableBuilder(
+    column: $table.profileWeightKg,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get menarcheAge => $composableBuilder(
+    column: $table.menarcheAge,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -5256,6 +5517,24 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.analysisCountToday,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get dateOfBirth => $composableBuilder(
+    column: $table.dateOfBirth,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get heightCm =>
+      $composableBuilder(column: $table.heightCm, builder: (column) => column);
+
+  GeneratedColumn<double> get profileWeightKg => $composableBuilder(
+    column: $table.profileWeightKg,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get menarcheAge => $composableBuilder(
+    column: $table.menarcheAge,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -5308,6 +5587,10 @@ class $$AppSettingsTableTableManager
                 Value<String?> analysisConsentUid = const Value.absent(),
                 Value<String?> analysisCountDay = const Value.absent(),
                 Value<int?> analysisCountToday = const Value.absent(),
+                Value<DateTime?> dateOfBirth = const Value.absent(),
+                Value<double?> heightCm = const Value.absent(),
+                Value<double?> profileWeightKg = const Value.absent(),
+                Value<int?> menarcheAge = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 mode: mode,
@@ -5328,6 +5611,10 @@ class $$AppSettingsTableTableManager
                 analysisConsentUid: analysisConsentUid,
                 analysisCountDay: analysisCountDay,
                 analysisCountToday: analysisCountToday,
+                dateOfBirth: dateOfBirth,
+                heightCm: heightCm,
+                profileWeightKg: profileWeightKg,
+                menarcheAge: menarcheAge,
               ),
           createCompanionCallback:
               ({
@@ -5350,6 +5637,10 @@ class $$AppSettingsTableTableManager
                 Value<String?> analysisConsentUid = const Value.absent(),
                 Value<String?> analysisCountDay = const Value.absent(),
                 Value<int?> analysisCountToday = const Value.absent(),
+                Value<DateTime?> dateOfBirth = const Value.absent(),
+                Value<double?> heightCm = const Value.absent(),
+                Value<double?> profileWeightKg = const Value.absent(),
+                Value<int?> menarcheAge = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 mode: mode,
@@ -5370,6 +5661,10 @@ class $$AppSettingsTableTableManager
                 analysisConsentUid: analysisConsentUid,
                 analysisCountDay: analysisCountDay,
                 analysisCountToday: analysisCountToday,
+                dateOfBirth: dateOfBirth,
+                heightCm: heightCm,
+                profileWeightKg: profileWeightKg,
+                menarcheAge: menarcheAge,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

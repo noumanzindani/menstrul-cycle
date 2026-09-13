@@ -46,6 +46,34 @@
   "settingsPregnancyOn": "Pregnancy tracking is on",
   "settingsPregnancyOff": "Track a pregnancy",
 
+  "settingsSectionProfile": "Profile",
+  "settingsProfileNotSet": "Not set",
+  "settingsProfileDobTitle": "Date of birth",
+  "settingsProfileDobHelp": "Your date of birth",
+  "settingsProfileHeightTitle": "Height",
+  "settingsProfileHeightUnitCm": "cm",
+  "settingsProfileHeightUnitFtIn": "ft, in",
+  "settingsProfileHeightRange": "Enter a height between {min} and {max}",
+  "@settingsProfileHeightRange": {
+    "description": "Refusal shown when a typed height falls outside the plausible range. Both bounds arrive already formatted for the user's unit, marks included (5'5\"), so no unit is appended here.",
+    "placeholders": {
+      "min": { "type": "String" },
+      "max": { "type": "String" }
+    }
+  },
+  "settingsProfileWeightTitle": "Current weight",
+  "settingsProfileWeightSubtitle": "For your health profile — separate from the weight you log on a day",
+  "settingsProfileWeightRange": "Enter a weight between {min} and {max}",
+  "@settingsProfileWeightRange": {
+    "description": "Refusal shown when a typed profile weight falls outside the plausible range. Both bounds arrive already formatted for the user's unit, suffix included.",
+    "placeholders": {
+      "min": { "type": "String" },
+      "max": { "type": "String" }
+    }
+  },
+  "settingsProfileMenarcheTitle": "Age at first period",
+  "settingsProfileUnitYears": "years",
+
   "settingsSectionCycleDefaults": "Cycle defaults",
   "settingsAvgCycleLength": "Average cycle length",
   "settingsAvgPeriodLength": "Average period length",

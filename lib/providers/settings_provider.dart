@@ -47,6 +47,19 @@ class SettingsProvider extends ChangeNotifier {
   /// Daily-cap bookkeeping for photo descriptions. See `media_analysis.dart`.
   String? get analysisCountDay => _settings?.analysisCountDay;
   int? get analysisCountToday => _settings?.analysisCountToday;
+  /// The user's profile: date of birth, height in canonical CENTIMETRES,
+  /// current weight in canonical KILOGRAMS, and the age in years at menarche.
+  /// Every one is null until the user answers — the profile is skippable, and
+  /// a missing answer is never stood in for by a guess.
+  ///
+  /// [profileWeightKg] is NOT the per-day `weight` metric that drives the
+  /// 90-day trend chart; that one lives in the day-tags blob and is read
+  /// through `LogProvider`. Never let one stand in for the other.
+  DateTime? get dateOfBirth => _settings?.dateOfBirth;
+  double? get heightCm => _settings?.heightCm;
+  double? get profileWeightKg => _settings?.profileWeightKg;
+  int? get menarcheAge => _settings?.menarcheAge;
+
   DateTime? get pregnancyStartDate => _settings?.pregnancyStartDate;
   bool get isPregnant =>
       mode == TrackingMode.pregnancy && pregnancyStartDate != null;
@@ -166,6 +179,36 @@ class SettingsProvider extends ChangeNotifier {
   /// never rewrites logged data.
   Future<void> setWeightUnit(String unit) =>
       update(AppSettingsCompanion(weightUnit: Value(unit)));
+
+  /// Sets the date of birth, or clears it when [dob] is null.
+  ///
+  /// A user edit, so it routes through [update] and stamps `settingsUpdatedAt`
+  /// — the same as every other preference. Callers are responsible for
+  /// REFUSING an implausible value (see the range rules at the display
+  /// boundary); this writes whatever it is given, including null to clear.
+  Future<void> setDateOfBirth(DateTime? dob) =>
+      update(AppSettingsCompanion(dateOfBirth: Value(dob)));
+
+  /// Sets the height in canonical CENTIMETRES, or clears it when [cm] is null.
+  /// Any ft/in entry must already have been converted by the caller, and the
+  /// plausibility check must happen AFTER that conversion.
+  Future<void> setHeightCm(double? cm) =>
+      update(AppSettingsCompanion(heightCm: Value(cm)));
+
+  /// Sets the profile weight in canonical KILOGRAMS, or clears it when [kg] is
+  /// null. Any lb entry must already have been converted by the caller.
+  ///
+  /// This is the "what do you weigh" profile answer that feeds the doctor PDF
+  /// header and the BMI readout. It deliberately does NOT touch the per-day
+  /// `weight` metric behind the trend chart, and nothing may make the two read
+  /// from each other.
+  Future<void> setProfileWeightKg(double? kg) =>
+      update(AppSettingsCompanion(profileWeightKg: Value(kg)));
+
+  /// Sets the age in years at the first period, or clears it when [years] is
+  /// null.
+  Future<void> setMenarcheAge(int? years) =>
+      update(AppSettingsCompanion(menarcheAge: Value(years)));
 
   Future<void> completeOnboarding() =>
       update(const AppSettingsCompanion(onboardingComplete: Value(true)));

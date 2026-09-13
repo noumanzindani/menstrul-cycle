@@ -203,6 +203,30 @@ class AppSettings extends Table {
   // no midnight timer and no cleanup pass. NULL on both = never used.
   TextColumn get analysisCountDay => text().nullable()();
   IntColumn get analysisCountToday => integer().nullable()();
+  // Date of birth, collected in onboarding and editable in Settings. A full
+  // date, not a year and not an age: an age is stale the day after it is
+  // entered, and a year is a birthday-accurate age only half the time.
+  // NULL means never answered — the whole profile is skippable.
+  DateTimeColumn get dateOfBirth => dateTime().nullable()();
+  // Height in canonical CENTIMETRES. The ft/in display choice is applied only
+  // at the display boundary, exactly as `weightUnit` is, so switching units
+  // never rewrites the stored value.
+  //
+  // Named `heightCm`, not `height`: `MediaItems.height` in this same file is a
+  // pixel count, and two columns called `height` measuring different things is
+  // the kind of ambiguity a doctor-facing readout cannot afford.
+  RealColumn get heightCm => real().nullable()();
+  // The user's current weight in canonical KILOGRAMS, for the doctor PDF header
+  // and the BMI readout.
+  //
+  // Deliberately SEPARATE from the per-day `weight` metric in the day-tags blob
+  // (`kMetricWeight`), which keeps driving the 90-day trend chart untouched.
+  // They answer different questions — "what do you weigh" versus "what did you
+  // weigh on 3 March" — and neither may read from the other.
+  RealColumn get profileWeightKg => real().nullable()();
+  // Age in years at the first period (menarche). A whole number of years is
+  // what people actually remember; a date would be false precision.
+  IntColumn get menarcheAge => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

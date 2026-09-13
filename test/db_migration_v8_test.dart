@@ -3,17 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/db/database.dart';
 
 import 'generated_migrations/schema.dart';
-import 'generated_migrations/schema_v6.dart';
+import 'generated_migrations/schema_v7.dart';
 
-/// The upgrade from v6 must ADD the three photo-description columns without
-/// disturbing existing rows. Seeds NON-DEFAULT values on purpose: asserting defaults
-/// survive would also pass against a wipe-and-recreate migration.
+/// v7 → v8 must ADD the four profile columns (date of birth, height, profile
+/// weight, menarche age) without disturbing existing rows. Seeds NON-DEFAULT
+/// values on purpose: asserting defaults survive would also pass against a
+/// wipe-and-recreate migration.
 ///
-/// This is the first migration test to seed a `media_items` row. That table
-/// arrived in v6 and nothing has yet proven it survives a later upgrade — and a
-/// media row is the ONLY local record that an uploaded photo exists, so losing
-/// one strands the bytes in Cloud Storage where the orphan sweep will delete
-/// them. That is silent, permanent loss of the user's own photographs.
+/// The four new columns must read NULL after the upgrade. That is the only
+/// correct answer: an existing user has never been asked for any of them, and a
+/// fabricated height or date of birth would feed the BMI readout and the doctor
+/// PDF header with a number the user never gave.
 ///
 /// An in-memory `AppDatabase.forTesting` cannot replace this — it runs
 /// `onCreate`/`createAll()` at the CURRENT schema and never executes
@@ -25,20 +25,24 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  test('v6 -> current adds the analysis columns and preserves existing data',
+  test('v7 -> v8 adds the profile columns and preserves existing data',
       () async {
-    final schema = await verifier.schemaAt(6);
+    final schema = await verifier.schemaAt(7);
 
-    final oldDb = DatabaseAtV6(schema.newConnection());
+    final oldDb = DatabaseAtV7(schema.newConnection());
     await oldDb.customStatement(
       'INSERT INTO app_settings '
       '(id, default_cycle_length, default_period_length, weight_unit, '
-      'last_synced_at, settings_updated_at) '
-      'VALUES (0, 31, 7, ?, ?, ?)',
+      'last_synced_at, settings_updated_at, analysis_consent_uid, '
+      'analysis_count_day, analysis_count_today) '
+      'VALUES (0, 31, 7, ?, ?, ?, ?, ?, ?)',
       [
         'lb',
         DateTime(2026, 8, 1).millisecondsSinceEpoch ~/ 1000,
         DateTime(2026, 8, 2).millisecondsSinceEpoch ~/ 1000,
+        'uid-abc',
+        '2026-08-12',
+        3,
       ],
     );
     await oldDb.customStatement(
@@ -84,14 +88,21 @@ void main() {
     expect(settings.weightUnit, 'lb'); // v4 data untouched
     expect(settings.lastSyncedAt, DateTime(2026, 8, 1)); // v5 data untouched
     expect(settings.settingsUpdatedAt, DateTime(2026, 8, 2));
+    expect(settings.analysisConsentUid, 'uid-abc'); // v7 data untouched
+    expect(settings.analysisCountDay, '2026-08-12');
+    expect(settings.analysisCountToday, 3);
 
-    // The new columns exist and read as "never opted in, never used", which is
-    // the only correct default: an upgrade must not opt an existing user in.
-    expect(settings.analysisConsentUid, isNull);
-    expect(settings.analysisCountDay, isNull);
-    expect(settings.analysisCountToday, isNull);
+    // The new columns exist and read as "never answered", which is the only
+    // correct default: the upgrade must not invent a body measurement or a
+    // date of birth for a user who was never asked for one.
+    expect(settings.dateOfBirth, isNull);
+    expect(settings.heightCm, isNull);
+    expect(settings.profileWeightKg, isNull);
+    expect(settings.menarcheAge, isNull);
 
-    // The pre-existing log row survived, blob and free text included.
+    // The pre-existing log row survived, blob and free text included. The
+    // per-day `weight` metric in that blob is a SEPARATE field from the new
+    // profile weight and must stay exactly where it is.
     final logs = await db.select(db.dailyLogs).get();
     expect(logs, hasLength(1));
     expect(logs.single.symptoms, '{"cramps":true,"weight":61.5}');
