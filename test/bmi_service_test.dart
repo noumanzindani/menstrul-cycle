@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:menstrul_track/common/catalog.dart';
 import 'package:menstrul_track/services/bmi_service.dart';
 
 /// BMI is the ONE place in this app where a body-judgement label is permitted.
@@ -7,6 +8,23 @@ import 'package:menstrul_track/services/bmi_service.dart';
 /// this module only; `weight_trend_service_test.dart` keeps the reversal
 /// contained to this single file.
 void main() {
+  test('BMI bounds stay in step with the catalog bounds', () {
+    // bmi_service.dart restates these by VALUE rather than importing them, to
+    // stay a pure service with no Flutter dependency. Nothing in the compiler
+    // notices when one side moves, and two agents writing this feature in
+    // parallel already picked different height minimums (90 vs 80) before one
+    // of them noticed. So the agreement is pinned here rather than asked for in
+    // a doc comment.
+    //
+    // If you are here because this failed: the bounds diverged. Decide which is
+    // right and change BOTH, or import catalog.dart into bmi_service.dart and
+    // delete its local copies.
+    expect(kBmiMinHeightCm, kMinHeightCm, reason: 'min height diverged');
+    expect(kBmiMaxHeightCm, kMaxHeightCm, reason: 'max height diverged');
+    expect(kBmiMinWeightKg, kMinWeightKg, reason: 'min weight diverged');
+    expect(kBmiMaxWeightKg, kMaxWeightKg, reason: 'max weight diverged');
+  });
+
   group('bmiFrom — refusal, never a guess', () {
     test('returns null when height is missing', () {
       expect(BmiService.bmiFrom(weightKg: 70), isNull);
