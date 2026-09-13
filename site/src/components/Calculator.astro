@@ -14,6 +14,19 @@ const { kind } = Astro.props as Props
     </p>
   </noscript>
 
+  <!--
+    The whole control group ships disabled and the module below re-enables it.
+    The form has no `action`, so any submit without JS would GET the current URL
+    with every field appended — putting a menstrual date into the address bar,
+    history and any bookmark. Gating the FIELDSET rather than just the submit
+    button is deliberate: a disabled fieldset makes every control non-focusable
+    and not a successful control, so there is nothing to type and nothing to
+    serialise, and the guarantee does not rest on how a given browser handles
+    implicit (Enter-key) submission with a disabled default button. The CSP is
+    `script-src 'self'`, which rules out an inline onsubmit.
+  -->
+  <fieldset id="calc-fields" disabled class="m-0 border-0 p-0 disabled:opacity-60">
+
   {kind === 'cycle-length' ? (
     <fieldset>
       <legend class="font-semibold">The first day of your last few periods</legend>
@@ -43,16 +56,11 @@ const { kind } = Astro.props as Props
     </label>
   )}
 
-  <!--
-    Disabled in the HTML and re-enabled by the module below. The form has no action,
-    so a submit without JS would GET the current URL with the fields appended —
-    putting a menstrual date into the address bar, history and any bookmark. The CSP
-    is `script-src 'self'`, which blocks an inline onsubmit, so gating the button is
-    the fix that works with the policy rather than against it.
-  -->
-  <button type="submit" disabled class="mt-6 h-btn-h rounded-btn bg-seed px-6 font-semibold text-primary disabled:opacity-50">
+  <button type="submit" class="mt-6 h-btn-h rounded-btn bg-seed px-6 font-semibold text-primary">
     Calculate
   </button>
+  </fieldset>
+
   <output id="result" class="mt-6 block" aria-live="polite"></output>
   <p id="error" role="alert" class="mt-2 text-menstrual"></p>
 </form>
@@ -64,7 +72,7 @@ const { kind } = Astro.props as Props
 
   const form = document.getElementById('calc') as HTMLFormElement
   // Safe to accept input now: the handler below keeps every value on this device.
-  form.querySelector('button[type=submit]')?.removeAttribute('disabled')
+  document.getElementById('calc-fields')?.removeAttribute('disabled')
   const out = document.getElementById('result')!
   const err = document.getElementById('error')!
   const kind = form.dataset.kind!
