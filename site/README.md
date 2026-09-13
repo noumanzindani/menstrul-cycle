@@ -214,11 +214,16 @@ git clone --depth 1 https://github.com/iart-ai/motion-design-skills.git
 
 ## Open decisions for the owner
 
-1. `your-email@example.com` is still a placeholder in `src/pages/terms.astro` and in the
-   repo-root `PRIVACY_POLICY.md`.
-2. The "Do not publish this policy, or the app, until that job is in operation"
-   blockquote renders on `/privacy-policy`, because that page injects the owner's
-   `PRIVACY_POLICY.md` verbatim. Decide whether it should be stripped for the public page.
+1. `your-email@example.com` is still a placeholder, and it reaches **two public pages** —
+   `/terms` (from `src/pages/terms.astro`) and `/privacy-policy` (from the repo-root
+   `PRIVACY_POLICY.md`, which that page renders). One address fixes both.
+2. `/privacy-policy` publishes the policy's own **"Do not publish this policy, or the app,
+   until that job is in operation"** notice. This is not an oversight to clean up:
+   `privacy-policy.astro` already strips the internal *"Before publishing"* reviewer
+   checklist and deliberately keeps this one, because the scheduled purge job really does
+   not exist yet and the notice is honest disclosure. The decision is whether to ship a
+   policy that tells readers the app is not ready — the alternative is building the purge
+   job, not editing the sentence.
 3. Confirm the 7-day regularity threshold in `lib/cycle.ts` and the trimester convention
    (T2 from day 98, T3 from day 196 — ACOG/NHS).
 4. Nothing has been deployed. Authorise a preview channel when ready.
