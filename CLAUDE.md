@@ -262,14 +262,17 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   (`lib/services/firestore_ref.dart`). `.instance` targets `(default)`, and a `(default)`
   database carries ONE ruleset for every app in the project, so a permissive rule written
   for an unrelated app would expose menstrual logs. LunaTrack uses the **named** database
-  `lunatrack` (`kLunaDatabaseId`), which has its own independent ruleset. `grep -rn
+  `lunatrack-db` (`kLunaDatabaseId`), which has its own independent ruleset. `grep -rn
   "FirebaseFirestore.instance" lib/` must return nothing.
-  **TODO — the Firebase project id is NOT settled.** `firestore_ref.dart`'s doc comment
-  names one project; the untracked `firebase.json` / `lib/firebase_options.dart` name a
-  different one; the owner has an open decision about moving LunaTrack to a dedicated
-  project. Whether the named `lunatrack` database has actually been created is also
-  unverified. Do not hardcode a project id anywhere until that lands.
-- **`firestore.rules` is the entire privacy boundary, and it is NOT deployed.** The API
+  The project is **`teddy-2-20649`**, named in the tracked `firebase.json`. The named
+  database `lunatrack-db` exists (created 2026-08-12) and holds `users` and
+  `deletionRequests`. An older `lunatrack` database also exists, created via gcloud and
+  therefore ignoring deployed rules — it is EMPTY and abandoned; do not write to it.
+  The owner's option to move LunaTrack to a dedicated project is still open, so keep
+  reading the id from config rather than hardcoding it in Dart.
+- **`firestore.rules` is the entire privacy boundary, and it IS deployed** — to
+  `cloud.firestore/lunatrack-db`, byte-identical to this file (verified 2026-09-14
+  against the Rules API; see `docs/HANDOFF.md` for the command). The API
   key ships inside the APK, so every in-app consent gate (`ClaimPreference`, `AppGate`'s
   ordering, `SyncTrigger`) governs only this app's behaviour and has zero authority over a
   raw REST call. Rules therefore key on **identity** (`request.auth.uid` vs the uid in the
@@ -355,8 +358,9 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   caveat line under every description is fixed and unconditional — one shown only
   sometimes teaches the user that its absence means the answer is reliable.
 - **User-facing copy must describe what the code does today, not what is planned.** The
-  purge job and the rules deployment are both outstanding; any wording that implies cloud
-  data is already being erased, or already protected server-side, is false. See
+  purge job is still outstanding, so any wording that implies cloud data is already
+  being erased is false. Server-side PROTECTION is now true (the rules are live); server-side
+  ERASURE is not. See
   `PRIVACY_POLICY.md` and `docs/account-deletion.md`, which both carry the gap explicitly.
 
 #### Change-timer guardrails (the feature nearest a real medical emergency)
@@ -391,8 +395,8 @@ question about whether the ruling changed — not about how to make the test pas
   best-effort channel *look* guaranteed. A foreground service means a permanent status-bar
   icon: continuous self-disclosure, the exact threat `secret` visibility prevents.
 - **Session state never touches the day-tags blob, Firestore, the doctor PDF, or the
-  home-screen widget.** `DailyLogs.symptoms` syncs as a real Firestore map to a project
-  whose rules are undeployed; the launcher widget renders outside `AppLock`.
+  home-screen widget.** `DailyLogs.symptoms` syncs as a real Firestore map to a shared
+  project; the launcher widget renders outside `AppLock`.
 
 ## Feature status
 
@@ -583,8 +587,9 @@ question about whether the ruling changed — not about how to make the test pas
   mirroring drift ⇄ `users/{uid}` (daily logs + preference settings only),
   `SyncTrigger` owning the debounce/suspend/claim gates, `SyncTombstones` for deletions,
   the local-only hatch, and the cancellable account-deletion request. Every non-obvious
-  rule about all of it is in "Key design decisions" above. **Two things are written but
-  not live: `firestore.rules` is undeployed, and the deletion purge job does not exist.**
+  rule about all of it is in "Key design decisions" above. **`firestore.rules` is live; the deletion
+  purge job (`functions/purge.js`) is written and tested but NOT deployed, so nothing is
+  actually erased server-side yet.**
 
 - **Media timeline (photos & videos, v6)** — a STANDALONE timeline, reached from a
   Calendar app-bar action beside the Diary (the bottom nav is at Material's five

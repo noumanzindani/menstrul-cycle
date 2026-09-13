@@ -74,8 +74,8 @@ Everything stored under your account:
 
 The app records deletion requests, stops syncing the account, and erases the
 requesting device today. The scheduled job that carries out the permanent
-server-side erasure after 30 days **has not been built yet**, so no deletion
-request is completed automatically at present.
+server-side erasure after 30 days is written and tested but **is not running
+yet**, so no deletion request is completed automatically at present.
 
 Until that job ships, requests must be honoured manually, and neither this page
 nor the app should be published — Google Play requires a working in-app account

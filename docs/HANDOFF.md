@@ -96,6 +96,20 @@ is a class `flutter_tester` structurally cannot reach.
 5. **The nine media device-test items** listed in `CLAUDE.md` (OOM, process
    death mid-upload, EXIF/GPS, recents thumbnail, …).
 
+**Verified against the live Firebase project 2026-09-14:** `firestore.rules` and
+`storage.rules` are BOTH deployed — to `cloud.firestore/lunatrack-db` and
+`firebase.storage/teddy-2-20649-lunatrack-media` — and both are byte-identical to the
+files in this repo that the emulator suite tests. Earlier notes in `CLAUDE.md` and in
+this document claimed they were undeployed; that was wrong, and the emulator suite
+cannot tell the difference, so re-check it directly rather than trusting prose:
+
+```bash
+TOKEN=$(gcloud auth print-access-token)
+curl -s -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: teddy-2-20649" \
+  https://firebaserules.googleapis.com/v1/projects/teddy-2-20649/releases
+# then GET .../rulesets/<id> and diff its source against the local file
+```
+
 **Verified on device 2026-09-13:** the v8→v9 and v9→v10 migrations against a
 real encrypted database; the day editor incl. the new libido scale, bleeding
 after sex, and the Intimacy section; `android.permission.CAMERA` absent from the
@@ -121,9 +135,20 @@ consecutive `adb shell echo` probes should all pass before attempting an install
   spec) carry ~57 references to the same research. The rendered site is clean —
   this is a repository-only exposure. Owner decision outstanding.
 - **The account-deletion purge job is written but NOT deployed**
-  (`functions/purge.js`), so Play's in-app deletion requirement is unmet.
-- **`firestore.rules` is NOT deployed.** Nothing is enforced server-side today.
-- **The Firebase project id is unsettled** — do not hardcode one anywhere.
+  (`functions/purge.js`, exported as `purgeDeletedAccounts` from `functions/index.js`),
+  so Play's in-app deletion requirement is unmet. `firebase.json` has no `functions`
+  block at all, so deploying it is config work, not just a push.
+  **Never run a bare `firebase deploy --only functions` here.** The project is shared
+  with an unrelated donations app that has 19 live functions (`registerNgo`,
+  `createDonationIntent`, `deleteMyAccount`, …); a bare functions deploy prunes
+  everything absent from local source and would delete all of them. Use
+  `--only functions:purgeDeletedAccounts`.
+- **The Firebase project is `teddy-2-20649`**, named in the tracked `firebase.json`.
+  Moving LunaTrack to a dedicated project is still an open owner decision, so keep
+  reading the id from config rather than hardcoding it in Dart.
+- An old `lunatrack` database (gcloud-created, so deployed rules do not take effect on
+  it) still exists alongside the real `lunatrack-db`. It is EMPTY — no exposure — but it
+  is a loaded footgun if anything ever points at it. Worth deleting.
 - Release keystore, real AdMob ids, real IAP product id, hosted privacy-policy
   and deletion URLs: all outstanding. See `README.md` § Before publishing.
 
