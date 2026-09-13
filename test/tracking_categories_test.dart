@@ -22,8 +22,11 @@ void main() {
       kCatDigestion,
       kCatSkin,
       kCatWeight,
-      kCatIntimacy,
     });
+    // Intimacy is the one category added after the original set that ships ON.
+    // Asserted explicitly rather than by omission, so the exception stays a
+    // decision somebody made instead of looking like a missed `defaultOn`.
+    expect(idsWhere(true), contains(kCatIntimacy));
     expect(idsWhere(true), contains(kCatPhysicalSymptoms));
     expect(idsWhere(true), contains(kCatMedications));
   });

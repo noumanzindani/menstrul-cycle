@@ -113,16 +113,26 @@ void main() {
   });
 
   group('the intimate category', () {
-    testWidgets('ships OFF, so no existing day editor grows unasked',
+    testWidgets('ships ON, on the same footing as partnered sex',
         (tester) async {
-      expect(defaultEnabledCategoryIds(), isNot(contains(kCatIntimacy)));
+      // The registry's usual rule is that a NEW category ships off so no
+      // existing day editor grows unasked. This one is a deliberate exception,
+      // because applying the rule here drew a line the app has no business
+      // drawing: `kCatSex` and `kCatSexualHealth` are both on by default, so
+      // defaulting this one off would have made partnered sex visible and solo
+      // sex hidden behind a settings switch. Both ride the same synced blob at
+      // the same sensitivity; the only difference the default would encode is
+      // which behaviour counts as ordinary.
+      expect(defaultEnabledCategoryIds(), contains(kCatIntimacy));
+      expect(defaultEnabledCategoryIds(), contains(kCatSex));
 
       await tester.pumpWidget(wrap(DayEntryForm(
         date: date,
         categories: defaultEnabledCategoryIds(),
       )));
       await tester.pumpAndSettle();
-      expect(find.text('Masturbation'), findsNothing);
+      await reveal(tester, find.text('Masturbation'));
+      expect(find.text('Masturbation'), findsOneWidget);
     });
 
     testWidgets('round-trips when enabled', (tester) async {

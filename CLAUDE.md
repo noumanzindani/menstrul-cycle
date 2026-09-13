@@ -191,7 +191,13 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
     where the audited operator route can display it (hence `slf_`/`lbd_` in
     `admin/src/paths.js` `TAG_PREFIXES`, so it renders grouped rather than as raw keys).
     Reserved keeps it out of the symptom chips, Insights and the doctor PDF; it does not
-    keep it off the network. Category `kCatIntimacy` ships OFF.
+    keep it off the network. **`kCatIntimacy` ships ON — the one post-original category that
+    does.** It shipped off first, by the registry's ordinary "new categories default off"
+    rule; that was corrected the same day because `kCatSex` and `kCatSexualHealth` are both
+    on, so the default made partnered sex visible and solo sex hidden behind a switch nobody
+    would find. Same blob, same sensitivity, same shoulder-surf handling — the default was
+    protecting nothing and only encoded which sexual behaviour counts as ordinary. The
+    "no editor grows unasked" rule still holds for every other category.
   - **Sync marker is a VERSION.** `profileFields` is now `2`. A v8 device writes `1`
     truthfully while knowing nothing of the v9 columns, so presence alone is not enough —
     `knowsClinicalProfile` gates on `>= 2`. Bump it again whenever the field set grows.

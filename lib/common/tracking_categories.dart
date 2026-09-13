@@ -48,21 +48,32 @@ const List<TrackingCategory> kTrackingCategories = [
   TrackingCategory(kCatDigestion, 'Digestion', defaultOn: false),
   TrackingCategory(kCatSkin, 'Skin & hair', defaultOn: false),
   TrackingCategory(kCatWeight, 'Weight', defaultOn: false),
-  // Solo sexual activity. Off by default like every new category, and the
-  // reason lands harder here than elsewhere: this group syncs to Firestore in
-  // plaintext, so switching it on is the user consenting to that, not just
-  // asking for another row of chips.
+  // Solo sexual activity. The ONE category added after the original set that
+  // ships ON, and the exception is deliberate.
+  //
+  // It shipped off first, by the ordinary rule above. That was wrong: `kCatSex`
+  // and `kCatSexualHealth` are both on by default, so defaulting this one off
+  // made partnered sex visible and solo sex hidden behind a settings switch
+  // nobody would find. Both ride the same synced day-tags blob at the same
+  // sensitivity and carry the same shoulder-surf handling, so the default was
+  // not protecting anything — the only thing it encoded was which sexual
+  // behaviour counts as ordinary enough to show, which is a judgement this app
+  // has no business making. Corrected 2026-09-13.
+  //
+  // The "no existing editor grows unasked" rule still holds everywhere else. It
+  // is about not surprising users who never asked for a section; it is not a
+  // licence to hide one group of a pair.
   //
   // Libido deliberately does NOT live here. It was already visible inside
-  // Sexual health as a boolean, and moving it behind a switch that defaults to
-  // off would make an existing control vanish for everyone who had used it.
+  // Sexual health as a boolean, and moving it would make an existing control
+  // vanish for everyone who had used it.
   //
   // Named 'Intimacy', not after its single chip. Two reasons, both real: a
   // section whose heading repeats its only option makes `find.text` ambiguous
   // (it matched both and took the widget tests down), and a discreet heading is
   // the same shoulder-surf judgement that keeps this group text-only in
   // `option_art.dart`.
-  TrackingCategory(kCatIntimacy, 'Intimacy', defaultOn: false),
+  TrackingCategory(kCatIntimacy, 'Intimacy'),
 ];
 
 /// The ids enabled for a user who has never opened Customize tracking.
