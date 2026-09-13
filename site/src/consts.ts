@@ -12,7 +12,10 @@ export const UNREVIEWED = 'Not medically reviewed'
 export const ORG = {
   name: 'LunaTrack',
   legalName: 'LunaTrack',
-  logo: '/images/logo.png',
+  // No `logo` yet — there is no real asset at /images/logo.png and dist/images/
+  // does not exist. Add a real logo/OG image back here (and to the Organization
+  // node in SeoHead.astro) once one exists; a schema.org URL pointing at a 404
+  // is worse than omitting the property.
   sameAs: [
     'https://play.google.com/store/apps/details?id=com.lunatrack.app',
   ],
