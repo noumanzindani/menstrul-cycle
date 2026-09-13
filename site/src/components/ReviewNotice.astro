@@ -1,0 +1,14 @@
+---
+import { UNREVIEWED } from '../content.config.ts'
+interface Props { reviewedBy: string }
+const { reviewedBy } = Astro.props as Props
+---
+{reviewedBy === UNREVIEWED ? (
+  <p class="rounded-lg border border-luteal bg-surface-tint p-3 text-sm dark:bg-surface-dark-2">
+    <strong>Not medically reviewed.</strong> This article was written and fact-checked against the
+    sources listed at the end, but no clinician has reviewed it. We would rather say so than imply
+    a review that did not happen.
+  </p>
+) : (
+  <p class="text-sm opacity-80">Medically reviewed by {reviewedBy}</p>
+)}

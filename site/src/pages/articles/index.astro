@@ -1,0 +1,50 @@
+---
+import { getCollection } from 'astro:content'
+import Base from '../../layouts/Base.astro'
+
+const entries = await getCollection('articles')
+const sorted = [...entries].sort(
+  (a, b) => b.data.datePublished.valueOf() - a.data.datePublished.valueOf()
+    || a.data.title.localeCompare(b.data.title),
+)
+const fmt = (d: Date) => d.toISOString().slice(0, 10)
+---
+<Base
+  title="Articles — LunaTrack"
+  description="Sourced articles on cycle tracking, predictions, and reading a period tracker's privacy policy, each carrying its own dated citations."
+  path="/articles"
+>
+  <h1 class="text-3xl font-bold">Articles</h1>
+  <p class="mt-4 max-w-prose">
+    Longer pieces than a calculator result or a features list, each one written to
+    stand on its own and each one carrying dated, verifiable sources at the end
+    rather than asking you to take a claim on faith. Some cover the mechanics
+    behind what the app and the calculators on this site actually do — how a
+    prediction is built, what a normal cycle looks like — and some step back to
+    give you a way to evaluate any tracker, including this one, rather than only
+    describing LunaTrack's own choices. Every article states plainly whether a
+    clinician reviewed it; where one has not, the article says so rather than
+    implying a review that did not happen, and its structured data reflects that
+    honestly too.
+  </p>
+  <p class="mt-4 max-w-prose">
+    None of these replace the calculators — see the
+    <a href="/tools" class="underline">cycle calculators</a> if you want a quick
+    estimate from your own dates instead of background reading — and none of them
+    replace a doctor or midwife for anything specific to your own health.
+  </p>
+
+  <div class="mt-10 grid gap-6 sm:grid-cols-2">
+    {sorted.map((entry) => (
+      <section class="rounded-card border border-outline bg-surface-tint p-5 dark:bg-surface-dark-2">
+        <h2 class="font-semibold">
+          <a href={`/articles/${entry.id}`} class="underline">{entry.data.title}</a>
+        </h2>
+        <p class="mt-2 text-sm">{entry.data.description}</p>
+        <p class="mt-2 text-xs opacity-70">
+          Published <time datetime={fmt(entry.data.datePublished)}>{fmt(entry.data.datePublished)}</time>
+        </p>
+      </section>
+    ))}
+  </div>
+</Base>

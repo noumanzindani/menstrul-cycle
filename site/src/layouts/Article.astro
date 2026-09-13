@@ -1,0 +1,47 @@
+---
+import Base from './Base.astro'
+import Disclaimer from '../components/Disclaimer.astro'
+import ReviewNotice from '../components/ReviewNotice.astro'
+
+interface Source { title: string; url: string }
+interface Props {
+  title: string; description: string; path: string
+  author: string; reviewedBy: string
+  datePublished: Date; dateModified: Date
+  sources: Source[]
+}
+const p = Astro.props as Props
+const fmt = (d: Date) => d.toISOString().slice(0, 10)
+---
+<Base
+  title={p.title}
+  description={p.description}
+  path={p.path}
+  type="article"
+  article={{
+    author: p.author, reviewedBy: p.reviewedBy,
+    datePublished: p.datePublished, dateModified: p.dateModified,
+  }}
+  breadcrumbs={[
+    { name: 'Home', path: '/' },
+    { name: 'Articles', path: '/articles' },
+    { name: p.title, path: p.path },
+  ]}
+>
+  <h1 class="text-3xl font-bold">{p.title}</h1>
+  <p class="mt-2 text-sm opacity-80">
+    By {p.author} · Published <time datetime={fmt(p.datePublished)}>{fmt(p.datePublished)}</time>
+    · Updated <time datetime={fmt(p.dateModified)}>{fmt(p.dateModified)}</time>
+  </p>
+  <div class="mt-4"><ReviewNotice reviewedBy={p.reviewedBy} /></div>
+  <Disclaimer kind="article" />
+  <article class="prose"><slot /></article>
+  <section class="mt-12">
+    <h2 class="text-2xl font-bold">Sources</h2>
+    <ul class="mt-4 list-disc pl-5">
+      {p.sources.map((s) => (
+        <li><a href={s.url} rel="noopener" class="underline">{s.title}</a></li>
+      ))}
+    </ul>
+  </section>
+</Base>

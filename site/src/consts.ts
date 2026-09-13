@@ -18,6 +18,7 @@ export const ORG = {
 export const NAV = [
   { href: '/features', label: 'Features' },
   { href: '/tools', label: 'Calculators' },
+  { href: '/articles', label: 'Articles' },
   { href: '/privacy', label: 'Your data' },
   { href: '/download', label: 'Download' },
 ] as const
