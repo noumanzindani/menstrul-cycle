@@ -676,6 +676,12 @@ class SyncService {
       // CANONICAL units -- centimetres and kilograms -- never in the user's
       // display unit: `weightUnit` is a rendering choice, and applying it here
       // would make the wire format depend on which device pushed last.
+      // Marks this document as written by a build that KNOWS about the profile
+      // fields, so a reader can tell "the user cleared these" from "the writer
+      // had never heard of them". Without it those two are indistinguishable
+      // and the pull has to guess; guessing wrong in one direction silently
+      // wipes four answered questions. Bump it if the field set ever changes.
+      'profileFields': 1,
       'dateOfBirth': row.dateOfBirth?.millisecondsSinceEpoch,
       'heightCm': row.heightCm,
       'profileWeightKg': row.profileWeightKg,
@@ -717,6 +723,9 @@ class SyncService {
     final language = _asOrNull<String>(data['language']);
     final genderNeutralLanguage =
         _asOrNull<bool>(data['genderNeutralLanguage']);
+    // Absent on any document written before schema v8 -- see the companion
+    // comment below for why that has to be distinguishable from `null`.
+    final knowsProfileFields = data.containsKey('profileFields');
     final dobMillis = _asOrNull<int>(data['dateOfBirth']);
     // `num`, not `double`: Firestore number typing is not stable across
     // writers, so a whole-number height (170) can arrive as an `int`, for
@@ -759,22 +768,33 @@ class SyncService {
         // legitimate value (no pregnancy, no category override, unit never
         // chosen, profile question never answered) -- not a sync failure -- so
         // a missing or malformed field collapses to `Value(null)`, never
-        // `Value.absent()`. For the four profile fields that also makes the
-        // upgrade path correct in the only direction it can be: a document
-        // written by an older build carries none of these keys, and a device
-        // that pulls it must end up with "not answered", which is the truth
-        // that document expresses.
+        // `Value.absent()`.
+        //
+        // The four profile fields are the exception, and the `profileFields`
+        // marker is what resolves it. There, `null` and "absent" mean different
+        // things: a build predating schema v8 pushes a document carrying none
+        // of these keys, which says nothing about the user's answers, while a
+        // current build sending them null says the user emptied them.
+        // Collapsing both to `Value(null)` lets one edit from an older device
+        // wipe four answered questions on this one; collapsing both to
+        // `Value.absent()` makes "clear my date of birth" unsyncable forever.
+        // Neither is acceptable, so the marker decides which case this is.
         pregnancyStartDate: Value(pregnancyMillis == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(pregnancyMillis)),
         trackingCategories: Value(_asOrNull<String>(data['trackingCategories'])),
         weightUnit: Value(_asOrNull<String>(data['weightUnit'])),
-        dateOfBirth: Value(dobMillis == null
-            ? null
-            : DateTime.fromMillisecondsSinceEpoch(dobMillis)),
-        heightCm: Value(heightCm),
-        profileWeightKg: Value(profileWeightKg),
-        menarcheAge: Value(menarcheAge),
+        dateOfBirth: knowsProfileFields
+            ? Value(dobMillis == null
+                ? null
+                : DateTime.fromMillisecondsSinceEpoch(dobMillis))
+            : const Value.absent(),
+        heightCm: knowsProfileFields ? Value(heightCm) : const Value.absent(),
+        profileWeightKg: knowsProfileFields
+            ? Value(profileWeightKg)
+            : const Value.absent(),
+        menarcheAge:
+            knowsProfileFields ? Value(menarcheAge) : const Value.absent(),
         settingsUpdatedAt: Value(remoteUpdated),
       ),
     );

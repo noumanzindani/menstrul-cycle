@@ -204,7 +204,14 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
 - **Only preference settings sync.** `SyncService._pushSettings` sends mode, cycle/period
   defaults, theme, language, gender-neutral language, pregnancy start date, tracking
   categories, weight unit and the four profile fields (date of birth as epoch millis, height,
-  profile weight, age at first period). `premium` (a Play-account IAP entitlement), `appLockEnabled`
+  profile weight, age at first period). The settings document also carries a
+  **`profileFields` marker**, and it is load-bearing: for the four profile columns `null`
+  and *absent* mean different things. A build predating v8 pushes a document with none of
+  those keys, which says nothing about the user's answers; a current build sending them
+  null says the user emptied them. Without the marker both collapse to one case, and
+  whichever way it collapses is wrong — `Value(null)` lets one edit from an older device
+  wipe four answered questions, `Value.absent()` makes "clear my date of birth" unsyncable
+  forever. Every other nullable settings column keeps the plain `Value(null)` posture. `premium` (a Play-account IAP entitlement), `appLockEnabled`
   (a per-device security choice), `onboardingComplete`, `lastSyncedAt` and `id` are
   deliberately device-local. Syncing `premium` would unlock ads on every device signed
   into the account, which is not what was purchased.

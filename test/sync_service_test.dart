@@ -776,6 +776,8 @@ void main() {
       'pregnancyStartDate': null,
       'trackingCategories': null,
       'weightUnit': 'lb',
+      // A CURRENT build wrote this document, so it carries the marker.
+      'profileFields': 1,
       'dateOfBirth': DateTime(1994, 3, 17).millisecondsSinceEpoch,
       'heightCm': 168.5,
       'profileWeightKg': 61.2,
@@ -814,6 +816,8 @@ void main() {
       'pregnancyStartDate': null,
       'trackingCategories': null,
       'weightUnit': null,
+      // A CURRENT build wrote this document, so it carries the marker.
+      'profileFields': 1,
       'dateOfBirth': DateTime(1988, 12, 1).millisecondsSinceEpoch,
       'heightCm': 171.0,
       'profileWeightKg': 64.0,
@@ -856,6 +860,8 @@ void main() {
       'trackingCategories': null,
       'weightUnit': null,
       // Stale profile values -- an earlier answer from another device.
+      // A CURRENT build wrote this document, so it carries the marker.
+      'profileFields': 1,
       'dateOfBirth': DateTime(1988, 12, 1).millisecondsSinceEpoch,
       'heightCm': 150.0,
       'profileWeightKg': 50.0,
@@ -946,6 +952,8 @@ void main() {
       'pregnancyStartDate': null,
       'trackingCategories': null,
       'weightUnit': null,
+      // A CURRENT build wrote this document, so it carries the marker.
+      'profileFields': 1,
       'dateOfBirth': null,
       'heightCm': 170, // int, not double
       'profileWeightKg': 60, // int, not double
@@ -959,6 +967,88 @@ void main() {
     final local = await settings.get();
     expect(local.heightCm, 170.0);
     expect(local.profileWeightKg, 60.0);
+  });
+
+  test('a settings document written before the profile fields existed does '
+      'not clear them', () async {
+    final settings = SettingsRepository(db);
+    // The user answered all four profile questions on THIS device.
+    await settings.update(AppSettingsCompanion(
+      dateOfBirth: Value(DateTime(1994, 3, 17)),
+      heightCm: const Value(168.5),
+      profileWeightKg: const Value(61.2),
+      menarcheAge: const Value(13),
+    ));
+
+    // Meanwhile a second device, still on a build that predates schema v8,
+    // changes the theme. Its push carries no profile keys -- and, crucially, no
+    // marker saying it knew about them. Treating those absences as "the user
+    // cleared these" would wipe four answered questions off this device.
+    await firestore.doc('users/uid-1/settings/current').set({
+      'mode': TrackingMode.track.index,
+      'defaultCycleLength': 28,
+      'defaultPeriodLength': 5,
+      'themeMode': 'dark',
+      'language': 'en',
+      'genderNeutralLanguage': false,
+      'pregnancyStartDate': null,
+      'trackingCategories': null,
+      'weightUnit': 'kg',
+      'updatedAt':
+          DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+    });
+
+    await sync.syncNow();
+
+    final local = await settings.get();
+    // What that document DID carry still wins -- this is not a refusal to pull.
+    expect(local.themeMode, 'dark');
+    // What it could not have carried is left alone.
+    expect(local.dateOfBirth, DateTime(1994, 3, 17));
+    expect(local.heightCm, 168.5);
+    expect(local.profileWeightKg, 61.2);
+    expect(local.menarcheAge, 13);
+  });
+
+  test('a profile-aware document with the fields cleared does clear them',
+      () async {
+    // The other half of the same rule. A writer that DOES know about these
+    // fields and sends them null is reporting a real answer -- the user emptied
+    // them -- and that must sync like any other edit.
+    final settings = SettingsRepository(db);
+    await settings.update(AppSettingsCompanion(
+      dateOfBirth: Value(DateTime(1994, 3, 17)),
+      heightCm: const Value(168.5),
+      profileWeightKg: const Value(61.2),
+      menarcheAge: const Value(13),
+    ));
+
+    await firestore.doc('users/uid-1/settings/current').set({
+      'mode': TrackingMode.track.index,
+      'defaultCycleLength': 28,
+      'defaultPeriodLength': 5,
+      'themeMode': 'system',
+      'language': 'en',
+      'genderNeutralLanguage': false,
+      'pregnancyStartDate': null,
+      'trackingCategories': null,
+      'weightUnit': 'kg',
+      'profileFields': 1,
+      'dateOfBirth': null,
+      'heightCm': null,
+      'profileWeightKg': null,
+      'menarcheAge': null,
+      'updatedAt':
+          DateTime.now().add(const Duration(hours: 1)).millisecondsSinceEpoch,
+    });
+
+    await sync.syncNow();
+
+    final local = await settings.get();
+    expect(local.dateOfBirth, null);
+    expect(local.heightCm, null);
+    expect(local.profileWeightKg, null);
+    expect(local.menarcheAge, null);
   });
 
   test('a settings pull with missing/malformed fields applies what it can '
@@ -975,6 +1065,8 @@ void main() {
       'trackingCategories': null,
       'weightUnit': 'kg',
       // 'dateOfBirth' is missing entirely.
+      // A CURRENT build wrote this document, so it carries the marker.
+      'profileFields': 1,
       'heightCm': 'tall', // present but the WRONG type (should be a number).
       'profileWeightKg': 58.0, // present and well-typed.
       'menarcheAge': 13, // present and well-typed.
