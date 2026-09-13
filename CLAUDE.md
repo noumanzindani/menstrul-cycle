@@ -764,12 +764,13 @@ only checked that the ad hid, not that the entry form actually rendered.
 
 Two suites, and `flutter test` does not cover the second:
 
-- `flutter test` — **906** Dart tests.
+- `flutter test` — **1109** Dart tests. (Keep this number current; a stale one makes a
+  real regression look like a miscount.)
 - `firebase_test/run.sh` — **39** Firestore rules tests against a LOCAL emulator
   (`demo-lunatrack`; firebase-tools treats any `demo-*` id as emulator-only, and there is
   deliberately no `.firebaserc`, so no command here can fall into a real project). Needs
-  Node 18+, a JDK 21+, and a `firebase.json` at the repo root — which is untracked, so it
-  does not run on a fresh clone. `run.sh --mutants` additionally proves each test
+  Node 18+, a JDK 21+, and a `firebase.json` at the repo root — which IS tracked as of
+  `245bb99`, so this now runs on a fresh clone (it did not before; that claim was stale). `run.sh --mutants` additionally proves each test
   discriminates.
 - `firebase_test/storage_run.sh` — **22** Cloud Storage rules tests, same harness style
   against the Storage emulator (a separate REST API, hence `storage_emulator.mjs` rather
