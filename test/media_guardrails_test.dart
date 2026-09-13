@@ -54,6 +54,74 @@ Iterable<File> _mediaSources() => _libSources().where(
     );
 
 void main() {
+  group('in-app capture must not declare a camera permission', () {
+    // The counter-intuitive one, and the reason it is a test rather than a
+    // comment: `image_picker` captures by launching the SYSTEM camera app via
+    // ACTION_IMAGE_CAPTURE, which needs no permission at all — UNLESS the app
+    // declares android.permission.CAMERA, at which point Android starts
+    // requiring it to be granted. Declaring the permission therefore BREAKS the
+    // feature it looks like it enables, and does so at runtime on a device, not
+    // at build time.
+    //
+    // Same shape as the media-permission reasoning already in this file: the
+    // system-delegated route is both the compliant one and the one that needs
+    // nothing declared.
+    const forbidden = ['android.permission.CAMERA'];
+
+    test('the SOURCE manifest declares no camera permission', () {
+      final xml = _xml('android/app/src/main/AndroidManifest.xml');
+      for (final p in forbidden) {
+        expect(xml, isNot(contains(p)),
+            reason: '$p makes ACTION_IMAGE_CAPTURE require a grant the app '
+                'never requests, so capture fails silently on device');
+      }
+    });
+
+    test('no MERGED manifest declares one either', () {
+      // A dependency can add a permission the app never wrote. Only the merged
+      // manifest shows that, and it exists only after an Android build.
+      final manifests = _mergedManifests().toList();
+      for (final f in manifests) {
+        final xml = f.readAsStringSync();
+        for (final p in forbidden) {
+          expect(xml, isNot(contains(p)),
+              reason: '${f.path} merges in $p from a dependency');
+        }
+      }
+    }, skip: _mergedManifests().isEmpty
+        ? 'no merged manifest on disk; run an Android build first'
+        : false);
+
+    test('iOS DOES declare the camera and microphone usage strings', () {
+      // The matched pair to the Android rule above, and they pull in opposite
+      // directions: Android must declare NOTHING, iOS must declare BOTH or the
+      // app crashes the moment the camera opens. Asserting only one half would
+      // leave the other silently wrong on a platform this repo builds for but
+      // rarely runs.
+      final plist = _read('ios/Runner/Info.plist');
+      for (final key in const [
+        'NSCameraUsageDescription',
+        'NSMicrophoneUsageDescription',
+      ]) {
+        expect(plist, contains(key),
+            reason: 'iOS hard-crashes on camera launch without $key');
+      }
+    });
+
+    test('capture goes through the configured picker, like every other pick',
+        () {
+      // `useSystemPhotoPicker` has to run before ANY picker call, capture
+      // included. A second entry point that built a bare ImagePicker would
+      // bypass the Photo Picker delegation for library picks.
+      final route = _read('lib/screens/media/media_route.dart');
+      expect(route, contains('useSystemPhotoPicker()'));
+      final pickerCalls = RegExp(r'ImagePicker\(\)').allMatches(route).length;
+      expect(pickerCalls, 1,
+          reason: 'one picker construction, configured once — a second would '
+              'be a second place to forget the configuration');
+    });
+  });
+
   group('download URLs never enter the codebase', () {
     test('nothing in lib/ calls getDownloadURL', () {
       // A Firebase download URL carries a token that security rules NEVER

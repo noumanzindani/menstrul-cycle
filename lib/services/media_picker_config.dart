@@ -1,6 +1,22 @@
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 
+/// Where a piece of media comes from.
+///
+/// The library case returns MANY items in one interaction; both capture cases
+/// return exactly one, because the system camera app captures one thing at a
+/// time. Callers must not assume a count from the source.
+enum MediaSource {
+  /// The system Photo Picker — images and videos, multi-select.
+  library,
+
+  /// The system camera app, still image.
+  camera,
+
+  /// The system camera app, video.
+  videoCamera,
+}
+
 /// Routes Android media picking through the system Photo Picker.
 ///
 /// `image_picker_android` ships `useAndroidPhotoPicker = false`, and false is

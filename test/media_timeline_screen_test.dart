@@ -9,6 +9,7 @@ import 'package:menstrul_track/data/media_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/providers/media_provider.dart';
 import 'package:menstrul_track/screens/media/media_timeline_screen.dart';
+import 'package:menstrul_track/services/media_picker_config.dart';
 import 'package:menstrul_track/services/media_limits.dart';
 import 'package:menstrul_track/services/media_upload_service.dart';
 import 'package:menstrul_track/widgets/ad_banner.dart';
@@ -78,7 +79,7 @@ void main() {
       await provider.setUid(uid);
 
       await tester.pumpWidget(wrap(MediaTimelineScreen(
-        onAdd: () async => const MediaUploadOutcome(),
+        onAdd: (_) async => const MediaUploadOutcome(),
       )));
       await tester.pumpAndSettle();
 
@@ -142,16 +143,68 @@ void main() {
   });
 
   group('adding', () {
+    testWidgets('the add button offers capture and library, and passes the '
+        'chosen source through', (tester) async {
+      await provider.setUid(uid);
+      final sources = <MediaSource>[];
+      await tester.pumpWidget(wrap(MediaTimelineScreen(
+        onAdd: (source) async {
+          sources.add(source);
+          return const MediaUploadOutcome();
+        },
+      )));
+      await tester.pumpAndSettle();
+
+      for (final (label, expected) in [
+        ('Take a photo', MediaSource.camera),
+        ('Record a video', MediaSource.videoCamera),
+        ('Choose from library', MediaSource.library),
+      ]) {
+        await tester.tap(find.byType(FloatingActionButton));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(label));
+        await tester.pumpAndSettle();
+        expect(sources.last, expected, reason: '$label dispatched the wrong source');
+      }
+      expect(sources, hasLength(3));
+    });
+
+    testWidgets('dismissing the sheet uploads nothing', (tester) async {
+      // A cancel must not run an "empty pick" — that would clear the failure
+      // count from a previous attempt and read as a successful retry.
+      await provider.setUid(uid);
+      var calls = 0;
+      await tester.pumpWidget(wrap(MediaTimelineScreen(
+        onAdd: (_) async {
+          calls++;
+          return const MediaUploadOutcome();
+        },
+      )));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      // Tap the scrim above the sheet.
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      expect(calls, 0);
+    });
+
     testWidgets('reports how many files were dropped by the pick limit',
         (tester) async {
       await provider.setUid(uid);
 
       await tester.pumpWidget(wrap(MediaTimelineScreen(
-        onAdd: () async => const MediaUploadOutcome(dropped: 3),
+        onAdd: (_) async => const MediaUploadOutcome(dropped: 3),
       )));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      // The FAB now opens a source sheet; picking the library option is what
+      // runs the upload these assertions are about.
+      await tester.tap(find.text('Choose from library'));
       await tester.pumpAndSettle();
 
       // A silent truncation reads as "we took everything".
@@ -162,13 +215,17 @@ void main() {
       await provider.setUid(uid);
 
       await tester.pumpWidget(wrap(MediaTimelineScreen(
-        onAdd: () async => const MediaUploadOutcome(
+        onAdd: (_) async => const MediaUploadOutcome(
           rejected: [MediaRejection(MediaRefusal.tooLong)],
         ),
       )));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      // The FAB now opens a source sheet; picking the library option is what
+      // runs the upload these assertions are about.
+      await tester.tap(find.text('Choose from library'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('under a minute'), findsOneWidget);
@@ -179,12 +236,16 @@ void main() {
       await provider.setUid(uid);
 
       await tester.pumpWidget(wrap(MediaTimelineScreen(
-        onAdd: () async =>
+        onAdd: (_) async =>
             const MediaUploadOutcome(blocked: MediaUploadBlock.syncDeclined),
       )));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      // The FAB now opens a source sheet; picking the library option is what
+      // runs the upload these assertions are about.
+      await tester.tap(find.text('Choose from library'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('keep your data on this device'),
@@ -196,7 +257,7 @@ void main() {
       await provider.setUid(uid);
 
       await tester.pumpWidget(wrap(MediaTimelineScreen(
-        onAdd: () async {
+        onAdd: (_) async {
           await seed(idOf('a'));
           return MediaUploadOutcome(uploadedIds: [idOf('a')]);
         },
@@ -204,6 +265,10 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      // The FAB now opens a source sheet; picking the library option is what
+      // runs the upload these assertions are about.
+      await tester.tap(find.text('Choose from library'));
       await tester.pumpAndSettle();
 
       expect(find.byType(SnackBar), findsNothing);
@@ -214,11 +279,15 @@ void main() {
       await provider.setUid(uid);
 
       await tester.pumpWidget(wrap(MediaTimelineScreen(
-        onAdd: () async => throw StateError('boom'),
+        onAdd: (_) async => throw StateError('boom'),
       )));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      // The FAB now opens a source sheet; picking the library option is what
+      // runs the upload these assertions are about.
+      await tester.tap(find.text('Choose from library'));
       await tester.pumpAndSettle();
 
       expect(find.textContaining("didn't upload"), findsOneWidget);

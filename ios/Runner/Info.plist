@@ -70,6 +70,17 @@
 	     symptothermal BBT chart. Read on-device; never leaves the phone.
 	     The HealthKit capability/entitlement must ALSO be enabled in Xcode
 	     (Signing & Capabilities -> HealthKit) before this works. -->
+	<!-- Camera and microphone: required for the media timeline's in-app capture.
+	     MANDATORY on iOS even though capture goes through the system picker —
+	     unlike Android, where declaring android.permission.CAMERA would actively
+	     BREAK ACTION_IMAGE_CAPTURE, iOS crashes the app on launching the camera
+	     if the string is absent. The two platforms want opposite things here, so
+	     the Android guardrail test and these keys are a matched pair.
+	     The microphone one is for video only; still capture never records audio. -->
+	<key>NSCameraUsageDescription</key>
+	<string>LunaTrack uses the camera only when you choose to take a photo or record a video for your own timeline. Nothing is captured in the background.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>LunaTrack uses the microphone only while you are recording a video for your own timeline.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>LunaTrack can import your basal body temperature to chart it alongside your cycle. Your health data stays on this device.</string>
 </dict>

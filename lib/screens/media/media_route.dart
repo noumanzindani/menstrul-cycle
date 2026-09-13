@@ -107,7 +107,9 @@ Route<void> mediaTimelineRoute(BuildContext context) {
                 // costs nothing.
                 await sync.sweepOrphans(skipIds: uploader.inFlightIds);
               },
-        onAdd: !available ? null : () => _pickAndUpload(uploader),
+        onAdd: !available
+            ? null
+            : (source) => _pickAndUpload(uploader, source),
         onOpen: (context, item) => Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (_) => MediaViewerScreen(
@@ -189,18 +191,42 @@ Future<File> _loadFile(
 /// rather than at startup: it is idempotent, it costs a type test, and a
 /// structural test in `media_picker_config_test.dart` fails if a second entry
 /// point ever constructs a picker without it.
-Future<MediaUploadOutcome> _pickAndUpload(MediaUploadService uploader) async {
+Future<MediaUploadOutcome> _pickAndUpload(
+    MediaUploadService uploader, MediaSource source) async {
+  // Runs for capture too, not only for library picks. The configuration is
+  // per-platform-instance rather than per-call, and a capture path that skipped
+  // it would leave the flag unset for whichever call came next.
   useSystemPhotoPicker();
   final picker = ImagePicker();
-  final files = await picker.pickMultipleMedia(
-    limit: kMaxItemsPerPick,
-    // Downscale images in the plugin, before we ever hold them: a phone photo
-    // lands at a few hundred KB instead of several MB, which is the real
-    // control on upload size. Videos are unaffected — there is no transcoding.
-    maxWidth: 2048,
-    maxHeight: 2048,
-    imageQuality: 85,
-  );
+  // Downscaling happens in the plugin, before we ever hold the bytes: a phone
+  // photo lands at a few hundred KB instead of several MB, which is the real
+  // control on upload size. Videos are unaffected — there is no transcoding,
+  // and the duration cap is what bounds them instead.
+  final files = switch (source) {
+    MediaSource.library => await picker.pickMultipleMedia(
+        limit: kMaxItemsPerPick,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 85,
+      ),
+    // Capture returns ONE item or none — the system camera app takes one thing
+    // at a time — so both branches normalise to a list rather than making the
+    // shared pipeline below care which source it came from.
+    MediaSource.camera => [
+        ?await picker.pickImage(
+          source: ImageSource.camera,
+          maxWidth: 2048,
+          maxHeight: 2048,
+          imageQuality: 85,
+        ),
+      ],
+    MediaSource.videoCamera => [
+        ?await picker.pickVideo(
+          source: ImageSource.camera,
+          maxDuration: kMaxVideoDuration,
+        ),
+      ],
+  };
   if (files.isEmpty) return const MediaUploadOutcome();
 
   try {

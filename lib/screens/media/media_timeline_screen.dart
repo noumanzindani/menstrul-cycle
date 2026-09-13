@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../services/media_picker_config.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -35,8 +37,13 @@ class MediaTimelineScreen extends StatefulWidget {
   /// Pull metadata, hydrate thumbnails, sweep orphans. Null when offline-hatched.
   final Future<void> Function()? onRefresh;
 
-  /// Pick and upload. Null disables adding.
-  final Future<MediaUploadOutcome> Function()? onAdd;
+  /// Capture or pick from [source], then upload. Null disables adding.
+  ///
+  /// Takes the source rather than choosing one, so this screen owns the
+  /// CHOICE (it has the context a sheet needs) and the route owns the PICKER
+  /// (it owns the configuration and the temp sweep). Neither has to know the
+  /// other's half.
+  final Future<MediaUploadOutcome> Function(MediaSource source)? onAdd;
 
   /// Opens one item full-screen. Injected so the grid does not depend on the
   /// viewer (and its video controller) in widget tests.
@@ -81,7 +88,46 @@ class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
     if (mounted) await context.read<MediaProvider>().reload();
   }
 
+  /// Offers capture and library picking, then runs the chosen one.
+  ///
+  /// A sheet rather than a second app-bar button: capture is two options, not
+  /// one (still and video are separate system intents), so a single icon could
+  /// never express it — and a third icon on an app bar that already carries
+  /// refresh would crowd a 360dp phone.
   Future<void> _add() async {
+    if (widget.onAdd == null || _busy) return;
+    final source = await showModalBottomSheet<MediaSource>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(sheetContext, MediaSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined),
+              title: const Text('Record a video'),
+              onTap: () => Navigator.pop(sheetContext, MediaSource.videoCamera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from library'),
+              onTap: () => Navigator.pop(sheetContext, MediaSource.library),
+            ),
+          ],
+        ),
+      ),
+    );
+    // Dismissing the sheet is a cancel, not an empty pick: nothing runs, and
+    // the failure count from a previous attempt stays on screen.
+    if (source == null || !mounted) return;
+    await _uploadFrom(source);
+  }
+
+  Future<void> _uploadFrom(MediaSource source) async {
     final add = widget.onAdd;
     if (add == null || _busy) return;
     setState(() {
@@ -93,7 +139,7 @@ class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
     });
     MediaUploadOutcome outcome;
     try {
-      outcome = await add();
+      outcome = await add(source);
     } catch (error, stack) {
       // Reported, not swallowed. `failed: 1` is a COUNT the user reads, and a
       // thrown batch reports 1 no matter how many files were picked — so on its
