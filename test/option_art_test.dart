@@ -8,6 +8,18 @@ import 'package:menstrul_track/models/enums.dart';
 /// Every catalog key must be classified, every declared asset must exist, and
 /// the exclusions must stay exclusions. These are pure — no DB, no pump — so
 /// they run in milliseconds and are the cheapest guard in the suite.
+
+/// Marks rendered as full-colour raster, with NO tint (`TrackArt._isRaster`).
+///
+/// Listed here rather than derived from the extension so that adding one is a
+/// deliberate act with a visible diff. Each entry gives up three things the
+/// tint provides free: the mark stops following the label colour, stops
+/// adapting to the dark theme, and stops dimming when the chip is disabled.
+const kRasterArt = <String>{
+  // Owner decision 2026-09-14: the illustration itself is the mark.
+  'assets/track/cramps.png',
+};
+
 void main() {
   const allLists = <List<TrackOption>>[
     kSymptomOptions,
@@ -117,12 +129,18 @@ void main() {
     // BlendMode.srcIn flattens the drawing to a single tint, so a multi-colour
     // file silently loses its palette. Cheap structural proxy: the art is
     // authored with one ink colour.
-    test('every asset is monochrome so it can be tinted', () {
+    //
+    // Raster marks are exempt because TrackArt does not tint them at all -- but
+    // the exemption is ENUMERATED, never inferred from the extension alone. A
+    // `.png` is otherwise a way to skip the monochrome rule by accident, which
+    // is exactly the kind of silent opt-out this suite exists to prevent.
+    test('every tinted asset is monochrome', () {
       final offenders = <String>[];
       for (final p in [
         ...kOptionArt.values,
         kMedicationArt,
       ]) {
+        if (kRasterArt.contains(p)) continue;
         final colours = RegExp(r'(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"')
             .allMatches(File(p).readAsStringSync())
             .map((m) => m.group(1)!.toLowerCase())
@@ -130,6 +148,27 @@ void main() {
         if (colours.length > 1) offenders.add('$p -> $colours');
       }
       expect(offenders, isEmpty);
+    });
+
+    // The other half of the exemption, and the half that actually bites: a new
+    // raster asset must be added to kRasterArt deliberately. Without this, any
+    // future `.png` skips the monochrome check merely by existing.
+    test('every non-SVG asset is a declared raster mark', () {
+      final undeclared = [
+        ...kOptionArt.values,
+        kMedicationArt,
+      ].where((p) => !p.endsWith('.svg') && !kRasterArt.contains(p));
+      expect(
+        undeclared,
+        isEmpty,
+        reason: 'add it to kRasterArt, and accept that it will not tint',
+      );
+    });
+
+    // And the reverse: listing an SVG as raster would exempt a file the tint
+    // DOES apply to, quietly disabling the monochrome guarantee for it.
+    test('no SVG is declared a raster mark', () {
+      expect(kRasterArt.where((p) => p.endsWith('.svg')), isEmpty);
     });
 
     // `none` is the "Period ended today" switch, not a chip. An empty drop
@@ -159,7 +198,7 @@ void main() {
 
   group('artFor', () {
     test('resolves a mapped key', () {
-      expect(artFor('cramps'), 'assets/track/cramps.svg');
+      expect(artFor('cramps'), 'assets/track/cramps.png');
     });
 
     // Medications are user-created and unbounded, so they can never be in

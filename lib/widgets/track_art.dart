@@ -49,8 +49,32 @@ class TrackArt extends StatelessWidget {
   /// row grows by the difference.
   final double size;
 
+  /// Whether [path] is a full-colour raster mark rather than a tintable SVG.
+  ///
+  /// Raster art is an OPT-OUT of everything the tint buys, so it is detected by
+  /// extension rather than by a flag: the asset's own file type is the single
+  /// source of truth, and an `.svg` cannot accidentally skip the recolour.
+  bool get _isRaster => !path.endsWith('.svg');
+
   @override
   Widget build(BuildContext context) {
+    // A colour filter is deliberately NOT applied to raster art. srcIn repaints
+    // every pixel one colour, which turns a full-colour illustration into a
+    // featureless silhouette of its own alpha channel. The trade is real and
+    // one-directional: raster marks do not follow the label colour, so they do
+    // not adapt to the dark theme or dim with the chip's disabled state the way
+    // every SVG mark does for free. Use SVG unless the artwork IS the point.
+    if (_isRaster) {
+      return Image.asset(
+        path,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        // The mark is decorative; RawChip already announces the label. Same
+        // reasoning as excludeFromSemantics on the SVG branch below.
+        excludeFromSemantics: true,
+      );
+    }
     final ink =
         color ??
         DefaultTextStyle.of(context).style.color ??

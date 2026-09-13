@@ -19,13 +19,22 @@ import 'catalog.dart';
 /// 3. Medications need a PREFIX rule, not a per-instance value — their keys are
 ///    user-created and unbounded, so no field could ever be populated for them.
 ///
-/// Every asset here MUST be a monochrome, single-colour SVG: `TrackArt`
+/// Every `.svg` asset here MUST be monochrome and single-colour: `TrackArt`
 /// repaints it with `BlendMode.srcIn`, which flattens the whole drawing to one
 /// tint. A multi-colour file loses its colours; a light-mode-only palette
 /// disappears in dark mode.
+///
+/// A non-`.svg` asset is rendered as full-colour raster with NO tint (see
+/// `TrackArt._isRaster`). That is an owner decision per icon, not a default,
+/// and it costs three things the tint gives away free: the mark no longer
+/// follows the label colour, no longer adapts to the dark theme, and no longer
+/// dims with the chip's disabled state. Prefer SVG unless the artwork itself is
+/// the point.
 const Map<String, String> kOptionArt = {
   // kSymptomOptions
-  'cramps': 'assets/track/cramps.svg',
+  // Raster by owner decision: the illustration IS the mark here. See the
+  // raster caveats above -- this one does not recolour with the theme.
+  'cramps': 'assets/track/cramps.png',
   'headache': 'assets/track/headache.svg',
   'bloating': 'assets/track/bloating.svg',
   'acne': 'assets/track/acne.svg',
