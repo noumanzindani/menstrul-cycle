@@ -44,10 +44,25 @@ class TrackArt extends StatelessWidget {
   /// does.
   final Color? color;
 
-  /// Kept at 16 by default and deliberately not larger: at 18+ the mark starts
-  /// competing with the label rather than supporting it, and every chip in the
-  /// row grows by the difference.
+  /// Kept at 16 by default and deliberately not larger FOR GLYPH ART: at 18+ a
+  /// glyph starts competing with the label rather than supporting it, and every
+  /// chip in the row grows by the difference. Raster marks scale this by
+  /// [_rasterScale] — see there for why the same ceiling does not apply.
   final double size;
+
+  /// How much larger a raster mark renders than a glyph at the same [size].
+  ///
+  /// A glyph is a single heavy shape and reads at 16. An illustration is a
+  /// scene — a figure, a pose, colour — and at 16 it collapses into a coloured
+  /// speck: legible as "something is there", not as what it depicts. The
+  /// competing-with-the-label argument that caps glyphs also runs the other way
+  /// here, because the whole reason to accept a raster mark is that the picture
+  /// IS the content.
+  ///
+  /// The cost is not free: the chip row grows by `size * (scale - 1)`, and it
+  /// grows for EVERY chip in the row, not just this one, because a Row sizes to
+  /// its tallest child.
+  static const double _rasterScale = 1.75;
 
   /// Whether [path] is a full-colour raster mark rather than a tintable SVG.
   ///
@@ -65,10 +80,11 @@ class TrackArt extends StatelessWidget {
     // not adapt to the dark theme or dim with the chip's disabled state the way
     // every SVG mark does for free. Use SVG unless the artwork IS the point.
     if (_isRaster) {
+      final rasterSize = size * _rasterScale;
       return Image.asset(
         path,
-        width: size,
-        height: size,
+        width: rasterSize,
+        height: rasterSize,
         fit: BoxFit.contain,
         // The mark is decorative; RawChip already announces the label. Same
         // reasoning as excludeFromSemantics on the SVG branch below.
