@@ -10,7 +10,15 @@ import { compiledContent } from '../../../PRIVACY_POLICY.md'
 // else, including the later "Current status" notice about the deletion
 // purge job, is real disclosure and stays.
 const raw = await compiledContent()
-const html = raw.replace(/<blockquote>[\s\S]*?Before publishing[\s\S]*?<\/blockquote>\s*/, '')
+const withoutChecklist = raw.replace(/<blockquote>[\s\S]*?Before publishing[\s\S]*?<\/blockquote>\s*/, '')
+// The policy's one internal link, `[docs/account-deletion.md](docs/account-deletion.md)`,
+// is relative — rendered here it resolves against THIS page's own URL, i.e.
+// /docs/account-deletion.md, which does not exist. The doc isn't hosted at a
+// stable public URL yet either (see the "Host PRIVACY_POLICY.md and
+// docs/account-deletion.md" item in CLAUDE.md's pre-submission checklist), so
+// rather than point the link at an unstable location, the anchor is dropped
+// and the plain-text filename is kept.
+const html = withoutChecklist.replace(/<a href="docs\/account-deletion\.md">([^<]*)<\/a>/, '$1')
 ---
 <Base
   title="Privacy policy — LunaTrack"

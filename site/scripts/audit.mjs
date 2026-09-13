@@ -12,8 +12,10 @@ const DIST = new URL('../dist/', import.meta.url).pathname
 const failures = []
 const fail = (page, msg) => failures.push(`${page}: ${msg}`)
 
-/** Pages exempt from marketing-claim scanning: reproduced legal documents. */
-const CLAIM_EXEMPT = new Set(['/privacy-policy', '/terms'])
+/** Pages exempt from marketing-claim scanning: reproduced legal documents.
+ * `/terms` is site-authored prose, not a reproduced document, so it is NOT
+ * exempt — it is subject to the banned-claim gate like every other page. */
+const CLAIM_EXEMPT = new Set(['/privacy-policy'])
 /** Pages allowed to ship a hydrated island, with their JS byte budget. */
 const JS_BUDGET = { '/tools/period-calculator': 8192, '/tools/ovulation-calculator': 8192,
                     '/tools/cycle-length-calculator': 8192, '/tools/due-date-calculator': 8192 }
@@ -168,8 +170,20 @@ for (const file of htmlFiles) {
   }
 
   // --- B3: every internal link resolves ---------------------------------
-  for (const m of all(/<a\b[^>]*href="(\/[^"#?]*)"/gi, html)) {
-    const target = m[1].replace(/\/$/, '') || '/'
+  // Checks both absolute (leading '/') and relative hrefs. A relative href is
+  // resolved against the directory of the page that contains it, the same way a
+  // browser resolves it against that page's own URL — a leading-slash-only regex
+  // left a relative link (e.g. inside a reproduced legal document) unchecked.
+  for (const m of all(/<a\b[^>]*href="([^"]*)"/gi, html)) {
+    const href = m[1].split('#')[0].split('?')[0]
+    if (!href || /^[a-z][a-z0-9+.-]*:/i.test(href)) continue // empty, or an absolute URL / mailto: / tel: etc.
+    let target
+    if (href.startsWith('/')) {
+      target = href.replace(/\/$/, '') || '/'
+    } else {
+      const dir = page.slice(0, page.lastIndexOf('/') + 1) || '/'
+      target = new URL(href, 'http://x' + dir).pathname.replace(/\/$/, '') || '/'
+    }
     if (!routes.has(target)) fail(page, `internal link to ${target} has no built page (Flo B3)`)
   }
 }
