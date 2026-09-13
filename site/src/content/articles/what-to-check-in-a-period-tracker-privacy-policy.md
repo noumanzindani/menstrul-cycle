@@ -89,7 +89,31 @@ outside that protection if it was not deliberately included. A policy that
 claims "encrypted at rest" without saying which files that covers is making a
 narrower promise than it sounds like.
 
-Answering all seven honestly takes more than a sentence, which is exactly why
+**8. Does the policy say how long your data is kept, and is there any limit
+beyond "until you delete it"?** Retention is easy to leave out entirely,
+because silence on it looks the same as a considered decision. Look for a
+stated maximum — data automatically removed after a period of inactivity, or a
+hard ceiling regardless of how long the account stays open — rather than a
+retention period that is really just "for as long as you keep the account,"
+which is not a limit at all. The longer sensitive data sits somewhere, in more
+places, across more years, the more there is to expose if the storage is ever
+breached, subpoenaed, or simply mishandled, and a policy that never addresses
+retention is leaving that question for you to assume an answer to.
+
+**9. Does the policy say how the operator handles law-enforcement, subpoena,
+or other government requests for your data — what it would disclose, whether
+it pushes back on overbroad requests, and whether it publishes a transparency
+report or notifies users?** This is not a hypothetical concern for
+period-tracking data specifically: cycle and pregnancy-related records have
+been sought as evidence in legal proceedings elsewhere, which is exactly why
+this question belongs on the checklist rather than being treated as generic
+boilerplate. A policy that states its process for legal requests, commits to
+notifying users where the law allows it, or publishes a transparency report is
+giving you a real answer. A policy that says nothing on the subject has not
+addressed the question, and a reader is entitled to notice the silence rather
+than assume the best.
+
+Answering all nine honestly takes more than a sentence, which is exactly why
 so many privacy policies use broad reassurance instead of specifics. Below is
 LunaTrack's own answer to each one.
 
@@ -156,19 +180,38 @@ and that working copy sits outside the encrypted database. It is erased by the
 same in-app controls that erase everything else, but while it exists it is not
 covered by the same guarantee as the main database.
 
+**8. Retention.** LunaTrack's policy states that your data is kept for as
+long as your account exists, with no other retention limit. The only
+exception is the dates-only deletion markers used to propagate erasures
+between devices, which are pruned after 180 days — everything else, including
+every daily log and every uploaded photo, has no retention ceiling beyond
+"the account is still open." That is the honest answer, not a comfortable
+one: there is no independent limit here.
+
+**9. Legal and government requests.** LunaTrack's policy does not address
+this at all. It contains no section on law enforcement, subpoenas, court
+orders, or other government requests, no statement of what would or would not
+be disclosed, and no mention of a transparency report or a commitment to
+notify users where the law permits it. That is a real gap in the document, not
+a question this article can answer on the policy's behalf — the honest grade
+here is that the policy is silent on this.
+
 ## The honest summary
 
 Run against its own checklist, LunaTrack requires an account for normal use,
 stores your synced logs and media in a form its operator can technically
 read, shows non-personalized ads that never touch the logging or insights
 screens, offers a paid ad-removal tier that does not change data handling, has
-a deletion process whose final automated step is not live yet, and encrypts
-its on-device database with a device-held key that does not cover the sync
-component's working copy. Some of that is a solid answer. Some of it is not
-the answer a period tracker's marketing page would prefer to give, and we
-would rather publish the plain version than a flattering one — the same
-standard this checklist asks you to hold every other tracker to, including the
-ones that would rather you did not ask.
+a deletion process whose final automated step is not live yet, encrypts its
+on-device database with a device-held key that does not cover the sync
+component's working copy, keeps your data for as long as the account exists
+with no further retention limit, and says nothing anywhere about how it would
+handle a law-enforcement or government request for your data. Some of that is
+a solid answer. Several of those, including the last two, are not the answer a
+period tracker's marketing page would prefer to give, and we would rather
+publish the plain version than a flattering one — the same standard this
+checklist asks you to hold every other tracker to, including the ones that
+would rather you did not ask.
 
 ## Where to go from here
 

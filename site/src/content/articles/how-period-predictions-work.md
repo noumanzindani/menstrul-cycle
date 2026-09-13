@@ -105,13 +105,19 @@ reason a tracker's estimate can feel accurate for months and then suddenly miss 
 several days: nothing about the method changed, but your cycle did, and the
 averaging is always looking slightly backward.
 
-It is also worth being honest about a different kind of drift: rounding. An
-average cycle length is rarely a whole number — thirty and a half days is a
-perfectly normal average across a handful of real cycles — and any calculator has
-to decide how to handle the fraction. Small rounding choices compound slightly
-over several projected cycles in a row, which is one more reason the third or
-fourth projected period on a calendar deserves less confidence than the very next
-one.
+It is also worth being honest about a subtler source of drift on this site
+specifically: the period and ovulation calculators here take your cycle length
+as a whole number of days. Your real average is rarely that tidy — the
+[cycle-length calculator](/tools/cycle-length-calculator) will quite happily
+report something like 30.5 days from a handful of your own recent cycles — so
+if you carry that number over into the period or ovulation calculator, you
+have to round it to a whole number first. Rounding down to 30 instead of up to
+31 means every projected date is built from a slightly-too-short cycle, and
+because the same fixed number gets added again for each cycle projected
+further out, that gap widens a little with each one instead of staying fixed.
+It is a small effect on the very next projected period and a more noticeable
+one by the third or fourth, which is one more reason to treat only the nearest
+projected date as trustworthy.
 
 ## What makes a prediction better or worse
 

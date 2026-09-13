@@ -1,6 +1,14 @@
 /** The canonical origin. Changing the domain is a one-line edit here. */
 export const SITE = 'https://lunatrack.web.app'
 
+/**
+ * Sentinel for spec D4. Lives here (not in content.config.ts) so SeoHead.astro can
+ * import it without a content-layer dependency, and content.config.ts re-exports it
+ * so existing importers keep working. Never replace this with a name that is not a
+ * real reviewer.
+ */
+export const UNREVIEWED = 'Not medically reviewed'
+
 export const ORG = {
   name: 'LunaTrack',
   legalName: 'LunaTrack',

@@ -1,5 +1,5 @@
 ---
-import { SITE, ORG } from '../consts.ts'
+import { SITE, ORG, UNREVIEWED } from '../consts.ts'
 import type { ArticleMeta, FaqEntry, Crumb } from '../types.ts'
 
 interface Props {
@@ -21,9 +21,9 @@ const {
 const abs = (p: string) => new URL(p, SITE).href
 const canonical = abs(path)
 
-// Sentinel from spec D4: when no clinician has reviewed the article we render a
-// visible notice and omit reviewedBy from schema rather than fabricate a name.
-const UNREVIEWED = 'Not medically reviewed'
+// Sentinel from spec D4 (defined once in consts.ts): when no clinician has reviewed
+// the article we render a visible notice and omit reviewedBy from schema rather than
+// fabricate a name.
 
 const graph: Record<string, unknown>[] = [
   {

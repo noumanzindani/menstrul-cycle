@@ -1,8 +1,8 @@
 import { defineCollection, z } from 'astro:content'
 import { glob } from 'astro/loaders'
 
-/** Sentinel for spec D4. Never replace this with a name that is not a real reviewer. */
-export const UNREVIEWED = 'Not medically reviewed'
+/** Sentinel for spec D4, centralised in consts.ts; re-exported so existing importers work. */
+export { UNREVIEWED } from './consts.ts'
 
 const articles = defineCollection({
   loader: glob({ pattern: '**/*.md', base: './src/content/articles' }),
