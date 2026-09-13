@@ -1,0 +1,262 @@
+---
+import Tool from '../../layouts/Tool.astro'
+import Calculator from '../../components/Calculator.astro'
+import type { FaqEntry } from '../../types.ts'
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Can I use this calculator to avoid getting pregnant?',
+    a: 'No. This calculator, and the app behind it, is not a method of contraception. It estimates a fertile window from an assumed 14-day luteal phase, and real ovulation timing varies enough — from cycle to cycle and from the average — that relying on the estimate to avoid intercourse on "unsafe" days fails often enough to be dangerous. If you need reliable contraception, use a method proven for that purpose and discuss options with a doctor or pharmacist.',
+  },
+  {
+    q: 'Why does the estimate count backward from my next period instead of forward from my last one?',
+    a: "Because the two halves of a cycle behave differently. The stretch from the start of a period to ovulation shifts around a lot from month to month, but the stretch from ovulation to the next period is much steadier, usually close to 14 days. Counting backward from a predicted period date anchors the estimate to the more stable number; counting forward from the last period would anchor it to the least stable one.",
+  },
+  {
+    q: 'How wide is the fertile window and why does it start before the ovulation date?',
+    a: "The window runs from five days before the estimated ovulation date through one day after it — six days in total. It starts early because sperm can survive in the reproductive tract for up to about five days waiting for an egg to be released, and it extends one extra day because the egg itself is viable for roughly 24 hours after release. Conception is possible from intercourse anywhere in that span, not only on the ovulation day itself.",
+  },
+  {
+    q: 'My ovulation test (LH strip) shows a different day than the calculator. Which one should I trust?',
+    a: "Trust the test over the calculator for that specific cycle. An LH surge test detects a real hormonal event happening in your body right now; the calculator is a projection built from an assumed 14-day countdown applied to an average cycle length you typed in. When they disagree, the test is telling you something the calculator has no way to know — that this particular cycle isn't tracking the average.",
+  },
+  {
+    q: "I have a fixed 14-day luteal phase in real life — is the estimate accurate for me?",
+    a: "It should land close, but 'close' still isn't certain. A 14-day luteal phase is a population average, and even people whose luteal phase is normally very consistent see it shift by a day or two sometimes, for reasons ranging from stress to illness to nothing identifiable at all. The estimate is a best single guess built on that average, not a measurement of what actually happened inside your body this cycle.",
+  },
+  {
+    q: 'What if my cycles are irregular — does the estimate still mean anything?',
+    a: "It will still produce a date, but treat it as considerably rougher. The whole calculation rests on one cycle length repeating and one fixed countback from the next period; the less predictable your cycles actually are, the less that projection has to say about any one specific month. Signs like basal body temperature or cervical mucus changes, tracked over the cycle itself, tend to be more informative than a calendar projection when cycles don't follow a steady pattern.",
+  },
+  {
+    q: 'Does the app track ovulation better than this standalone calculator?',
+    a: 'The underlying arithmetic is the same, but the app applies it to your own logged cycle history rather than one manually typed cycle length, and it can incorporate corroborating signals — basal body temperature and ovulation test results — to raise or lower how confident it is in a given estimate. This page runs the calculation once, on demand, from whatever numbers you give it.',
+  },
+]
+---
+<Tool
+  title="Ovulation Calculator — Estimate Your Fertile Window"
+  description="Estimate ovulation and a six-day fertile window from your last period and cycle length. Runs in your browser; not a method of contraception."
+  path="/tools/ovulation-calculator"
+  faq={faq}
+>
+  <Calculator slot="widget" kind="ovulation" />
+
+  <p>
+    An ovulation calculator answers a narrower question than most people
+    expect: not "when will I ovulate," which no calendar tool can know for
+    certain, but "given an average cycle length, when does ovulation most
+    plausibly fall, and which days around it carry the most chance of
+    conception?" Type in the first day of your last period and your average
+    cycle length, and this tool projects a single estimated ovulation date
+    plus a six-day fertile window around it — using the same backward-counting
+    arithmetic described below. Everything runs as JavaScript in your own
+    browser; the dates you enter are never sent to LunaTrack or anyone else.
+    If you're also trying to work out when your next period is likely to
+    start, the <a href="/tools/period-calculator" class="underline">period
+    calculator</a> handles that half on its own, and the
+    <a href="/tools/cycle-length-calculator" class="underline">cycle-length
+    calculator</a> can help you get a more personal average to type in here in
+    the first place.
+  </p>
+
+  <h2>How the date is estimated</h2>
+  <p>
+    The calculation takes two numbers — your last period's start date and
+    your average cycle length — and produces an estimated ovulation date by
+    working backward from a predicted future event rather than forward from a
+    past one. First, it adds your cycle length to your last period's start
+    date to get a predicted next period date, exactly the way the period
+    calculator does. Then it subtracts a fixed 14 days from that predicted
+    date to land on an estimated ovulation day. That 14-day figure is the
+    assumed length of the luteal phase — the stretch of a cycle from
+    ovulation to the start of the next period — and it is the single most
+    important number in this whole calculation, because it's an assumption,
+    not a measurement of anything specific to you.
+  </p>
+  <p>
+    From that one ovulation estimate, the fertile window is built by
+    subtracting five days and adding one: five days before ovulation through
+    one day after it, six days altogether. There's no adjustment for how
+    regular or irregular your cycles have been, no weighting of recent
+    cycles, and no attempt to narrow the window based on anything other than
+    the two numbers you typed in. That's deliberate — a more sophisticated
+    estimate needs a real history of temperature readings, hormone tests, or
+    logged cycles to draw on, not two numbers entered once, and the
+    "Signs that corroborate the estimate" section below covers what that
+    additional evidence looks like.
+  </p>
+
+  <h2>Why we count back from the next period, not forward from the last</h2>
+  <p>
+    It would be simpler, in one sense, to just count forward roughly two
+    weeks from the start of your last period and call that ovulation. Plenty
+    of informal advice does exactly that. It's also less accurate, and the
+    reason comes down to which half of the cycle is more variable.
+  </p>
+  <p>
+    A menstrual cycle has two phases separated by ovulation. The first phase
+    — from the start of a period to ovulation — is called the follicular
+    phase, and it is the part that stretches and compresses from month to
+    month. Its length responds to all sorts of things: illness, stress,
+    travel, sleep disruption, and plenty of ordinary biological noise that
+    has nothing to do with anything being wrong. The second phase — from
+    ovulation to the next period — is the luteal phase, and it is
+    considerably steadier. In most people it holds close to 14 days,
+    cycle after cycle, even when the first phase is bouncing around.
+  </p>
+  <p>
+    Because the luteal phase is the more consistent half, anchoring the
+    ovulation estimate to it — by counting backward a fixed 14 days from a
+    predicted period date — produces a more reliable estimate than anchoring
+    to the less consistent follicular phase by counting forward from the last
+    period. It's the same reason the due-date calculator on this site uses a
+    comparable logic in reverse; both tools lean on the part of the cycle
+    that moves around the least. It does not mean the estimate is precise —
+    the 14-day figure is still an average, and real luteal phases do vary by
+    a day or two even in people with generally consistent cycles — only that
+    counting backward is the more defensible of two imperfect options.
+  </p>
+
+  <h2>The six-day fertile window and where it comes from</h2>
+  <p>
+    The fertile window here spans six days: five days before the estimated
+    ovulation date through one day after it. Those two numbers come from two
+    separate pieces of reproductive biology, not from an arbitrary buffer
+    added for caution.
+  </p>
+  <p>
+    Sperm can survive inside the reproductive tract for up to roughly five
+    days under favorable conditions, waiting for an egg to be released. That
+    means intercourse several days before ovulation can still result in
+    conception if sperm are still viable when the egg appears — hence the
+    window opening five days early. On the other side, an egg released at
+    ovulation remains viable for roughly 24 hours before it's no longer able
+    to be fertilized, which is where the single extra day after the
+    ovulation estimate comes from. Put together, six days is the span during
+    which intercourse has a realistic chance of leading to conception, given
+    a single estimated ovulation date sitting at its center.
+  </p>
+  <p>
+    It's worth being precise about what this window is not. It isn't a claim
+    that conception is equally likely on all six days — the days immediately
+    before ovulation are generally considered to carry the highest chance,
+    tapering off toward the edges of the window — and it isn't a claim that
+    conception is impossible outside it, only markedly less likely. It also
+    isn't six actual observed days from your own cycle; it's six days
+    computed around one projected date built from an assumed luteal phase
+    length. Both layers of estimation stack, which is part of why this
+    window should be read as a planning guide rather than a precise
+    biological boundary.
+  </p>
+
+  <h2>Signs that corroborate the estimate (BBT, cervical mucus, LH tests)</h2>
+  <p>
+    Because the calendar estimate here rests entirely on an assumed 14-day
+    luteal phase applied to a typed-in average, it's worth knowing what
+    actual physical signs can tell you that a calculator can't. None of these
+    require throwing out the calendar estimate — they're most useful as a way
+    to check it against what your body is actually doing in a given cycle.
+  </p>
+  <p>
+    Basal body temperature (BBT) is your resting temperature taken first
+    thing each morning, before getting out of bed. It typically rises by a
+    few tenths of a degree after ovulation and stays elevated through the
+    rest of the luteal phase, because of the temperature-raising effect of
+    the hormone progesterone. A sustained rise across several consecutive
+    mornings is a signal that ovulation has already happened in that cycle —
+    it confirms the event after the fact rather than predicting it in
+    advance, which is a meaningfully different kind of information than a
+    calendar projection.
+  </p>
+  <p>
+    Cervical mucus changes across a cycle in a pattern that's fairly
+    consistent from person to person: it tends to become clearer, wetter, and
+    more stretchable — often compared to raw egg white — in the days
+    approaching ovulation, then dries up again afterward. Noticing that
+    change happening earlier or later than the calculator's estimate is a
+    useful, low-cost way to sense-check the projection in real time, rather
+    than only after the fact the way a temperature rise does.
+  </p>
+  <p>
+    Ovulation predictor kits (LH tests) detect the surge in luteinizing
+    hormone that triggers ovulation, usually 24 to 36 hours before it
+    happens. Because they detect an actual hormonal event rather than
+    projecting from an average, a positive test is generally more reliable
+    for a specific cycle than the calendar estimate on this page — and if the
+    two disagree, the test result deserves more weight for that cycle,
+    because it's measuring something the calculator has no access to.
+  </p>
+  <p>
+    None of these signs turn the estimate into certainty, and none of them
+    are things this calculator can see or account for — it only knows the
+    two numbers you typed in. But combined, especially over more than one
+    cycle, they build a picture of your own pattern that a single calendar
+    projection, done once, cannot.
+  </p>
+
+  <h2>Why this is not contraception</h2>
+  <p>
+    This is the most important thing on this page, so it's worth stating
+    plainly and without hedging: this calculator, and the LunaTrack app it
+    comes from, is not a method of contraception. Do not use the estimated
+    fertile window, on its own, to decide which days are "safe" to avoid
+    pregnancy.
+  </p>
+  <p>
+    The reasoning is the same reasoning that runs through every section
+    above. The estimate depends on an assumed 14-day luteal phase and a
+    cycle length you typed in by hand, both of which are averages rather than
+    measurements of what's actually happening in a given cycle. Ovulation
+    timing shifts in response to stress, illness, travel, and plenty of
+    causes that leave no advance warning, and it can occur several days
+    earlier or later than a calendar projection expects — including,
+    occasionally, outside the six-day window this calculator draws. Fertility
+    awareness methods that are used for contraception in a clinically
+    supervised way combine daily temperature and mucus observations, taken
+    in the moment, with strict protocols for how much margin to build in —
+    they are not the same thing as a single calendar calculation done once
+    in advance, and even those supervised methods carry a real, documented
+    failure rate when used to prevent pregnancy.
+  </p>
+  <p>
+    If avoiding pregnancy matters to you, use a method with a known and
+    acceptable failure rate for that purpose, and talk to a doctor or
+    pharmacist about what fits your situation. If achieving pregnancy is the
+    goal instead, this estimate is a reasonable starting point for timing,
+    and the corroborating signs above are worth adding to it rather than
+    relying on the calendar date alone.
+  </p>
+
+  <h2>When to seek advice</h2>
+  <p>
+    A few situations are worth raising with a doctor rather than working
+    through with a calculator. If you've been trying to conceive for twelve
+    months without success — or six months if you're over 35 — that's
+    generally the point at which a fertility evaluation is recommended,
+    because a calendar estimate can't distinguish ordinary month-to-month
+    variation from an underlying reason conception isn't happening.
+  </p>
+  <p>
+    If your cycles are irregular enough that you can't confidently name an
+    average cycle length to type into this calculator, that irregularity
+    itself is worth mentioning at an appointment — it can have identifiable
+    causes, and a calendar tool has nothing useful to say about why a cycle
+    doesn't follow a predictable pattern. Similarly, if BBT charting or LH
+    tests consistently disagree with where a calendar estimate places
+    ovulation, or seem to show no clear ovulation event at all across several
+    cycles, that pattern is more informative discussed with a clinician than
+    puzzled over alone.
+  </p>
+  <p>
+    And regardless of what any calculator or test suggests, pelvic pain,
+    unusually heavy or prolonged bleeding, or bleeding between periods are
+    reasons to see a doctor on their own terms — they're not something this
+    page, or any fertility calculator, is built to evaluate. For a broader
+    look at what LunaTrack can help track between appointments, including
+    corroborating signals like BBT and test results, see the
+    <a href="/features" class="underline">features page</a>; for how any of
+    that data is stored and who can see it, see
+    <a href="/privacy" class="underline">how your data is handled</a>.
+  </p>
+</Tool>

@@ -1,0 +1,238 @@
+---
+import Tool from '../../layouts/Tool.astro'
+import Calculator from '../../components/Calculator.astro'
+import type { FaqEntry } from '../../types.ts'
+
+const faq: FaqEntry[] = [
+  {
+    q: 'How many period start dates do I need to enter?',
+    a: 'At least two, since a cycle length is the gap between two consecutive starts and one date alone has no gap to measure. The form accepts up to four, which gives up to three measured cycle lengths — enough to see whether your pattern holds steady or moves around, which a single measurement can never show.',
+  },
+  {
+    q: 'What counts as the "start" of a period for this calculator?',
+    a: 'The first day of actual bleeding, not light spotting beforehand and not the day other symptoms begin. If spotting genuinely makes it hard to tell where one period ends and bleeding proper begins, use your best judgment consistently across the dates you enter — and mention that ambiguity to a doctor if it happens often, since it can be a symptom worth discussing on its own.',
+  },
+  {
+    q: 'What does "regular" actually mean on this page?',
+    a: 'It means the gap between your shortest and longest measured cycle was 7 days or less across the dates you entered — nothing more. It is a plain description of the numbers you typed in, not a medical judgment, not a diagnosis, and not a statement that anything about your cycles is healthy or unhealthy. A spread wider than 7 days is labeled "irregular" in exactly the same descriptive sense, and neither label should be read as a verdict on your body.',
+  },
+  {
+    q: 'My cycles came back "irregular" — should I be worried?',
+    a: "Not on the basis of this calculator alone. A spread wider than 7 days across three or four cycles is common, especially over a short observation period, and has many ordinary explanations — a single unusual month, incomplete or approximate dates, or just normal cycle-to-cycle variation. This tool has no way to distinguish that from something worth investigating; it only does arithmetic on the dates you gave it. If the pattern persists over several more cycles, or comes with other symptoms, that combination is worth bringing to a doctor.",
+  },
+  {
+    q: 'Why is my average shown with a decimal, like 29.3 days?',
+    a: "Because it's a mean of whole-number cycle lengths that don't divide evenly. If your three measured cycles were 28, 30, and 30 days, the average is 29.3, even though no single cycle actually lasted that long. Treat the average as a summary statistic describing the set, not a length any individual cycle is expected to hit exactly.",
+  },
+  {
+    q: 'Can I use approximate dates if I don\'t remember the exact day my period started?',
+    a: 'You can, but the result is only as precise as the dates you put in. A date that\'s off by a day or two will shift the measured cycle length by the same amount, and with only two or three cycles to average, a small error in one date can noticeably change the spread and even flip "regular" to "irregular" or back. If you\'re estimating, treat the output as a rough picture rather than an exact one.',
+  },
+  {
+    q: 'How is this different from the app\'s own cycle-length tracking?',
+    a: "This page runs the identical calculation — group the gaps between consecutive start dates, then look at the average and the spread — but only on however many dates you type in by hand, up to four. The app applies the same arithmetic to your full logged history, which keeps growing every cycle, so its picture of your average and your regularity gets more complete over time instead of resetting each time you use a calculator.",
+  },
+]
+---
+<Tool
+  title="Cycle Length Calculator — Average & Regularity"
+  description="Enter recent period start dates to see your average cycle length, the spread between shortest and longest, and whether that pattern looks regular."
+  path="/tools/cycle-length-calculator"
+  faq={faq}
+>
+  <Calculator slot="widget" kind="cycle-length" />
+
+  <p>
+    A cycle-length calculator does something the period and ovulation
+    calculators on this site don't: instead of projecting forward from an
+    average you already know, it works backward from dates you've actually
+    experienced to produce that average in the first place. Enter the first
+    day of two, three, or four recent periods, and this tool measures the
+    gap between each consecutive pair, then reports the average, the
+    shortest and longest gap, and whether the spread between them falls
+    inside a common description of "regular." Like the other calculators
+    here, it runs entirely as JavaScript in your browser — the dates you
+    type in are never sent anywhere. If you already have an average cycle
+    length and want to project forward instead, the
+    <a href="/tools/period-calculator" class="underline">period
+    calculator</a> and <a href="/tools/ovulation-calculator" class="underline">
+    ovulation calculator</a> use exactly this kind of number as their input.
+  </p>
+
+  <h2>What this measures</h2>
+  <p>
+    Cycle length, as used across every calculator on this site, is the
+    number of days from the first day of one period to the first day of the
+    next. This tool measures it directly rather than assuming it: you supply
+    the raw dates, and it computes the gap between each consecutive pair
+    itself, rounding to the nearest whole day. With two dates entered, that's
+    one measured cycle length. With three, it's two. With four, three — each
+    additional date buys one more real measurement of your own pattern
+    rather than a guess at what your pattern probably is.
+  </p>
+  <p>
+    From those measured lengths, the tool reports four things: the average
+    (the mean of all the gaps), the shortest gap, the longest gap, and the
+    variation — simply the longest gap minus the shortest. That variation
+    figure is the one this page cares about most, because it's the basis for
+    the regularity label described further down, and because a wide spread
+    is often more informative than the average on its own. Two people can
+    share the same 29-day average while one of them cycles at a metronomic
+    28, 29, 30 and the other swings between 21 and 38 — the average alone
+    would hide that difference completely.
+  </p>
+
+  <h2>How to count a cycle correctly (start to start)</h2>
+  <p>
+    The single most common way to get this measurement wrong is counting
+    from the wrong reference point. A cycle length is measured start to
+    start — the first day of bleeding in one period to the first day of
+    bleeding in the next — not the number of days between the end of one
+    period and the start of the next, and not a plain count of calendar days
+    in between without including the start date itself. Counting the gap
+    between periods, rather than between their start dates, will
+    systematically understate the true cycle length by however many days the
+    first period lasted.
+  </p>
+  <p>
+    Day one is the first day of actual flow, not the day spotting begins if
+    spotting and full flow are distinguishable for you, and not the day any
+    premenstrual symptoms show up. This matters because a day or two of
+    inconsistency in how "start" is defined, applied across several cycles,
+    can shift the measured average and — because the variation figure is
+    only ever a few days wide for a regular cycle — can be enough to move a
+    genuinely regular pattern into the "irregular" bucket or the reverse. If
+    you're not sure where a period actually started in a given month,
+    that's worth noting for yourself, and worth mentioning to a doctor if
+    it's a recurring difficulty rather than a one-off.
+  </p>
+  <p>
+    Entering the dates in this calculator in any order is fine — the
+    underlying calculation sorts them chronologically before measuring gaps
+    — but each date should represent one distinct period's start. Two dates
+    that are only a day or two apart will register as an implausibly short
+    "cycle," which usually means one of them was entered for the wrong
+    period rather than describing anything real about your body.
+  </p>
+
+  <h2>What a typical range looks like</h2>
+  <p>
+    Cycle lengths across the reproductive years vary widely from person to
+    person, and to some degree from cycle to cycle within the same person.
+    A commonly cited range for adult cycles runs from roughly 24 to 38 days,
+    with lengths outside that band still being entirely possible and not
+    automatically a sign anything is wrong — it's a description of where
+    most cycles fall, not a boundary of what's acceptable. This calculator
+    itself accepts start dates that imply anything from a very short to a
+    fairly long cycle without complaint; it isn't the tool's job to judge
+    where your number falls in that range, only to measure it accurately.
+  </p>
+  <p>
+    It's also worth separating "typical" from "yours." Population ranges
+    describe a distribution across many people; they don't tell you what to
+    expect from your own cycles specifically, and a cycle length that sits
+    outside the commonly cited range isn't inherently more concerning than
+    one inside it, if it's been consistent for you over time. What generally
+    matters more clinically is whether your own pattern is stable and
+    whether it's changed — both of which this calculator's variation figure
+    speaks to more directly than any comparison to a general range.
+  </p>
+
+  <h2>What "regular" means here and its limits</h2>
+  <p>
+    This calculator labels a pattern "regular" when the variation between
+    your shortest and longest measured cycle is 7 days or less, and
+    "irregular" when it's wider than that. That threshold is a plain,
+    consumer-facing description built into the arithmetic — not a clinical
+    diagnosis, not a threshold drawn from your medical history, and not a
+    statement from a doctor who has looked at your case. It exists to give a
+    quick, honest read on the numbers you typed in, nothing more.
+  </p>
+  <p>
+    This distinction matters more than it might seem. The word
+    "irregular," attached to a real person's own dates, can read as an
+    alarming verdict even when it's describing something ordinary — three or
+    four cycles is a short window, and a single unusually early or late
+    period can push the spread over the 7-day line on its own, without
+    reflecting a lasting change in your body. The label describes the
+    measured spread in the dates you entered, for the specific number of
+    cycles you entered them for; it does not know your medical history, does
+    not know why any cycle ran long or short, and cannot tell ordinary
+    variation apart from something that would benefit from medical
+    attention. Only a clinician, working with a fuller picture than four
+    dates typed into a web form, can do that.
+  </p>
+  <p>
+    It's also worth noting what a small sample can and can't show. Three
+    measured cycles — the most this calculator's four date fields allow —
+    is enough to notice a pattern, but not enough to be confident about it.
+    A longer history, like the one an app builds up by logging every cycle
+    over months, gives the same regular/irregular description far more
+    weight, because it's averaging over more real data rather than a
+    handful of recent examples.
+  </p>
+
+  <h2>What makes cycles vary</h2>
+  <p>
+    Cycle-to-cycle variation is normal to some degree in nearly everyone,
+    and it stems mostly from the part of the cycle before ovulation, which
+    responds to a wide range of everyday influences. Illness, particularly
+    anything with a fever, can delay the hormonal signaling that triggers
+    ovulation and push a whole cycle later. Psychological or physical
+    stress works through a related pathway and can delay a period by days
+    or, in some cycles, suppress ovulation for that cycle entirely. Travel
+    across time zones and disrupted sleep more generally can shift timing
+    too, since the reproductive hormonal cycle is loosely linked to the
+    body's broader daily rhythms.
+  </p>
+  <p>
+    Hormonal contraception changes the picture in a more fundamental way:
+    combined pills, the patch, and the ring generally replace the body's own
+    cycle with a hormone level the method controls, so bleeding on these
+    methods is a scheduled withdrawal bleed rather than a naturally
+    occurring cycle, and this calculator's arithmetic isn't measuring the
+    same underlying process when applied to those dates. Coming off
+    hormonal contraception, or switching methods, commonly brings a stretch
+    of irregularity while natural signaling resumes, sometimes lasting
+    several cycles.
+  </p>
+  <p>
+    Perimenopause is another major, and very common, source of change later
+    in reproductive life. As ovarian reserve declines, cycles frequently
+    become more variable — sometimes shorter, sometimes longer, sometimes
+    skipped — well before periods stop entirely. That growing variability is
+    itself a recognizable pattern, and if your own measured spread has been
+    widening over recent months, that trend is more useful information for a
+    doctor than any single "regular" or "irregular" label from one
+    calculation.
+  </p>
+
+  <h2>What to bring to a doctor</h2>
+  <p>
+    If you're going to discuss your cycle with a doctor, raw dates are more
+    useful than a summary label. Bring the actual start dates of your last
+    several periods if you have them — ideally more than the four this
+    calculator accepts — rather than just the words "regular" or
+    "irregular." A clinician can see patterns in the raw dates, like a
+    gradual lengthening or a cluster of skipped cycles, that a single
+    average and variation figure can flatten out.
+  </p>
+  <p>
+    Specific things worth mentioning alongside the dates: any sudden,
+    sustained change from a pattern that used to be predictable; bleeding
+    unusually heavy enough to soak through protection every hour or two for
+    several hours, or with clots larger than a coin; bleeding between
+    periods or after sex; pain severe enough to interfere with daily life;
+    or periods missing for three months or more when that isn't explained
+    by pregnancy, breastfeeding, or an expected effect of contraception.
+    None of these are things this calculator, or any calculator, can
+    evaluate — it only does arithmetic on the numbers you give it. For a
+    broader look at how LunaTrack keeps this kind of history over time
+    rather than four dates entered once, see the
+    <a href="/features" class="underline">features page</a>; how that history
+    is stored is covered on the
+    <a href="/privacy" class="underline">data handling page</a>, and the
+    app itself is available from the <a href="/download" class="underline">
+    download page</a>.
+  </p>
+</Tool>

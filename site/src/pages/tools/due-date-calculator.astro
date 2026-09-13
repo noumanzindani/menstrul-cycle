@@ -1,0 +1,217 @@
+---
+import Tool from '../../layouts/Tool.astro'
+import Calculator from '../../components/Calculator.astro'
+import type { FaqEntry } from '../../types.ts'
+
+const faq: FaqEntry[] = [
+  {
+    q: 'How accurate is a due date from a calculator like this?',
+    a: "It's a central estimate, not a prediction of the exact day you'll give birth. Only a small share of pregnancies deliver on their calculated due date; most arrive within about two weeks either side of it, and that's true even for due dates set by an early ultrasound, which is the more accurate method. A calendar-only estimate built from your last period carries additional uncertainty on top of that normal spread, because it also depends on cycle length and the timing of ovulation, neither of which this calculator can verify.",
+  },
+  {
+    q: 'Why do I need to enter cycle length, not just my last period date?',
+    a: "Because the classic version of this calculation — adding 280 days to the last period — silently assumes every cycle is exactly 28 days long. If your cycles typically run longer or shorter than that, ovulation happens correspondingly later or earlier relative to your last period, which shifts the actual conception date and, with it, the due date. Entering your own cycle length lets the calculator adjust for that instead of applying a number that may not describe you.",
+  },
+  {
+    q: "What's the difference between gestational age and conception age?",
+    a: 'Gestational age is counted from the first day of your last menstrual period, and it\'s the number doctors and this calculator use for dating a pregnancy and describing trimesters. Conception age is counted from the estimated date of conception itself, which typically falls about two weeks later. A pregnancy described as "8 weeks" in gestational terms is roughly 6 weeks along by conception age — same pregnancy, two different starting lines.',
+  },
+  {
+    q: 'Why do the trimester boundaries land on specific days rather than round week numbers?',
+    a: "They do land on round week numbers, expressed in days for precision: the second trimester begins at day 98 (14 weeks 0 days), and the third begins at day 196 (28 weeks 0 days), following the boundaries used by ACOG and the NHS. First trimester is weeks 1 through 13, second is weeks 14 through 27, third is weeks 28 through 40. The calculator computes exact calendar dates for those boundaries so you can see when your own trimesters start rather than counting weeks by hand.",
+  },
+  {
+    q: 'My clinic gave me a different due date than this calculator. Which one is right?',
+    a: "Trust your clinic's date, especially if it came from an ultrasound. A dating scan measures the size of the fetus directly and is more accurate than any estimate built from the last period alone — particularly if your cycles are irregular or you're unsure of the exact start date you entered here. This calculator is a rough planning tool for before you've had a scan, not a substitute for one once you have.",
+  },
+  {
+    q: "What does the calculator's due date actually mean if I go into labor before or after it?",
+    a: "It means exactly what a due date always means: a single central estimate around which actual delivery dates are widely spread, not a deadline or a date anything is expected to happen on precisely. Labor before or after the calculated date, within a range of a few weeks either side, is the normal outcome for most pregnancies, not an exception to it.",
+  },
+  {
+    q: 'Can I use this calculator if I don\'t know my last period date exactly?',
+    a: "You can enter your best estimate, but the result inherits that uncertainty directly — the whole calculation is built on the last period date plus a fixed offset, so an error of a few days in the input becomes the same error in the output. If you're unsure of your dates, an ultrasound dating scan is the more reliable way to establish gestational age, and it's worth mentioning the uncertainty to whoever performs it.",
+  },
+]
+---
+<Tool
+  title="Due Date Calculator — Naegele's Rule, Adjusted"
+  description="Estimate a due date, trimester dates, and gestational age from your last period and cycle length, using Naegele's rule adjusted for cycle length."
+  path="/tools/due-date-calculator"
+  faq={faq}
+>
+  <Calculator slot="widget" kind="due-date" />
+
+  <p>
+    A due date calculator takes the date your last period started and, from
+    that single number, projects an estimated delivery date roughly 40 weeks
+    later, along with the dates your second and third trimesters begin and
+    how far along the pregnancy is today. Enter your last period's start date
+    and your average cycle length, and this tool applies Naegele's rule —
+    adjusted for cycle length, as explained below — entirely in your
+    browser. Nothing you type in is sent anywhere; the calculation runs as
+    plain JavaScript on your own device. If you arrived here without a firm
+    last period date, or with a cycle length you're unsure about, the
+    <a href="/tools/cycle-length-calculator" class="underline">cycle-length
+    calculator</a> can help establish a more reliable number from a few
+    recent periods, and the
+    <a href="/tools/ovulation-calculator" class="underline">ovulation
+    calculator</a> uses a related calculation to estimate when conception
+    likely happened.
+  </p>
+
+  <h2>Naegele's rule in plain English</h2>
+  <p>
+    Naegele's rule is the standard calendar method for estimating a due
+    date, and in its original, textbook form it's simple: take the first day
+    of the last menstrual period, add one year, subtract three months, and
+    add seven days — which works out to the same date as adding 280 days, or
+    exactly 40 weeks, to the last period's start. It's named for the
+    19th-century obstetrician credited with popularizing it, and despite its
+    age, it remains the basis for how due dates are estimated from menstrual
+    history today.
+  </p>
+  <p>
+    The logic behind 280 days is straightforward: a full-term pregnancy
+    lasts about 40 weeks counted from the last period, and because ovulation
+    in a "standard" 28-day cycle happens around day 14, that 40-week count
+    from the last period corresponds to roughly 38 weeks from actual
+    conception — the number more directly tied to fetal development. Adding
+    280 days to the last period date is simply the calendar-friendly way of
+    expressing that 40-week, last-period-based count without needing to know
+    the conception date directly.
+  </p>
+
+  <h2>Why cycle length changes the answer</h2>
+  <p>
+    The 280-day version of Naegele's rule has a cycle length baked silently
+    into it: it assumes ovulation happens 14 days into a 28-day cycle,
+    every time, for everyone. If your average cycle actually runs longer or
+    shorter than 28 days, that assumption is wrong for you specifically, and
+    it's wrong by a predictable, calculable amount — which is exactly what
+    this calculator corrects for.
+  </p>
+  <p>
+    The adjustment is direct: this tool computes the due date as 280 days
+    after your last period, plus or minus the difference between your
+    entered cycle length and the 28-day reference the classic rule assumes.
+    A 32-day average cycle adds 4 extra days to the estimate; a 24-day
+    average subtracts 4. The reasoning is the same backward-counting logic
+    used by the ovulation calculator on this site: ovulation is assumed to
+    occur a fixed 14 days before the next period, so a longer cycle pushes
+    ovulation — and with it, conception and the eventual due date — later
+    relative to the last period's start, while a shorter cycle pulls
+    everything earlier. Applying the unadjusted 280-day rule to someone with
+    a consistently 34-day cycle would understate their due date by about six
+    days, purely because the rule quietly assumed a cycle length that isn't
+    theirs.
+  </p>
+  <p>
+    This adjustment only ever corrects for cycle length, not for anything
+    else that could make a last-period-based estimate imprecise — it can't
+    account for irregular ovulation timing within a cycle of the entered
+    length, and it has no way to verify that the cycle length you typed in
+    describes this particular pregnancy's cycle rather than a general
+    average. That's part of why an ultrasound, discussed further down,
+    generally supersedes this kind of calculation once one is available.
+  </p>
+
+  <h2>Gestational vs conception age</h2>
+  <p>
+    Pregnancies are almost always dated in gestational age — weeks counted
+    from the first day of the last menstrual period — rather than conception
+    age, which counts from the estimated date of conception itself.
+    Gestational age is the convention used on this calculator, in the
+    "weeks and days along" figure it reports, and in clinical settings
+    generally, largely because the last period date is something most people
+    can name with reasonable confidence, while the exact date of conception
+    usually isn't directly observable.
+  </p>
+  <p>
+    The gap between the two is roughly the same 14-day figure that runs
+    through the rest of this calculation: a pregnancy at 8 weeks gestational
+    age is roughly 6 weeks along by conception age, because conception is
+    estimated to have happened around two weeks after the last period
+    started, not on the same day. This calculator's "conception" date field
+    reflects that estimate directly — it's your last period date plus your
+    cycle length, minus the same 14-day luteal-phase assumption used by the
+    ovulation calculator — while the "weeks and days along" figure it
+    displays is gestational, counted straight from the last period date to
+    today. Mixing the two up is a common source of confusion when comparing
+    numbers from different sources, so it's worth checking which convention
+    any given figure is using before comparing it to another.
+  </p>
+
+  <h2>Trimester boundaries</h2>
+  <p>
+    This calculator marks the second trimester as beginning at exactly 14
+    weeks 0 days of gestational age, and the third trimester as beginning at
+    exactly 28 weeks 0 days — which puts the first trimester across weeks 1
+    through 13, the second across weeks 14 through 27, and the third across
+    weeks 28 through 40. These are the boundaries used by the American
+    College of Obstetricians and Gynecologists and the UK's NHS, and this
+    calculator computes the actual calendar date each one falls on for your
+    entered last period date, rather than leaving you to count weeks by
+    hand.
+  </p>
+  <p>
+    Trimester boundaries are a convention for organizing prenatal care and
+    describing fetal development stages, not a hard biological switch that
+    flips at midnight on a particular day — the last day of one trimester
+    and the first day of the next are not meaningfully different from each
+    other in what's happening in the pregnancy. They're useful primarily as
+    a shared reference point between you, a clinician, and anything you read
+    about pregnancy that's organized by trimester.
+  </p>
+
+  <h2>Why scans beat calculators</h2>
+  <p>
+    Everything this calculator produces is built from two numbers you typed
+    in and a set of population-level assumptions layered on top of them —
+    a fixed 280-day gestation, a fixed 14-day luteal phase, and whatever
+    cycle length you entered, which may itself be a rough estimate. An
+    ultrasound dating scan, by contrast, measures the fetus directly —
+    typically its crown-rump length in the first trimester — and estimates
+    gestational age from actual physical development rather than from
+    menstrual history and averages. That direct measurement is more
+    accurate than any calendar-based method, and the gap between the two
+    approaches widens further if your cycles are irregular, if you're
+    unsure of your last period date, or if ovulation in this particular
+    cycle didn't happen on the schedule the calculator assumes.
+  </p>
+  <p>
+    In practice, this means a calculator like this one is most useful before
+    you've had a dating scan — for a rough sense of timing, for deciding
+    when to schedule that first appointment, or for satisfying curiosity in
+    the meantime — and least useful as a substitute for one once it's
+    available. If a scan gives you a different due date than this
+    calculator did, the scan's date is generally the one worth going with;
+    clinicians commonly revise the estimated due date to match early
+    ultrasound dating for exactly this reason, particularly when the two
+    dates disagree by more than about a week.
+  </p>
+
+  <h2>What the date does and does not mean</h2>
+  <p>
+    A due date, from this calculator or from a scan, is a central estimate
+    around which actual delivery dates spread out — not an appointment, not
+    a deadline, and not a prediction of the specific day anything will
+    happen. Only a small proportion of pregnancies deliver precisely on
+    their calculated due date; most births happen within a window of about
+    two weeks before or two weeks after it, and that spread exists even for
+    dates set by the more accurate scan method, because the length of a
+    full-term pregnancy simply varies from one pregnancy to the next.
+  </p>
+  <p>
+    What the date is useful for is planning: scheduling prenatal
+    appointments, tracking developmental milestones against gestational
+    age, and having a shared reference point with a clinician. What it
+    should not be used for is treating any single day as a guarantee, or
+    treating labor that starts well before or after it as unusual on its
+    own — within the normal range, it typically isn't. For what LunaTrack
+    tracks across a pregnancy beyond this one calculation, see the
+    <a href="/features" class="underline">features page</a>; for how any of
+    that information is stored, see the
+    <a href="/privacy" class="underline">data handling page</a>.
+  </p>
+</Tool>
