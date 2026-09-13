@@ -3,8 +3,8 @@ title: What Cycle Length Is Normal, and What Isn't
 description: Typical cycle-length ranges, what counts as irregular, why sources draw that line differently, and when a pattern is actually worth a doctor's opinion.
 author: LunaTrack
 reviewedBy: Not medically reviewed
-datePublished: 2026-09-09
-dateModified: 2026-09-09
+datePublished: 2026-09-08
+dateModified: 2026-09-13
 sources:
   - title: NHS — Irregular periods
     url: https://www.nhs.uk/symptoms/irregular-periods/
@@ -12,6 +12,8 @@ sources:
     url: https://www.nhs.uk/conditions/periods/
   - title: ACOG — Your first period
     url: https://www.acog.org/womens-health/faqs/your-first-period
+  - title: NHS — Missed or late periods
+    url: https://www.nhs.uk/symptoms/missed-or-late-periods/
 ---
 
 "Is my cycle normal?" is one of the most common questions anyone who tracks
@@ -194,12 +196,17 @@ a GP if:
   unexplained weight gain, persistent tiredness, new facial hair growth,
   or noticeably oily or dry skin — a combination the NHS specifically
   associates with hormonal causes worth investigating.
-- You have bleeding between periods or after sex.
 - Your periods stop for three months or longer and pregnancy, recent
-  childbirth, or breastfeeding doesn't explain it.
+  childbirth, or breastfeeding doesn't explain it — the NHS's own guidance
+  on missed or late periods covers this specifically.
 - Your periods are irregular and you're finding it difficult to conceive
   — irregular cycles often mean irregular ovulation, which a clinician can
   help assess directly rather than by guesswork.
+
+It's also generally good practice — beyond what the sources above cover
+specifically — to mention bleeding between periods or after sex to a
+clinician whenever it happens, irregular cycle or not, since that pattern
+sits outside what any cycle-length discussion alone can assess.
 
 None of these require a "diagnosis" from a calculator first, and none of
 them are things this site's tools, or any calculator, are built to weigh.

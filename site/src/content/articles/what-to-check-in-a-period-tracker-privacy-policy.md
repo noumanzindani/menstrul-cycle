@@ -3,7 +3,7 @@ title: What to Check in a Period Tracker's Privacy Policy
 description: A concrete checklist for reading any period tracker's privacy policy, applied honestly to LunaTrack itself — including the places it falls short.
 author: LunaTrack
 reviewedBy: Not medically reviewed
-datePublished: 2026-09-13
+datePublished: 2026-09-12
 dateModified: 2026-09-13
 sources:
   - title: ICO — Your right to get your data deleted

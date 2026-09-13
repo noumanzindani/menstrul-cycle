@@ -3,8 +3,8 @@ title: Which Symptoms Are Worth Tracking, and Why
 description: Not every symptom carries the same signal. A practical guide to which ones are worth logging, mapped to what LunaTrack actually tracks, and why.
 author: LunaTrack
 reviewedBy: Not medically reviewed
-datePublished: 2026-09-10
-dateModified: 2026-09-10
+datePublished: 2026-09-09
+dateModified: 2026-09-13
 sources:
   - title: NHS — Pre-menstrual syndrome (PMS)
     url: https://www.nhs.uk/conditions/pre-menstrual-syndrome/

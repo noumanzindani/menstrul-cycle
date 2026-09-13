@@ -3,8 +3,8 @@ title: Preparing a Doctor-Ready Cycle Summary
 description: What a clinician actually wants to see about your cycle, how to bring it, and exactly what LunaTrack's doctor PDF export includes and leaves out.
 author: LunaTrack
 reviewedBy: Not medically reviewed
-datePublished: 2026-09-12
-dateModified: 2026-09-12
+datePublished: 2026-09-11
+dateModified: 2026-09-13
 sources:
   - title: NHS — Heavy periods
     url: https://www.nhs.uk/conditions/heavy-periods/
@@ -14,9 +14,9 @@ sources:
     url: https://www.acog.org/womens-health/faqs/dysmenorrhea-painful-periods
 ---
 
-A typical appointment about your periods runs somewhere between ten and
-fifteen minutes, and "my periods have been bad lately" doesn't give a
-clinician much to work with in that time. Concrete dates, a described
+Appointments about your periods are often short, and "my periods have
+been bad lately" doesn't give a clinician much to work with in whatever
+time there is. Concrete dates, a described
 pattern, and specific details do. This article covers what's actually
 useful to bring to that conversation and why, and maps it directly onto
 LunaTrack's shipped doctor-summary PDF export — including two things worth
@@ -103,15 +103,17 @@ sheet — from there, where it goes is entirely up to you. The export
 includes several sections, each pulled straight from your own logged
 history rather than written fresh for the document:
 
+- **A profile block**, if you've filled any of it in — your age, height,
+  current weight, and age at your first period, each shown only if you've
+  actually answered it, with a calculated BMI figure included when both
+  height and weight are on file. Skip all of it and this block simply
+  doesn't appear; there's no blank heading left behind.
 - **Cycle statistics** — how many cycles have been tracked, your average
   cycle length, your shortest and longest recent cycle, and how many days
   it's been since your last period began.
 - **A recent-cycles table** — start date, cycle length, and period length
   for your most recent cycles, capped at twelve so the document stays a
   readable length rather than growing forever for a long-time user.
-- **Symptom and mood frequency** — a count of how often each logged
-  symptom and mood has appeared, so a clinician can see which ones recur
-  often rather than only which ones you happen to remember.
 - **A cycle-patterns summary**, when there's enough history for one — a
   few plain-language observations, such as a recent trend toward a longer
   or shorter cycle, described descriptively rather than as a diagnosis.
@@ -122,6 +124,14 @@ history rather than written fresh for the document:
 - **An estimated-fertility section**, if you have enough history for a
   confident estimate, explicitly labelled as a calendar-based estimate and
   noted as not confirmed by ovulation testing.
+- **Symptom and mood frequency** — a count of how often each logged
+  symptom and mood has appeared, so a clinician can see which ones recur
+  often rather than only which ones you happen to remember.
+- **A "notes to discuss" section**, when the app's own insights have
+  flagged anything worth a second look — short, plain-language prompts
+  rather than a diagnosis, meant to make sure something the app noticed
+  in your history doesn't go unmentioned just because you forgot it was
+  there.
 
 None of it is invented for the document — it's the same underlying data
 and the same [cycle predictions](/articles/how-period-predictions-work)

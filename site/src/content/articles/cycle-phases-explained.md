@@ -3,8 +3,8 @@ title: The Four Menstrual Cycle Phases, Explained
 description: What actually happens in the menstrual, follicular, ovulatory and luteal phases, and why a calendar's phase colour is an estimate, not a measurement.
 author: LunaTrack
 reviewedBy: Not medically reviewed
-datePublished: 2026-09-11
-dateModified: 2026-09-11
+datePublished: 2026-09-10
+dateModified: 2026-09-13
 sources:
   - title: Cleveland Clinic — Menstrual Cycle
     url: https://my.clevelandclinic.org/health/articles/10132-menstrual-cycle
@@ -80,15 +80,20 @@ develops, estrogen levels rise, and that rising estrogen is what rebuilds
 the uterine lining that was shed during the period, preparing it for a
 possible pregnancy later in the cycle.
 
-This is also, notably, the least predictable phase length-wise. The
-follicular phase is the stretch of a cycle that stretches or shrinks when
-a whole cycle runs longer or shorter than usual — a pattern Cleveland
-Clinic's overview describes as concentrated in the run-up to ovulation
-rather than in what follows it. That asymmetry is the entire reason [how
-period predictions actually work](/articles/how-period-predictions-work)
-counts backward from a predicted period to estimate ovulation, rather than
-counting forward from the last one: the follicular phase is where nearly
-all of a cycle's month-to-month variability lives.
+This is also, notably, the least predictable phase length-wise. Cleveland
+Clinic's overview defines this phase by its boundaries — it begins on the
+day a period starts and ends at ovulation — without saying which part of
+a cycle absorbs the month-to-month variation, so that next point is worth
+attributing to where it actually belongs: it's the working assumption
+behind this site's own calculators, not a claim from either cited source.
+LunaTrack's [prediction arithmetic](/articles/how-period-predictions-work)
+holds the luteal phase fixed at close to fourteen days and counts backward
+from a projected period to estimate ovulation, precisely because that
+arithmetic only makes sense if a longer or shorter cycle is mostly the
+follicular phase running longer or shorter, not the luteal phase doing so.
+That's an assumption this site's calculators rely on, not a measurement,
+and it's a different — and more specific — claim than anything Cleveland
+Clinic's overview states about the phase itself.
 
 ## Ovulatory phase
 
