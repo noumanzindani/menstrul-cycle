@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Hand-maintained: `dart run flutter_launcher_icons` does NOT rewrite this file,
+  so edits here survive regeneration of the PNGs.
+
+  No <inset> wrapper, deliberately. An adaptive icon is a 108dp drawable of which
+  only ~72dp survives the launcher's mask and 66dp is guaranteed safe, and
+  `assets/icon/icon_foreground.png` already places the artwork at 66% of its
+  canvas. Adding an inset here would apply safe-zone padding a second time and
+  render the logo at ~45% - small and floating. Pad in the asset or here, never
+  both. A previous inset of 16% existed because the older source art sat at only
+  36% of its canvas.
+-->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
   <background android:drawable="@color/ic_launcher_background"/>
-  <foreground>
-      <inset
-          android:drawable="@drawable/ic_launcher_foreground"
-          android:inset="16%" />
-  </foreground>
-  <monochrome>
-      <inset
-          android:drawable="@drawable/ic_launcher_monochrome"
-          android:inset="16%" />
-  </monochrome>
+  <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+  <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
 </adaptive-icon>
