@@ -58,9 +58,14 @@ the start of a period to ovulation, called the follicular phase — is the part 
 stretches or shrinks when a cycle runs longer or shorter than usual. The second
 half — from ovulation to the next period, the luteal phase — stays much closer to a
 fixed length in most cycles, commonly cited as being close to fourteen days.
-Cleveland Clinic's overview of the menstrual cycle describes this same pattern:
-cycle-length variation is concentrated in the run-up to ovulation, not in the
-stretch that follows it.
+Cleveland Clinic's overview of the menstrual cycle defines these two phases by
+their boundaries — the follicular phase running from the first day of a period to
+ovulation, the luteal phase from ovulation to the next period — without saying
+which one absorbs the month-to-month variation in cycle length. That next point is
+worth attributing to where it actually belongs: it's the working assumption behind
+this site's own calculators, covered in more depth in [the four cycle phases,
+explained](/articles/cycle-phases-explained), not a claim from Cleveland Clinic's
+overview itself.
 
 Because the luteal phase is the more stable half, the reliable way to locate
 ovulation is to count backward from the next period rather than forward from the
@@ -86,10 +91,14 @@ separate averages both held for this particular cycle.
 
 If a cycle-length average were exactly the same every cycle, projecting it forward
 would work indefinitely and a tracker's accuracy would never fade. Cycles are not
-that consistent. The NHS describes a normal cycle length as anywhere from
-twenty-four to thirty-eight days, and describes it as normal for that length to
-vary somewhat from one cycle to the next even in someone without any underlying
-condition. A projection built on a single fixed average cannot represent that
+that consistent. The NHS describes an average cycle as being around 28 days, with
+periods "ranging from every 21 days to every 35 days" as ordinary variation around
+that average, and describes it as normal for that length to vary somewhat from one
+cycle to the next even in someone without any underlying condition. (You'll also
+see a wider band, commonly around 24 to 38 days, cited elsewhere in general health
+writing — see [what cycle length is normal](/articles/what-cycle-length-is-normal)
+for where that figure comes from and how it differs from the NHS's own range.) A
+projection built on a single fixed average cannot represent that
 variation — it can only offer the average itself, over and over, as its best guess
 for a cycle that in reality wobbles around that average rather than repeating it.
 

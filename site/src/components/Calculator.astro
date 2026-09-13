@@ -110,6 +110,7 @@ const { kind } = Astro.props as Props
         const r = estimateDueDate(String(f.get('last')), num('cycle'), formatISO(Date.now()))
         out.innerHTML =
           `<h3 class="font-bold">Estimated due date: ${human(r.dueDate)}</h3>` +
+          `<p>Estimated conception: ${human(r.conception)}.</p>` +
           `<p>You are about ${r.gestationalWeeks} weeks and ${r.gestationalDays} days along.</p>` +
           `<p>Second trimester from ${human(r.trimester2Start)}, third from ${human(r.trimester3Start)}.</p>`
       }
