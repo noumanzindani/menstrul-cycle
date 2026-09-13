@@ -11,6 +11,11 @@
       "rules": "storage.rules"
     }
   ],
+  "functions": {
+    "source": "functions",
+    "codebase": "lunatrack",
+    "ignore": ["node_modules", ".git", "*.local", "firebase-debug.log"]
+  },
   "emulators": {
     "firestore": {
       "host": "127.0.0.1",

@@ -10,26 +10,34 @@
  * part that cannot be covered by the emulator suite.
  *
  * =====================================================================
- *  TODO — PROJECT ID IS NOT SETTLED. NOTHING HERE IS DEPLOYED.
+ *  DEPLOYED to `teddy-2-20649` (project settled 2026-08-12). This job has
+ *  DELETE authority over Firestore documents, Storage objects and Auth
+ *  accounts. Read the two hazards below before changing anything here.
  * =====================================================================
  *
- * No project id appears in this file, anywhere in `functions/`, or in the test
- * suite, and none may be added. The owning Firebase project is an open decision
- * (see CLAUDE.md, "the Firebase project id is NOT settled"): `firebase.json` and
- * `lib/firebase_options.dart` currently name `ride-with-purpose`, a CLIENT's
- * production project reached by an unauthorised action and pending cleanup,
- * while `lib/services/firestore_ref.dart` names `hbgapp-c3c88`.
+ * Still no project id appears in this file, anywhere in `functions/`, or in the
+ * test suite, and none may be added. `initializeApp()` with no arguments takes
+ * the project from the ambient runtime — `FIREBASE_CONFIG` /
+ * `GOOGLE_CLOUD_PROJECT`, which the Cloud Functions runtime sets for you — so
+ * this code stays correct if LunaTrack later moves to a dedicated project. The
+ * project is chosen at deploy time, by the human running:
  *
- * `initializeApp()` with no arguments takes the project from the ambient
- * runtime — `FIREBASE_CONFIG` / `GOOGLE_CLOUD_PROJECT`, which the Cloud
- * Functions runtime sets for you — so this code is correct in whichever project
- * it eventually lands in. The project is chosen ONCE, at deploy time, by the
- * human running:
+ *     firebase deploy --only functions:lunatrack:purgeDeletedAccounts \
+ *       --project <THE-PROJECT-ID>
  *
- *     firebase deploy --only functions --project <THE-DECIDED-PROJECT-ID>
+ * HAZARD 1 — never a BARE `--only functions` here. `teddy-2-20649` is shared
+ * with an unrelated donations app that has 19 live functions. An unfiltered
+ * functions deploy prunes everything absent from this source tree and would
+ * delete all of them. The `lunatrack` codebase in `firebase.json` is the second
+ * guard; the name filter above is the first. Use both.
  *
- * Deploying this into `ride-with-purpose` would give it delete authority over a
- * client's production data. Do not deploy until the project decision is made.
+ * HAZARD 2 — `deleteAuthUser` below is PROJECT-WIDE. Firebase Auth is not
+ * per-database, so the Auth pool is shared with that same donations app. A
+ * person who uses both apps and deletes their LunaTrack account loses the
+ * identity the other app knows them by. Deleting the Auth account is what makes
+ * "delete my account" honest, so the fix is not to skip it — it is a dedicated
+ * project, which remains an open owner decision. Until then this is an accepted,
+ * documented risk, not an oversight.
  */
 
 const { initializeApp } = require('firebase-admin/app');
@@ -57,9 +65,10 @@ const LUNA_DATABASE_ID = 'lunatrack-db';
  * The DEDICATED Cloud Storage bucket holding uploaded media —
  * `kLunaStorageBucket` in `lib/services/storage_ref.dart`.
  *
- * Read from the environment, not hardcoded, because a bucket name embeds the
- * project id and no project id may appear in this directory while the owning
- * project is unsettled (see the banner at the top of this file).
+ * Read from the environment (`functions/.env`), not hardcoded, because a bucket
+ * name embeds the project id and no project id may appear in this directory --
+ * that rule outlives the project decision, so this job stays correct if
+ * LunaTrack moves to a dedicated project.
  *
  * Deliberately NOT defaulted to the project's default bucket. A default would
  * make a misconfigured deploy sweep the wrong bucket and report success while
@@ -88,14 +97,17 @@ const app = initializeApp();
  * whereas an automatic retry storm against a Firestore outage burns quota
  * re-attempting deletes that will keep failing.
  *
- * Region is deliberately not pinned: it should match the region of the
- * `lunatrack` database once the project is decided, and guessing it here would
- * be a cross-region read on every document this job deletes.
+ * Region is pinned to `us-central1`, which is inside `nam5` — the multi-region
+ * the `lunatrack-db` database actually lives in (verified 2026-09-14). Leaving
+ * it unpinned happens to default to the same place today, but a default is not
+ * a decision: an unpinned function that later moves would do a cross-region read
+ * on every document it deletes, silently and at cost.
  */
 exports.purgeDeletedAccounts = onSchedule(
   {
     schedule: 'every 24 hours',
     timeZone: 'Etc/UTC',
+    region: 'us-central1',
     // The sweep pages through up to 200 accounts' subcollections in one run.
     timeoutSeconds: 540,
     memory: '256MiB',

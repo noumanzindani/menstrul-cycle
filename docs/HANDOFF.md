@@ -134,15 +134,34 @@ consecutive `adb shell echo` probes should all pass before attempting an install
   files (`docs/superpowers/plans/2026-09-13-lunatrack-site.md` and the matching
   spec) carry ~57 references to the same research. The rendered site is clean —
   this is a repository-only exposure. Owner decision outstanding.
-- **The account-deletion purge job is written but NOT deployed**
-  (`functions/purge.js`, exported as `purgeDeletedAccounts` from `functions/index.js`),
-  so Play's in-app deletion requirement is unmet. `firebase.json` has no `functions`
-  block at all, so deploying it is config work, not just a push.
+- **The account-deletion purge job is DEPLOYED** (2026-09-14) as
+  `purgeDeletedAccounts`, us-central1, 2nd gen, scheduled every 24 hours via
+  `firebase-schedule-purgeDeletedAccounts-us-central1` (ENABLED). Play's in-app
+  deletion requirement is met on the server side; the remaining publication
+  blockers are in `README.md`.
   **Never run a bare `firebase deploy --only functions` here.** The project is shared
   with an unrelated donations app that has 19 live functions (`registerNgo`,
   `createDonationIntent`, `deleteMyAccount`, …); a bare functions deploy prunes
-  everything absent from local source and would delete all of them. Use
-  `--only functions:purgeDeletedAccounts`.
+  everything absent from local source and would delete all of them. Two guards are in
+  place — the `lunatrack` codebase in `firebase.json`, and the name filter:
+  `firebase deploy --only functions:lunatrack:purgeDeletedAccounts`. Use both.
+- **Not yet observed doing real work.** Deploy-time facts are verified (ACTIVE,
+  region, runtime, `LUNA_STORAGE_BUCKET` set, scheduler ENABLED, runtime SA holds
+  `roles/editor`), but no invocation has been watched end-to-end, so nothing yet
+  proves it reaches the NAMED `lunatrack-db` rather than `(default)` — the exact
+  silent failure the `LUNA_DATABASE_ID` comment in `functions/index.js` exists to
+  prevent. It runs daily on its own; check a run before trusting it:
+  `gcloud functions logs read purgeDeletedAccounts --region us-central1 --project teddy-2-20649`
+  The queue is safe to watch: the single pending marker is not due until 2026-10-13.
+- **Firebase Auth deletion is PROJECT-WIDE and the Auth pool is shared.** The client
+  never deletes the Auth account; only this job does. So a person who uses both
+  LunaTrack and the donations app and deletes their LunaTrack account loses the
+  identity the other app knows them by. Deleting the account is what makes "delete my
+  account" honest, so the fix is a dedicated project, not skipping the delete. Accepted
+  and documented, not an oversight — but it is a real cross-app consequence.
+- **Node.js 20 is decommissioned 2026-10-30**; after that this function cannot be
+  redeployed without upgrading the runtime (and `firebase-functions` is a major version
+  behind). That is a hard deadline roughly six weeks out, not a lint warning.
 - **The Firebase project is `teddy-2-20649`**, named in the tracked `firebase.json`.
   Moving LunaTrack to a dedicated project is still an open owner decision, so keep
   reading the id from config rather than hardcoding it in Dart.
