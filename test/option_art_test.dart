@@ -18,6 +18,11 @@ import 'package:menstrul_track/models/enums.dart';
 const kRasterArt = <String>{
   // Owner decision 2026-09-14: the illustration itself is the mark.
   'assets/track/cramps.png',
+  'assets/track/acne.png',
+  'assets/track/fatigue.png',
+  'assets/track/nausea.png',
+  'assets/track/backache.png',
+  'assets/track/cravings.png',
 };
 
 void main() {

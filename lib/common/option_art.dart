@@ -32,16 +32,16 @@ import 'catalog.dart';
 /// the point.
 const Map<String, String> kOptionArt = {
   // kSymptomOptions
-  // Raster by owner decision: the illustration IS the mark here. See the
-  // raster caveats above -- this one does not recolour with the theme.
+  // Raster by owner decision: the illustration IS the mark for these. See the
+  // raster caveats above -- none of them recolour with the theme.
   'cramps': 'assets/track/cramps.png',
   'headache': 'assets/track/headache.svg',
   'bloating': 'assets/track/bloating.svg',
-  'acne': 'assets/track/acne.svg',
-  'fatigue': 'assets/track/fatigue.svg',
-  'nausea': 'assets/track/nausea.svg',
-  'backache': 'assets/track/backache.svg',
-  'cravings': 'assets/track/cravings.svg',
+  'acne': 'assets/track/acne.png',
+  'fatigue': 'assets/track/fatigue.png',
+  'nausea': 'assets/track/nausea.png',
+  'backache': 'assets/track/backache.png',
+  'cravings': 'assets/track/cravings.png',
   'insomnia': 'assets/track/insomnia.svg',
   'diarrhea': 'assets/track/diarrhea.svg',
   'constipation': 'assets/track/constipation.svg',
