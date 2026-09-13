@@ -150,17 +150,28 @@ To click around the panel by hand against the emulator:
 
 ```bash
 cd admin
-export JAVA_HOME="$(/usr/libexec/java_home -v 21+)"   # macOS; skip if java is already 21+
+# BOTH lines are needed on macOS. firebase-tools shells out to plain `java`, so
+# it resolves the JDK from PATH and ignores JAVA_HOME — and this machine's PATH
+# java is Homebrew 17. Setting only JAVA_HOME gets you "firebase-tools no longer
+# supports Java version before 21" even with 21 installed. `test/run.sh` sets
+# both for the same reason.
+export JAVA_HOME="$(/usr/libexec/java_home -v 21+)"   # skip if java is already 21+
+export PATH="$JAVA_HOME/bin:$PATH"
 firebase emulators:exec --only firestore,auth --project demo-lunatrack \
   --config ./firebase.json \
-  'LUNATRACK_PROJECT_ID=demo-lunatrack \
+  'node seed-local.mjs && \
+   LUNATRACK_PROJECT_ID=demo-lunatrack \
    ADMIN_EMAILS=you@example.com \
    ADMIN_DEV_UNSAFE_IDENTITY=you@example.com \
    node src/server.js'
 ```
 
-Then open <http://localhost:8080>. The emulator starts empty, so seed some
-accounts and days first (see `test/support.mjs` for the exact document shapes).
+Then open <http://localhost:8080>. The emulator starts empty, which is why the
+command above runs `seed-local.mjs` first — it writes realistic accounts and days
+so the panel has something to show, and refuses to run unless
+`FIRESTORE_EMULATOR_HOST` is set, so it can never touch a real project. Drop that
+first clause if you would rather start empty; `test/support.mjs` has the exact
+document shapes if you want to write your own.
 
 Note `admin/firebase.json` is the panel's **own** emulator config on its own
 ports (Firestore 8099, Auth 9098) so it can run alongside `firebase_test/run.sh`
