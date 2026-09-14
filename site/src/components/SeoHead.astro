@@ -114,18 +114,27 @@ const jsonLd = { '@context': 'https://schema.org', '@graph': graph }
 <meta property="og:image:height" content="630" />
 <meta
   property="og:image:alt"
-  content="A 28-day cycle drawn to scale as four coloured bands — menstrual 5 days, follicular 8, ovulatory 3, luteal 12 — above the LunaTrack wordmark and the line 'Track your cycle. Read the fine print.'"
+  content="A 28-day cycle drawn to scale as four coloured bands — menstrual 5 days, follicular 8, ovulatory 3, luteal 12 — above the LunarFlow wordmark and the line 'Track your cycle. Read the fine print.'"
 />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:image" content={`${SITE}/og-card.webp`} />
 
 <!--
-  favicon.svg carries every current browser and stays sharp at any size;
-  favicon-32.png is the fallback for the ones that ignore SVG. The Apple touch
-  icon must be PNG at 180x180 — iOS accepts neither SVG nor WebP here, which is
-  why this one file is deliberately not WebP.
+  All three are raster crops of the real app icon rather than a redrawn vector.
+  An earlier version shipped a hand-traced favicon.svg; it was drawn from the
+  PREVIOUS mark and went stale the moment the icon was replaced, which is the
+  failure mode of keeping a second, hand-maintained copy of a brand asset.
+
+  PNG here is deliberate, not an oversight: the Apple touch icon must be PNG at
+  180x180 (iOS accepts neither SVG nor WebP for it), and the 32px fallback is
+  PNG for the widest reach. Both are link elements rather than image elements, so
+  the audit's WebP rule does not apply to them.
+
+  Do not write an image tag literally in a comment here. HTML comments survive
+  into the build, and scripts/audit.mjs matches raw markup — prose about a tag
+  is indistinguishable from the tag itself and fails the build on every page.
 -->
-<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="icon" href="/icon-192.webp" sizes="192x192" type="image/webp" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
