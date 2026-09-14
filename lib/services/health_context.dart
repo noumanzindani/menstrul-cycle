@@ -255,11 +255,14 @@ String buildHealthContext({
     for (final m in medications) m.id: m.name,
   };
 
+  // Sort cycles once by start date to avoid O(days × n log n) resorting.
+  final sortedCycles = cycles.toList()..sort((a, b) => a.start.compareTo(b.start));
+
   final dayLines = windowed
       .map((log) => buildDayLine(
             log: log,
-            cycleDay: _cycleDayFor(log.date, cycles, asOfNormalized),
-            phase: _phaseFor(log.date, cycles, prediction, asOfNormalized),
+            cycleDay: _cycleDayFor(log.date, sortedCycles, asOfNormalized),
+            phase: _phaseFor(log.date, sortedCycles, prediction, asOfNormalized),
             medicationNames: medNames,
           ))
       .toList();
@@ -278,16 +281,13 @@ String buildHealthContext({
 /// The last (open) cycle with no lengthDays runs to asOf. Days before the
 /// first cycle or between cycles return null.
 ///
-/// Cycles are sorted by start date internally; order of input is ignored.
+/// Expects [cycles] to be pre-sorted by start date (caller guarantees this).
 int? _cycleDayFor(DateTime date, List<Cycle> cycles, DateTime asOf) {
-  // Sort cycles by start date to ensure correct boundary calculations.
-  final sorted = cycles.toList()..sort((a, b) => a.start.compareTo(b.start));
-
-  for (int i = 0; i < sorted.length; i++) {
-    final c = sorted[i];
+  for (int i = 0; i < cycles.length; i++) {
+    final c = cycles[i];
     // Cycle end is the day before the next cycle starts, or asOf for the last cycle.
-    final cycleEnd = i + 1 < sorted.length
-        ? sorted[i + 1].start.subtract(Duration(days: 1))
+    final cycleEnd = i + 1 < cycles.length
+        ? cycles[i + 1].start.subtract(Duration(days: 1))
         : asOf;
     if (!date.isBefore(c.start) && !date.isAfter(cycleEnd)) {
       return date.difference(c.start).inDays + 1;
