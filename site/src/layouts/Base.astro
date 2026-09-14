@@ -13,6 +13,8 @@ interface Props {
   article?: ArticleMeta
   faq?: FaqEntry[]
   breadcrumbs?: Crumb[]
+  /** Drop the centred measure so a page can run full-bleed bands itself. */
+  bare?: boolean
 }
 const props = Astro.props as Props
 ---
@@ -28,7 +30,7 @@ const props = Astro.props as Props
       class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-primary focus:px-4 focus:py-2 focus:text-white"
     >Skip to content</a>
     <Header />
-    <main id="main" class="mx-auto max-w-5xl px-5 py-12 sm:py-16">
+    <main id="main" class={props.bare ? '' : 'mx-auto max-w-5xl px-5 py-12 sm:py-16'}>
       <slot />
     </main>
     <Footer />

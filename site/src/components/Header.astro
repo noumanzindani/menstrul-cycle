@@ -2,19 +2,54 @@
 import { NAV, ORG } from '../consts.ts'
 const path = Astro.url.pathname.replace(/\/$/, '') || '/'
 ---
-<header class="sticky top-0 z-40 border-b border-outline bg-paper/85 backdrop-blur-sm dark:border-white/10 dark:bg-surface-dark/85">
-  <nav aria-label="Main" class="mx-auto flex max-w-5xl flex-wrap items-baseline gap-x-6 gap-y-3 px-5 py-4">
-    <a href="/" class="display-sm pressable text-xl tracking-tight hover:text-menstrual">{ORG.name}</a>
-    <ul class="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+<header class="sticky top-0 z-40 border-b border-black/5 bg-white/90 backdrop-blur-sm dark:border-white/10 dark:bg-surface-dark/90">
+  <nav
+    aria-label="Main"
+    class="mx-auto flex max-w-6xl items-center gap-x-8 px-5 py-3.5"
+  >
+    <a href="/" class="pressable flex shrink-0 items-center gap-2.5">
+      <!--
+        The mark is decorative here: the wordmark beside it already carries the
+        name, so giving the image its own alt text would make a screen reader
+        announce the brand twice in a row.
+      -->
+      <img src="/icon-64.webp" alt="" aria-hidden="true" width="64" height="64" class="h-8 w-8 rounded-lg" />
+      <span class="text-[1.35rem] font-bold tracking-tight text-ink dark:text-white">{ORG.name}</span>
+    </a>
+
+    <ul class="hidden flex-1 gap-x-7 text-[0.95rem] font-medium md:flex">
       {NAV.map((item) => (
         <li>
           <a
             href={item.href}
             aria-current={path === item.href ? 'page' : undefined}
-            class="pressable -mb-px inline-block border-b-2 border-transparent pb-1 hover:border-menstrual aria-[current=page]:border-menstrual aria-[current=page]:font-semibold"
+            class="pressable inline-block py-1 hover:text-brand-deep aria-[current=page]:text-brand-deep aria-[current=page]:font-semibold"
           >{item.label}</a>
         </li>
       ))}
     </ul>
+
+    <a
+      href="/download"
+      class="pressable ml-auto inline-flex shrink-0 items-center rounded-full bg-brand-deep px-5 py-2.5 text-[0.95rem] font-semibold text-white hover:brightness-110 md:ml-0"
+    >Get the app</a>
   </nav>
+
+  <!--
+    The nav collapses at md rather than shrinking: seven links plus a wordmark
+    plus a pill will not fit a 360px phone, and a horizontally scrolling nav bar
+    is worse than one that simply moves below. Zero JS budget means no burger
+    menu, so the links reappear as a plain wrapped row.
+  -->
+  <ul class="flex flex-wrap gap-x-5 gap-y-1 border-t border-black/5 px-5 py-2.5 text-sm font-medium md:hidden dark:border-white/10">
+    {NAV.map((item) => (
+      <li>
+        <a
+          href={item.href}
+          aria-current={path === item.href ? 'page' : undefined}
+          class="pressable inline-block hover:text-brand-deep aria-[current=page]:text-brand-deep aria-[current=page]:font-semibold"
+        >{item.label}</a>
+      </li>
+    ))}
+  </ul>
 </header>

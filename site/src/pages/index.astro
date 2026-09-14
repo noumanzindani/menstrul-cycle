@@ -1,148 +1,221 @@
 ---
 import Base from '../layouts/Base.astro'
-import PhaseBand from '../components/PhaseBand.astro'
-import Section from '../components/Section.astro'
-import HeroArt from '../components/HeroArt.astro'
+import { ORG } from '../consts.ts'
+
+/**
+ * Flo's homepage architecture, carrying LunarFlow's own brand and claims.
+ *
+ * The one structural substitution: Flo leads with "7 million 5-star ratings"
+ * and "world's #1 women's health app". LunarFlow has no users and is not
+ * published, so that slot holds things that are true today instead. The layout
+ * beat is kept; the numbers are not invented.
+ */
+const PROOF = [
+  'Free to use',
+  'No ads on logging, diary or insights',
+  'Works fully offline',
+]
+
+const FEATURES = [
+  {
+    title: 'Track your cycle and symptoms',
+    body: 'Log flow, symptoms, mood, pain, medication, weight and basal body temperature in one daily entry. Cycles are worked out from the days you log, not from a number you set once and forget.',
+    link: { href: '/features', label: 'everything it tracks' },
+    img: { src: '/app/phone.webp', w: 800, h: 1010, max: 'max-w-[19rem]' },
+    alt: 'The LunarFlow home screen showing the next period estimated in 5 days, a to-scale cycle phase band, and cards for cycle day, phase and entries logged today.',
+  },
+  {
+    title: 'See where symptoms actually fall',
+    body: 'When a symptom keeps landing in the same phase, LunarFlow says so in plain language. It describes what your own entries show — it never diagnoses, and it never turns them into a score.',
+    link: { href: '/articles/what-symptoms-are-worth-tracking', label: 'which symptoms are worth tracking' },
+    img: { src: '/app/symptoms.webp', w: 424, h: 300, max: 'max-w-[20rem]' },
+    alt: 'A symptom-patterns card showing logged symptoms as coloured squares, clustering in particular phases of the cycle rather than spreading evenly.',
+  },
+  {
+    title: 'Take a real summary to your doctor',
+    body: 'Export a PDF of your cycle history, symptom and mood frequencies and weight trend. Your diary text is never included, and neither is anything you logged under the intimate categories.',
+    link: { href: '/articles/preparing-a-doctor-ready-cycle-summary', label: 'what to bring to an appointment' },
+    img: { src: '/app/trends.webp', w: 420, h: 300, max: 'max-w-[20rem]' },
+    alt: 'A cycle-trends card plotting the length of the last seven cycles as a line, ranging from 26 to 34 days.',
+  },
+]
 ---
 <Base
-  title="LunaTrack — period and cycle tracking"
-  description="LunaTrack shows no ads on symptom logging, diary, or insights. Your device leads, the app works offline, and health data never reaches advertisers."
+  title={`${ORG.name} — period and cycle tracking`}
+  description="LunarFlow tracks periods, symptoms, mood and BBT on your own device. Free, works fully offline, and never shows ads on your logging, diary or insights."
   path="/"
+  bare
 >
-  <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-12">
-    <div>
-      <PhaseBand height="14px" draw labelled class="max-w-md" />
+  <!-- ================= HERO ================= -->
+  <section class="bg-brand-wash dark:bg-surface-dark-2">
+    <div class="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-4 pt-12 lg:grid-cols-[1fr_minmax(0,30rem)] lg:gap-14 lg:pt-16">
+      <div class="lg:pb-16">
+        <ul class="flex flex-wrap gap-x-5 gap-y-1.5 text-[0.9rem] font-semibold">
+          {PROOF.map((p) => (
+            <li class="flex items-center gap-1.5">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" class="shrink-0">
+                <circle cx="8" cy="8" r="8" fill="var(--color-brand-deep)" />
+                <path d="M4.4 8.2l2.3 2.3 4.9-4.9" fill="none" stroke="#fff" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              {p}
+            </li>
+          ))}
+        </ul>
 
-      <h1 class="display mt-9 text-[2.6rem] sm:text-6xl">
-        Track your cycle.<br />Read the fine print.
-      </h1>
+        <h1 class="mt-6 text-[2.6rem] font-bold leading-[1.06] tracking-[-0.03em] text-ink sm:text-[3.4rem] dark:text-white">
+          Track your cycle.<br />Read the fine print.
+        </h1>
 
-      <p class="prose-body mt-6 max-w-prose text-lg">
-        No ads on symptom logging, your diary, or your insights — ever. That's the
-        one promise here that's easy to check for yourself.
-      </p>
+        <p class="mt-5 max-w-[34rem] text-lg leading-relaxed text-ink/75 dark:text-white/70">
+          {ORG.name} logs periods, symptoms, mood, pain and basal body temperature on
+          your own device, and works with no signal at all. Everything this page
+          claims is written so you can check it.
+        </p>
 
-      <div class="mt-8 flex flex-wrap gap-3">
-        <a
-          href="/download"
-          class="pressable inline-flex h-btn-h items-center rounded-btn bg-primary px-6 font-medium text-white hover:bg-menstrual"
-        >Get it on Google Play</a>
-        <a
-          href="/features"
-          class="pressable inline-flex h-btn-h items-center rounded-btn border border-outline px-6 font-medium hover:border-primary dark:border-white/20 dark:hover:border-white"
-        >See everything it tracks</a>
+        <div class="mt-8 flex flex-wrap items-center gap-4">
+          <a
+            href="/download"
+            class="pressable inline-flex items-center gap-3 rounded-xl bg-ink px-5 py-3 text-white hover:brightness-125"
+          >
+            <svg width="20" height="22" viewBox="0 0 20 22" aria-hidden="true" class="shrink-0">
+              <path d="M1 1.4v19.2c0 .5.5.8.9.6l10.3-9.6c.3-.3.3-.7 0-1L1.9.8C1.5.5 1 .8 1 1.4z" fill="#fff" />
+              <path d="M14.6 8.2l2.9 2.2c.6.4.6 1.2 0 1.6l-2.9 2.2-3-3 3-3z" fill="#fff" opacity=".82" />
+            </svg>
+            <span class="text-left leading-tight">
+              <span class="block text-[0.66rem] uppercase tracking-wider opacity-80">Get it on</span>
+              <span class="block text-[1.05rem] font-semibold">Google Play</span>
+            </span>
+          </a>
+
+          <!--
+            Android only, and said out loud rather than implied by the absence of
+            an App Store badge. Claiming both stores would be the easiest lie on
+            this page to tell by accident.
+          -->
+          <p class="text-sm text-ink/60 dark:text-white/50">Android only for now.</p>
+        </div>
+
+        <div class="mt-7 flex items-start gap-2 text-[--color-follicular]">
+          <svg width="46" height="34" viewBox="0 0 46 34" fill="none" aria-hidden="true" class="mt-1 shrink-0">
+            <path d="M44 2C31 1 6 4 3 20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path d="M2 30c0-4 .4-7 1-10 2 2.6 4.6 4.4 7.6 5.4" stroke="currentColor" stroke-width="1.6"
+              stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span class="display-sm max-w-[15rem] text-[1.05rem] leading-snug">
+            The calculators here run in your browser. Nothing you type is sent anywhere.
+          </span>
+        </div>
+      </div>
+
+      <!-- product shot: the phone bleeds off the band, floating cards drift -->
+      <div class="relative mx-auto w-full max-w-[24rem] self-end lg:max-w-none">
+        <img
+          src="/app/phone.webp"
+          alt="The LunarFlow home screen: next period estimated in 5 days, a to-scale cycle phase band, and today's cycle day, phase and entry count."
+          width="800" height="1010" fetchpriority="high" decoding="async"
+          class="mx-auto block w-[62%] max-w-[17rem] lg:w-[64%]"
+        />
+        <img
+          src="/app/trends.webp" alt="" aria-hidden="true"
+          width="420" height="300" decoding="async"
+          class="float-a absolute left-0 top-[14%] w-[34%] max-w-[11rem]"
+        />
+        <img
+          src="/app/symptoms.webp" alt="" aria-hidden="true"
+          width="424" height="300" decoding="async"
+          class="float-b absolute right-0 top-[52%] w-[34%] max-w-[11rem]"
+        />
       </div>
     </div>
+  </section>
 
-    <aside class="mt-12 border-t border-outline pt-6 text-sm text-ink-muted lg:mt-2 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0 dark:border-white/10 dark:text-white/60">
-      <HeroArt class="mx-auto mb-8 max-w-[15rem] lg:mb-7 lg:max-w-none" />
-      <p class="prose-body">
-        The band above is a 28-day cycle drawn to scale. Yours will differ —
-        that variation is the whole reason a tracker keeps a history instead of
-        a single number.
-      </p>
-      <p class="prose-body mt-4">
-        Everything this site claims is written to be checkable. Where LunaTrack
-        falls short, the <a href="/privacy" class="underline decoration-menstrual underline-offset-2">data page</a> says so.
-      </p>
-    </aside>
-  </div>
+  <!-- ================= FEATURES ================= -->
+  <section class="bg-white dark:bg-surface-dark">
+    <div class="mx-auto max-w-6xl px-5 py-16 sm:py-20">
+    <h2 class="text-center text-[1.9rem] font-bold tracking-[-0.02em] text-ink sm:text-[2.4rem] dark:text-white">
+      What can you do with {ORG.name}?
+    </h2>
 
-  <Section title="Your device leads, the cloud follows">
-    <p>
-      Every log — periods, symptoms, mood, medication marks, weight, basal body
-      temperature, ovulation test results — is written to a database on your
-      device first. LunaTrack works fully offline, and that on-device copy is
-      the source of truth; the cloud is a mirror of it, kept for the account
-      LunaTrack requires so your logs follow you between devices. The device
-      database is encrypted at rest with a key held in your OS keystore — the{' '}
-      <a href="/privacy-policy" class="underline underline-offset-2">full privacy policy</a> spells out
-      the one documented exception to that, along with everything else that
-      syncs.
-    </p>
-  </Section>
+    <div class="mt-12 flex flex-col gap-14 sm:mt-16 sm:gap-20">
+      {FEATURES.map((f, i) => (
+        <div class="grid items-center gap-8 sm:grid-cols-2 sm:gap-12">
+          <div class={`flex justify-center ${i % 2 === 1 ? 'sm:order-2' : ''}`}>
+            <img
+              src={f.img.src} alt={f.alt}
+              width={f.img.w} height={f.img.h} loading="lazy" decoding="async"
+              class={`w-full ${f.img.max}`}
+            />
+          </div>
+          <div>
+            <h3 class="text-2xl font-bold tracking-[-0.015em] text-ink dark:text-white">{f.title}</h3>
+            <p class="mt-3 leading-relaxed text-ink/75 dark:text-white/70">{f.body}</p>
+            <a
+              href={f.link.href}
+              class="pressable mt-4 inline-block font-semibold text-brand-deep underline decoration-2 underline-offset-4 hover:decoration-4 dark:text-brand"
+            >Read about {f.link.label}</a>
+          </div>
+        </div>
+      ))}
+      </div>
+    </div>
+  </section>
 
-  <Section title="What's inside">
-    <p>
-      Predictions, a daily log for symptoms and mood, medication marks, weight
-      and BBT tracking, ovulation test results, reminders, an app lock, a
-      doctor-ready PDF export, and a photo timeline. The{' '}
-      <a href="/features" class="underline underline-offset-2">features page</a> covers all of it,
-      including what each one does and doesn't do.
-    </p>
-  </Section>
-
-  <Section title="Ads that stay out of the way">
-    <p>
-      The free version shows non-personalised ads through Google AdMob, and
-      never on symptom logging, your diary, or your insights. Your health data
-      is never sent to the ad network either way. If you'd rather not see ads
-      at all, Premium is a one-time Google Play purchase that removes them
-      everywhere — see <a href="/privacy" class="underline underline-offset-2">how your data is handled</a>{' '}
-      for the details on both.
-    </p>
-  </Section>
-
-  <Section title="Photo descriptions, off until you turn them on">
-    <p>
-      The photo timeline can describe what's in a picture you choose, using an
-      outside image-recognition service. That's off by default, decided
-      separately for each account and each device — read{' '}
-      <a href="/privacy" class="underline underline-offset-2">what that involves</a> before you switch it on.
-    </p>
-  </Section>
-
-  <Section title="Not sure about a date? Try a calculator first" phase="predicted">
-    <p>
-      Before you install anything, you can estimate your next period from a
-      date you already know. The <a href="/tools" class="underline underline-offset-2">calculators
-      page</a> runs the same cycle maths as the app, entirely in your browser —
-      nothing you type into it is sent anywhere. Alongside the{' '}
-      <a href="/tools/period-calculator" class="underline underline-offset-2">period
-      calculator</a>, there's also an{' '}
-      <a href="/tools/ovulation-calculator" class="underline underline-offset-2">ovulation
-      calculator</a>, a{' '}
-      <a href="/tools/cycle-length-calculator" class="underline underline-offset-2">cycle-length
-      calculator</a>, and a{' '}
-      <a href="/tools/due-date-calculator" class="underline underline-offset-2">due-date
-      calculator</a>, all built the same way.
-    </p>
-
-    <figure class="mt-7 max-w-md">
-      <div
-        class="h-3 w-full rounded-full"
-        style="background:linear-gradient(90deg,
-          color-mix(in oklab, var(--color-predicted) 0%, transparent) 0%,
-          var(--color-predicted) 28%,
-          var(--color-menstrual) 50%,
-          var(--color-predicted) 72%,
-          color-mix(in oklab, var(--color-predicted) 0%, transparent) 100%)"
-        role="img"
-        aria-label="A predicted period drawn as a band that fades at both ends, showing that the estimate is a range rather than a single certain day."
-      ></div>
-      <figcaption class="mt-3 text-sm text-ink-muted dark:text-white/60">
-        A prediction is a range, not a date. The calculators give you the
-        middle; the faded ends are the part most apps don't draw.
-      </figcaption>
-    </figure>
-  </Section>
-
-  <Section title="Want the longer version of any of this?">
-    <p>
-      The <a href="/articles" class="underline underline-offset-2">articles library</a> covers the
-      reasoning behind the calculators above, what counts as a normal cycle, and
-      a checklist for reading any tracker's privacy policy — applied honestly to
-      LunaTrack's own, including where it falls short. Every article carries
-      dated sources at the end.
-    </p>
-  </Section>
-
-  <section class="mt-20 border-t border-outline pt-10 dark:border-white/10">
-    <h2 class="display-sm text-2xl">Try it</h2>
-    <p class="prose-body mt-3 max-w-prose">
-      <a href="/download" class="underline underline-offset-2">Download LunaTrack on Google Play</a>.
-      It requires an account to sign in, and its{' '}
-      <a href="/terms" class="underline underline-offset-2">terms of use</a> cover purchases and warranty.
-    </p>
+  <!-- ================= HONESTY STRIP ================= -->
+  <section class="bg-brand-wash dark:bg-surface-dark-2">
+    <div class="mx-auto max-w-6xl px-5 py-14 sm:py-16">
+      <h2 class="text-[1.6rem] font-bold tracking-[-0.02em] text-ink sm:text-[2rem] dark:text-white">
+        The parts most apps leave out
+      </h2>
+      <div class="mt-8 grid gap-8 sm:grid-cols-3">
+        <div>
+          <h3 class="font-bold text-ink dark:text-white">Predictions are estimates</h3>
+          <p class="mt-2 text-[0.95rem] leading-relaxed text-ink/75 dark:text-white/70">
+            Every date is calendar arithmetic on the cycles you logged. {ORG.name} is
+            not a method of contraception and never labels a day safe.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-bold text-ink dark:text-white">Your data syncs in plaintext</h3>
+          <p class="mt-2 text-[0.95rem] leading-relaxed text-ink/75 dark:text-white/70">
+            The on-device database is encrypted. The cloud copy that follows you
+            between devices is stored in plaintext, where the service operator can
+            read it. The
+            <a href="/privacy" class="underline decoration-brand underline-offset-2">data page</a>
+            spells out exactly who can read it.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-bold text-ink dark:text-white">Ads, and where they are not</h3>
+          <p class="mt-2 text-[0.95rem] leading-relaxed text-ink/75 dark:text-white/70">
+            The free version shows non-personalised ads, never on symptom logging,
+            your diary or your insights. Your health data never reaches the ad
+            network.
+          </p>
+        </div>
+      </div>
+      <a
+        href="/privacy"
+        class="pressable mt-9 inline-flex items-center rounded-full bg-brand-deep px-6 py-3 font-semibold text-white hover:brightness-110"
+      >See how your data is handled</a>
+    </div>
   </section>
 </Base>
+
+<style>
+  /*
+    Two drift loops on the floating cards. Non-harmonic periods so they never
+    re-sync into a single beat, and 0%/100% is the resting pose so the global
+    reduced-motion net in global.css lands them exactly where they are drawn.
+  */
+  @keyframes float-a {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50%      { transform: translate3d(0, -12px, 0); }
+  }
+  @keyframes float-b {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50%      { transform: translate3d(0, -9px, 0); }
+  }
+  .float-a { animation: float-a 6.1s ease-in-out infinite; }
+  .float-b { animation: float-b 7.7s ease-in-out infinite; animation-delay: 0.8s; }
+</style>

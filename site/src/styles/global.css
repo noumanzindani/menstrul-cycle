@@ -56,6 +56,20 @@
 
   --font-body: "Public Sans", ui-sans-serif, system-ui, sans-serif;
   --font-headline: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
+
+  /* ---------------------------------------------------------------------
+     LunarFlow brand, taken from the app icon.
+
+     --color-brand is the icon's own ground (74% of its pixels). It is a
+     SURFACE colour: at 2.27:1 against white it can never carry body text.
+     --color-brand-deep exists solely so a filled pill can hold white text
+     and still clear WCAG AA — it reaches 4.72:1 where the icon pink and
+     the hot pink this category usually reaches for both fail.
+     --------------------------------------------------------------------- */
+  --color-brand: #F889B4;
+  --color-brand-deep: #D62E68;
+  --color-brand-wash: #FDF1F5;
+  --color-ink: #231018;
 }
 
 html { color-scheme: light dark; }
