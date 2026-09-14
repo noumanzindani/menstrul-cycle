@@ -16,10 +16,35 @@ const fail = (page, msg) => failures.push(`${page}: ${msg}`)
  * `/terms` is site-authored prose, not a reproduced document, so it is NOT
  * exempt — it is subject to the banned-claim gate like every other page. */
 const CLAIM_EXEMPT = new Set(['/privacy-policy'])
-/** Pages allowed to ship a hydrated island, with their JS byte budget. */
+/**
+ * Pages allowed to ship a hydrated island, with their JS byte budget.
+ *
+ * Per route, deliberately: a route absent from this map gets 0 bytes, so a new
+ * page that ships JavaScript has to be added here by hand, and one heavy page
+ * cannot raise the bar for the others.
+ *
+ * The number counts the whole static import graph, not just the file named in the
+ * markup — see moduleClosureBytes. Three structural savings came out of measuring
+ * it that way, and all three were shared-barrel problems, which is the failure
+ * mode this budget exists to surface:
+ *
+ *   1. One island held every calculator's arithmetic behind an if/else, so every
+ *      calculator page loaded all of it. Split one island per page.
+ *   2. `gestation.ts` read two integers from `cycle.ts`, which put the four cycle
+ *      predictors into every pregnancy page's graph. Moved to `constants.ts`.
+ *   3. `pregnancy.ts` exported all five pregnancy formulas from one module, so
+ *      each page carried the other four. Split into `lib/preg/*`, barrel kept.
+ *
+ * 8192 is the bar for a calculator whose result is a few dates. The IVF page is
+ * higher because it legitimately renders more: two dated tables, a conditional
+ * progress readout, and the snapshot-tested copyable summary block. That figure is
+ * what remains after the three savings above, and it carries real headroom rather
+ * than sitting one word of copy below the limit.
+ */
 const JS_BUDGET = { '/tools/period-calculator': 8192, '/tools/ovulation-calculator': 8192,
                     '/tools/cycle-length-calculator': 8192, '/tools/due-date-calculator': 8192,
-                    '/tools/pregnancy-weeks-to-months': 8192 }
+                    '/tools/pregnancy-weeks-to-months': 8192,
+                    '/tools/ivf-due-date-calculator': 10240 }
 
 function walk(dir) {
   return readdirSync(dir).flatMap((e) => {
