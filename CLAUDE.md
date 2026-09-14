@@ -726,6 +726,107 @@ in tests sits above the pumped providers) but deliberately does NOT re-provide a
   remains for the diary is richer entry (per-day multiple entries, attachments), not reading
   notes back.
 
+## Marketing site (`site/`)
+
+A separate Astro static site in `site/`, deployed to Firebase Hosting. Nothing in it
+imports from `lib/` — it reimplements the cycle and gestation arithmetic in TypeScript
+so the calculators can run in a browser. When a formula changes in Dart, it does **not**
+change here.
+
+```bash
+cd site
+npm install
+npm run dev        # http://localhost:4321 (daemonised: astro dev stop / status / logs)
+npm run build      # writes site/dist
+npm run verify     # the audit — MUST pass before any deploy
+npm test           # 161 unit tests (vitest)
+npm run check      # astro check — 0 errors
+```
+
+`npm run verify` builds nothing; it audits whatever is already in `dist/`. Run
+`npm run build` first or you are auditing a stale tree.
+
+### Key design decisions (non-obvious)
+
+- **Zero JavaScript is the default and it is enforced, not aspirational.**
+  `scripts/audit.mjs` holds a per-route `JS_BUDGET`, and the lookup is
+  `JS_BUDGET[page] ?? 0` — **a route absent from that map is allowed zero bytes**, so a
+  new page that ships an island fails the audit until it is added by hand. The number
+  counts the whole static import graph (`moduleClosureBytes`), not just the file named
+  in the markup: Astro emits no `<link rel="modulepreload">` for chunks a page's entry
+  statically imports, so counting `<script src>` alone under-measured by 3.7 KB.
+- **`vite.build.assetsInlineLimit: 0` is load-bearing.** The production CSP is
+  `script-src 'self'`. An inlined island would be blocked by it and every calculator
+  would silently stop working — silently, because the page still renders and only the
+  form is dead. Never raise that limit.
+- **A module's exports are the unit of bundling, not its call sites.** This was found
+  and fixed five times at five layers, and it is the failure mode the per-route budget
+  exists to surface: a chunk's exports are the union of what all its importing entries
+  need, so the bundler cannot drop the rest — it only sees that the module is imported.
+  Hence `lib/constants.ts` (so `gestation.ts` need not import `cycle.ts` for two
+  integers), `lib/preg/*` (one calculator per module, `pregnancy.ts` a pure re-export
+  barrel), and `lib/summary/<page>.ts` over a dependency-free assembler. `days.ts` is
+  still one shared chunk — an export added for one page is paid for by all of them, and
+  `dateRange` alone costs every route ~400 bytes. That is documented in `JS_BUDGET` as
+  the next thing to cut if a route gets tight.
+- **One island per page.** Each calculator page owns a `<script>` after `</Tool>` that
+  imports only its own compute function plus `mount()` from `lib/island.ts`. One shared
+  island holding every calculator measured 5,775 of the 8,192-byte budget with four in
+  it; ten would have failed every calculator page at once.
+- **The form ships with its fieldset `disabled` and the island re-enables it.**
+  `ToolForm.astro` owns this once. The form has no `action`, so a submit without
+  JavaScript would GET the current URL with every field appended — putting a menstrual
+  date into the address bar, history and any bookmark. Gating the **fieldset** rather
+  than the submit button is deliberate: a disabled fieldset makes every control
+  non-focusable and not a successful control, so there is nothing to serialise, and the
+  guarantee does not depend on how a browser handles Enter-key submission.
+- **Form controls are styled in `global.css`, and must be.** Tailwind's Preflight resets
+  `border-width: 0` on every element, form controls included, so an unstyled `<input>`
+  here renders with **no box at all**. Found on a phone: an optional field was invisible,
+  with nothing between its label and its help text. The `font-size: 16px` in that block
+  is not taste — iOS Safari zooms the whole page in when a focused control's text is
+  smaller.
+- **Never hand-assemble a date.** `dateRange` used to pick a partial `Intl` option set
+  per case; a partial set has no defined word order and en-US rendered it "17 Thursday".
+  Use `Intl.DateTimeFormat`'s own `format`/`formatRange`. Tests pin the order of the
+  words with whitespace normalised, because ICU's choice of thin spaces inside a range
+  shifts between versions.
+- **The app's copy guardrails apply here too**, and the audit enforces part of it:
+  `BANNED_CLAIMS` in `src/consts.ts` fails the build on "no account", "fully private",
+  "anonymous", "end-to-end" and the rest — the site cannot claim a privacy posture the
+  app does not have. The rest is editorial and holds identically: never "safe" near
+  fertility, no synthesized percentage, never a method of contraception, and the site
+  names no condition and describes no symptom as meaning anything.
+- **`hcg-calculator` is HELD** — a 19-agent verification pass returned "do not ship the
+  specified page" over six issues (sensitivity formulas, rounding, copy safety,
+  metadata, citations, singularities). It is the one calculator of the ten that was
+  designed and deliberately not built. Do not build it without an owner decision.
+
+### Deploying
+
+Hosting config is the `hosting` block in the **repo-root** `firebase.json` (public
+`site/dist`, `cleanUrls`, redirects, CSP and cache headers). There is deliberately no
+`.firebaserc`, so every command needs `--project teddy-2-20649` explicitly.
+
+```bash
+cd site && npm run build && npm run verify     # audit MUST pass first
+cd .. && firebase hosting:channel:deploy preview --project teddy-2-20649 --expires 7d
+firebase deploy --only hosting --project teddy-2-20649     # production
+firebase hosting:rollback --project teddy-2-20649          # undo
+```
+
+**`teddy-2-20649` is a shared project with two hosting sites.** The `hosting` block
+names no `site`, so a deploy targets the default site `teddy-2-20649`. The other site,
+`pocket-change-admin-dev`, belongs to an unrelated app and must never be deployed to
+from here. A channel deploy prints a "Hosting URL" line that reads like a production
+release and is not one — verify by fetching the production URL.
+
+**Production is blocked on the Play listing.** `ORG.sameAs` points at
+`play.google.com/store/apps/details?id=com.lunatrack.app`, which 404s. That URL is
+behind the "Get the app" pill on every page and is emitted in the site's schema.org
+JSON-LD, so going live would publish structured data pointing at an app that does not
+exist. A preview channel is live and safe; production has never been deployed.
+
 ## Pre-store-submission checklist (needs the project owner's accounts)
 
 The full list with rationale is in `README.md` → "Before publishing". The ones that block
