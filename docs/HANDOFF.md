@@ -68,6 +68,7 @@ two lanes are frequently dirty at the same time.
 
 | Commit | |
 |---|---|
+| `8ad82e0` | Every signup question is REQUIRED; escape options so the wizard cannot deadlock |
 | `97571bb` | In-app capture — take a photo / record a video from the media timeline |
 | `e9789e5` | Signup sexual-health baseline (schema v9 → v10), three onboarding pages |
 | `beb9849` | `kCatIntimacy` defaults ON, matching partnered sex |
@@ -113,6 +114,13 @@ is a class `flutter_tester` structurally cannot reach.
    `databaseIsEncryptedAtRest()` at the same time.
 5. **The nine media device-test items** listed in `CLAUDE.md` (OOM, process
    death mid-upload, EXIF/GPS, recents thumbnail, …).
+6. **The required onboarding wizard** (`8ad82e0`). The risk is not cosmetic: the
+   wizard is the app's only entrance and now REFUSES to advance, so a required
+   group sitting below the fold with no visible scroll cue is a **lockout**, not
+   an annoyance. Pages 8 and 9 stack four required groups each. Check on a short
+   screen (≤5.5") and with the keyboard raised over the height/weight page. The
+   widget tests scroll programmatically (`scrollUntilVisible`) and therefore
+   manufacture the reachability a real thumb has to find for itself.
 
 **Verified against the live Firebase project 2026-09-14:** `firestore.rules` and
 `storage.rules` are BOTH deployed — to `cloud.firestore/lunatrack-db` and
@@ -173,7 +181,7 @@ consecutive `adb shell echo` probes should all pass before attempting an install
   The queue is safe to watch: the single pending marker is not due until 2026-10-13.
 - **Firebase Auth deletion is PROJECT-WIDE and the Auth pool is shared.** The client
   never deletes the Auth account; only this job does. So a person who uses both
-  LunaTrack and the donations app and deletes their LunaTrack account loses the
+  LunarFlow and the donations app and deletes their LunarFlow account loses the
   identity the other app knows them by. Deleting the account is what makes "delete my
   account" honest, so the fix is a dedicated project, not skipping the delete. Accepted
   and documented, not an oversight — but it is a real cross-app consequence.
@@ -181,7 +189,7 @@ consecutive `adb shell echo` probes should all pass before attempting an install
   redeployed without upgrading the runtime (and `firebase-functions` is a major version
   behind). That is a hard deadline roughly six weeks out, not a lint warning.
 - **The Firebase project is `teddy-2-20649`**, named in the tracked `firebase.json`.
-  Moving LunaTrack to a dedicated project is still an open owner decision, so keep
+  Moving LunarFlow to a dedicated project is still an open owner decision, so keep
   reading the id from config rather than hardcoding it in Dart.
 - An old `lunatrack` database (gcloud-created, so deployed rules do not take effect on
   it) still exists alongside the real `lunatrack-db`. It is EMPTY — no exposure — but it
@@ -220,6 +228,14 @@ consecutive `adb shell echo` probes should all pass before attempting an install
 Short list of traps that have already cost time here. The reasoning for each is
 in `CLAUDE.md`; these are the ones worth knowing before you touch anything.
 
+- **A required question needs an answer everyone can honestly give.** Adding a
+  required option set without a truthful escape deadlocks the onboarding wizard
+  and bricks the app for new users. `kShxNone` / `kSoloNone` exist for this and
+  are MUTUALLY EXCLUSIVE with the real answers.
+  `test/onboarding_required_test.dart` completes the wizard using only escapes —
+  that test is the guard, do not weaken it. The onboarding `PageView` is
+  `NeverScrollableScrollPhysics` for the same reason: every refusal lives on the
+  Continue path, so a swipeable one would make all of them advisory.
 - **`encodeDayTags` is a full REPLACE.** The day editor must decode and re-encode
   every group unconditionally. Gating a group out of decode or save destroys it.
 - **`saveDay` replaces a whole day.** Two writes to one date means the second
