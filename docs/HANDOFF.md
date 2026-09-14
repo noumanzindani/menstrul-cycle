@@ -52,8 +52,11 @@ dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
 
 ## 2. Where the work stands
 
-Branch `feat/stitch-redesign`. Schema is at **v10**. Two workstreams run in
-parallel on this branch and should not be mixed in one commit:
+Branch **`feat/ai-health-context`**, which has **no upstream** — nothing here is
+pushed. `feat/stitch-redesign` is the branch with a remote and is 19 ahead of it;
+it does NOT carry the 13 site commits or the recent app work, so do not resume
+from it. Schema is at **v10**. Two workstreams run in parallel on this branch and
+should not be mixed in one commit:
 
 - **the Flutter app** (`lib/`, `test/`, `android/`, `ios/`, `admin/`)
 - **the marketing site** (`site/`, `docs/superpowers/`)
@@ -74,6 +77,21 @@ two lanes are frequently dirty at the same time.
 
 Every design decision behind these is in `CLAUDE.md`; this list is only for
 orienting in `git log`.
+
+### The marketing site
+
+13 commits ahead of `feat/stitch-redesign`, from `b0ce20f` to `01f7be2`. State:
+**24 routes, 9 calculators, 161 vitest tests, audit clean, `astro check` at 0.**
+
+- Nine calculators ship: period, ovulation, cycle length, due date, weeks-to-months,
+  IVF/FET, ultrasound, pregnancy test, implantation. A tenth, **hCG, is HELD** — see
+  §4.
+- **A preview channel is deployed and production is not.** Verify before assuming
+  either: `curl -sI https://teddy-2-20649.web.app/` returns 404 today.
+- `site/README.md` is stale (it still says 19 routes, 4 calculators, and that no
+  Firebase command has ever been run). Its LunarFlow rename is also uncommitted.
+- Every site decision worth knowing is in `CLAUDE.md` § Marketing site. The two that
+  cost the most time are in §5 below.
 
 ---
 
@@ -168,6 +186,30 @@ consecutive `adb shell echo` probes should all pass before attempting an install
 - An old `lunatrack` database (gcloud-created, so deployed rules do not take effect on
   it) still exists alongside the real `lunatrack-db`. It is EMPTY — no exposure — but it
   is a loaded footgun if anything ever points at it. Worth deleting.
+- **The site's production deploy is blocked on the Play listing.** `ORG.sameAs` in
+  `site/src/consts.ts` points at
+  `play.google.com/store/apps/details?id=com.lunatrack.app`, which 404s. That URL sits
+  behind the "Get the app" pill on every page and is emitted in the site's schema.org
+  JSON-LD, so going live would publish structured data pointing at an app that does not
+  exist. A preview channel is live and safe.
+  **Hosting has the same shared-project hazard as functions, one step milder.** The
+  `hosting` block in `firebase.json` names no `site`, so a deploy targets the default
+  site `teddy-2-20649`. The project's OTHER hosting site, `pocket-change-admin-dev`,
+  belongs to the unrelated donations app — an unscoped hosting deploy does not touch it
+  today, but nothing in the config says so, so check `firebase hosting:sites:list`
+  before changing that block. A channel deploy also prints a "Hosting URL" line that
+  reads like a production release and is not one; verify by fetching the production URL.
+- **`hcg-calculator` is HELD — do not ship the specified page.** A verification pass
+  returned six issues (sensitivity formulas, rounding, copy safety, metadata, citations,
+  singularities). It is the one calculator of the ten designed and deliberately not
+  built. Needs an owner decision: hold, ship a reduced version without per-test
+  sensitivity thresholds, or ship as specified.
+- **One deliberate divergence from the site plan, undecided.** §2.5 of that plan bars
+  linking an ovulation/fertile-window calculator from the IVF, ultrasound, implantation
+  or pregnancy-test pages via "nav, footer, related-tools module or body". The body and
+  related-tools halves are implemented; the global nav's Calculators dropdown still
+  lists the ovulation calculator on those pages. A per-page nav variant looked
+  heavy-handed and inconsistent with the site skeleton. Owner's call.
 - Release keystore, real AdMob ids, real IAP product id, hosted privacy-policy
   and deletion URLs: all outstanding. See `README.md` § Before publishing.
 
@@ -195,3 +237,18 @@ in `CLAUDE.md`; these are the ones worth knowing before you touch anything.
   crashes. Both are asserted in `test/media_guardrails_test.dart`.
 - **Never a bare `FilledButton` in a `Row`** — the theme gives it infinite width.
   This shipped a consent button off-screen once.
+- **(site) `vite.build.assetsInlineLimit: 0` is load-bearing.** The production CSP is
+  `script-src 'self'`, so an inlined island is blocked and every calculator dies
+  SILENTLY — the page still renders and only the form is dead. The dev server does not
+  enforce that CSP, so this cannot be caught locally; `npm run preview` does not either.
+  It is only real once deployed.
+- **(site) A module's exports are the unit of bundling, not its call sites.** A chunk's
+  exports are the union of what all its importing entries need, so the bundler cannot
+  drop the rest. Reading one integer out of `gestation.ts` pulled four unrelated
+  calculators into a page's bundle. Found five times at five layers; the per-route
+  `JS_BUDGET` exists to surface it, and a route absent from that map gets ZERO bytes.
+- **(site) Tailwind Preflight zeroes `border-width` on form controls.** An unstyled
+  `<input>` renders with no box at all. This shipped an invisible field — nothing
+  between its label and its help text. Controls are styled once in `global.css`, where
+  the `font-size: 16px` is also load-bearing: below it, iOS Safari zooms the page on
+  focus.
