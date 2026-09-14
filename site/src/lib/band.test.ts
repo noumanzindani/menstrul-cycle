@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
-  coreDays, totalDays, extent, geometry, gradient, cycleFeather, type Span,
+  coreDays, totalDays, extent, geometry, gradient, cycleFeather,
+  hard, mark, fixedExtent, pointPct, type Span,
 } from './band.ts'
 
 const span = (from: number, to: number, feather = 0): Span => ({ from, to, feather })
@@ -101,5 +102,53 @@ describe('cycleFeather', () => {
 
   it('never returns zero, so no prediction is drawn as certain', () => {
     for (let i = 0; i < 6; i += 1) expect(cycleFeather(i)).toBeGreaterThan(0)
+  })
+})
+
+describe('hard / mark', () => {
+  it('draws no fade at all, so a conversion is not shown as an estimate', () => {
+    expect(hard(10, 20).feather).toBe(0)
+    expect(mark(10).feather).toBe(0)
+    expect(gradient('red', geometry(hard(10, 20), 0, 40).stop)).toBe('red')
+  })
+
+  it('makes a mark exactly one day wide', () => {
+    expect(coreDays(mark(10))).toBe(1)
+    expect(totalDays(mark(10))).toBe(1)
+  })
+})
+
+describe('fixedExtent', () => {
+  it('counts both ends, like extent()', () => {
+    expect(fixedExtent(0, 294)).toEqual({ start: 0, end: 294, days: 295 })
+    expect(fixedExtent(5, 5)).toEqual({ start: 5, end: 5, days: 1 })
+  })
+
+  it('does not move when the data does — the point of stating it', () => {
+    const d = fixedExtent(0, 294)
+    // Same domain, two very different results: the second must sit further right,
+    // which is exactly what extent() would destroy by rescaling to fit.
+    const early = geometry(mark(84), d.start, d.days).left
+    const late = geometry(mark(266), d.start, d.days).left
+    expect(late).toBeGreaterThan(early)
+  })
+})
+
+describe('pointPct', () => {
+  it('centres the day in its cell, matching geometry()', () => {
+    const d = fixedExtent(0, 100)
+    for (const day of [0, 1, 50, 99, 100]) {
+      const g = geometry(mark(day), d.start, d.days)
+      expect(pointPct(day, d.start, d.days)).toBeCloseTo(g.left + g.width / 2, 10)
+    }
+  })
+
+  it('stays inside the track for every day of the domain', () => {
+    const d = fixedExtent(0, 294)
+    for (let day = 0; day <= 294; day += 1) {
+      const p = pointPct(day, d.start, d.days)
+      expect(p).toBeGreaterThan(0)
+      expect(p).toBeLessThan(100)
+    }
   })
 })

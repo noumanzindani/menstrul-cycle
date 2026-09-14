@@ -216,3 +216,31 @@ const faq: FaqEntry[] = [
     <a href="/privacy" class="underline">data handling page</a>.
   </p>
 </Tool>
+
+<!-- This page's island. See the note in Calculator.astro. -->
+<script>
+  import { mount } from '../../lib/island.ts'
+  import { estimateDueDate } from '../../lib/cycle.ts'
+  import { dayNum, fromDayNum, humanDateShort, todayDayNum } from '../../lib/days.ts'
+  import { track } from '../../lib/track.ts'
+
+  mount((v) => {
+    // todayDayNum() reads the DEVICE'S local calendar date. The epoch-UTC day
+    // that `Date.now() / 86400000` yields is a day ahead for every viewer west
+    // of Greenwich for part of every day, which reported the gestational age one
+    // day too high.
+    const r = estimateDueDate(v.str('last'), v.num('cycle'), fromDayNum(todayDayNum()))
+    const due = dayNum(r.dueDate)
+    return `<h3 class="display-sm text-xl">Estimated due date: ${humanDateShort(due)}</h3>` +
+      `<p>Estimated conception: ${humanDateShort(dayNum(r.conception))}.</p>` +
+      `<p>You are about ${r.gestationalWeeks} weeks and ${r.gestationalDays} days along.</p>` +
+      `<p>Second trimester from ${humanDateShort(dayNum(r.trimester2Start))}, ` +
+      `third from ${humanDateShort(dayNum(r.trimester3Start))}.</p>` +
+      track(
+        [{ span: { from: due, to: due, feather: 14 }, color: 'var(--color-predicted)' }],
+        'The solid centre is the estimated date; the fade is roughly two weeks ' +
+        'either side, where most births actually happen. Very few arrive on the ' +
+        'due date itself.',
+      )
+  })
+</script>

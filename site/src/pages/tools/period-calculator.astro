@@ -262,3 +262,30 @@ const faq: FaqEntry[] = [
     numbers in again next month.
   </p>
 </Tool>
+
+<!-- This page's island. Lives here, not in Calculator.astro, so the page loads
+     only its own arithmetic against the per-route JS budget. -->
+<script>
+  import { mount } from '../../lib/island.ts'
+  import { predictPeriods } from '../../lib/cycle.ts'
+  import { dayNum, humanDateShort } from '../../lib/days.ts'
+  import { cycleFeather } from '../../lib/band.ts'
+  import { track } from '../../lib/track.ts'
+
+  mount((v) => {
+    const rows = predictPeriods(v.str('last'), v.num('cycle'), v.num('period'), 3)
+      .map((r) => ({ from: dayNum(r.start), to: dayNum(r.end) }))
+    return '<h3 class="display-sm text-xl">Your next three periods</h3><ul>' +
+      rows.map((r) => `<li>${humanDateShort(r.from)} to ${humanDateShort(r.to)}</li>`).join('') +
+      '</ul>' +
+      track(
+        rows.map((r, i) => ({
+          span: { from: r.from, to: r.to, feather: cycleFeather(i) },
+          color: 'var(--color-menstrual)',
+        })),
+        'Each band is one predicted period, drawn to scale. The fade widens further ' +
+        'out because a fixed average drifts from a real cycle over time — it marks ' +
+        'that order of confidence, not a measured margin of error.',
+      )
+  })
+</script>

@@ -261,3 +261,30 @@ const faq: FaqEntry[] = [
     <a href="/privacy" class="underline">how your data is handled</a>.
   </p>
 </Tool>
+
+<!-- This page's island. See the note in Calculator.astro. -->
+<script>
+  import { mount } from '../../lib/island.ts'
+  import { predictOvulation } from '../../lib/cycle.ts'
+  import { dayNum, humanDateShort } from '../../lib/days.ts'
+  import { track } from '../../lib/track.ts'
+
+  mount((v) => {
+    const r = predictOvulation(v.str('last'), v.num('cycle'))
+    const ov = dayNum(r.ovulation)
+    const from = dayNum(r.fertileStart)
+    const to = dayNum(r.fertileEnd)
+    return `<h3 class="display-sm text-xl">Estimated ovulation: ${humanDateShort(ov)}</h3>` +
+      `<p>Most fertile days: ${humanDateShort(from)} to ${humanDateShort(to)}</p>` +
+      `<p>Next period expected: ${humanDateShort(dayNum(r.nextPeriod))}</p>` +
+      track(
+        [
+          { span: { from, to, feather: 2 }, color: 'var(--color-fertile)' },
+          { span: { from: ov, to: ov, feather: 1 }, color: 'var(--color-ovulatory)' },
+        ],
+        'The wide band is the fertile window; the narrow one is the estimated ' +
+        'ovulation day. Both fade because a calendar estimate cannot observe ' +
+        'ovulation. This is not a method of contraception.',
+      )
+  })
+</script>

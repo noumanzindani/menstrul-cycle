@@ -58,6 +58,18 @@ export function humanDate(n: number): string {
 }
 
 /**
+ * The same date with an abbreviated weekday, for dense result lists.
+ *
+ * Separate from `humanDate` rather than a parameter because the choice is per
+ * surface, not per call: a list of three predicted periods wants "Mon", a single
+ * headline due date wants "Monday", and a page that mixed the two inside one
+ * result block would look like two different calculators.
+ */
+export function humanDateShort(n: number): string {
+  return new Date(n * MS_PER_DAY).toLocaleDateString(undefined, { ...FMT, weekday: 'short' })
+}
+
+/**
  * Renders a range, repeating whatever actually differs between the endpoints.
  *
  * Same month and year  → "Monday 5 to Friday 9 January 2027"

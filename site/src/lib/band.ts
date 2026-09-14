@@ -94,3 +94,41 @@ export function gradient(color: string, stop: number): string {
  * rendered alongside it must say that, or the fade reads as a measurement.
  */
 export const cycleFeather = (index: number) => 1 + index
+
+/* ------------------------------------------------------------------ *
+ * Hard-edged spans
+ *
+ * Everything above fades, because the four original calculators all return
+ * predictions. The pregnancy calculators mostly do not: five of the six
+ * convert a number the reader typed, and a fade on a conversion would claim an
+ * uncertainty the arithmetic does not have. These helpers make `feather: 0`
+ * the short, obvious thing to write rather than a field to remember.
+ * ------------------------------------------------------------------ */
+
+/** A span with hard edges: `from` to `to` inclusive, no softening. */
+export const hard = (from: number, to: number): Span => ({ from, to, feather: 0 })
+
+/** A single hard-edged day. */
+export const mark = (day: number): Span => ({ from: day, to: day, feather: 0 })
+
+/**
+ * A FIXED domain, stated rather than derived from the data.
+ *
+ * `extent()` sizes the track to whatever spans it is given, which is right for
+ * a prediction but wrong for a gestational timeline: a 0-294 day band that
+ * rescaled to fit the inputs would put a 12-week scan in the middle of the
+ * track, and the reader would read the position as the progress.
+ */
+export const fixedExtent = (start: number, end: number) => ({ start, end, days: end - start + 1 })
+
+/**
+ * Where a single day sits on an explicit domain, as a percentage.
+ *
+ * The CENTRE of the day's cell, not its leading edge — matching `geometry()`,
+ * which gives a one-day span a cell of `1 / days` and so centres it half a day
+ * in. A tick drawn at the leading edge would sit half a cell left of the band
+ * it is meant to label, and the gap would widen as the domain got shorter.
+ */
+export function pointPct(day: number, start: number, days: number): number {
+  return ((day - start + 0.5) / days) * 100
+}

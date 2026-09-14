@@ -237,3 +237,27 @@ const faq: FaqEntry[] = [
     download page</a>.
   </p>
 </Tool>
+
+<!-- This page's island. See the note in Calculator.astro. -->
+<script>
+  import { mount } from '../../lib/island.ts'
+  import { analyseCycles } from '../../lib/cycle.ts'
+  import { track } from '../../lib/track.ts'
+
+  mount((v) => {
+    const dates = ['d1', 'd2', 'd3', 'd4'].map((k) => v.str(k)).filter(Boolean)
+    const s = analyseCycles(dates)
+    return `<h3 class="display-sm text-xl">Average cycle: ${s.average} days</h3>` +
+      `<p>Shortest ${s.shortest}, longest ${s.longest}, a spread of ${s.variation} days.</p>` +
+      `<p>That pattern looks <strong>${s.regularity}</strong>. This is a description, not a diagnosis.</p>` +
+      track(
+        [
+          { span: { from: s.shortest, to: s.longest, feather: 0 }, color: 'var(--color-follicular)' },
+          { span: { from: s.average, to: s.average, feather: 0 }, color: 'var(--color-primary)' },
+        ],
+        'Your observed range, shortest to longest, with the average marked. These ' +
+        'edges are hard because these are cycles you actually had — the only ' +
+        'result on this site that is measured rather than predicted.',
+      )
+  })
+</script>

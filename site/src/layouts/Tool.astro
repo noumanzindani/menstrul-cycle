@@ -8,7 +8,17 @@ import type { FaqEntry } from '../types.ts'
 type Phase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal' | 'fertile' | 'predicted'
 
 interface Props {
+  /** The SEO title: <=60 escaped characters, keyword-first, no brand suffix. */
   title: string
+  /**
+   * The heading a reader sees, when it should differ from the SEO title.
+   *
+   * These two jobs pull in opposite directions. A title competes in a search
+   * result and is measured against a 60-character budget; an H1 introduces the
+   * page to someone already on it. Forcing one string to do both is how a page
+   * ends up headed "Pregnancy Weeks to Months — Exact Day Boundaries".
+   */
+  h1?: string
   description: string
   path: string
   faq: FaqEntry[]
@@ -16,7 +26,8 @@ interface Props {
   focus?: { from: number; to: number; color: Phase; label: string }
 }
 
-const { title, description, path, faq, focus } = Astro.props as Props
+const { title, h1, description, path, faq, focus } = Astro.props as Props
+const heading = h1 ?? title
 ---
 <Base
   title={title}
@@ -26,10 +37,10 @@ const { title, description, path, faq, focus } = Astro.props as Props
   breadcrumbs={[
     { name: 'Home', path: '/' },
     { name: 'Calculators', path: '/tools' },
-    { name: title, path },
+    { name: heading, path },
   ]}
 >
-  <h1 class="display max-w-[18ch] text-[2.1rem] sm:text-[2.6rem]">{title}</h1>
+  <h1 class="display max-w-[18ch] text-[2.1rem] sm:text-[2.6rem]">{heading}</h1>
   {focus && (
     <CycleFocus
       from={focus.from} to={focus.to} color={focus.color} label={focus.label}
