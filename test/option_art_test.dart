@@ -94,6 +94,18 @@ const kRasterArt = <String>{
   'assets/track/habit_alcohol.png',
   'assets/track/habit_smoking.png',
   'assets/track/habit_meditation.png',
+  // Reversed out of kNoArtKeys by the owner, 2026-09-14.
+  'assets/track/shx_condom.png',
+  'assets/track/lbd_low.png',
+  'assets/track/lbd_medium.png',
+  'assets/track/lbd_high.png',
+  // Not chips: the Wellbeing steppers and the BBT field. Listed here because
+  // TrackArt renders them through the same raster branch.
+  'assets/track/metric_water.png',
+  'assets/track/metric_sleep.png',
+  'assets/track/metric_energy.png',
+  'assets/track/metric_stress.png',
+  'assets/track/bbt.png',
 };
 
 void main() {
@@ -162,42 +174,39 @@ void main() {
     // backlog item. This is the only mechanical way to hold them: a test cannot
     // fail because a drawing is undignified, but it can fail because a drawing
     // exists at all where one was forbidden.
-    test('sexual-activity, sexual-health and intimate options have NO art',
-        () {
-      for (final o in [
-        ...kSexOptions,
-        ...kSexualHealthOptions,
-        // The intimate group joins the same rule it was added under, rather
-        // than relying on nobody drawing for it later.
-        ...kIntimacyOptions,
-        ...kLibidoOptions,
-      ]) {
-        expect(
-          kOptionArt.containsKey(o.key),
-          isFalse,
-          reason: '${o.key} must stay text-only',
-        );
-        expect(artFor(o.key), isNull);
+    //
+    // Pinned as a LITERAL list, which it did not used to be. Until 2026-09-14
+    // kNoArtKeys equalled exactly kSex + kSexualHealth + kIntimacy + kLibido
+    // and was asserted against the catalog. The owner then supplied art for
+    // `shx_condom` and all three `lbd_` levels, and a derived assertion cannot
+    // express "those four left and nothing else may". Writing the survivors out
+    // by hand keeps BOTH directions guarded: drawing one of these fails, and
+    // parking an unrelated key here under cover of a harm decision fails too.
+    test('exactly these keys stay text-only', () {
+      const textOnly = {
+        'sex_none',
+        'sex_protected',
+        'sex_unprotected',
+        'shx_emergency',
+        'shx_pain',
+        'shx_post_coital',
+        'slf_masturbation',
+      };
+      expect(kNoArtKeys, textOnly);
+      for (final k in textOnly) {
+        expect(kOptionArt.containsKey(k), isFalse, reason: '$k was drawn');
+        expect(artFor(k), isNull);
       }
     });
 
-    // The REVERSE direction, and it only became assertable on 2026-09-14, when
-    // the last exclusion made on other grounds (`soaking_hourly`) was reversed
-    // by supplied art. kNoArtKeys is now EXACTLY those four groups, so the set
-    // states a rule instead of accumulating a history. Any other key appearing
-    // here would be one quietly parked as "not drawn yet" under cover of a
-    // harm decision it has nothing to do with — the failure this catches.
-    test('nothing outside those groups is excluded', () {
-      final shoulderSurf = {
-        for (final o in [
-          ...kSexOptions,
-          ...kSexualHealthOptions,
-          ...kIntimacyOptions,
-          ...kLibidoOptions,
-        ])
-          o.key,
-      };
-      expect(kNoArtKeys, shoulderSurf);
+    // The four that left are asserted POSITIVELY, so the reversal is a fact the
+    // suite states rather than an absence. Silently losing one would otherwise
+    // look identical to it never having been drawn.
+    test('the four reversed sensitive keys do have art', () {
+      for (final k in ['shx_condom', 'lbd_low', 'lbd_medium', 'lbd_high']) {
+        expect(artFor(k), isNotNull, reason: '$k lost its art');
+        expect(kNoArtKeys.contains(k), isFalse);
+      }
     });
   });
 
@@ -208,6 +217,9 @@ void main() {
       final missing = [
         ...kOptionArt.values,
         kMedicationArt,
+        // Not chips, but just as fatal at runtime if the file is gone.
+        ...kMetricArt.values,
+        kBbtArt,
       ].where((p) => !File(p).existsSync());
       expect(missing, isEmpty);
     });
@@ -234,6 +246,8 @@ void main() {
       for (final p in [
         ...kOptionArt.values,
         kMedicationArt,
+        ...kMetricArt.values,
+        kBbtArt,
       ]) {
         if (kRasterArt.contains(p)) continue;
         final colours = RegExp(r'(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"')
@@ -252,6 +266,8 @@ void main() {
       final undeclared = [
         ...kOptionArt.values,
         kMedicationArt,
+        ...kMetricArt.values,
+        kBbtArt,
       ].where((p) => !p.endsWith('.svg') && !kRasterArt.contains(p));
       expect(
         undeclared,

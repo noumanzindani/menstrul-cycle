@@ -390,6 +390,14 @@ class DayEntryFormState extends State<DayEntryForm> {
             labelText: 'Basal body temperature',
             hintText: 'e.g. 36.55',
             suffixText: '°C',
+            // prefixIcon, not prefix: prefix only appears once the field has
+            // focus or text, so the mark would flicker in and out as the user
+            // taps around. prefixIcon is always painted.
+            prefixIcon: const Padding(
+              padding: EdgeInsets.fromLTRB(12, 0, 8, 0),
+              child: TrackArt(path: kBbtArt),
+            ),
+            prefixIconConstraints: const BoxConstraints(minWidth: 0),
             border: _kFieldBorder,
           ),
         ),
@@ -507,6 +515,8 @@ class DayEntryFormState extends State<DayEntryForm> {
               : kCatWellbeing))
             _MetricStepper(
               label: m.label,
+              // Null for kMetricSleepQuality, which has no art. See kMetricArt.
+              art: kMetricArt[m.key],
               value: _metrics[m.key] ?? 0,
               max: m.max,
               suffix: m.suffix,
@@ -696,14 +706,28 @@ class _MetricStepper extends StatelessWidget {
     required this.value,
     required this.max,
     required this.onChanged,
+    this.art,
     this.suffix = '',
   });
 
   final String label;
+
+  /// The mark, or null for a metric with none (`kMetricSleepQuality`).
+  ///
+  /// Null RESERVES the slot rather than collapsing it — the opposite of
+  /// [chipLabel], and deliberately so. Chips sit in a Wrap where a missing mark
+  /// just makes one chip narrower; these are stacked rows, so collapsing the
+  /// slot would step that row's label left of the four above it and read as a
+  /// layout bug rather than a missing icon.
+  final String? art;
+
   final int value;
   final int max;
   final String suffix;
   final ValueChanged<int> onChanged;
+
+  /// Matches the raster mark's rendered size (`TrackArt._rasterScale` x 16).
+  static const double _markSize = 28;
 
   @override
   Widget build(BuildContext context) {
@@ -719,6 +743,12 @@ class _MetricStepper extends StatelessWidget {
         ),
         child: Row(
           children: [
+            SizedBox(
+              width: _markSize,
+              height: _markSize,
+              child: art == null ? null : TrackArt(path: art!),
+            ),
+            const SizedBox(width: 10),
             Expanded(child: Text(label)),
             IconButton(
               tooltip: 'Less $label',

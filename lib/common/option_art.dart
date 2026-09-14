@@ -146,6 +146,14 @@ const Map<String, String> kOptionArt = {
   'skin_rash': 'assets/track/skin_rash.png',
   'skin_hair_loss': 'assets/track/skin_hair_loss.png',
   'skin_hair_oily': 'assets/track/skin_hair_oily.png',
+  // kSexualHealthOptions and kLibidoOptions -- the ONLY members of those groups
+  // with art. Owner decision 2026-09-14, taken against the recommendation
+  // recorded on [kNoArtKeys]; the other five members stay text-only, so these
+  // four sit decorated among undecorated neighbours rather than the reverse.
+  'shx_condom': 'assets/track/shx_condom.png',
+  'lbd_low': 'assets/track/lbd_low.png',
+  'lbd_medium': 'assets/track/lbd_medium.png',
+  'lbd_high': 'assets/track/lbd_high.png',
 };
 
 /// Options that must NEVER get artwork, each for a stated reason.
@@ -155,19 +163,37 @@ const Map<String, String> kOptionArt = {
 /// fail because a drawing exists where one was forbidden, and that is what
 /// `kNoArtKeys` buys.
 ///
-/// As of 2026-09-14 every remaining entry is a SHOULDER-SURF decision, and that
-/// uniformity is worth stating because it was not always true. Three keys were
-/// excluded on other grounds and all three came back once art was supplied:
-/// `tender_breasts` (the argument was about a 16px monochrome glyph, not a 28px
-/// illustration) and the heavy-bleeding pair `clots_large` / `soaking_hourly`
-/// (the argument was that "no pictogram can carry a number" — the art supplied
-/// for `soaking_hourly` carries a literal "1h" badge, and `clots_large`'s label
-/// states its threshold).
+/// This set is now an EXPLICIT LIST, not a derived one, and that is the single
+/// most important thing to know before editing it. It used to equal exactly the
+/// four sensitive groups (`kSexOptions`, `kSexualHealthOptions`,
+/// `kIntimacyOptions`, `kLibidoOptions`), which made it checkable against the
+/// catalog. On 2026-09-14 the owner supplied art for `shx_condom` and all three
+/// `lbd_` levels, so four of those eleven keys left. What remains cannot be
+/// computed from group membership — `test/option_art_test.dart` therefore pins
+/// it against a hand-written list instead.
 ///
-/// So the rule that survived contact is narrow: an exclusion holds when the
-/// harm is someone ELSE reading the screen. An exclusion made because a mark
-/// seemed undrawable is a prediction about illustration, and predictions like
-/// that have lost three times. Weigh a new one accordingly.
+/// Seven keys, one rule: the harm is someone ELSE reading the screen. A
+/// pictogram is parsed in a glance where a word is not, and this app ships an
+/// app-lock precisely because this data is sensitive.
+///
+/// The record of what has held and what has not, since a future reader will
+/// otherwise have to re-derive it:
+///
+///   Reversed, and the argument was genuinely wrong. `tender_breasts` was
+///   reasoned about a MONOCHROME GLYPH AT 16px; raster marks render at 28px in
+///   full colour, so "every abstract paired form reads as a letterform" simply
+///   stopped applying. `clots_large` / `soaking_hourly` were excluded because
+///   "no pictogram can carry a number" — the art supplied for `soaking_hourly`
+///   carries a literal "1h" badge.
+///
+///   Reversed, with the objection unanswered. `shx_condom` and the `lbd_`
+///   levels are shoulder-surf cases, and nothing about the supplied art reduces
+///   that: a condom pictogram is maximally glanceable, and the libido art is a
+///   sad → neutral → happy ramp, which is the exact failure the old rationale
+///   named ("reads as a score of the person rather than a note about a day").
+///   This was raised before the change and overridden by the owner, which is
+///   their call to make. It is recorded here so the next person does not
+///   mistake it for an oversight and "fix" it in either direction.
 const Set<String> kNoArtKeys = {
   // Sexual activity. An icon is glanceable in a way a word is not — which is
   // the entire point of this feature, and it cuts both ways. Someone reading
@@ -180,23 +206,40 @@ const Set<String> kNoArtKeys = {
   'sex_unprotected',
   // Sexual health. Same shoulder-surf reasoning; "Emergency contraception" in
   // particular should not be legible from across a room.
-  'shx_condom',
   'shx_emergency',
   'shx_pain',
   'shx_post_coital',
-  // Solo sexual activity and libido level. The strongest case on this list:
-  // `shx_` was already text-only for shoulder-surf reasons, and these are more
-  // sensitive again. A libido level in particular is a three-state scale, and
-  // any glanceable mark for it (a gauge, a flame, arrows) reads as a score of
-  // the person rather than a note about a day.
+  // Solo sexual activity. `shx_` was already text-only for shoulder-surf
+  // reasons and this is more sensitive again.
   'slf_masturbation',
-  'lbd_low',
-  'lbd_medium',
-  'lbd_high',
 };
 
 /// The one icon shared by every user-created medication row.
 const String kMedicationArt = 'assets/track/medication_generic.svg';
+
+/// Marks for the numeric metric rows in the Wellbeing section.
+///
+/// Deliberately SEPARATE from [kOptionArt] rather than merged into it. These
+/// keys are not [TrackOption] keys and these surfaces are not chips: a metric
+/// row is a label plus −/+ steppers, so the mark sits ahead of the label
+/// instead of inside a chip, and nothing here ever reaches [artFor]. Folding
+/// them into [kOptionArt] would break the completeness test, which partitions
+/// the CATALOG and would report every one of these as a ghost key.
+///
+/// [kMetricSleepQuality] is absent deliberately: no art was supplied for it,
+/// and it renders in the SAME Wellbeing list as the other four, so reusing the
+/// sleep mark would put two identical icons in one list. Absent yields null and
+/// that row renders unmarked — visible, and the reason it is flagged rather
+/// than papered over.
+const Map<String, String> kMetricArt = {
+  kMetricWater: 'assets/track/metric_water.png',
+  kMetricSleep: 'assets/track/metric_sleep.png',
+  kMetricEnergy: 'assets/track/metric_energy.png',
+  kMetricStress: 'assets/track/metric_stress.png',
+};
+
+/// The mark for the basal body temperature field — a [TextField], not a chip.
+const String kBbtArt = 'assets/track/bbt.png';
 
 /// Flow-intensity artwork: a drop whose filled fraction rises with the level.
 ///
