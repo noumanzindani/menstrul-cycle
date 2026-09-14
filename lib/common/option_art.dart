@@ -376,6 +376,35 @@ const Map<CyclePhase, String> kPhaseArt = {
 const String kAccountArt = 'assets/track/set_account.png';
 const String kSignOutArt = 'assets/track/set_signout.png';
 
+/// The five bottom-navigation destinations, in shell order.
+///
+/// This surface fights the artwork harder than any other, and the trade was
+/// made with the comparison in hand rather than by eye. Rendered at the real
+/// 24px against the live bar, the illustrations lose contrast badly where the
+/// Material glyphs are near-black, and the Forecast and Insights marks turn to
+/// mush at that size.
+///
+/// Worse, `NavigationDestination` carries an `icon`/`selectedIcon` pair that one
+/// raster cannot express: the same file serves both states, so the selection
+/// pill becomes the only cue — and the pill is pink behind a pink Today mark.
+/// [kNavUnselectedOpacity] is the compensation: the unselected marks are dimmed
+/// so the selected one reads as lit, restoring a per-state difference the pair
+/// would otherwise have provided for free.
+///
+/// Shipped at the owner's explicit direction after seeing that comparison. If
+/// it reads badly on a real device, the revert is this map and `app_shell.dart`
+/// — nothing else consumes either.
+const List<String> kNavArt = [
+  'assets/track/nav_today.png',
+  'assets/track/nav_calendar.png',
+  'assets/track/nav_forecast.png',
+  'assets/track/nav_insights.png',
+  'assets/track/nav_settings.png',
+];
+
+/// How much an UNSELECTED navigation mark is dimmed. See [kNavArt].
+const double kNavUnselectedOpacity = 0.55;
+
 /// Every [kDobArt]-family mark, for the asset tests to enumerate.
 ///
 /// Exists so that adding a Settings mark and forgetting to cover it cannot pass

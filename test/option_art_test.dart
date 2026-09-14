@@ -152,6 +152,13 @@ const kRasterArt = <String>{
   'assets/track/set_since.png',
   'assets/track/set_account.png',
   'assets/track/set_signout.png',
+  // The bottom navigation bar. Shipped over a measured objection -- see
+  // kNavArt for the 24px comparison and what the dimming compensates for.
+  'assets/track/nav_today.png',
+  'assets/track/nav_calendar.png',
+  'assets/track/nav_forecast.png',
+  'assets/track/nav_insights.png',
+  'assets/track/nav_settings.png',
 };
 
 void main() {
@@ -280,6 +287,7 @@ void main() {
         kCardFertileArt,
         kCardPmsArt,
         ...kPhaseArt.values,
+        ...kNavArt,
       ].where((p) => !File(p).existsSync());
       expect(missing, isEmpty);
     });
@@ -315,6 +323,7 @@ void main() {
         kCardFertileArt,
         kCardPmsArt,
         ...kPhaseArt.values,
+        ...kNavArt,
       ]) {
         if (kRasterArt.contains(p)) continue;
         final colours = RegExp(r'(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"')
@@ -342,6 +351,7 @@ void main() {
         kCardFertileArt,
         kCardPmsArt,
         ...kPhaseArt.values,
+        ...kNavArt,
       ].where((p) => !p.endsWith('.svg') && !kRasterArt.contains(p));
       expect(
         undeclared,

@@ -47,7 +47,7 @@ class TrackArt extends StatelessWidget {
   /// Kept at 16 by default and deliberately not larger FOR GLYPH ART: at 18+ a
   /// glyph starts competing with the label rather than supporting it, and every
   /// chip in the row grows by the difference. Raster marks scale this by
-  /// [_rasterScale] — see there for why the same ceiling does not apply.
+  /// [rasterScale] — see there for why the same ceiling does not apply.
   final double size;
 
   /// How much larger a raster mark renders than a glyph at the same [size].
@@ -62,7 +62,7 @@ class TrackArt extends StatelessWidget {
   /// The cost is not free: the chip row grows by `size * (scale - 1)`, and it
   /// grows for EVERY chip in the row, not just this one, because a Row sizes to
   /// its tallest child.
-  static const double _rasterScale = 1.75;
+  static const double rasterScale = 1.75;
 
   /// Whether [path] is a full-colour raster mark rather than a tintable SVG.
   ///
@@ -80,7 +80,7 @@ class TrackArt extends StatelessWidget {
     // not adapt to the dark theme or dim with the chip's disabled state the way
     // every SVG mark does for free. Use SVG unless the artwork IS the point.
     if (_isRaster) {
-      final rasterSize = size * _rasterScale;
+      final rasterSize = size * rasterScale;
       return Image.asset(
         path,
         width: rasterSize,
