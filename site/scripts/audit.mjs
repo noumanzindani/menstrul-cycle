@@ -39,6 +39,59 @@ const routeOf = (f) => {
 }
 const routes = new Set(htmlFiles.map(routeOf))
 
+/**
+ * Every static import specifier in a bundled chunk. Rollup emits relative
+ * specifiers (`from"./track.abc.js"`), including bare side-effect imports.
+ */
+const importsOf = (js) => [
+  ...all(/\bfrom\s*["']([^"']+)["']/g, js),
+  ...all(/\bimport\s*["']([^"']+)["']/g, js),
+].map((m) => m[1])
+
+/**
+ * Bytes of JavaScript a <script src> actually costs, following static imports
+ * transitively.
+ *
+ * Measuring only the file named in the markup stopped being honest the moment
+ * the calculator island was split per page. Each page's entry chunk is small,
+ * but it statically imports the shared chunks (track/band/island/cycle/days),
+ * the browser must fetch all of them before the module runs, and Astro emits no
+ * modulepreload for them — so they appear nowhere in the HTML. Counting the
+ * entry alone would let a page ship 50 KB of shared code and measure 700 bytes.
+ *
+ * Dynamic `import()` is deliberately NOT followed: this budget is about what
+ * the page costs to become interactive, and a dynamic import is not fetched
+ * until something asks for it. Nothing on this site uses one today.
+ */
+function moduleClosureBytes(page, src) {
+  let total = 0
+  const seen = new Set()
+  const queue = [src.slice(1)] // dist-relative, no leading slash
+  while (queue.length > 0) {
+    const rel = queue.pop()
+    if (seen.has(rel)) continue
+    seen.add(rel)
+    const abs = join(DIST, rel)
+    let js
+    try {
+      total += statSync(abs).size
+      js = readFileSync(abs, 'utf8')
+    } catch {
+      fail(page, `<script src="/${rel}"> has no file in dist/`)
+      continue
+    }
+    const dir = rel.split('/').slice(0, -1).join('/')
+    for (const spec of importsOf(js)) {
+      if (!spec.startsWith('./') && !spec.startsWith('../')) {
+        fail(page, `chunk /${rel} imports "${spec}", which the bundler did not resolve`)
+        continue
+      }
+      queue.push(join(dir, spec).replace(/\\/g, '/'))
+    }
+  }
+  return total
+}
+
 const text = (html) => html
   .replace(/<script[\s\S]*?<\/script>/gi, ' ')
   .replace(/<style[\s\S]*?<\/style>/gi, ' ')
@@ -146,7 +199,7 @@ for (const file of htmlFiles) {
     jsBytes += Buffer.byteLength(body, 'utf8')
     const src = attrs.match(/src="([^"]+)"/)?.[1]
     if (src && src.startsWith('/')) {
-      try { jsBytes += statSync(join(DIST, src.slice(1))).size } catch { fail(page, `<script src="${src}"> has no file in dist/`) }
+      jsBytes += moduleClosureBytes(page, src)
     } else if (src) {
       fail(page, `<script src="${src}"> is off-origin; CSP allows script-src 'self' only`)
     }
