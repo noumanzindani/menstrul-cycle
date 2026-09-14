@@ -32,29 +32,41 @@ import 'catalog.dart';
 /// the point.
 const Map<String, String> kOptionArt = {
   // kSymptomOptions
-  // Raster by owner decision: the illustration IS the mark for these. See the
-  // raster caveats above -- none of them recolour with the theme.
+  // Raster by owner decision: the illustration IS the mark for this whole
+  // group. `headache` is the LAST remaining glyph here, and it is the odd one
+  // out -- a single-colour stroke among 22 illustrations. That is a gap, not a
+  // style: supply a headache illustration and this group becomes uniform.
   'cramps': 'assets/track/cramps.png',
   'headache': 'assets/track/headache.svg',
-  'bloating': 'assets/track/bloating.svg',
+  'bloating': 'assets/track/bloating.png',
+  // Reversed 2026-09-14 by the owner, who supplied the art. This key sat in
+  // [kNoArtKeys] because a mark for it had been drawn, shipped and withdrawn --
+  // but that argument was made about a MONOCHROME GLYPH AT 16px, where every
+  // abstract paired form tested read as a letterform ("oo", "8"). Both premises
+  // moved: a raster mark renders at 28px (`TrackArt._rasterScale`) and is a
+  // full-colour illustration of a clothed figure, so it is neither abstract nor
+  // ambiguous. The shoulder-surf concern is unchanged and still real -- it is
+  // now an accepted cost, not an unnoticed one.
+  'tender_breasts': 'assets/track/tender_breasts.png',
   'acne': 'assets/track/acne.png',
   'fatigue': 'assets/track/fatigue.png',
   'nausea': 'assets/track/nausea.png',
   'backache': 'assets/track/backache.png',
   'cravings': 'assets/track/cravings.png',
-  'insomnia': 'assets/track/insomnia.svg',
-  'diarrhea': 'assets/track/diarrhea.svg',
-  'constipation': 'assets/track/constipation.svg',
-  'dizziness': 'assets/track/dizziness.svg',
-  'discharge': 'assets/track/discharge.svg',
-  'migraine': 'assets/track/migraine.svg',
-  'hot_flashes': 'assets/track/hot_flashes.svg',
-  'night_sweats': 'assets/track/night_sweats.svg',
-  'pelvic_pain': 'assets/track/pelvic_pain.svg',
-  'leg_pain': 'assets/track/leg_pain.svg',
-  'swelling': 'assets/track/swelling.svg',
-  'fever': 'assets/track/fever.svg',
-  'chills': 'assets/track/chills.svg',
+  'insomnia': 'assets/track/insomnia.png',
+  'diarrhea': 'assets/track/diarrhea.png',
+  'constipation': 'assets/track/constipation.png',
+  'dizziness': 'assets/track/dizziness.png',
+  'discharge': 'assets/track/discharge.png',
+  'migraine': 'assets/track/migraine.png',
+  'hot_flashes': 'assets/track/hot_flashes.png',
+  'night_sweats': 'assets/track/night_sweats.png',
+  'pelvic_pain': 'assets/track/pelvic_pain.png',
+  'leg_pain': 'assets/track/leg_pain.png',
+  'swelling': 'assets/track/swelling.png',
+  'fever': 'assets/track/fever.png',
+  'chills': 'assets/track/chills.png',
+  'clots_large': 'assets/track/clots_large.png',
   // kMoodOptions
   'calm': 'assets/track/calm.svg',
   'happy': 'assets/track/happy.svg',
@@ -151,24 +163,17 @@ const Set<String> kNoArtKeys = {
   'lbd_low',
   'lbd_medium',
   'lbd_high',
-  // Heavy-bleeding red flags. Not a shoulder-surf decision and not a backlog
-  // item: the entire clinical content of these two is a THRESHOLD -- 2.5 cm,
-  // once an hour -- and no pictogram can carry a number. A drawn clot would be
-  // both undignified and silent about the only thing that matters about it, so
-  // the mark would be read and still leave the user guessing. Same conclusion
-  // as `tender_breasts` below, reached from the opposite direction.
-  'clots_large',
+  // Soaking through hourly. The whole clinical content of this one is a RATE --
+  // once an hour -- and no pictogram carries a number, so a drawn pad would be
+  // read and still leave the user guessing about the only thing that matters.
+  //
+  // `clots_large` sat here under the same argument until 2026-09-14, when the
+  // owner supplied art for it. That reversal is narrower than it looks: its
+  // LABEL already states the threshold ("Large clots (2.5 cm or more)"), so the
+  // mark only has to identify the row. No art was supplied for this key, which
+  // leaves it the ONLY undecorated chip among 23 decorated ones -- a reason to
+  // close the gap with a drawing, not a reason to re-argue the exclusion.
   'soaking_hourly',
-  // Tender breasts. Not a backlog item — this was DRAWN, shipped to a device,
-  // and withdrawn. The constraint is that it must convey tenderness without
-  // drawing anatomy (this chip is glanceable on a shared screen), and every
-  // abstract paired form tested read as a letterform: thin rings read as "oo",
-  // heavy rings with centre dots read as "∞". A mark that is misread is worse
-  // than no mark, because it sits beside four that ARE legible and implies the
-  // reader is failing to decode it. The plain text chip is the better answer.
-  // Revisit only with a mark that is unambiguous at 16px — not by drawing this
-  // one again.
-  'tender_breasts',
 };
 
 /// The one icon shared by every user-created medication row.
@@ -201,8 +206,9 @@ const Map<FlowIntensity, double> kFlowFill = {
 /// Null is a NORMAL answer, not an error: it covers the deliberate exclusions
 /// in [kNoArtKeys] and any key this build has never heard of. The render sites
 /// must degrade to a plain text chip, so a mixed group of decorated and
-/// undecorated chips stays coherent — the sexual-activity, sexual-health and
-/// tender-breasts chips sit undecorated among decorated neighbours by design.
+/// undecorated chips stays coherent — the sexual-activity, sexual-health,
+/// intimacy and libido chips sit undecorated among decorated neighbours by
+/// design, as does `soaking_hourly`.
 String? artFor(String key) {
   // Prefix rule first: medication keys are user-created and unbounded, so they
   // can never appear in [kOptionArt] and must not fall through to null — a

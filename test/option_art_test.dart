@@ -16,13 +16,34 @@ import 'package:menstrul_track/models/enums.dart';
 /// tint provides free: the mark stops following the label colour, stops
 /// adapting to the dark theme, and stops dimming when the chip is disabled.
 const kRasterArt = <String>{
-  // Owner decision 2026-09-14: the illustration itself is the mark.
+  // Owner decision 2026-09-14: the illustration itself is the mark. This now
+  // covers every symptom option except `headache`, which is still the old
+  // single-colour glyph, and `soaking_hourly`, which has no art at all.
   'assets/track/cramps.png',
   'assets/track/acne.png',
   'assets/track/fatigue.png',
   'assets/track/nausea.png',
   'assets/track/backache.png',
   'assets/track/cravings.png',
+  'assets/track/bloating.png',
+  'assets/track/insomnia.png',
+  'assets/track/diarrhea.png',
+  'assets/track/constipation.png',
+  'assets/track/dizziness.png',
+  'assets/track/discharge.png',
+  'assets/track/migraine.png',
+  'assets/track/hot_flashes.png',
+  'assets/track/night_sweats.png',
+  'assets/track/pelvic_pain.png',
+  'assets/track/leg_pain.png',
+  'assets/track/swelling.png',
+  'assets/track/fever.png',
+  'assets/track/chills.png',
+  // Both of these were in kNoArtKeys until the owner supplied art and reversed
+  // the exclusion; see the notes at each in `option_art.dart`. Listed here so
+  // that reversal is one visible line in the diff rather than an absence.
+  'assets/track/tender_breasts.png',
+  'assets/track/clots_large.png',
 };
 
 void main() {
@@ -67,7 +88,7 @@ void main() {
       expect(doubleClassified, isEmpty, reason: 'these are in both art sets');
     });
 
-    // Now that the art is complete, the partition is exhaustive: 75 drawn + 8
+    // Now that the art is complete, the partition is exhaustive: 77 drawn + 12
     // deliberately undrawn. Asserting the totals makes an accidental DELETION
     // fail, which the per-key partition above cannot catch — dropping a key
     // from the catalog and from kOptionArt together leaves it consistent.
