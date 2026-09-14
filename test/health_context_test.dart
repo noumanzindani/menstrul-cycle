@@ -385,7 +385,10 @@ void main() {
       expect(line, contains('Irritable'));
     });
 
-    test('bbt temperature reading', () {
+    test('bbt temperature reading carries an explicit Celsius unit', () {
+      // Unlabelled, a model could read the canonical-Celsius value as
+      // Fahrenheit — the day entry form's own BBT field carries a `°C`
+      // suffix, so the context sent about it must too.
       final line = buildDayLine(
         log: makeLog(
           date: DateTime(2026, 9, 1),
@@ -395,10 +398,14 @@ void main() {
         phase: CyclePhase.luteal,
         medicationNames: const {},
       );
-      expect(line, contains('temperature 36.7'));
+      expect(line, contains('temperature 36.7°C'));
     });
 
-    test('opk ovulation test result', () {
+    test('opk ovulation test result renders through the label lookup', () {
+      // Was previously the one place in this file that printed the stored
+      // key raw instead of through `kOpkOptions` — the raw key happens to be
+      // lowercase ('positive'), the label capitalised ('Positive'), so this
+      // also pins that the label — not the column value — is what ships.
       final line = buildDayLine(
         log: makeLog(
           date: DateTime(2026, 9, 1),
@@ -408,7 +415,21 @@ void main() {
         phase: CyclePhase.ovulatory,
         medicationNames: const {},
       );
-      expect(line, contains('ovulation test: positive'));
+      expect(line, contains('ovulation test: Positive'));
+    });
+
+    test('an unrecognised opk value is dropped, never printed raw', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          opk: 'some_future_key',
+        ),
+        cycleDay: 14,
+        phase: CyclePhase.ovulatory,
+        medicationNames: const {},
+      );
+      expect(line, isNot(contains('ovulation test')));
+      expect(line, isNot(contains('some_future_key')));
     });
 
     test('plain symptom from decodeSymptoms path', () {
@@ -492,6 +513,22 @@ void main() {
       expect(line, isNot(contains('energy')));
       expect(line, isNot(contains('stress')));
       expect(line, isNot(contains('sleep_quality')));
+    });
+
+    test('weight metric carries an explicit kg unit', () {
+      // Unlabelled, a model could read the canonical-kg value as pounds —
+      // the profile block already says `kg` for the same value, so the
+      // per-day metric must too.
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({'weight': 62.5}),
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, contains('weight 62.5 kg'));
     });
 
     test('unknown option keys are dropped, never printed raw', () {
@@ -624,6 +661,31 @@ void main() {
         asOf: asOf,
       );
       expect(out, contains('day 27'));
+    });
+
+    test('an open cycle stops attributing days past a plausible ceiling', () {
+      // Someone stopped logging for months: the only cycle on record started
+      // 2026-01-01, well over kMaxOpenCycleDays (90) before asOf
+      // (2026-09-14). Without a ceiling, `asOf` would read as "day 257" —
+      // a number no real cycle produces. Capped, it falls outside the open
+      // cycle entirely and reads "(phase unknown)" like any other
+      // unattributed day.
+      final openCycle = Cycle(
+        start: DateTime(2026, 1, 1),
+        end: DateTime(2026, 1, 5),
+        lengthDays: null, // open
+      );
+      final log = makeLog(date: asOf);
+      final out = buildHealthContext(
+        logs: [log],
+        cycles: [openCycle],
+        prediction: null,
+        medications: const [],
+        settings: _settings(),
+        asOf: asOf,
+      );
+      expect(out, isNot(contains('day 257')));
+      expect(out, contains('(phase unknown)'));
     });
 
     test('days outside any cycle are marked phase unknown', () {

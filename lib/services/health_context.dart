@@ -176,6 +176,12 @@ String buildDayLine({
 
   // 0 is the unset sentinel for every numeric metric (catalog.dart:106-112).
   // Serialising it would hand the model a confident reading of nothing.
+  //
+  // `weight` is the one metric here with a real unit ambiguity (kg vs lb) —
+  // the profile block already says `kg` for the SAME canonical value (see
+  // `buildProfileBlock`), so this line must say so too, or a model reading
+  // this block alone could read it as pounds. The others (0–10 / 1–5 scales,
+  // hours, glasses) have no alternate unit system to be misread as.
   for (final key in const [
     kMetricPain,
     kMetricWater,
@@ -186,11 +192,24 @@ String buildDayLine({
     kMetricWeight,
   ]) {
     final v = decodeNumber(log.symptoms, key);
-    if (v != null && v != 0) parts.add('$key $v');
+    if (v != null && v != 0) {
+      final unit = key == kMetricWeight ? ' kg' : '';
+      parts.add('$key $v$unit');
+    }
   }
 
-  if (log.bbt != null) parts.add('temperature ${log.bbt}');
-  if (log.opk != null) parts.add('ovulation test: ${log.opk}');
+  // Canonical Celsius (the form's BBT field carries a `°C` suffix — see
+  // `day_entry_form.dart`) — stated explicitly for the same reason weight is:
+  // unlabelled, a model may read it as °F.
+  if (log.bbt != null) parts.add('temperature ${log.bbt}°C');
+  // Routed through the same label lookup every other option group uses
+  // (`kOpkOptions`), rather than printing the stored key raw — this was the
+  // one place that bypassed the "unknown keys are dropped, never printed
+  // raw" rule the rest of this file follows.
+  if (log.opk != null) {
+    final opkLabel = _labelFor(kOpkOptions, log.opk!);
+    if (opkLabel != null) parts.add('ovulation test: $opkLabel');
+  }
 
   final medicationKeys = decodeGroup(log.symptoms, kMedicationKeyPrefix);
   final meds = <String>[];
@@ -275,20 +294,40 @@ String buildHealthContext({
   return '$kHealthContextOpenDelimiter\n${sections.join('\n\n')}\n$kHealthContextCloseDelimiter';
 }
 
+/// How many days an OPEN (still-ongoing, `lengthDays == null`) cycle may run
+/// before a date stops being attributed to it.
+///
+/// Without this, a user who stops logging for months has every day between
+/// their last period and [asOf] folded into one ever-climbing cycle
+/// ("day 137") — a number no real cycle produces. 90 mirrors the amenorrhea
+/// threshold `InsightsService._flags` already flags on ("no period logged in
+/// a while" at 90+ days, ACOG/FIGO-derived) — the same point at which this
+/// app itself stops treating a gap as a normal continuation of a cycle rather
+/// than a new, unstarted one.
+const int kMaxOpenCycleDays = 90;
+
 /// 1-based day within whichever derived cycle contains [date], or null.
 ///
 /// A cycle runs from its start up to the day before the next cycle starts.
-/// The last (open) cycle with no lengthDays runs to asOf. Days before the
-/// first cycle or between cycles return null.
+/// The last (open) cycle with no lengthDays runs to [asOf] — but never
+/// further than [kMaxOpenCycleDays] past its own start; a date beyond that
+/// ceiling is outside any cycle rather than an implausibly high day count.
+/// Days before the first cycle or between cycles also return null.
 ///
 /// Expects [cycles] to be pre-sorted by start date (caller guarantees this).
 int? _cycleDayFor(DateTime date, List<Cycle> cycles, DateTime asOf) {
   for (int i = 0; i < cycles.length; i++) {
     final c = cycles[i];
-    // Cycle end is the day before the next cycle starts, or asOf for the last cycle.
-    final cycleEnd = i + 1 < cycles.length
-        ? cycles[i + 1].start.subtract(Duration(days: 1))
-        : asOf;
+    // Cycle end is the day before the next cycle starts; for the last
+    // (open) cycle it's asOf, capped at the plausibility ceiling above.
+    DateTime cycleEnd;
+    if (i + 1 < cycles.length) {
+      cycleEnd = cycles[i + 1].start.subtract(const Duration(days: 1));
+    } else {
+      final ceiling =
+          c.start.add(const Duration(days: kMaxOpenCycleDays - 1));
+      cycleEnd = asOf.isBefore(ceiling) ? asOf : ceiling;
+    }
     if (!date.isBefore(c.start) && !date.isAfter(cycleEnd)) {
       return date.difference(c.start).inDays + 1;
     }
