@@ -1,0 +1,60 @@
+---
+/**
+ * The shell every calculator form shares: the privacy line, the no-JavaScript
+ * notice, the fieldset that ships disabled, the submit button, and the two
+ * output regions the island writes to (`#result` and `#error`).
+ *
+ * It exists so the disabled-fieldset guarantee below is written once. Ten
+ * calculators each re-deriving it is ten chances to leave it out, and leaving it
+ * out is silent: the page looks identical and the failure only appears in
+ * somebody's browser history.
+ *
+ * Fields go in the default slot. The page's own module script wires them up with
+ * `mount()` from src/lib/island.ts.
+ */
+interface Props {
+  /**
+   * One sentence on where the values go. Overridable because it has to stay true
+   * of THIS page's fields — a page with no date input should not claim dates.
+   */
+  privacy?: string
+  submit?: string
+}
+
+const {
+  privacy = 'This runs entirely in your browser. Nothing you type is sent anywhere.',
+  submit = 'Calculate',
+} = Astro.props as Props
+---
+<form id="calc" class="rounded-card border border-outline p-4">
+  <p class="mb-4 text-sm opacity-80">{privacy}</p>
+  <noscript>
+    <p class="mb-4 rounded-lg border border-outline bg-surface-tint p-3 text-sm">
+      This calculator needs JavaScript, because the maths runs on your device rather
+      than on a server. With JavaScript off it stays switched off deliberately, so
+      what you type is never put into the address bar.
+    </p>
+  </noscript>
+
+  <!--
+    The whole control group ships disabled and the page's own module script
+    re-enables it, via mount() in src/lib/island.ts.
+    The form has no `action`, so any submit without JS would GET the current URL
+    with every field appended — putting a menstrual date into the address bar,
+    history and any bookmark. Gating the FIELDSET rather than just the submit
+    button is deliberate: a disabled fieldset makes every control non-focusable
+    and not a successful control, so there is nothing to type and nothing to
+    serialise, and the guarantee does not rest on how a given browser handles
+    implicit (Enter-key) submission with a disabled default button. The CSP is
+    `script-src 'self'`, which rules out an inline onsubmit.
+  -->
+  <fieldset id="calc-fields" disabled class="m-0 border-0 p-0 disabled:opacity-60">
+    <slot />
+    <button type="submit" class="mt-6 h-btn-h rounded-btn bg-seed px-6 font-semibold text-primary">
+      {submit}
+    </button>
+  </fieldset>
+
+  <output id="result" class="mt-6 block" aria-live="polite"></output>
+  <p id="error" role="alert" class="mt-2 text-danger dark:text-danger-dark"></p>
+</form>
