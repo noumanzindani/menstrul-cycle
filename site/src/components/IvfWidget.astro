@@ -31,7 +31,7 @@ const maxDate = fromDayNum(todayDayNum() + 400)
            min={PLAUSIBLE_FIRST_DAY_ISO} max={maxDate} />
   </label>
 
-  <label class="mt-5 block font-semibold">
+  <label class="mt-6 block font-semibold">
     Embryo age on the day of transfer
     <select name="age" required class="mt-2 block">
       <option value="">Choose one</option>
@@ -46,7 +46,7 @@ const maxDate = fromDayNum(todayDayNum() + 400)
     a day 5 transfer on the same date give due dates two days apart.
   </p>
 
-  <label class="mt-5 block font-semibold">
+  <label class="mt-6 block font-semibold">
     Work the dates out as of (optional)
     <input type="date" name="asOf" class="mt-2 block"
            min={PLAUSIBLE_FIRST_DAY_ISO} max={maxDate} />

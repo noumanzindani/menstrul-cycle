@@ -37,7 +37,7 @@ const NOTES = [
            min={PLAUSIBLE_FIRST_DAY_ISO} max={today} />
   </label>
 
-  <fieldset class="mt-5">
+  <fieldset class="mt-6">
     <legend class="font-semibold">Gestational age the scan reported</legend>
     <div class="mt-2 flex flex-wrap gap-4">
       <label class="text-sm">
@@ -59,7 +59,7 @@ const NOTES = [
     </p>
   </fieldset>
 
-  <label class="mt-5 block font-semibold">
+  <label class="mt-6 block font-semibold">
     First day of your last period (optional)
     <input type="date" name="lmp" class="mt-2 block"
            min={PLAUSIBLE_FIRST_DAY_ISO} max={today} />
@@ -69,12 +69,13 @@ const NOTES = [
     the two are. Leave it out for the scan's estimate alone.
   </p>
 
-  <label class="mt-4 block text-sm">
-    <input type="checkbox" name="alreadySet" value="1" />
-    An earlier scan has already set my dates
+  <!-- The label is the tap target, not the 18px box inside it. See WeeksToMonthsForm. -->
+  <label class="mt-4 flex min-h-11 items-center gap-2.5 text-sm">
+    <input type="checkbox" name="alreadySet" value="1" class="shrink-0" />
+    <span>An earlier scan has already set my dates</span>
   </label>
 
-  <label class="mt-5 block font-semibold">
+  <label class="mt-6 block font-semibold">
     Work the dates out as of (optional)
     <input type="date" name="asOf" class="mt-2 block"
            min={PLAUSIBLE_FIRST_DAY_ISO} max={maxDate} />

@@ -83,7 +83,7 @@ const FEATURES = [
               <path d="M14.6 8.2l2.9 2.2c.6.4.6 1.2 0 1.6l-2.9 2.2-3-3 3-3z" fill="#fff" opacity=".82" />
             </svg>
             <span class="text-left leading-tight">
-              <span class="block text-[0.66rem] uppercase tracking-wider opacity-80">Get it on</span>
+              <span class="block text-[0.75rem] uppercase tracking-wider opacity-80">Get it on</span>
               <span class="block text-[1.05rem] font-semibold">Google Play</span>
             </span>
           </a>
@@ -150,9 +150,15 @@ const FEATURES = [
           <div>
             <h3 class="text-2xl font-bold tracking-[-0.015em] text-ink dark:text-white">{f.title}</h3>
             <p class="mt-3 leading-relaxed text-ink/75 dark:text-white/70">{f.body}</p>
+            <!--
+              py-1.5 rather than a bare inline-block: measured at 24px tall, which
+              is exactly WCAG 2.5.8's AA floor and nothing more, on what is the
+              only call to action in each of these blocks. The underline sits on
+              the text, so the padding adds target without moving the rule.
+            -->
             <a
               href={f.link.href}
-              class="pressable mt-4 inline-block font-semibold text-brand-deep underline decoration-2 underline-offset-4 hover:decoration-4 dark:text-brand"
+              class="pressable mt-3 inline-block py-1.5 font-semibold text-brand-deep underline decoration-2 underline-offset-4 hover:decoration-4 dark:text-brand"
             >Read about {f.link.label}</a>
           </div>
         </div>

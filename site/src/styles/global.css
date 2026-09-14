@@ -302,6 +302,127 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
+   Form controls.
+
+   Styled here rather than per component because every calculator's fields are
+   the same three native controls, and because a ninth calculator must not be
+   able to ship without them. There is no component that owns an <input>: pages
+   write the markup, and ToolForm.astro owns only the shell around it.
+
+   Two things make this load-bearing rather than decorative.
+
+   Tailwind's Preflight resets `border-width: 0` on EVERY element, form controls
+   included, so an unstyled <input> in this project renders with no box at all —
+   no border, no background, nothing to show a field is there. Found on a phone:
+   the optional luteal-phase field on the implantation calculator was invisible,
+   with nothing at all between its label and its help text.
+
+   And the font-size below is 16px for a reason that has nothing to do with
+   taste: iOS Safari zooms the whole page in when a control with smaller text
+   takes focus, and the reader is then pinching back out to read the result they
+   just asked for. Anything under 16px here breaks every calculator on an iPhone.
+   --------------------------------------------------------------------------- */
+input[type="date"],
+input[type="number"],
+input[type="text"],
+select {
+  font-size: 16px;
+  /* The tap-target floor. Native controls arrive at 21-24px, which is under
+     even WCAG 2.5.8's 24px AA minimum, let alone the 44px these fields want as
+     the primary interaction on the page. */
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-DEFAULT);
+  background: var(--color-surface);
+  color: inherit;
+  /* Never let a field be the thing that makes the page scroll sideways. */
+  max-width: 100%;
+}
+
+/* A date field is the one control worth giving the full measure to on a phone:
+   it holds three sub-fields and a picker button, and it is the first thing
+   touched on six of the eight calculators. Capped so it does not become a
+   letterbox on a desktop. */
+input[type="date"] { width: 100%; max-width: 20rem; }
+
+input[type="number"] { width: 100%; max-width: 9rem; }
+
+/* Narrow paired fields (weeks + days) set their own width in the markup; honour
+   it, but never below a tappable one. */
+input[type="number"].w-24 { width: 6rem; min-width: 4rem; }
+
+select {
+  /* Keep the native disclosure arrow. Replacing it costs a background image and
+     buys nothing: the control below is already a full-height, bordered target. */
+  padding-right: 0.5rem;
+  width: 100%;
+  max-width: 20rem;
+}
+
+/* Radios ship at 13x13, which is under half the tap floor. The label around
+   each one carries the rest of the target. */
+input[type="radio"],
+input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-height: 0;
+  accent-color: var(--color-brand-deep);
+  vertical-align: -0.2rem;
+  margin-right: 0.15rem;
+}
+
+/*
+  The disabled state is what a reader sees for the instant before the island
+  runs, and on any browser where it never runs at all. It stays legible as a
+  field — a control that dissolves into the card reads as a page that failed to
+  load rather than as one waiting.
+*/
+fieldset:disabled input,
+fieldset:disabled select {
+  background: var(--color-surface-tint);
+  cursor: not-allowed;
+}
+
+/*
+  `:user-invalid` rather than `:invalid`: the latter matches an empty required
+  field the moment the page loads, so every calculator would open pre-painted
+  red before the reader has touched anything. `:user-invalid` waits until they
+  have actually entered something or tried to submit.
+*/
+input:user-invalid,
+select:user-invalid {
+  border-color: var(--color-danger);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) input[type="date"],
+  :root:not(.light) input[type="number"],
+  :root:not(.light) input[type="text"],
+  :root:not(.light) select {
+    border-color: #ffffff2e;
+    background: var(--color-surface-dark-2);
+    color: #fff;
+  }
+
+  :root:not(.light) fieldset:disabled input,
+  :root:not(.light) fieldset:disabled select {
+    background: #ffffff0d;
+  }
+
+  :root:not(.light) input:user-invalid,
+  :root:not(.light) select:user-invalid {
+    border-color: var(--color-danger-dark);
+  }
+
+  /* The date picker's own glyph is black by default and vanishes on the dark
+     surface. */
+  :root:not(.light) input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.7);
+  }
+}
+
+/* ---------------------------------------------------------------------------
    Tier 3 motion: responses to a person's action. These stay on under reduced
    motion — they imply no self-motion and removing them makes the interface
    feel broken rather than calm.
@@ -316,6 +437,7 @@ body {
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 summary:focus-visible {
   outline: 2px solid var(--color-menstrual);
   outline-offset: 2px;

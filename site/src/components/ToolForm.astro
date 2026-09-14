@@ -50,7 +50,14 @@ const {
   -->
   <fieldset id="calc-fields" disabled class="m-0 border-0 p-0 disabled:opacity-60">
     <slot />
-    <button type="submit" class="mt-6 h-btn-h rounded-btn bg-seed px-6 font-semibold text-primary">
+    <!--
+      Further from the last field than the fields are from each other (mt-8 vs
+      the mt-6 each field group uses), so the submit reads as the end of the form
+      rather than as one more thing in the list. Full width below sm: it is the
+      one control a thumb reaches for without looking.
+    -->
+    <button type="submit"
+            class="pressable mt-8 h-btn-h w-full rounded-btn bg-seed px-6 font-semibold text-primary hover:bg-seed-strong sm:w-auto">
       {submit}
     </button>
   </fieldset>

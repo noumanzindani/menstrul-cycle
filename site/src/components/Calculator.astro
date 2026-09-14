@@ -32,14 +32,14 @@ const { kind } = Astro.props as Props
   )}
 
   {kind !== 'cycle-length' && (
-    <label class="mt-4 block font-semibold">
+    <label class="mt-6 block font-semibold">
       Average cycle length (days)
       <input type="number" name="cycle" min="21" max="45" value="28" required class="mt-2 block" />
     </label>
   )}
 
   {kind === 'period' && (
-    <label class="mt-4 block font-semibold">
+    <label class="mt-6 block font-semibold">
       How many days your period usually lasts
       <input type="number" name="period" min="1" max="10" value="5" required class="mt-2 block" />
     </label>

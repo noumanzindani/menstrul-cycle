@@ -8,7 +8,7 @@ const owns = (item: { href: string; children?: readonly { href: string }[] }) =>
   isCurrent(item.href) || (item.children ?? []).some((c) => isCurrent(c.href))
 ---
 <header class="sticky top-0 z-40 border-b border-black/5 bg-white/90 backdrop-blur-sm dark:border-white/10 dark:bg-surface-dark/90">
-  <nav aria-label="Main" class="mx-auto flex max-w-6xl items-center gap-x-7 px-5">
+  <nav aria-label="Main" class="mx-auto flex max-w-6xl items-center gap-x-3 px-5 sm:gap-x-7">
     <a href="/" class="pressable flex shrink-0 items-center gap-2.5 py-3.5">
       <!--
         Decorative: the wordmark beside it already carries the name, so alt text
@@ -18,7 +18,7 @@ const owns = (item: { href: string; children?: readonly { href: string }[] }) =>
       <span class="text-[1.35rem] font-bold tracking-tight text-ink dark:text-white">{ORG.name}</span>
     </a>
 
-    <ul class="hidden flex-1 items-stretch gap-x-1 text-[0.95rem] font-medium md:flex">
+    <ul class="hidden flex-1 items-stretch gap-x-1 text-[0.95rem] font-medium lg:flex">
       {NAV.map((item) => (
         <li class={item.children ? 'nav-group relative flex' : 'flex'}>
           <a
@@ -62,23 +62,38 @@ const owns = (item: { href: string; children?: readonly { href: string }[] }) =>
 
     <a
       href="/download"
-      class="pressable ml-auto inline-flex shrink-0 items-center rounded-full bg-brand-deep px-5 py-2.5 text-[0.95rem] font-semibold text-white hover:brightness-110 md:ml-0"
+      class="pressable ml-auto inline-flex min-h-11 shrink-0 items-center rounded-full bg-brand-deep px-4 py-2.5 text-[0.95rem] font-semibold text-white hover:brightness-110 sm:px-5 lg:ml-0"
     >Get the app</a>
   </nav>
 
   <!--
-    Below md the dropdowns collapse to a flat wrapped row of the top-level links.
+    Below lg the dropdowns collapse to a flat wrapped row of the top-level links.
     Two reasons this is not a burger menu: the JS budget for this page is zero
     bytes, and :hover is unreliable on touch, so a hover-opened panel would be a
     dead end. Each parent still links to a section index that lists its children.
+
+    The switch is at lg, not md, for both of those reasons at once. At exactly
+    768px the full bar plus the pill left a 7px gutter on the right — measured —
+    and 768 to 1023 is overwhelmingly tablet, which is precisely where a hover
+    panel is the dead end this row exists to avoid. Moving the breakpoint up
+    fixes the squeeze and hands touch-sized screens the layout built for them.
+
+    The vertical padding lives on the LINKS, not on this <ul>. Measured on a
+    phone, padding the list gave each link a 20px-tall hit area inside a padded
+    row — under WCAG 2.5.8's 24px AA floor, and nowhere near the 44px a thumb
+    wants. Moving it onto the anchors makes each one a 44px target while the row
+    keeps roughly the height it had.
   -->
-  <ul class="flex flex-wrap gap-x-5 gap-y-1 border-t border-black/5 px-5 py-2.5 text-sm font-medium md:hidden dark:border-white/10">
+  <ul class="flex flex-wrap items-center gap-x-4 border-t border-black/5 px-5 text-sm font-medium lg:hidden dark:border-white/10">
     {NAV.map((item) => (
-      <li>
+      <li class="flex">
         <a
           href={item.href}
           aria-current={isCurrent(item.href) ? 'page' : undefined}
-          class:list={['pressable inline-block hover:text-brand-deep', owns(item) && 'text-brand-deep font-semibold']}
+          class:list={[
+            'pressable flex min-h-11 items-center hover:text-brand-deep',
+            owns(item) && 'text-brand-deep font-semibold',
+          ]}
         >{item.label}</a>
       </li>
     ))}

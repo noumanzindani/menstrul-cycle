@@ -27,15 +27,21 @@ import ToolForm from './ToolForm.astro'
     </div>
   </fieldset>
 
-  <fieldset class="mt-5">
+  <fieldset class="mt-6">
     <legend class="font-semibold">Counted from</legend>
-    <label class="mt-2 block text-sm">
-      <input type="radio" name="basis" value="lmp" required />
-      The first day of my last period
+    <!--
+      Each label is the tap target, not the 18px radio inside it: a label with a
+      `for` relationship (implicit here, since the input is a descendant) checks
+      its own radio. min-h-11 gives a thumb the 44px it wants, and items-start
+      keeps the control on the first line when the text wraps to two.
+    -->
+    <label class="mt-1 flex min-h-11 items-center gap-2.5 text-sm">
+      <input type="radio" name="basis" value="lmp" required class="shrink-0" />
+      <span>The first day of my last period</span>
     </label>
-    <label class="mt-1 block text-sm">
-      <input type="radio" name="basis" value="conception" />
-      Conception, ovulation, or an embryo transfer
+    <label class="flex min-h-11 items-center gap-2.5 text-sm">
+      <input type="radio" name="basis" value="conception" class="shrink-0" />
+      <span>Conception, ovulation, or an embryo transfer</span>
     </label>
     <p class="mt-2 max-w-prose text-xs text-ink-muted dark:text-white/55">
       Antenatal care counts from the first day of the last period, so a figure
