@@ -149,6 +149,39 @@ class MediaAnalysisService {
   /// re-opening the photo genuinely starts over rather than silently resuming.
   void endConversation(String mediaId) => _transcripts.remove(mediaId);
 
+  /// Seeds [mediaId]'s in-memory conversation from a STORED transcript, so
+  /// the next [analyze] call for it carries full prior context instead of
+  /// treating a follow-up as an opening question.
+  ///
+  /// [_transcripts] is the ONLY thing [analyze] reads for `history`, and it
+  /// starts empty every time this service is constructed (once per timeline
+  /// route). Without a seed, resuming a saved session shows the old turns on
+  /// screen but the model itself has no memory of them — the request goes out
+  /// with `history: []`, `generateContent` is stateless, and the answer comes
+  /// back as if the conversation just started. This is the caller's job, not
+  /// something [analyze] can infer on its own: this class has no way to load
+  /// a stored transcript itself (see the class doc's "why the gates are
+  /// duplicated" note on why it must stay ignorant of persistence), so the
+  /// caller — which DID just load one, e.g. from `AnalysisSessionRepository`
+  /// — hands it over as plain [AnalysisTurn]s, a type this class already
+  /// owns. No session, no repository, no database reaches this method or this
+  /// class; `test/media_guardrails_test.dart` enforces that structurally.
+  ///
+  /// Seeded turns count toward [kMaxChatTurns] via [turnsUsed], same as any
+  /// other turn: a conversation resumed nine turns deep IS nine turns deep,
+  /// and undercounting it would hand out more billed turns than the cap
+  /// intends.
+  ///
+  /// A no-op on an empty list, so callers can pass through whatever a loader
+  /// returned (often `[]`, meaning "no saved conversation") with no manual
+  /// guard. Also a no-op if [mediaId] already has an in-memory conversation —
+  /// seeding over live turns would silently discard them.
+  void seedConversation(String mediaId, List<AnalysisTurn> turns) {
+    if (turns.isEmpty) return;
+    if (_transcripts.containsKey(mediaId)) return;
+    _transcripts[mediaId] = List.of(turns);
+  }
+
   /// How many questions have been asked about [mediaId] so far.
   int turnsUsed(String mediaId) =>
       _transcripts[mediaId]?.where((t) => t.role == AnalysisRole.user).length ??

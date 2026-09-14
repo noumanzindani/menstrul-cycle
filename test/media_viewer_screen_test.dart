@@ -123,6 +123,61 @@ void main() {
     expect(analyzeCalls, 1);
     expect(find.text('A fresh description.'), findsOneWidget);
   });
+
+  testWidgets(
+      'a revoked consent still allows reading a saved transcript, but a '
+      'follow-up stays blocked', (tester) async {
+    var analyzeCalls = 0;
+    var requestConsentCalls = 0;
+
+    await tester.pumpWidget(MaterialApp(
+      home: MediaViewerScreen(
+        item: item(),
+        load: (_) async => imageFile,
+        analyze: (_, _, _) async {
+          analyzeCalls++;
+          // Simulates `MediaAnalysisService.analyze`'s OWN, authoritative
+          // consent gate — the one that still fires no matter what this
+          // widget decided, so a follow-up genuinely cannot get through.
+          return const AnalysisOutcome(blocked: AnalysisBlock.notConsented);
+        },
+        // Consent has been revoked (or was never granted).
+        needsConsent: () => true,
+        requestConsent: (_) async {
+          requestConsentCalls++;
+          return true;
+        },
+        loadExistingTurns: (_) async => const [
+          AnalysisTurn.model('A pink diamond pattern.'),
+        ],
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('media-describe')));
+    await tester.pumpAndSettle();
+
+    // Reading the saved transcript is NOT gated: it renders, and the consent
+    // sheet was never invoked to show it.
+    expect(find.text('A pink diamond pattern.'), findsOneWidget);
+    expect(requestConsentCalls, 0);
+    expect(analyzeCalls, 0);
+
+    // A follow-up IS a send, and stays gated: it still reaches `analyze`,
+    // whose own consent check (simulated above) refuses it — reading was
+    // never what unlocked sending.
+    await tester.enterText(
+      find.byKey(const Key('analysis-question-field')),
+      'what colour is it',
+    );
+    await tester.tap(find.byKey(const Key('analysis-ask-button')));
+    await tester.pumpAndSettle();
+
+    expect(analyzeCalls, 1);
+    expect(
+      find.text(messageForAnalysisBlock(AnalysisBlock.notConsented)),
+      findsOneWidget,
+    );
+  });
 }
 
 /// The smallest valid PNG, so `Image.file` has something real to decode.

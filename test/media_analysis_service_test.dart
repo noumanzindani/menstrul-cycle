@@ -411,6 +411,76 @@ void main() {
     });
   });
 
+  group('resuming a saved conversation', () {
+    // A resumed session is read from storage into a FRESH service instance —
+    // one is built once per timeline route, so `_transcripts` starts empty
+    // regardless of what a previous route instance ever held. Without
+    // `seedConversation`, a follow-up asked after resuming would be sent with
+    // `history: []`, and the model would answer as though the conversation
+    // the user can see on screen never happened.
+    test('a follow-up after resuming carries the full prior history',
+        () async {
+      final service = buildService();
+      service.seedConversation('media-1', const [
+        AnalysisTurn.user('what colour is it'),
+        AnalysisTurn.model('It is pink.'),
+        AnalysisTurn.user('how many are there'),
+        AnalysisTurn.model('Three.'),
+      ]);
+
+      await run(service, question: 'and the shape?');
+
+      expect(analyzer.lastHistory.length, 4);
+      expect(analyzer.lastHistory[0].role, AnalysisRole.user);
+      expect(analyzer.lastHistory[0].text, 'what colour is it');
+      expect(analyzer.lastHistory[1].text, 'It is pink.');
+      expect(analyzer.lastHistory[2].text, 'how many are there');
+      expect(analyzer.lastHistory[3].text, 'Three.');
+      expect(analyzer.lastQuestion, 'and the shape?');
+    });
+
+    test('seeded turns count toward the turn cap', () async {
+      // A conversation resumed already nine turns deep IS nine turns deep —
+      // undercounting it would hand out more billed turns than the cap
+      // intends, which is exactly what an unseeded `_transcripts` map did.
+      final service = buildService();
+      final seeded = <AnalysisTurn>[];
+      for (var i = 0; i < kMaxChatTurns; i++) {
+        seeded.add(AnalysisTurn.user('question $i'));
+        seeded.add(AnalysisTurn.model('answer $i'));
+      }
+      service.seedConversation('media-1', seeded);
+
+      expect(service.turnsUsed('media-1'), kMaxChatTurns);
+
+      final outcome = await run(service, question: 'one too many');
+      expect(outcome.blocked, AnalysisBlock.turnCap);
+      // Blocked before any network call — the cap check happens before the
+      // analyzer is ever reached.
+      expect(analyzer.calls, 0);
+    });
+
+    test('seeding with no turns is a no-op', () async {
+      final service = buildService();
+      service.seedConversation('media-1', const []);
+      await run(service);
+      expect(analyzer.lastHistory, isEmpty);
+    });
+
+    test('does not overwrite an already-live conversation', () async {
+      final service = buildService();
+      await run(service, question: 'first');
+      service.seedConversation('media-1', const [
+        AnalysisTurn.user('stale question'),
+        AnalysisTurn.model('stale answer'),
+      ]);
+      await run(service, question: 'second');
+      expect(analyzer.lastHistory.length, 2);
+      expect(analyzer.lastHistory[0].text, 'first');
+      expect(analyzer.lastHistory[1].text, 'a description');
+    });
+  });
+
   group('failures', () {
     test('an AnalysisException surfaces its own copy', () async {
       analyzer = _FakeAnalyzer(throws: const AnalysisException('no answer'));

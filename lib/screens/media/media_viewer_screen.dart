@@ -164,27 +164,42 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
     final file = _file;
     if (analyze == null || file == null || _analyzing) return;
 
-    // Consent first, and it is a hard gate: nothing is read from disk and no
-    // request is built until it passes.
-    if (widget.needsConsent?.call() ?? false) {
-      final request = widget.requestConsent;
-      if (request == null) return;
-      final granted = await request(context);
-      if (!granted || !mounted) return;
-    }
-
     setState(() => _analyzing = true);
 
-    // Checked BEFORE any network call: a saved conversation about this photo
-    // means Describe should reopen it, not silently start a second one and
-    // spend another call (and another slice of the daily cap) asking the
-    // model the same opening question again.
+    // Checked BEFORE the consent gate AND before any network call. This is a
+    // READ of a conversation already stored on this device — see
+    // [MediaViewerScreen.loadExistingTurns]'s doc comment — and reading it
+    // sends nothing anywhere. Consent governs SENDING, so a resumed,
+    // read-only reopen must not be blocked by a revoked or missing consent;
+    // conflating "may I read what I already have" with "may I send more" is
+    // exactly the bug this ordering avoids. A follow-up typed into the
+    // reopened sheet is a SEND, and remains fully gated: it goes through
+    // [analyze] below, and `MediaAnalysisService.analyze` enforces its own
+    // consent check regardless of anything decided here.
     final existing = await _loadExisting();
     if (!mounted) return;
     if (existing.isNotEmpty) {
       setState(() => _analyzing = false);
       await _openSheet(analyze, file, initialTurns: existing);
       return;
+    }
+
+    // Consent next, and it is a hard gate for every path below: nothing is
+    // read from disk and no request is built until it passes. Reached only
+    // once no resumable conversation was found — from here on every path may
+    // reach the network.
+    if (widget.needsConsent?.call() ?? false) {
+      final request = widget.requestConsent;
+      if (request == null) {
+        setState(() => _analyzing = false);
+        return;
+      }
+      final granted = await request(context);
+      if (!mounted) return;
+      if (!granted) {
+        setState(() => _analyzing = false);
+        return;
+      }
     }
 
     final outcome = await analyze(widget.item, file, null);

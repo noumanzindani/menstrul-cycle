@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:menstrul_track/theme/app_theme.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/screens/media/analysis_sessions_screen.dart';
@@ -122,6 +123,28 @@ void main() {
 
     expect(find.byKey(const Key('analysis-session-s1')), findsOneWidget);
     expect(find.byType(Image), findsNothing);
+  });
+
+  testWidgets('shows a formatted date for an older conversation',
+      (tester) async {
+    // Far enough in the past that it can never land on "Today" or
+    // "Yesterday" relative to whenever this test actually runs — the
+    // deterministic way to exercise the row's date label (`_dateLabel` is
+    // library-private, so this is the only vantage point a test outside
+    // `analysis_sessions_screen.dart` has on it; deleting that helper
+    // entirely would otherwise fail nothing here).
+    final old = session('s1', updatedAt: DateTime(2020, 1, 15));
+    await pump(tester, AnalysisSessionsScreen(
+      load: () async => [old],
+      loadMessages: (_) async => const [],
+      loadMedia: (_) async => null,
+      onOpen: (_, _) {},
+    ));
+
+    expect(
+      find.text(DateFormat.yMMMd().format(DateTime(2020, 1, 15))),
+      findsOneWidget,
+    );
   });
 
   testWidgets('tapping a row calls onOpen with that session', (tester) async {

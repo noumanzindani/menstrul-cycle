@@ -222,11 +222,21 @@ Route<void> mediaTimelineRoute(BuildContext context) {
                       await sessionRepo.forMedia(uid: uid, mediaId: item.id);
                   if (session == null) return const <AnalysisTurn>[];
                   final messages = await sessionRepo.messagesFor(session.id);
-                  return messages
+                  final turns = messages
                       .map((m) => m.role == 'user'
                           ? AnalysisTurn.user(m.messageText)
                           : AnalysisTurn.model(m.messageText))
                       .toList();
+                  // Seeds the SERVICE's in-memory history, not just the UI:
+                  // the sheet renders these turns from the return value below,
+                  // but the next follow-up goes through `analysisService`
+                  // (captured above), whose `_transcripts` map is the only
+                  // thing `analyze()` reads for context. Without this call a
+                  // resumed conversation would show old turns on screen while
+                  // the model itself remembers none of them. See
+                  // `MediaAnalysisService.seedConversation`'s doc comment.
+                  analysisService.seedConversation(item.id, turns);
+                  return turns;
                 },
           requestConsent: (context) async {
             final allowed = await showAnalysisConsentSheet(context);
