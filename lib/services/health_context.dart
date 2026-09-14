@@ -244,8 +244,11 @@ String buildHealthContext({
         'Average period length: ${prediction.averagePeriodLength} days');
   }
 
-  final cutoff = asOf.subtract(Duration(days: windowDays));
-  final windowed = logs.where((l) => l.date.isAfter(cutoff)).toList()
+  // Normalize asOf to local midnight to ensure exact day arithmetic.
+  final asOfNormalized = DateTime(asOf.year, asOf.month, asOf.day);
+  final cutoff = asOfNormalized.subtract(Duration(days: windowDays));
+  // Inclusive boundary: retain logs at exactly asOf - windowDays.
+  final windowed = logs.where((l) => !l.date.isBefore(cutoff)).toList()
     ..sort((a, b) => a.date.compareTo(b.date));
 
   final medNames = <int, String>{
@@ -255,8 +258,8 @@ String buildHealthContext({
   final dayLines = windowed
       .map((log) => buildDayLine(
             log: log,
-            cycleDay: _cycleDayFor(log.date, cycles),
-            phase: _phaseFor(log.date, cycles, prediction),
+            cycleDay: _cycleDayFor(log.date, cycles, asOfNormalized),
+            phase: _phaseFor(log.date, cycles, prediction, asOfNormalized),
             medicationNames: medNames,
           ))
       .toList();
@@ -270,31 +273,41 @@ String buildHealthContext({
 }
 
 /// 1-based day within whichever derived cycle contains [date], or null.
-int? _cycleDayFor(DateTime date, List<Cycle> cycles) {
-  for (final c in cycles) {
-    final end = c.lengthDays == null
-        ? c.end
-        : c.start.add(Duration(days: c.lengthDays! - 1));
-    if (!date.isBefore(c.start) && !date.isAfter(end)) {
+///
+/// A cycle runs from its start up to the day before the next cycle starts.
+/// The last (open) cycle with no lengthDays runs to asOf. Days before the
+/// first cycle or between cycles return null.
+int? _cycleDayFor(DateTime date, List<Cycle> cycles, DateTime asOf) {
+  for (int i = 0; i < cycles.length; i++) {
+    final c = cycles[i];
+    // Cycle end is the day before the next cycle starts, or asOf for the last cycle.
+    final cycleEnd = i + 1 < cycles.length
+        ? cycles[i + 1].start.subtract(Duration(days: 1))
+        : asOf;
+    if (!date.isBefore(c.start) && !date.isAfter(cycleEnd)) {
       return date.difference(c.start).inDays + 1;
     }
   }
   return null;
 }
 
-/// The phase for [date]. Only the CURRENT day can borrow the live prediction;
+/// The phase for [date]. Only asOf itself can borrow the live prediction;
 /// every other day falls back to bleeding-or-unknown rather than being guessed.
+/// Days within a cycle's bleeding window are marked menstrual; all others unknown.
 CyclePhase _phaseFor(
   DateTime date,
   List<Cycle> cycles,
   PredictionResult? prediction,
+  DateTime asOf,
 ) {
+  // Check if date falls within any cycle's bleeding window (period days).
   for (final c in cycles) {
     if (!date.isBefore(c.start) && !date.isAfter(c.end)) {
       return CyclePhase.menstrual;
     }
   }
-  if (prediction != null && _isSameDay(date, DateTime.now())) {
+  // Only use live prediction for asOf itself; never guess historical phases.
+  if (prediction != null && _isSameDay(date, asOf)) {
     return prediction.currentPhase;
   }
   return CyclePhase.unknown;
