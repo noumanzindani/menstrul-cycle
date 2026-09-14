@@ -2,9 +2,22 @@
 import { NAV, ORG } from '../consts.ts'
 const path = Astro.url.pathname.replace(/\/$/, '') || '/'
 
+/**
+ * `NAV` is declared `as const`, so its type is a union of literal object types —
+ * and only some members of that union carry `children`. Reading `item.children`
+ * off the union is then an error on the members that lack it, even though the
+ * read is guarded, because TypeScript cannot narrow on a property that is absent
+ * from the type rather than undefined in it. Widening to one optional-`children`
+ * shape here, rather than in consts.ts, keeps the literal `href` types intact for
+ * every other reader of NAV.
+ */
+interface NavChild { href: string; label: string }
+interface NavItem { href: string; label: string; children?: readonly NavChild[] }
+const items = NAV as readonly NavItem[]
+
 /** A nav entry is "current" if it is the page, or owns the page's section. */
 const isCurrent = (href: string) => path === href
-const owns = (item: { href: string; children?: readonly { href: string }[] }) =>
+const owns = (item: NavItem) =>
   isCurrent(item.href) || (item.children ?? []).some((c) => isCurrent(c.href))
 ---
 <header class="sticky top-0 z-40 border-b border-black/5 bg-white/90 backdrop-blur-sm dark:border-white/10 dark:bg-surface-dark/90">
@@ -19,7 +32,7 @@ const owns = (item: { href: string; children?: readonly { href: string }[] }) =>
     </a>
 
     <ul class="hidden flex-1 items-stretch gap-x-1 text-[0.95rem] font-medium lg:flex">
-      {NAV.map((item) => (
+      {items.map((item) => (
         <li class={item.children ? 'nav-group relative flex' : 'flex'}>
           <a
             href={item.href}
@@ -85,7 +98,7 @@ const owns = (item: { href: string; children?: readonly { href: string }[] }) =>
     keeps roughly the height it had.
   -->
   <ul class="flex flex-wrap items-center gap-x-4 border-t border-black/5 px-5 text-sm font-medium lg:hidden dark:border-white/10">
-    {NAV.map((item) => (
+    {items.map((item) => (
       <li class="flex">
         <a
           href={item.href}
