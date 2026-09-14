@@ -17,6 +17,8 @@ part 'database.g.dart';
     AppSettings,
     SyncTombstones,
     MediaItems,
+    AnalysisSessions,
+    AnalysisMessages,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -26,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -49,6 +51,9 @@ class AppDatabase extends _$AppDatabase {
         //   v7 → v8: the user profile adds AppSettings.dateOfBirth, heightCm,
         //            profileWeightKg and menarcheAge. All four read NULL for an
         //            existing user, which is correct — nobody has been asked.
+        //   v10 → v11: persisted photo-analysis conversations add the
+        //            AnalysisSessions and AnalysisMessages tables plus
+        //            AppSettings.analysisConsentVersion.
         // Branches are independent `if (from < n)` checks, not else-if, so a
         // user upgrading straight from v1 runs all of them.
         //
@@ -94,6 +99,11 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 10) {
             await m.addColumn(appSettings, appSettings.sexualHealthBaseline);
+          }
+          if (from < 11) {
+            await m.createTable(analysisSessions);
+            await m.createTable(analysisMessages);
+            await m.addColumn(appSettings, appSettings.analysisConsentVersion);
           }
         },
       );
