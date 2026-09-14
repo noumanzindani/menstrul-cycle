@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Protects resources that are reachable ONLY through a runtime string, which
+  AGP's resource shrinker (isShrinkResources = true, app/build.gradle.kts)
+  cannot see.
+
+  `ic_stat_lunarflow` is named as '@drawable/ic_stat_lunarflow' inside
+  lib/services/notification_service.dart and never as R.drawable.*, so the
+  shrinker treated it as dead and stripped it from the release APK. The
+  consequence was not a missing icon: main() awaits NotificationService.init()
+  UNGUARDED before runApp(), so the resulting
+  PlatformException(invalid_icon, ...) escaped main() and runApp() never ran.
+  The app showed the native launch background forever, with no crash dialog.
+
+  Debug builds do not shrink, so this reproduces in release only.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_lunarflow" />
