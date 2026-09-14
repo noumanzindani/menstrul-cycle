@@ -120,7 +120,7 @@ List<String> _decodeKeyList(String? json) {
 /// purpose, so this must never route through the PDF helpers.
 String buildDayLine({
   required DailyLog log,
-  required int? cycleDay,
+  int? cycleDay,
   required CyclePhase phase,
   required Map<int, String> medicationNames,
 }) {
@@ -131,7 +131,7 @@ String buildDayLine({
   final parts = <String>[];
 
   if (log.flow != null) {
-    parts.add('flow: ${FlowIntensity.values[log.flow!.index].name}');
+    parts.add('flow: ${log.flow!.name}');
   }
   if (log.mood != null) {
     final mood = _labelFor(kMoodOptions, log.mood!);
@@ -158,7 +158,12 @@ String buildDayLine({
 
   addSingle(kDischargeKeyPrefix, kDischargeOptions, 'discharge');
   addSingle(kSexKeyPrefix, kSexOptions, 'sexual activity');
-  addSingle(kLibidoKeyPrefix, kLibidoOptions, 'libido');
+  // libido must use decodeLibido, not decodeSingle, to handle legacy shx_high_libido
+  final libidoKey = decodeLibido(log.symptoms);
+  if (libidoKey != null) {
+    final libidoLabel = _labelFor(kLibidoOptions, libidoKey);
+    if (libidoLabel != null) parts.add('libido: $libidoLabel');
+  }
   addGroup(kIntimacyKeyPrefix, kIntimacyOptions, 'solo activity');
   addGroup(kVaginalKeyPrefix, kVaginalOptions, 'vaginal');
   addGroup(kSexualHealthKeyPrefix, kSexualHealthOptions, 'sexual health');
@@ -185,10 +190,10 @@ String buildDayLine({
   if (log.bbt != null) parts.add('temperature ${log.bbt}');
   if (log.opk != null) parts.add('ovulation test: ${log.opk}');
 
+  final medicationKeys = decodeGroup(log.symptoms, kMedicationKeyPrefix);
   final meds = <String>[];
   for (final entry in medicationNames.entries) {
-    if (decodeGroup(log.symptoms, kMedicationKeyPrefix)
-        .contains('$kMedicationKeyPrefix${entry.key}')) {
+    if (medicationKeys.contains('$kMedicationKeyPrefix${entry.key}')) {
       meds.add(entry.value);
     }
   }

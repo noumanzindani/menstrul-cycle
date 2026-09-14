@@ -163,7 +163,15 @@ void main() {
     expect(out, isEmpty);
   });
 
-  DailyLog makeLog({required DateTime date, String symptoms = '{}', String? mood, String? notes, FlowIntensity? flow}) =>
+  DailyLog makeLog({
+    required DateTime date,
+    String symptoms = '{}',
+    String? mood,
+    String? notes,
+    FlowIntensity? flow,
+    double? bbt,
+    String? opk,
+  }) =>
       DailyLog(
         id: 1,
         date: date,
@@ -171,6 +179,8 @@ void main() {
         symptoms: symptoms,
         mood: mood,
         notes: notes,
+        bbt: bbt,
+        opk: opk,
         createdAt: date,
         updatedAt: date,
       );
@@ -213,7 +223,7 @@ void main() {
         phase: CyclePhase.ovulatory,
         medicationNames: const {},
       );
-      expect(line, contains('Egg white'));
+      expect(line, contains('Egg-white'));
       expect(line, contains('Masturbation'));
       expect(line, contains('Unprotected'));
       expect(line, contains('Itching'));
@@ -232,6 +242,273 @@ void main() {
       expect(line, isNot(contains('pain')));
       expect(line, isNot(contains('weight')));
       expect(line, contains('sleep 7'));
+    });
+
+    test('libido modern encoding (lbd_ prefix)', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({'lbd_high': true}),
+        ),
+        cycleDay: 10,
+        phase: CyclePhase.follicular,
+        medicationNames: const {},
+      );
+      expect(line, contains('libido:'));
+      expect(line, contains('High'));
+    });
+
+    test('libido legacy encoding (shx_high_libido)', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({'shx_high_libido': true}),
+        ),
+        cycleDay: 10,
+        phase: CyclePhase.follicular,
+        medicationNames: const {},
+      );
+      expect(line, contains('libido:'));
+      expect(line, contains('High'));
+    });
+
+    test('sexual health group (shx_ prefix)', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({'shx_condom': true}),
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, contains('sexual health:'));
+      expect(line, contains('Condom'));
+    });
+
+    test('urinary group (urn_ prefix)', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({'urn_frequent': true}),
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, contains('urinary:'));
+      expect(line, contains('Frequent'));
+    });
+
+    test('digestion group (dig_ prefix)', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({'dig_gas': true}),
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, contains('digestion:'));
+      expect(line, contains('Gas'));
+    });
+
+    test('skin group (skin_ prefix)', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({'skin_oily': true}),
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, contains('skin:'));
+    });
+
+    test('habits group (habit_ prefix)', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({'habit_exercise': true}),
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, contains('habits:'));
+    });
+
+    test('medication mapping via medicationNames', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({'med_0': true, 'med_1': true}),
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {0: 'Ibuprofen', 1: 'Acetaminophen'},
+      );
+      expect(line, contains('medication taken:'));
+      expect(line, contains('Ibuprofen'));
+      expect(line, contains('Acetaminophen'));
+    });
+
+    test('flow intensity renders by name', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          flow: FlowIntensity.heavy,
+        ),
+        cycleDay: 2,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, contains('flow:'));
+      expect(line, contains('heavy'));
+    });
+
+    test('mood renders with label lookup', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          mood: 'irritable',
+        ),
+        cycleDay: 14,
+        phase: CyclePhase.ovulatory,
+        medicationNames: const {},
+      );
+      expect(line, contains('mood:'));
+      expect(line, contains('Irritable'));
+    });
+
+    test('bbt temperature reading', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          bbt: 36.7,
+        ),
+        cycleDay: 15,
+        phase: CyclePhase.luteal,
+        medicationNames: const {},
+      );
+      expect(line, contains('temperature 36.7'));
+    });
+
+    test('opk ovulation test result', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          opk: 'positive',
+        ),
+        cycleDay: 14,
+        phase: CyclePhase.ovulatory,
+        medicationNames: const {},
+      );
+      expect(line, contains('ovulation test: positive'));
+    });
+
+    test('plain symptom from decodeSymptoms path', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({'cramps': true}),
+        ),
+        cycleDay: 2,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, contains('symptoms:'));
+      expect(line, contains('Cramps'));
+    });
+
+    test('user notes are included and trimmed', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          notes: '  test note  ',
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, contains('note: test note'));
+      expect(line, isNot(contains('  ')));
+    });
+
+    test('empty notes are omitted', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          notes: '   ',
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, isNot(contains('note')));
+    });
+
+    test('metrics water, energy, stress, sleep_quality are included when non-zero', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({
+            'water': 8,
+            'energy': 4,
+            'stress': 3,
+            'sleep_quality': 5,
+          }),
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, contains('water 8'));
+      expect(line, contains('energy 4'));
+      expect(line, contains('stress 3'));
+      expect(line, contains('sleep_quality 5'));
+    });
+
+    test('metrics water, energy, stress, sleep_quality are omitted when zero', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({
+            'water': 0,
+            'energy': 0,
+            'stress': 0,
+            'sleep_quality': 0,
+          }),
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, isNot(contains('water')));
+      expect(line, isNot(contains('energy')));
+      expect(line, isNot(contains('stress')));
+      expect(line, isNot(contains('sleep_quality')));
+    });
+
+    test('unknown option keys are dropped, never printed raw', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({
+            'vag_unknown_key': true,
+            'vag_itching': true,
+          }),
+        ),
+        cycleDay: 5,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, contains('vaginal:'));
+      expect(line, contains('Itching'));
+      expect(line, isNot(contains('unknown_key')));
+      expect(line, isNot(contains('vag_unknown_key')));
     });
   });
 }
