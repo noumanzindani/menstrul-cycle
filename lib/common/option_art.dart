@@ -93,7 +93,7 @@ const Map<String, String> kOptionArt = {
   'cm_creamy': 'assets/track/cm_creamy.png',
   'cm_watery': 'assets/track/cm_watery.png',
   'cm_eggwhite': 'assets/track/cm_eggwhite.png',
-  // kVaginalOptions -- six of seven; `vag_discomfort` is the odd one left.
+  // kVaginalOptions -- complete.
   //
   // `vag_dryness` is ALSO a member of `kSexualHistoryOptions`, which re-uses
   // keys rather than defining its own. That list is rendered by
@@ -108,7 +108,7 @@ const Map<String, String> kOptionArt = {
   'vag_odor': 'assets/track/vag_odor.png',
   'vag_swelling': 'assets/track/vag_swelling.png',
   'vag_lumps': 'assets/track/vag_lumps.png',
-  'vag_discomfort': 'assets/track/vag_discomfort.svg',
+  'vag_discomfort': 'assets/track/vag_discomfort.png',
   // kOpkOptions -- complete. The supplied `negative` art had the words
   // "Ovulation test" baked in beneath the disc; it was stripped, not shipped.
   // A caption inside a chip mark duplicates the label 6px to its right and
@@ -151,6 +151,9 @@ const Map<String, String> kOptionArt = {
   // recorded on [kNoArtKeys]; the other five members stay text-only, so these
   // four sit decorated among undecorated neighbours rather than the reverse.
   'shx_condom': 'assets/track/shx_condom.png',
+  'sex_none': 'assets/track/sex_none.png',
+  'sex_protected': 'assets/track/sex_protected.png',
+  'slf_masturbation': 'assets/track/slf_masturbation.png',
   'lbd_low': 'assets/track/lbd_low.png',
   'lbd_medium': 'assets/track/lbd_medium.png',
   'lbd_high': 'assets/track/lbd_high.png',
@@ -195,23 +198,28 @@ const Map<String, String> kOptionArt = {
 ///   their call to make. It is recorded here so the next person does not
 ///   mistake it for an oversight and "fix" it in either direction.
 const Set<String> kNoArtKeys = {
-  // Sexual activity. An icon is glanceable in a way a word is not — which is
-  // the entire point of this feature, and it cuts both ways. Someone reading
-  // over the user's shoulder parses a pictogram far faster than they parse
-  // "Unprotected". This app ships an app-lock precisely because this data is
-  // sensitive; adding a symbol that survives a half-second glance works against
-  // that. Text-only is the deliberate choice, not an oversight.
-  'sex_none',
-  'sex_protected',
+  // NOT one rule any more. `sex_unprotected` is here for a DIFFERENT reason
+  // than the three below it, and collapsing the two would lose the only thing
+  // that says which of them a new drawing could resolve.
+  //
+  // sex_unprotected — a LEGIBILITY hold, not a shoulder-surf one. Art was
+  // supplied on 2026-09-14 and withheld: it is a red prohibition sign over two
+  // hearts, which is what the supplied `sex_none` mark also is. Measured at
+  // 20.5 mean per-pixel difference against it, where every other pair in that
+  // batch scored 40–89; at the 28px these render, the two are the same picture.
+  // They sit ADJACENT in one row ("None | Protected | Unprotected"), so the
+  // failure is not subtle. Worse, crossed-out hearts reads as "no sex", which
+  // is `sex_none`'s meaning — so the mark is arguably wrong and not merely
+  // ambiguous. A DISTINCT mark closes this; nothing else about it is disputed.
   'sex_unprotected',
-  // Sexual health. Same shoulder-surf reasoning; "Emergency contraception" in
-  // particular should not be legible from across a room.
+  // The remaining shoulder-surf exclusions. An icon is glanceable in a way a
+  // word is not, which is the entire point of chip art and cuts both ways:
+  // someone reading over the user's shoulder parses a pictogram far faster than
+  // they parse "Emergency contraception". This app ships an app-lock precisely
+  // because this data is sensitive. No art has been supplied for these three.
   'shx_emergency',
   'shx_pain',
   'shx_post_coital',
-  // Solo sexual activity. `shx_` was already text-only for shoulder-surf
-  // reasons and this is more sensitive again.
-  'slf_masturbation',
 };
 
 /// The one icon shared by every user-created medication row.

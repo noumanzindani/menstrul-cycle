@@ -106,6 +106,11 @@ const kRasterArt = <String>{
   'assets/track/metric_energy.png',
   'assets/track/metric_stress.png',
   'assets/track/bbt.png',
+  // Vaginal group completed, plus three more reversals out of kNoArtKeys.
+  'assets/track/vag_discomfort.png',
+  'assets/track/sex_none.png',
+  'assets/track/sex_protected.png',
+  'assets/track/slf_masturbation.png',
 };
 
 void main() {
@@ -184,13 +189,12 @@ void main() {
     // parking an unrelated key here under cover of a harm decision fails too.
     test('exactly these keys stay text-only', () {
       const textOnly = {
-        'sex_none',
-        'sex_protected',
+        // Held for LEGIBILITY, not shoulder-surf — see option_art.dart.
         'sex_unprotected',
+        // Shoulder-surf, and no art has been supplied for these.
         'shx_emergency',
         'shx_pain',
         'shx_post_coital',
-        'slf_masturbation',
       };
       expect(kNoArtKeys, textOnly);
       for (final k in textOnly) {
@@ -203,7 +207,15 @@ void main() {
     // suite states rather than an absence. Silently losing one would otherwise
     // look identical to it never having been drawn.
     test('the four reversed sensitive keys do have art', () {
-      for (final k in ['shx_condom', 'lbd_low', 'lbd_medium', 'lbd_high']) {
+      for (final k in [
+        'shx_condom',
+        'lbd_low',
+        'lbd_medium',
+        'lbd_high',
+        'sex_none',
+        'sex_protected',
+        'slf_masturbation',
+      ]) {
         expect(artFor(k), isNotNull, reason: '$k lost its art');
         expect(kNoArtKeys.contains(k), isFalse);
       }
@@ -324,7 +336,7 @@ void main() {
     });
 
     test('an unknown or not-yet-drawn key is null, not a crash', () {
-      expect(artFor('sex_protected'), isNull); // excluded
+      expect(artFor('shx_emergency'), isNull); // still excluded
       expect(artFor('no_such_key_at_all'), isNull);
     });
   });
