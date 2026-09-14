@@ -111,6 +111,9 @@ const kRasterArt = <String>{
   'assets/track/sex_none.png',
   'assets/track/sex_protected.png',
   'assets/track/slf_masturbation.png',
+  // Not chips either: the product-change timer.
+  'assets/track/product_pad.png',
+  'assets/track/product_tampon.png',
 };
 
 void main() {
@@ -232,6 +235,7 @@ void main() {
         // Not chips, but just as fatal at runtime if the file is gone.
         ...kMetricArt.values,
         kBbtArt,
+        ...kProductArt.values,
       ].where((p) => !File(p).existsSync());
       expect(missing, isEmpty);
     });
@@ -260,6 +264,7 @@ void main() {
         kMedicationArt,
         ...kMetricArt.values,
         kBbtArt,
+        ...kProductArt.values,
       ]) {
         if (kRasterArt.contains(p)) continue;
         final colours = RegExp(r'(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"')
@@ -280,6 +285,7 @@ void main() {
         kMedicationArt,
         ...kMetricArt.values,
         kBbtArt,
+        ...kProductArt.values,
       ].where((p) => !p.endsWith('.svg') && !kRasterArt.contains(p));
       expect(
         undeclared,

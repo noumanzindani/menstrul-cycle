@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../common/option_art.dart';
 import '../models/product_type.dart';
 import '../providers/product_session_provider.dart';
 import '../services/product_timer_plan.dart';
+import 'track_art.dart';
 
 /// Smallest adjustable step, and the floor. Half an hour is finer than any
 /// real wear decision and coarse enough that the stepper never needs a keyboard.
@@ -27,6 +29,33 @@ const String kFollowInstructions =
 /// Home only renders this on days with logged bleeding, and nothing is ever
 /// scheduled until a chip is tapped — so the feature is opt-in by action rather
 /// than by a setting the user would have to go looking for.
+/// The Material fallback for a product with no illustration yet.
+IconData _iconFor(ProductType product) => switch (product) {
+      ProductType.pad => Icons.crop_portrait,
+      ProductType.tampon => Icons.water_drop_outlined,
+      ProductType.cupOrDisc => Icons.local_cafe_outlined,
+      ProductType.periodUnderwear => Icons.checkroom_outlined,
+    };
+
+/// A product chip's label: the mark, then the name.
+///
+/// Top-level because BOTH render sites need it and they live in different
+/// classes ([ProductTimerStartCard] and [_DurationSheetState]).
+///
+/// The mark goes in the chip's `label:` slot via [chipLabelArt], never the
+/// `avatar:` slot the ActionChip used before. `RawChip` paints a scrim over the
+/// avatar and draws the selection checkmark on top of it, so avatar art is
+/// obliterated in the selected state — harmless on an ActionChip, which has no
+/// selected state, but fatal on the ChoiceChip below, and using one slot for
+/// both keeps the two sites from drifting apart.
+Widget _productLabel(ProductType product) {
+  final art = kProductArt[product];
+  return chipLabelArt(
+    product.label,
+    art == null ? Icon(_iconFor(product), size: 18) : TrackArt(path: art),
+  );
+}
+
 class ProductTimerStartCard extends StatelessWidget {
   const ProductTimerStartCard({super.key});
 
@@ -64,8 +93,7 @@ class ProductTimerStartCard extends StatelessWidget {
               children: [
                 for (final product in ProductType.values)
                   ActionChip(
-                    avatar: Icon(_iconFor(product), size: 18),
-                    label: Text(product.label),
+                    label: _productLabel(product),
                     onPressed: () =>
                         context.read<ProductSessionProvider>().start(product),
                   ),
@@ -91,13 +119,6 @@ class ProductTimerStartCard extends StatelessWidget {
   /// A glyph per product, so the chip row is scannable rather than four
   /// same-shaped words. Presentation only — it lives here, not on
   /// [ProductType], because the model deliberately knows nothing about the UI.
-  IconData _iconFor(ProductType product) => switch (product) {
-        ProductType.pad => Icons.crop_portrait,
-        ProductType.tampon => Icons.water_drop_outlined,
-        ProductType.cupOrDisc => Icons.local_cafe_outlined,
-        ProductType.periodUnderwear => Icons.checkroom_outlined,
-      };
-
   void _openDurationSheet(BuildContext context) {
     final provider = context.read<ProductSessionProvider>();
     showModalBottomSheet<void>(
@@ -175,7 +196,7 @@ class _DurationSheetState extends State<_DurationSheet> {
               children: [
                 for (final product in ProductType.values)
                   ChoiceChip(
-                    label: Text(product.label),
+                    label: _productLabel(product),
                     selected: _product == product,
                     onSelected: (_) => _select(product),
                   ),

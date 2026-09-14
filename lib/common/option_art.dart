@@ -1,4 +1,5 @@
 import '../models/enums.dart';
+import '../models/product_type.dart';
 import 'catalog.dart';
 
 /// Per-option chip artwork, keyed by the STABLE [TrackOption.key].
@@ -244,6 +245,22 @@ const Map<String, String> kMetricArt = {
   kMetricSleep: 'assets/track/metric_sleep.png',
   kMetricEnergy: 'assets/track/metric_energy.png',
   kMetricStress: 'assets/track/metric_stress.png',
+};
+
+/// Marks for the menstrual products a change timer can run for.
+///
+/// PARTIAL on purpose: art exists for [ProductType.pad] and
+/// [ProductType.tampon] only. The render sites fall back to the Material icon
+/// they used before for the other two, so every product chip stays decorated
+/// and the gap shows as a style difference rather than as two bare chips in a
+/// row of four. Supply the remaining two and the fallback stops being reached.
+///
+/// Keyed by the enum rather than by name: [ProductType] is persisted BY NAME in
+/// the session payload (see its doc), so a string key here would look like part
+/// of that contract when it is only presentation.
+const Map<ProductType, String> kProductArt = {
+  ProductType.pad: 'assets/track/product_pad.png',
+  ProductType.tampon: 'assets/track/product_tampon.png',
 };
 
 /// The mark for the basal body temperature field — a [TextField], not a chip.
