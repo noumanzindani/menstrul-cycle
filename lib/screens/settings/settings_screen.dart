@@ -22,6 +22,7 @@ import '../../services/notification_service.dart';
 import '../../services/sync_trigger.dart';
 import '../../widgets/ad_banner.dart';
 import '../lock/setup_lock_screen.dart';
+import '../media/analysis_consent_sheet.dart';
 import '../medications/medications_screen.dart';
 import 'account_section.dart';
 import 'settings_group.dart';
@@ -1084,13 +1085,8 @@ class SettingsScreen extends StatelessWidget {
                   value: settings.isAnalysisConsentedFor(uid),
                   onChanged: uid == null
                       ? null
-                      : (v) async {
-                          if (v) {
-                            await settings.setAnalysisConsent(uid);
-                          } else {
-                            await settings.clearAnalysisConsent();
-                          }
-                        },
+                      : (v) => handlePhotoDescriptionsToggle(
+                          context, settings, v),
                 ),
               ListTile(
                 leading: Icon(Icons.delete_outline, color: scheme.error),
@@ -1132,6 +1128,45 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// The "Describe photos" switch's `onChanged` — pulled out to a named,
+  /// `@visibleForTesting` method because the switch itself is gated on
+  /// `analysisAvailable` (a compile-time `String.fromEnvironment`, false
+  /// under plain `flutter test`), so no widget test can reach it through
+  /// `SettingsScreen`'s tree. This lets a test drive the SAME code the
+  /// switch calls by wiring a bare `onChanged` straight to it.
+  ///
+  /// Turning ON must show the same disclosure the Describe button shows —
+  /// see `media_route.dart`'s `requestConsent`, which this mirrors exactly.
+  /// Persisting straight off the switch flip (the bug this replaced) stamped
+  /// `kCurrentConsentVersion` consent without the user ever seeing what that
+  /// version now discloses: `isAnalysisConsentedFor` reads OFF for a v1
+  /// (photo-only) consenter precisely so this branch can catch and re-ask
+  /// them, and a new user who finds Settings before tapping Describe must
+  /// see it too. Declining leaves the switch OFF for free — nothing is
+  /// persisted, so `settings.isAnalysisConsentedFor(uid)` (read by the
+  /// switch's `value:`) keeps reading false.
+  ///
+  /// Turning OFF stays a direct, unconfirmed clear — no sheet, no gate.
+  @visibleForTesting
+  static Future<void> handlePhotoDescriptionsToggle(
+    BuildContext context,
+    SettingsProvider settings,
+    bool enable,
+  ) async {
+    if (!enable) {
+      await settings.clearAnalysisConsent();
+      return;
+    }
+    final allowed = await showAnalysisConsentSheet(context);
+    if (allowed != true || !context.mounted) return;
+    // Re-read AFTER the sheet closes rather than reuse a uid captured
+    // earlier: the signed-in account can change while the modal is open,
+    // and consent belongs to whoever gave it just now.
+    final consentingUid = context.read<AuthProvider?>()?.user?.uid;
+    if (consentingUid == null) return;
+    await settings.setAnalysisConsent(consentingUid);
   }
 }
 

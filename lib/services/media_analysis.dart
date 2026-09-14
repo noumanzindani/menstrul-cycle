@@ -114,6 +114,27 @@ const int kMaxQuestionLength = 200;
 /// widened to cover a materially different disclosure.
 const int kCurrentConsentVersion = 2;
 
+/// Whether [uid] is consented, given the STORED [consentUid] / [consentVersion].
+///
+/// The one expression both the read and the gate must agree on:
+/// `SettingsProvider.isAnalysisConsentedFor` (what the Settings toggle
+/// renders) and `MediaAnalysisService.consented` / `analyze` (what actually
+/// allows a request) each call this rather than repeating the three-way
+/// comparison themselves. They used to duplicate it, and the write path
+/// (the Settings toggle's `onChanged`) drifted out of sync with the read path
+/// as a direct result — see `SettingsScreen.handlePhotoDescriptionsToggle`'s
+/// doc comment for that incident. A stored version below
+/// [kCurrentConsentVersion] reads as unconsented even when the uid matches:
+/// it means the account agreed to an earlier, narrower disclosure.
+bool isConsentedFor({
+  required String? uid,
+  required String? consentUid,
+  required int? consentVersion,
+}) =>
+    uid != null &&
+    consentUid == uid &&
+    consentVersion == kCurrentConsentVersion;
+
 /// The instruction that makes this feature shippable in a health app.
 ///
 /// **This string is a safety control, not copy.** It is what turns "an LLM

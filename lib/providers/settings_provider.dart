@@ -9,7 +9,8 @@ import '../common/tracking_categories.dart';
 import '../data/settings_repository.dart';
 import '../db/database.dart';
 import '../models/enums.dart';
-import '../services/media_analysis.dart' show kCurrentConsentVersion;
+import '../services/media_analysis.dart'
+    show isConsentedFor, kCurrentConsentVersion;
 
 /// Exposes the app-settings row and helpers to update common fields.
 class SettingsProvider extends ChangeNotifier {
@@ -164,10 +165,11 @@ class SettingsProvider extends ChangeNotifier {
   /// who agreed to the old, photo-only disclosure) saw the switch ON even
   /// though the gate now re-prompts them — a consent surface silently
   /// disagreeing with the consent it enforces.
-  bool isAnalysisConsentedFor(String? uid) =>
-      uid != null &&
-      analysisConsentUid == uid &&
-      analysisConsentVersion == kCurrentConsentVersion;
+  bool isAnalysisConsentedFor(String? uid) => isConsentedFor(
+        uid: uid,
+        consentUid: analysisConsentUid,
+        consentVersion: analysisConsentVersion,
+      );
 
   /// Advances the daily-cap counter.
   ///

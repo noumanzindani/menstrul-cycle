@@ -211,12 +211,11 @@ class MediaAnalysisService {
   /// Cheap and synchronous — deliberately NOT the full gate. It answers only
   /// "has this account opted in", which is what decides whether the button is
   /// shown versus whether a tap succeeds. The authoritative check is [analyze].
-  bool get consented {
-    final uid = _trigger.currentUid;
-    return uid != null &&
-        _consentUid() == uid &&
-        _consentVersion() == kCurrentConsentVersion;
-  }
+  bool get consented => isConsentedFor(
+        uid: _trigger.currentUid,
+        consentUid: _consentUid(),
+        consentVersion: _consentVersion(),
+      );
 
   /// How many analyses remain today.
   int get remainingToday {
@@ -275,10 +274,12 @@ class MediaAnalysisService {
     // on is told that, rather than being sent to a toggle that would not help.
     // Compared against the CURRENT uid: a consent recorded by another account on
     // this device is not this account's consent. Compared against
-    // kCurrentConsentVersion too: a stored version below current means the
-    // account agreed to an earlier, narrower disclosure (a photo, not the
-    // whole tracked health record) and must be asked again.
-    if (_consentUid() != uid || _consentVersion() != kCurrentConsentVersion) {
+    // kCurrentConsentVersion too (inside isConsentedFor): a stored version
+    // below current means the account agreed to an earlier, narrower
+    // disclosure (a photo, not the whole tracked health record) and must be
+    // asked again.
+    if (!isConsentedFor(
+        uid: uid, consentUid: _consentUid(), consentVersion: _consentVersion())) {
       return const AnalysisOutcome(blocked: AnalysisBlock.notConsented);
     }
     if (!isImage) {
