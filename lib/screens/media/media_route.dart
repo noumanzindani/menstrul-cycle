@@ -119,9 +119,7 @@ Route<void> mediaTimelineRoute(BuildContext context) {
         await sessionRepo.create(
           uid: uid,
           mediaId: mediaId,
-          // Literal until the next task introduces kCurrentConsentVersion,
-          // which will replace this — see the plan's Task 7 notes.
-          consentVersion: 2,
+          consentVersion: kCurrentConsentVersion,
         );
     await sessionRepo.append(
       sessionId: session.id,
@@ -139,6 +137,7 @@ Route<void> mediaTimelineRoute(BuildContext context) {
     analyzer: canAnalyze ? GeminiMediaAnalyzer() : const UnavailableMediaAnalyzer(),
     trigger: trigger,
     consentUid: () => settings.analysisConsentUid,
+    consentVersion: () => settings.analysisConsentVersion,
     readUsage: () => (
       day: settings.analysisCountDay,
       count: settings.analysisCountToday,

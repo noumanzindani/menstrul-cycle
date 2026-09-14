@@ -102,6 +102,7 @@ void main() {
 
   // Mutable consent + usage, standing in for the AppSettings columns.
   String? consentUid;
+  int? consentVersion;
   String? usageDay;
   int? usageCount;
 
@@ -121,6 +122,7 @@ void main() {
         analyzer: analyzer,
         trigger: trigger,
         consentUid: () => consentUid,
+        consentVersion: () => consentVersion,
         readUsage: () => (day: usageDay, count: usageCount),
         writeUsage: (d, c) async {
           usageDay = d;
@@ -155,6 +157,7 @@ void main() {
     sessionStore = _FakeSessionStore();
     claim = const ClaimRecord(uid: uid, declined: false);
     consentUid = uid;
+    consentVersion = kCurrentConsentVersion;
     usageDay = null;
     usageCount = null;
     trigger = await buildTrigger(uid);
@@ -195,6 +198,21 @@ void main() {
       expect(analyzer.calls, 0);
     });
 
+    test('a v1 consenter is not consented — the request now carries the '
+        'whole health record, not just a photo', () async {
+      consentVersion = 1;
+      final outcome = await run(buildService());
+      expect(outcome.blocked, AnalysisBlock.notConsented);
+      expect(analyzer.calls, 0);
+    });
+
+    test('a null version (never consented) reports notConsented', () async {
+      consentVersion = null;
+      final outcome = await run(buildService());
+      expect(outcome.blocked, AnalysisBlock.notConsented);
+      expect(analyzer.calls, 0);
+    });
+
     test('videos are never sent', () async {
       final outcome = await run(buildService(), isImage: false);
       expect(outcome.blocked, AnalysisBlock.notAnImage);
@@ -212,6 +230,7 @@ void main() {
         analyzer: analyzer,
         trigger: trigger,
         consentUid: () => consentUid,
+        consentVersion: () => consentVersion,
         readUsage: () => (day: usageDay, count: usageCount),
         writeUsage: (d, c) async {},
         persistTurn: sessionStore.persistTurn,
@@ -420,6 +439,29 @@ void main() {
 
     test('false when signed out', () async {
       trigger = await buildTrigger(null);
+      expect(buildService().consented, isFalse);
+    });
+
+    test('a v1 consenter is treated as not consented', () {
+      consentVersion = 1;
+      expect(buildService().consented, isFalse);
+    });
+
+    test('a v2 (current) consenter is consented', () {
+      consentVersion = kCurrentConsentVersion;
+      expect(buildService().consented, isTrue);
+    });
+
+    test('a null version (never consented) is not consented', () {
+      consentVersion = null;
+      expect(buildService().consented, isFalse);
+    });
+
+    test(
+        "a stored uid belonging to a different account is not consented "
+        'regardless of version', () {
+      consentUid = 'someone-else';
+      consentVersion = kCurrentConsentVersion;
       expect(buildService().consented, isFalse);
     });
   });

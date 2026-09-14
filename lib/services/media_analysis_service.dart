@@ -64,6 +64,7 @@ class MediaAnalysisService {
     required MediaAnalyzer analyzer,
     required SyncTrigger trigger,
     required String? Function() consentUid,
+    required int? Function() consentVersion,
     required AnalysisUsage Function() readUsage,
     required Future<void> Function(String day, int count) writeUsage,
     required Future<void> Function({
@@ -80,6 +81,7 @@ class MediaAnalysisService {
   })  : _analyzer = analyzer,
         _trigger = trigger,
         _consentUid = consentUid,
+        _consentVersion = consentVersion,
         _readUsage = readUsage,
         _writeUsage = writeUsage,
         _persistTurn = persistTurn,
@@ -89,6 +91,13 @@ class MediaAnalysisService {
   final MediaAnalyzer _analyzer;
   final SyncTrigger _trigger;
   final String? Function() _consentUid;
+
+  /// Which consent disclosure [_consentUid]'s account agreed to. Compared
+  /// against [kCurrentConsentVersion] everywhere [_consentUid] is compared
+  /// against the current uid — a stale version is exactly as unconsented as
+  /// no uid at all, because it means the account agreed to a narrower
+  /// disclosure than what this build actually sends.
+  final int? Function() _consentVersion;
   final AnalysisUsage Function() _readUsage;
   final Future<void> Function(String day, int count) _writeUsage;
 
@@ -152,7 +161,9 @@ class MediaAnalysisService {
   /// shown versus whether a tap succeeds. The authoritative check is [analyze].
   bool get consented {
     final uid = _trigger.currentUid;
-    return uid != null && _consentUid() == uid;
+    return uid != null &&
+        _consentUid() == uid &&
+        _consentVersion() == kCurrentConsentVersion;
   }
 
   /// How many analyses remain today.
@@ -211,8 +222,11 @@ class MediaAnalysisService {
     // Consent is checked AFTER the sync gates so a user who has not turned sync
     // on is told that, rather than being sent to a toggle that would not help.
     // Compared against the CURRENT uid: a consent recorded by another account on
-    // this device is not this account's consent.
-    if (_consentUid() != uid) {
+    // this device is not this account's consent. Compared against
+    // kCurrentConsentVersion too: a stored version below current means the
+    // account agreed to an earlier, narrower disclosure (a photo, not the
+    // whole tracked health record) and must be asked again.
+    if (_consentUid() != uid || _consentVersion() != kCurrentConsentVersion) {
       return const AnalysisOutcome(blocked: AnalysisBlock.notConsented);
     }
     if (!isImage) {

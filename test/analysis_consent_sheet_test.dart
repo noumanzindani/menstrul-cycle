@@ -91,6 +91,11 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    // The fuller disclosure no longer fits a 360x800 viewport in one page, so
+    // the sheet scrolls (see analysis_consent_sheet.dart) — a real tap would
+    // scroll to reach the button too.
+    await tester.ensureVisible(find.byKey(const Key('analysis-consent-allow')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('analysis-consent-allow')));
     await tester.pumpAndSettle();
     expect(answer, isTrue);
@@ -115,6 +120,8 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Not now'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Not now'));
     await tester.pumpAndSettle();
     expect(answer, isFalse);
@@ -133,6 +140,36 @@ void main() {
         .join(' ');
     for (final banned in ['safe', 'private', 'secure', 'encrypted', 'protected']) {
       expect(texts, isNot(contains(banned)), reason: 'banned word: $banned');
+    }
+  });
+
+  testWidgets('names the tracked health data that now travels with the photo',
+      (tester) async {
+    // The request no longer carries only a photo — it carries the whole
+    // tracked health record. Silently widening an existing consent is no
+    // consent at all, so the sheet must name what actually travels, not just
+    // gesture at "your data".
+    await setPhoneSize(tester);
+    await openSheet(tester);
+
+    final texts = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((t) => (t.data ?? '').toLowerCase())
+        .join(' ');
+
+    for (final mustName in [
+      'cycle',
+      'symptoms',
+      'mood',
+      'height',
+      'weight',
+      'discharge',
+      'sexual activity',
+      'contraception',
+      'diagnoses',
+      'diary',
+    ]) {
+      expect(texts, contains(mustName), reason: 'sheet must name: $mustName');
     }
   });
 }

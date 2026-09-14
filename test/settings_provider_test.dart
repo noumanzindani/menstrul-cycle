@@ -5,6 +5,7 @@ import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
+import 'package:menstrul_track/services/media_analysis.dart';
 
 void main() {
   late AppDatabase db;
@@ -82,6 +83,40 @@ void main() {
 
       expect(provider.weightUnit, 'lb');
       expect(provider.profileWeightKg, 61.2);
+    });
+  });
+
+  group('analysis consent', () {
+    test('is unset until the user opts in', () {
+      expect(provider.analysisConsentUid, isNull);
+      expect(provider.analysisConsentVersion, isNull);
+    });
+
+    test('setAnalysisConsent persists both the uid and the current version',
+        () async {
+      await provider.setAnalysisConsent('uid-1');
+
+      expect(provider.analysisConsentUid, 'uid-1');
+      expect(provider.analysisConsentVersion, kCurrentConsentVersion);
+    });
+
+    test('setAnalysisConsent can record an explicit version', () async {
+      // Exercised by nothing in production today, but the parameter exists
+      // precisely so a caller is never forced to claim consent to the
+      // CURRENT disclosure when recording an older one.
+      await provider.setAnalysisConsent('uid-1', version: 1);
+
+      expect(provider.analysisConsentUid, 'uid-1');
+      expect(provider.analysisConsentVersion, 1);
+    });
+
+    test('clearAnalysisConsent withdraws both the uid and the version',
+        () async {
+      await provider.setAnalysisConsent('uid-1');
+      await provider.clearAnalysisConsent();
+
+      expect(provider.analysisConsentUid, isNull);
+      expect(provider.analysisConsentVersion, isNull);
     });
   });
 }

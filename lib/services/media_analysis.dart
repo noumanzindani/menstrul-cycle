@@ -88,6 +88,18 @@ const int kMaxChatTurns = 10;
 /// anchored to the image rather than to a wall of instructions.
 const int kMaxQuestionLength = 200;
 
+/// The disclosure the current consent sheet makes.
+///
+/// Bumped from 1 when the request stopped carrying only a photo and started
+/// carrying the tracked health record (cycle and period history, symptoms and
+/// mood, height, weight and the BMI readout, discharge, sexual activity and
+/// masturbation, libido, contraception, clinician-given diagnoses, and diary
+/// notes — see `buildHealthContext` in `health_context.dart`). A stored
+/// version below this reads as not consented, so everyone who agreed to the
+/// photo-only sheet is asked again rather than having their consent silently
+/// widened to cover a materially different disclosure.
+const int kCurrentConsentVersion = 2;
+
 /// The instruction that makes this feature shippable in a health app.
 ///
 /// **This string is a safety control, not copy.** It is what turns "an LLM

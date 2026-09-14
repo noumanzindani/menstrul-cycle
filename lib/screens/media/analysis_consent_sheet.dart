@@ -1,15 +1,28 @@
 import 'package:flutter/material.dart';
 
-/// Asks once, before any photo is sent out for description.
+/// Asks once, before any photo — and the tracked health record that now rides
+/// alongside it — is sent out for description.
 ///
 /// ## The copy is the disclosure
 ///
-/// This sheet is the only place a user is told that a photo leaves both their
-/// device AND their own account, to a company that is not the app. Everything
-/// here is what the code does today: it names Google, says the photo is sent
-/// rather than "processed", says LunaTrack does not keep the answer, and does
-/// not promise anything about what Google does with it — because the app has no
-/// authority over that and cannot honestly speak for it.
+/// This sheet is the only place a user is told that a photo, together with
+/// what they have tracked, leaves both their device AND their own account, to
+/// a company that is not the app. Everything here is what the code does
+/// today: it names Google, says the photo and the listed data are sent rather
+/// than "processed", names the categories that travel (see
+/// `buildHealthContext` in `health_context.dart` for the exact set), says
+/// LunaTrack does not keep the answer, and does not promise anything about
+/// what Google does with it — because the app has no authority over that and
+/// cannot honestly speak for it.
+///
+/// ## Why this sheet has a version (`kCurrentConsentVersion`)
+///
+/// The request used to carry only the photo. It now carries the whole tracked
+/// health record too — a materially different disclosure. Widening what an
+/// existing "Allow" covers, without asking again, would not be consent to the
+/// new thing at all. `MediaAnalysisService.consented` therefore checks the
+/// stored consent version as well as the uid, so an account that agreed to the
+/// old, narrower sheet is asked again rather than being carried forward.
 ///
 /// GUARDRAIL: no "safe", "private", "secure", "encrypted" or "protected"
 /// anywhere in this file. The bytes are unencrypted in Cloud Storage already,
@@ -36,7 +49,13 @@ class _AnalysisConsentSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SafeArea(
-      child: Padding(
+      // The copy now names every tracked category the request carries, which
+      // no longer reliably fits a short screen in one page — see
+      // `claim_local_data_sheet.dart` for the same fix on the same problem:
+      // the sheet sizes to its content (`isScrollControlled: true` on the
+      // call site) and the content scrolls inside it, so the two buttons are
+      // never the part that falls off the bottom.
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -46,15 +65,20 @@ class _AnalysisConsentSheet extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'To describe a photo, LunaTrack sends it to Google, an automatic '
-              'image-recognition service outside LunaTrack. This happens only '
-              'when you tap Describe on a photo — never on its own, and never '
-              'to your other photos.',
+              'image-recognition service outside LunaTrack, together with what '
+              'you have tracked: your cycle and period history, symptoms and '
+              'mood, height and weight, discharge, sexual activity and '
+              'masturbation, libido, contraception, any diagnoses a clinician '
+              'has given you, and your diary notes. This happens only when '
+              'you tap Describe on a photo — never on its own, and never to '
+              'your other photos.',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
             Text(
-              'LunaTrack does not keep the description. It is shown to you and '
-              'discarded when you close the photo.',
+              'LunaTrack keeps the conversation about a photo on this device, '
+              'tied to that photo, so you can reopen it. Deleting the photo '
+              'deletes the conversation with it.',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
