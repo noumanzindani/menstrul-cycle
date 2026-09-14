@@ -29,7 +29,7 @@ import 'package:menstrul_track/services/sync_trigger.dart';
 /// up. Three rounds of guarding individual `show*` call sites each missed a
 /// variant; the fix is `MaterialApp.builder`, which wraps the navigator.
 ///
-/// These tests pump the REAL [LunaTrackApp] rather than a hand-built harness,
+/// These tests pump the REAL [LunarFlowApp] rather than a hand-built harness,
 /// for one specific reason: the fix lives in `main.dart`'s `builder:` argument,
 /// and a harness that built its own `MaterialApp` could pass while the app
 /// shipped without it.
@@ -99,7 +99,7 @@ void main() {
   Future<SyncTrigger> launch(WidgetTester tester) async {
     final trigger = buildTrigger();
     await tester.pumpWidget(
-      LunaTrackApp(
+      LunarFlowApp(
         database: db,
         authService: _FakeSignedInAuthService(),
         syncTrigger: trigger,

@@ -285,6 +285,8 @@ class SettingsProvider extends ChangeNotifier {
     String? soloFrequency,
     String? libido,
     Set<String> history = const {},
+    Set<String> soloWays = const {},
+    String? satisfactionTime,
   }) =>
       update(AppSettingsCompanion(
         sexualHealthBaseline: Value(encodeSexualBaseline(
@@ -292,6 +294,8 @@ class SettingsProvider extends ChangeNotifier {
           soloFrequency: soloFrequency,
           libido: libido,
           history: history,
+          soloWays: soloWays,
+          satisfactionTime: satisfactionTime,
         )),
       ));
 

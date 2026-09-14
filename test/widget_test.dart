@@ -9,7 +9,7 @@ import 'package:menstrul_track/services/auth_service.dart';
 import 'package:menstrul_track/services/sync_trigger.dart';
 
 /// A fake that reports an already-signed-in user immediately. These tests
-/// pump the real [LunaTrackApp] (not just [AppGate]), so the default
+/// pump the real [LunarFlowApp] (not just [AppGate]), so the default
 /// [FirebaseAuthService] would touch `FirebaseAuth.instance` with no Firebase
 /// app initialized. Signed-in-from-the-start lets these tests keep exercising
 /// onboarding/home without also standing up sign-in.
@@ -49,7 +49,7 @@ void main() {
     addTearDown(db.close);
 
     await tester.pumpWidget(
-      LunaTrackApp(
+      LunarFlowApp(
         database: db,
         authService: _FakeSignedInAuthService(),
         syncTrigger: _testSyncTrigger(db),
@@ -57,7 +57,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome to LunaTrack'), findsOneWidget);
+    expect(find.text('Welcome to LunarFlow'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);
     // Not yet in the main app.
     expect(find.byType(NavigationBar), findsNothing);
@@ -73,7 +73,7 @@ void main() {
         .write(const AppSettingsCompanion(onboardingComplete: Value(true)));
 
     await tester.pumpWidget(
-      LunaTrackApp(
+      LunarFlowApp(
         database: db,
         authService: _FakeSignedInAuthService(),
         syncTrigger: _testSyncTrigger(db),

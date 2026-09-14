@@ -4,7 +4,7 @@ Guidance for Claude Code (and human contributors) working in this repository.
 
 ## Project overview
 
-**LunaTrack** is a menstrual/period tracker built with Flutter, with an account and
+**LunarFlow** is a menstrual/period tracker built with Flutter, with an account and
 cross-device sync.
 
 The original thesis was "$0 running cost" and "privacy" are the same decision → 100%
@@ -170,11 +170,17 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
     breastfeeding + since-date. Vocabularies are `kContraceptionOptions` / `kDiagnosisOptions`.
     Stored as STABLE STRING KEYS, never enum indices — the lists will grow, and an index
     renumbers every stored answer the day someone inserts a value in the middle.
-  - **Frequency questions were deliberately NOT asked.** "Do you get discharge daily /
-    weekly / monthly?" asks the user to summarise data the app already holds better; the
-    answer goes stale immediately and disagrees with the logs. Log the thing, derive the
-    frequency. Same reason preferred methods and time-to-orgasm are absent: no
-    gynaecological signal, maximum sensitivity.
+  - **Frequency questions were deliberately NOT asked** — for the DAY EDITOR. "Do you get
+    discharge daily / weekly / monthly?" asks the user to summarise data the app already
+    holds better; the answer goes stale immediately and disagrees with the logs. Log the
+    thing, derive the frequency. The signup baseline below is the deliberate exception
+    (a new user has no logs to derive from).
+    **Preferred methods and time-to-orgasm were excluded on the same grounds, and that
+    ruling was REVERSED by the owner on 2026-09-14.** Both are now asked at signup, as
+    REQUIRED answers (`kIntimacyWaysOptions`, `kSatisfactionTimeOptions`, stored in the
+    `SexualBaseline` JSON). The original objection stands on its merits — neither carries
+    a gynaecological signal, and both are among the most sensitive things this app stores
+    — and was overridden. Do not "fix" it back; raise it with the owner.
   - **Tier 2 is half derived.** Intermenstrual bleeding and pelvic-pain-outside-period
     needed no new question — both fall out of days already logged, in
     `InsightsService.patternNudges`. Note the trap: `CycleCalculator` splits EVERY bleeding
@@ -216,7 +222,26 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
     frequency from the logs" — a new user has no logs, which is exactly when context is
     scarcest. **`saveDay` REPLACES a day**, so when the last-period date IS today the flow
     and the seeded tags must be ONE write; two would erase the period the user just entered
-    (`onboarding_profile_test.dart` pins this). An all-empty today writes NO row at all.
+    (`onboarding_profile_test.dart` pins this). The empty-today guard (write NO row) is kept
+    but is now UNREACHABLE through the wizard: every "today" answer is required as of
+    2026-09-14, and a user with nothing to report picks explicit NONE markers
+    (`sex_none`, `shx_none`, `slf_none`), which are real content. Signup day therefore
+    always produces exactly one row.
+  - **A required answer needs an answer everyone can give (2026-09-14).** Making a question
+    mandatory is only safe if its options cover every honest situation; otherwise the
+    wizard DEADLOCKS and the app cannot be opened at all. Three sets had no such option and
+    gained one: `kSexualHistoryOptions` and `kSexualHealthOptions` (`kShxNone`, "None of
+    these") and `kIntimacyOptions` (`kSoloNone`, "Not today") — the last was a one-member
+    list, so a required answer would have forced every new user to claim they had
+    masturbated that day. The escape keys are MUTUALLY EXCLUSIVE with the real answers
+    (`_toggleExclusive`), or a stored history could say "never had any of these" and "had
+    pain during sex" at once. `test/onboarding_required_test.dart` completes the whole
+    wizard using only escape answers; that test is the deadlock guard, not a formality.
+    Labels avoid the bare word "None" because `kSexOptions` owns it and `gyn_catalog_test`
+    enforces globally unique labels.
+  - **Continue is the only exit.** The refusals live on the Continue path, so the
+    onboarding `PageView` is `NeverScrollableScrollPhysics` — a swipeable one would make
+    every check advisory. `_finish` re-checks every page anyway, as defence in depth.
 - **Prediction is the calendar method**, always labelled an estimate and **never a
   contraceptive method**. Fertile window is awareness-only.
 - **Fertility indicator is a qualitative band, never a number** (`FertilityBand` enum,
@@ -261,14 +286,14 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
 - **Never `FirebaseFirestore.instance` — always `lunaFirestore()`**
   (`lib/services/firestore_ref.dart`). `.instance` targets `(default)`, and a `(default)`
   database carries ONE ruleset for every app in the project, so a permissive rule written
-  for an unrelated app would expose menstrual logs. LunaTrack uses the **named** database
+  for an unrelated app would expose menstrual logs. LunarFlow uses the **named** database
   `lunatrack-db` (`kLunaDatabaseId`), which has its own independent ruleset. `grep -rn
   "FirebaseFirestore.instance" lib/` must return nothing.
   The project is **`teddy-2-20649`**, named in the tracked `firebase.json`. The named
   database `lunatrack-db` exists (created 2026-08-12) and holds `users` and
   `deletionRequests`. An older `lunatrack` database also exists, created via gcloud and
   therefore ignoring deployed rules — it is EMPTY and abandoned; do not write to it.
-  The owner's option to move LunaTrack to a dedicated project is still open, so keep
+  The owner's option to move LunarFlow to a dedicated project is still open, so keep
   reading the id from config rather than hardcoding it in Dart.
 - **`firestore.rules` is the entire privacy boundary, and it IS deployed** — to
   `cloud.firestore/lunatrack-db`, byte-identical to this file (verified 2026-09-14
@@ -351,7 +376,7 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
 - **A photo description is never an interpretation.** The model may describe what is
   visible; it may never name a condition, estimate severity or advise treatment. That is
   enforced by `kAnalysisSystemInstruction` (asserted clause-by-clause in
-  `media_analysis_test.dart`), and LunaTrack itself never synthesizes a reading from the
+  `media_analysis_test.dart`), and LunarFlow itself never synthesizes a reading from the
   answer. Same ground that vetoed LH-strip auto-interpretation. (It once vetoed a BMI label
   too; the owner reversed that on 2026-09-13 — see Weight tracking. The photo-description
   ruling is untouched by that reversal.) The
@@ -379,7 +404,7 @@ question about whether the ruling changed — not about how to make the test pas
   (a bar is a countdown in pixels). The only permitted framing for a passed target is
   *"past the Nh **you set**"* — the target is the user's, so the app is never the one
   calling it late.
-- **LunaTrack never authors a duration.** Caps are *attributed* ("Tampon packaging
+- **LunarFlow never authors a duration.** Caps are *attributed* ("Tampon packaging
   generally says…"), never asserted. A duration presented as the app's opinion is a medical
   claim; the same duration attributed to the box is not. Caps are a **refusal** (the stepper
   stops), not a silent clamp.
@@ -545,8 +570,11 @@ question about whether the ruling changed — not about how to make the test pas
   through `SettingsProvider`'s four getters and four nullable setters, all routed via
   `update()` so they stamp `settingsUpdatedAt`. **Collected in onboarding** (the wizard is
   now 7 pages: a date-of-birth page and a height / current-weight / age-at-first-period
-  page), where **every one is skippable and a skip stores null** — null is "not answered",
-  never a default. **Edited in Settings** → the "Profile" group under `AccountSection`.
+  page), where **every one is now REQUIRED** (owner decision, 2026-09-14). They used to be
+  skippable with a skip storing null; the wizard now refuses to advance past an unanswered
+  question, and a BLANK measurement field is a refusal rather than a null. Null still means
+  "not answered" in the column — it is simply no longer reachable through onboarding, and
+  stays reachable by clearing a field in Settings, so no read path may assume non-null. **Edited in Settings** → the "Profile" group under `AccountSection`.
   Both hosts parse through the `catalog.dart` helpers into canonical cm/kg and **refuse**
   out-of-range input inline (range checked AFTER unit conversion) rather than clamping.
   **Height has no unit column of its own** — it reuses `AppSettings.weightUnit`
@@ -837,7 +865,7 @@ on accounts/infrastructure:
   erasure is not automatic.
 - **Deploy `firestore.rules`** to the named `lunatrack` database. Nothing is enforced
   server-side today.
-- **Settle which Firebase project LunaTrack belongs in** and commit a correct
+- **Settle which Firebase project LunarFlow belongs in** and commit a correct
   `firebase.json`. See the TODO in "Key design decisions".
 - Real upload keystore (release is debug-signed today).
 - Real AdMob app + unit IDs (currently Google **test** IDs — flip `AdConfig.useTestAds`,
@@ -870,8 +898,10 @@ only checked that the ad hid, not that the entry form actually rendered.
 
 Two suites, and `flutter test` does not cover the second:
 
-- `flutter test` — **1109** Dart tests. (Keep this number current; a stale one makes a
-  real regression look like a miscount.)
+- `flutter test` — **1141** passing, 3 skipped, **2 failing**. (Keep this number current; a
+  stale one makes a real regression look like a miscount.) The two failures are
+  PRE-EXISTING and not in this lane: `firebase_unavailable_test.dart` taps
+  `Icons.settings_outlined`, which `409973a` replaced with an illustrated nav mark.
 - `firebase_test/run.sh` — **39** Firestore rules tests against a LOCAL emulator
   (`demo-lunatrack`; firebase-tools treats any `demo-*` id as emulator-only, and there is
   deliberately no `.firebaserc`, so no command here can fall into a real project). Needs

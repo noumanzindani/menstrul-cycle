@@ -9,7 +9,7 @@ import 'package:menstrul_track/services/auth_service.dart';
 import 'package:menstrul_track/services/sync_trigger.dart';
 
 /// Covers the physical-device crash reported on DE2118 (Android 12): building
-/// [LunaTrackApp] with no usable Firebase app used to construct
+/// [LunarFlowApp] with no usable Firebase app used to construct
 /// `AuthProvider(FirebaseAuthService())` directly inside a `create:` callback,
 /// which touches `FirebaseAuth.instance` -> `Firebase.app()` and throws
 /// `[core/no-app]` DURING BUILD, taking down the entire widget tree (see
@@ -18,7 +18,7 @@ import 'package:menstrul_track/services/sync_trigger.dart';
 ///
 /// The owner's ruling: a missing/failed Firebase app must leave a rendering,
 /// sync-disabled app, with a non-silent notice in Settings -> Account. These
-/// tests exercise `LunaTrackApp.firebaseAvailable` -- the single value
+/// tests exercise `LunarFlowApp.firebaseAvailable` -- the single value
 /// `main()`'s `initializeFirebase()` computes and the ONLY thing that decides
 /// this behaviour (see `FirebaseAvailability`'s doc comment) -- rather than
 /// re-deriving "is Firebase up" from some second signal that could disagree.
@@ -26,7 +26,7 @@ import 'package:menstrul_track/services/sync_trigger.dart';
 /// A fake, already-signed-in [AuthService] is injected here (the same seam
 /// `test/widget_test.dart` uses) purely to get PAST `AppGate`'s
 /// account-required gate so these tests can reach Settings at all; it is
-/// deliberately independent of [LunaTrackApp.firebaseAvailable] -- these tests
+/// deliberately independent of [LunarFlowApp.firebaseAvailable] -- these tests
 /// are about what `AccountSection` shows once Firebase is known to be down,
 /// not about how a user actually got signed in on such a device (see the task
 /// report for why that combination cannot occur on a real device with today's
@@ -52,7 +52,7 @@ class _FakeSignedInAuthService implements AuthService {
 
 /// Reports signed OUT immediately -- for proving the ordinary sign-in wall
 /// still renders when Firebase is unavailable is irrelevant to it (a fake is
-/// used either way; only [LunaTrackApp.firebaseAvailable] changes).
+/// used either way; only [LunarFlowApp.firebaseAvailable] changes).
 class _FakeSignedOutAuthService implements AuthService {
   @override
   Stream<AppUser?> authStateChanges() => Stream.value(null);
@@ -112,7 +112,7 @@ void main() {
     addTearDown(db.close);
 
     await tester.pumpWidget(
-      LunaTrackApp(
+      LunarFlowApp(
         database: db,
         firebaseAvailable: false,
         authService: _FakeSignedInAuthService(),
@@ -147,7 +147,7 @@ void main() {
     addTearDown(db.close);
 
     await tester.pumpWidget(
-      LunaTrackApp(
+      LunarFlowApp(
         database: db,
         firebaseAvailable: true,
         authService: _FakeSignedInAuthService(),
@@ -174,7 +174,7 @@ void main() {
     addTearDown(db.close);
 
     await tester.pumpWidget(
-      LunaTrackApp(
+      LunarFlowApp(
         database: db,
         firebaseAvailable: true,
         authService: _FakeSignedOutAuthService(),
@@ -208,7 +208,7 @@ void main() {
     addTearDown(db.close);
 
     await tester.pumpWidget(
-      LunaTrackApp(
+      LunarFlowApp(
         database: db,
         firebaseAvailable: false,
         syncTrigger: _testSyncTrigger(db),

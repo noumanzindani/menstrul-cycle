@@ -56,7 +56,7 @@ void main() {
         .write(const AppSettingsCompanion(onboardingComplete: Value(true)));
 
     final trigger = _CountingSyncTrigger(db);
-    await tester.pumpWidget(LunaTrackApp(
+    await tester.pumpWidget(LunarFlowApp(
       database: db,
       authService: _FakeSignedInAuthService(),
       syncTrigger: trigger,

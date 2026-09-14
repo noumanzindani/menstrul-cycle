@@ -254,6 +254,14 @@ const List<TrackOption> kVaginalOptions = [
 /// Sexual-health flags (boolean multi-select, [kSexualHealthKeyPrefix]).
 /// Sensitive → excluded from the doctor PDF by default.
 const List<TrackOption> kSexualHealthOptions = [
+  // The escape option, and the reason it exists is NOT symmetry with the other
+  // chips: onboarding makes this set a REQUIRED answer, and every other member
+  // asserts that something happened. Without a key meaning "nothing did", a
+  // user who did not have sex today cannot answer truthfully and the wizard
+  // cannot be completed at all. Labelled "None of these" rather than "None"
+  // because `kSexOptions` already owns that bare word and labels are globally
+  // unique -- see `gyn_catalog_test`.
+  TrackOption(kShxNone, 'None of these'),
   TrackOption('shx_condom', 'Condom used'),
   TrackOption('shx_emergency', 'Emergency contraception'),
   TrackOption('shx_pain', 'Pain during sex'),
@@ -336,8 +344,21 @@ const List<TrackOption> kSkinOptions = [
 /// to orgasm are deliberately absent: they carry no gynaecological signal while
 /// being among the most sensitive things this app could store.
 const List<TrackOption> kIntimacyOptions = [
+  // Same requirement as [kShxNone], and sharper here: this list had exactly one
+  // member, so a required answer without an escape key would have forced every
+  // new user to claim they had masturbated TODAY in order to finish signup.
+  TrackOption(kSoloNone, 'Not today'),
   TrackOption('slf_masturbation', 'Masturbation'),
 ];
+
+/// "Nothing in this group applies to me."
+///
+/// Two keys rather than one shared key because they live in different
+/// namespaces, and the namespace is what keeps each out of the doctor PDF:
+/// both `shx_` and `slf_` are in [kReservedTagPrefixes], so neither escape
+/// answer is ever read back as a symptom.
+const String kShxNone = 'shx_none';
+const String kSoloNone = 'slf_none';
 
 /// Libido level (single-select, [kLibidoKeyPrefix]).
 ///
@@ -447,10 +468,52 @@ const List<TrackOption> kFrequencyOptions = [
 /// for the baseline would let the two drift into meaning different things, and
 /// nothing could then reconcile them.
 const List<TrackOption> kSexualHistoryOptions = [
+  // Reuses the day-tag key, exactly as the three below it do. "Never had any of
+  // these" and "none of these happened today" are the same claim at two time
+  // scales, which is the rule this list already follows.
+  TrackOption(kShxNone, 'None of these'),
   TrackOption('shx_pain', 'Pain during sex'),
   TrackOption('shx_post_coital', 'Bleeding after sex'),
   TrackOption('vag_dryness', 'Dryness'),
 ];
+
+/// How the user masturbates, and how long it takes them to be satisfied.
+///
+/// **These were previously excluded on purpose.** The comment on
+/// [kIntimacyOptions] used to read: "Preferred methods and time to orgasm are
+/// deliberately absent: they carry no gynaecological signal while being among
+/// the most sensitive things this app could store." That judgement was correct
+/// on both counts and was overridden by the owner on 2026-09-14, who asked for
+/// both questions as REQUIRED signup answers. Recorded here so the next reader
+/// does not mistake the reversal for an oversight and quietly undo it.
+///
+/// Baseline-only: these never enter the day-tags blob, so their prefixes are
+/// deliberately NOT in [kReservedTagPrefixes] -- there is nothing to exclude
+/// them from. `slfw_` does not match the `slf_` prefix, which is what keeps
+/// that true.
+///
+/// Both carry a decline option. A required question about this is the strongest
+/// case in the app for an answer that means "I am not telling you", and it is
+/// stored as a real key so declining stays distinguishable from never-asked.
+const List<TrackOption> kIntimacyWaysOptions = [
+  TrackOption('slfw_hands', 'Hands'),
+  TrackOption('slfw_toy', 'Toy or vibrator'),
+  TrackOption('slfw_water', 'Water'),
+  TrackOption('slfw_other', 'Other'),
+  TrackOption(kSoloWayPrivate, 'Prefer not to say'),
+];
+
+const List<TrackOption> kSatisfactionTimeOptions = [
+  TrackOption('sat_under5', 'Under 5 minutes'),
+  TrackOption('sat_5_15', '5-15 minutes'),
+  TrackOption('sat_15_30', '15-30 minutes'),
+  TrackOption('sat_over30', 'Over 30 minutes'),
+  TrackOption('sat_never', "Doesn't happen"),
+  TrackOption(kSatPrivate, 'Prefer not to answer'),
+];
+
+const String kSoloWayPrivate = 'slfw_private';
+const String kSatPrivate = 'sat_private';
 
 /// The signup answers to the questions a first-run wizard can meaningfully ask:
 /// what is TYPICALLY true, rather than what happened today.
@@ -465,6 +528,8 @@ class SexualBaseline {
     this.soloFrequency,
     this.libido,
     this.history = const {},
+    this.soloWays = const {},
+    this.satisfactionTime,
   });
 
   /// A `freq_` key from [kFrequencyOptions], or null when skipped.
@@ -478,11 +543,20 @@ class SexualBaseline {
   /// Keys from [kSexualHistoryOptions] the user has ever experienced.
   final Set<String> history;
 
+  /// Keys from [kIntimacyWaysOptions]. Multi-select: more than one way is the
+  /// common case, which is why this is a set and [satisfactionTime] is not.
+  final Set<String> soloWays;
+
+  /// A `sat_` key from [kSatisfactionTimeOptions], or null when unanswered.
+  final String? satisfactionTime;
+
   bool get isEmpty =>
       sexFrequency == null &&
       soloFrequency == null &&
       libido == null &&
-      history.isEmpty;
+      history.isEmpty &&
+      soloWays.isEmpty &&
+      satisfactionTime == null;
 }
 
 String? _validKey(List<TrackOption> options, Object? raw) {
@@ -503,11 +577,15 @@ String? encodeSexualBaseline({
   String? soloFrequency,
   String? libido,
   Set<String> history = const {},
+  Set<String> soloWays = const {},
+  String? satisfactionTime,
 }) {
   if (sexFrequency == null &&
       soloFrequency == null &&
       libido == null &&
-      history.isEmpty) {
+      history.isEmpty &&
+      soloWays.isEmpty &&
+      satisfactionTime == null) {
     return null;
   }
   return jsonEncode({
@@ -515,6 +593,8 @@ String? encodeSexualBaseline({
     'soloFrequency': ?soloFrequency,
     'libido': ?libido,
     if (history.isNotEmpty) 'history': history.toList(),
+    if (soloWays.isNotEmpty) 'soloWays': soloWays.toList(),
+    'satisfactionTime': ?satisfactionTime,
   });
 }
 
@@ -528,6 +608,7 @@ SexualBaseline decodeSexualBaseline(String? json) {
     final decoded = jsonDecode(json);
     if (decoded is! Map) return const SexualBaseline();
     final rawHistory = decoded['history'];
+    final rawWays = decoded['soloWays'];
     return SexualBaseline(
       sexFrequency: _validKey(kFrequencyOptions, decoded['sexFrequency']),
       soloFrequency: _validKey(kFrequencyOptions, decoded['soloFrequency']),
@@ -538,6 +619,14 @@ SexualBaseline decodeSexualBaseline(String? json) {
               for (final e in rawHistory)
                 if (_validKey(kSexualHistoryOptions, e) != null) e as String,
             },
+      soloWays: rawWays is! List
+          ? const {}
+          : {
+              for (final e in rawWays)
+                if (_validKey(kIntimacyWaysOptions, e) != null) e as String,
+            },
+      satisfactionTime:
+          _validKey(kSatisfactionTimeOptions, decoded['satisfactionTime']),
     );
   } catch (_) {
     return const SexualBaseline();

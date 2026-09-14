@@ -243,6 +243,10 @@ void main() {
         'shx_emergency',
         'shx_pain',
         'shx_post_coital',
+        // Absence markers, not a harm decision -- see option_art.dart. Pinned
+        // here like the rest so that DRAWING one still has to be deliberate.
+        kShxNone,
+        kSoloNone,
       };
       expect(kNoArtKeys, textOnly);
       for (final k in textOnly) {

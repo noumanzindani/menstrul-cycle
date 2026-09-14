@@ -176,7 +176,8 @@ const Map<String, String> kOptionArt = {
 /// computed from group membership — `test/option_art_test.dart` therefore pins
 /// it against a hand-written list instead.
 ///
-/// Seven keys, one rule: the harm is someone ELSE reading the screen. A
+/// Six keys, no longer one rule: four are the harm of someone ELSE reading the
+/// screen, and two are absence markers with nothing to draw. A
 /// pictogram is parsed in a glance where a word is not, and this app ships an
 /// app-lock precisely because this data is sensitive.
 ///
@@ -221,6 +222,15 @@ const Set<String> kNoArtKeys = {
   'shx_emergency',
   'shx_pain',
   'shx_post_coital',
+  // A THIRD reason, and neither of the two above it. These are absence
+  // markers -- "none of these" and "not today" -- added on 2026-09-14 when the
+  // sexual-health answers became required at signup and each set needed an
+  // answer a user could give truthfully. There is no harm decision here and no
+  // legibility dispute: there is simply nothing to draw. They sit here because
+  // the partition admits no third state, NOT because art was forbidden, so
+  // supplying a mark for either is a free choice rather than a reversal.
+  kShxNone,
+  kSoloNone,
 };
 
 /// The one icon shared by every user-created medication row.

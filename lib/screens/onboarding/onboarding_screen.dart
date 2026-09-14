@@ -93,8 +93,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final Set<String> _todaySexualHealth = {};
   String? _todayLibido;
   final Set<String> _todayIntimacy = {};
+  final Set<String> _soloWays = {};
+  String? _satisfactionTime;
   String? _heightError;
   String? _weightError;
+  String? _menarcheError;
+  /// The refusal message for the page the user is on, or null when it is
+  /// answered. Rendered above Continue rather than inside each page widget so
+  /// that adding a required question cannot forget to add somewhere to say so.
+  String? _pageError;
 
   @override
   void dispose() {
@@ -104,11 +111,71 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
+  /// The reason [page] may not be left yet, or null when it is answered.
+  ///
+  /// Every answer in this wizard is REQUIRED as of 2026-09-14. The wizard used
+  /// to treat a skip as a first-class answer storing NULL; it no longer does,
+  /// and the escape options (`None of these`, `Not today`, `Prefer not to
+  /// say`) are what keep each question answerable for a user the question does
+  /// not apply to. Removing one of those options without removing the matching
+  /// check here makes the app impossible to open.
+  ///
+  /// The two pages absent from this switch are absent on purpose: cycle length
+  /// and the mode page hold real defaults, so they have no unanswered state to
+  /// refuse.
+  String? _requiredAnswerMissing(int page) {
+    switch (page) {
+      case 2:
+        return _lastPeriod == null ? 'Pick a date to continue.' : null;
+      case 4:
+        return _dateOfBirth == null
+            ? 'Pick your date of birth to continue.'
+            : null;
+      case _profilePage:
+        // Delegated to [_readProfile], which owns the inline field errors.
+        return null;
+      case 6:
+        return _contraception == null
+            ? 'Choose a method to continue. "None" is an answer.'
+            : null;
+      case 7:
+        return _sexFrequency == null || _todaySex == null
+            ? 'Answer both questions to continue.'
+            : null;
+      case 8:
+        return _sexualHistory.isEmpty ||
+                _baselineLibido == null ||
+                _todaySexualHealth.isEmpty ||
+                _todayLibido == null
+            ? 'Answer every question to continue. "None of these" is an answer.'
+            : null;
+      case 9:
+        return _soloFrequency == null ||
+                _todayIntimacy.isEmpty ||
+                _soloWays.isEmpty ||
+                _satisfactionTime == null
+            ? 'Answer every question to continue.'
+            : null;
+      default:
+        return null;
+    }
+  }
+
+  /// True when [page] may be left. Sets the message the refusal shows.
+  bool _pageAnswered(int page) {
+    // The profile page's two typed measurements can be WRONG rather than
+    // merely absent, so it keeps its own reader and its own field-level errors.
+    if (page == _profilePage) return _readProfile();
+    final error = _requiredAnswerMissing(page);
+    setState(() => _pageError = error);
+    return error == null;
+  }
+
   void _next() {
-    // Leaving the profile page re-reads the two typed measurements. An
-    // unusable one is REFUSED: the wizard stays put showing an inline error
-    // rather than advancing with a silently clamped value.
-    if (_page == _profilePage && !_readProfile()) return;
+    // An unanswered or unusable question is REFUSED: the wizard stays put
+    // showing the reason rather than advancing and storing a null.
+    if (!_pageAnswered(_page)) return;
+    setState(() => _pageError = null);
     if (_page < _pageCount - 1) {
       _controller.nextPage(
         duration: const Duration(milliseconds: 250),
@@ -120,20 +187,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _finish() async {
-    // A swipe reaches the last page without passing through [_next], so the
-    // refusal is applied here too — an unusable measurement sends the user
-    // back to the question instead of being dropped on the floor.
-    if (!_readProfile()) {
+    // Read BEFORE the first await: the validation loop below can suspend, and
+    // reading a provider off a context across an async gap is how a disposed
+    // widget's read throws.
+    final settings = context.read<SettingsProvider>();
+    final logs = context.read<LogProvider>();
+
+    // Defence in depth. The PageView no longer scrolls by gesture, so Continue
+    // is the only way here and every page has already been checked — but this
+    // re-checks all of them anyway, because the cost of being wrong is a user
+    // landing in the app with the answers the owner made mandatory missing.
+    for (var page = 0; page < _pageCount; page++) {
+      if (_pageAnswered(page)) continue;
       await _controller.animateToPage(
-        _profilePage,
+        page,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
       );
       return;
     }
-
-    final settings = context.read<SettingsProvider>();
-    final logs = context.read<LogProvider>();
 
     await settings.setCycleLength(_cycleLength);
     await settings.setGenderNeutralLanguage(_genderNeutral);
@@ -156,6 +228,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       soloFrequency: _soloFrequency,
       libido: _baselineLibido,
       history: _sexualHistory,
+      soloWays: _soloWays,
+      satisfactionTime: _satisfactionTime,
     );
 
     // Seed the last period so cycle stats have a starting anchor, and seed
@@ -196,19 +270,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     // AppGate rebuilds and shows the app once onboardingComplete flips.
   }
 
-  /// The date is optional by design; skipping it is a first-class answer, not a
-  /// failure to answer. Clearing it here keeps "I'm not sure" honest if the
-  /// user tapped a day first and changed their mind.
-  void _skipDate() {
-    setState(() => _lastPeriod = null);
-    _next();
-  }
-
-  /// Same posture as [_skipDate] for the birth date. Clearing on the way out
-  /// keeps "I'd rather not say" honest if a date was tapped first.
-  void _skipBirthDate() {
-    setState(() => _dateOfBirth = null);
-    _next();
+  /// Toggles a key in a multi-select set that carries an escape option,
+  /// keeping the two mutually exclusive.
+  ///
+  /// Without this the stored answer can say "I have never had any of these"
+  /// AND "I have had pain during sex" at once — a contradiction nothing
+  /// downstream can resolve, and one a doctor summary would print verbatim.
+  void _toggleExclusive(
+    Set<String> target,
+    String key,
+    bool on,
+    String noneKey,
+  ) {
+    setState(() {
+      if (!on) {
+        target.remove(key);
+      } else if (key == noneKey) {
+        target
+          ..clear()
+          ..add(noneKey);
+      } else {
+        target
+          ..remove(noneKey)
+          ..add(key);
+      }
+      _pageError = null;
+    });
   }
 
   /// Reads the two typed measurements into canonical centimetres and
@@ -229,7 +316,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     String? heightError;
     String? weightError;
 
-    if (rawHeight.isNotEmpty) {
+    if (rawHeight.isEmpty) {
+      // Blank used to mean "skipped" and store null. It is now a refusal, and
+      // deliberately carries the SAME message an out-of-range value does:
+      // "enter a height between x and y" answers both "this is required" and
+      // "here is what counts as valid" in one line.
+      final lo = formatHeightFromCm(kMinHeightCm, unit);
+      final hi = formatHeightFromCm(kMaxHeightCm, unit);
+      heightError = unit == kWeightUnitLb
+          ? 'Enter a height between $lo and $hi'
+          : 'Enter a height between $lo and $hi cm';
+    } else {
       cm = parseHeightToCm(rawHeight, unit);
       if (cm == null) {
         final lo = formatHeightFromCm(kMinHeightCm, unit);
@@ -241,7 +338,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             : 'Enter a height between $lo and $hi cm';
       }
     }
-    if (rawWeight.isNotEmpty) {
+    if (rawWeight.isEmpty) {
+      final lo = formatWeightFromKg(kMinWeightKg, unit);
+      final hi = formatWeightFromKg(kMaxWeightKg, unit);
+      weightError = 'Enter a weight between $lo and $hi $unit';
+    } else {
       kg = parseWeightToKg(rawWeight, unit);
       if (kg == null) {
         final lo = formatWeightFromKg(kMinWeightKg, unit);
@@ -250,13 +351,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       }
     }
 
+    // The stepper reads "—" and stores null until it is touched, so an
+    // untouched one is genuinely unanswered rather than defaulted.
+    final menarcheError =
+        _menarcheAge == null ? 'Choose the age your periods started.' : null;
+
     setState(() {
       _heightCm = cm;
       _profileWeightKg = kg;
       _heightError = heightError;
       _weightError = weightError;
+      _menarcheError = menarcheError;
+      _pageError = null;
     });
-    return heightError == null && weightError == null;
+    return heightError == null && weightError == null && menarcheError == null;
   }
 
   @override
@@ -269,14 +377,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Expanded(
               child: PageView(
                 controller: _controller,
+                // Gesture scrolling is OFF, and this is load-bearing rather
+                // than stylistic: every refusal above lives on the Continue
+                // path, so a swipeable PageView would make all of them
+                // advisory. [_finish] re-checks regardless.
+                physics: const NeverScrollableScrollPhysics(),
                 onPageChanged: (i) => setState(() => _page = i),
                 children: [
                   const _WelcomePage(),
                   const _PrivacyPage(),
                   _LastPeriodPage(
                     lastPeriod: _lastPeriod,
-                    onDateChanged: (d) => setState(() => _lastPeriod = d),
-                    onSkip: _skipDate,
+                    onDateChanged: (d) => setState(() {
+                      _lastPeriod = d;
+                      _pageError = null;
+                    }),
                   ),
                   _CycleLengthPage(
                     cycleLength: _cycleLength,
@@ -286,8 +401,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     dateOfBirth: _dateOfBirth,
                     minAgeYears: _minAgeYears,
                     maxAgeYears: _maxAgeYears,
-                    onDateChanged: (d) => setState(() => _dateOfBirth = d),
-                    onSkip: _skipBirthDate,
+                    onDateChanged: (d) => setState(() {
+                      _dateOfBirth = d;
+                      _pageError = null;
+                    }),
                   ),
                   _ProfilePage(
                     height: _height,
@@ -296,37 +413,66 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     weightError: _weightError,
                     menarcheAge: _menarcheAge,
                     menarcheSeed: _menarcheSeed,
-                    onMenarcheChanged: (v) => setState(() => _menarcheAge = v),
+                    menarcheError: _menarcheError,
+                    onMenarcheChanged: (v) => setState(() {
+                      _menarcheAge = v;
+                      _menarcheError = null;
+                    }),
                   ),
                   _ContraceptionPage(
                     method: _contraception,
-                    onChanged: (m) => setState(() => _contraception = m),
+                    onChanged: (m) => setState(() {
+                      _contraception = m;
+                      _pageError = null;
+                    }),
                   ),
                   _SexBaselinePage(
                     frequency: _sexFrequency,
-                    onFrequency: (v) => setState(() => _sexFrequency = v),
+                    onFrequency: (v) => setState(() {
+                      _sexFrequency = v;
+                      _pageError = null;
+                    }),
                     today: _todaySex,
-                    onToday: (v) => setState(() => _todaySex = v),
+                    onToday: (v) => setState(() {
+                      _todaySex = v;
+                      _pageError = null;
+                    }),
                   ),
                   _SexualHealthBaselinePage(
                     history: _sexualHistory,
-                    onHistory: (key, on) => setState(() =>
-                        on ? _sexualHistory.add(key) : _sexualHistory.remove(key)),
+                    onHistory: (key, on) =>
+                        _toggleExclusive(_sexualHistory, key, on, kShxNone),
                     libido: _baselineLibido,
-                    onLibido: (v) => setState(() => _baselineLibido = v),
+                    onLibido: (v) => setState(() {
+                      _baselineLibido = v;
+                      _pageError = null;
+                    }),
                     today: _todaySexualHealth,
-                    onToday: (key, on) => setState(() => on
-                        ? _todaySexualHealth.add(key)
-                        : _todaySexualHealth.remove(key)),
+                    onToday: (key, on) =>
+                        _toggleExclusive(_todaySexualHealth, key, on, kShxNone),
                     todayLibido: _todayLibido,
-                    onTodayLibido: (v) => setState(() => _todayLibido = v),
+                    onTodayLibido: (v) => setState(() {
+                      _todayLibido = v;
+                      _pageError = null;
+                    }),
                   ),
                   _IntimacyBaselinePage(
                     frequency: _soloFrequency,
-                    onFrequency: (v) => setState(() => _soloFrequency = v),
+                    onFrequency: (v) => setState(() {
+                      _soloFrequency = v;
+                      _pageError = null;
+                    }),
                     today: _todayIntimacy,
-                    onToday: (key, on) => setState(() =>
-                        on ? _todayIntimacy.add(key) : _todayIntimacy.remove(key)),
+                    onToday: (key, on) =>
+                        _toggleExclusive(_todayIntimacy, key, on, kSoloNone),
+                    ways: _soloWays,
+                    onWays: (key, on) => _toggleExclusive(
+                        _soloWays, key, on, kSoloWayPrivate),
+                    satisfactionTime: _satisfactionTime,
+                    onSatisfactionTime: (v) => setState(() {
+                      _satisfactionTime = v;
+                      _pageError = null;
+                    }),
                   ),
                   _ModePage(
                     mode: _mode,
@@ -338,6 +484,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ],
               ),
             ),
+            if (_pageError != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+                child: Text(
+                  _pageError!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
               child: FilledButton(
@@ -412,7 +568,7 @@ class _WelcomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return const _IntroPage(
       icon: Icons.spa_outlined,
-      title: 'Welcome to LunaTrack',
+      title: 'Welcome to LunarFlow',
       body: 'A calm, simple way to track your cycle, understand your body, and '
           'plan ahead — with predictions, symptom logging, and a summary you '
           'can share with your doctor.',
@@ -442,12 +598,10 @@ class _LastPeriodPage extends StatelessWidget {
   const _LastPeriodPage({
     required this.lastPeriod,
     required this.onDateChanged,
-    required this.onSkip,
   });
 
   final DateTime? lastPeriod;
   final ValueChanged<DateTime> onDateChanged;
-  final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context) {
@@ -466,16 +620,9 @@ class _LastPeriodPage extends StatelessWidget {
             onDateChanged: onDateChanged,
           ),
           const SizedBox(height: 8),
-          Center(
-            child: TextButton(
-              onPressed: onSkip,
-              child: const Text("I'm not sure"),
-            ),
-          ),
-          const SizedBox(height: 4),
           Text(
-            'Skipping is fine — LunaTrack simply waits until you log a period '
-            'before it estimates anything.',
+            'This seeds your first cycle, so LunarFlow can start predicting '
+            'straight away. Your closest guess is fine.',
             textAlign: TextAlign.center,
             style: Theme.of(context)
                 .textTheme
@@ -516,8 +663,8 @@ class _CycleLengthPage extends StatelessWidget {
   }
 }
 
-/// Step 5 — date of birth. Same shape as [_LastPeriodPage] (an inline picker
-/// plus an explicit skip), with two differences that matter: the window is a
+/// Step 5 — date of birth. Same shape as [_LastPeriodPage] (an inline picker),
+/// with two differences that matter: the window is a
 /// lifetime rather than the last four months, and the picker opens on the YEAR
 /// grid because nobody pages back through thirty years of months.
 ///
@@ -530,14 +677,12 @@ class _BirthDatePage extends StatelessWidget {
     required this.minAgeYears,
     required this.maxAgeYears,
     required this.onDateChanged,
-    required this.onSkip,
   });
 
   final DateTime? dateOfBirth;
   final int minAgeYears;
   final int maxAgeYears;
   final ValueChanged<DateTime> onDateChanged;
-  final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context) {
@@ -562,17 +707,9 @@ class _BirthDatePage extends StatelessWidget {
             onDateChanged: onDateChanged,
           ),
           const SizedBox(height: 8),
-          Center(
-            child: TextButton(
-              onPressed: onSkip,
-              child: const Text("I'd rather not say"),
-            ),
-          ),
-          const SizedBox(height: 4),
           Text(
             'Your age gives your own numbers some context in the summary you '
-            'can share with your doctor. Skipping is fine — nothing else in '
-            'LunaTrack depends on it.',
+            'can share with your doctor.',
             textAlign: TextAlign.center,
             style: Theme.of(context)
                 .textTheme
@@ -608,6 +745,7 @@ class _ProfilePage extends StatelessWidget {
     required this.menarcheAge,
     required this.menarcheSeed,
     required this.onMenarcheChanged,
+    required this.menarcheError,
   });
 
   final TextEditingController height;
@@ -617,6 +755,11 @@ class _ProfilePage extends StatelessWidget {
   final int? menarcheAge;
   final int menarcheSeed;
   final ValueChanged<int?> onMenarcheChanged;
+
+  /// Set when Continue was pressed with the stepper still untouched. The
+  /// stepper reads "—" until then, so "unanswered" is a real state here rather
+  /// than a value that happens to look like a default.
+  final String? menarcheError;
 
   @override
   Widget build(BuildContext context) {
@@ -633,8 +776,7 @@ class _ProfilePage extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           Text(
-            'All optional. These appear in the summary you can share with your '
-            'doctor — leave any of them blank and LunaTrack leaves them out.',
+            'These appear in the summary you can share with your doctor.',
             style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 24),
@@ -682,6 +824,14 @@ class _ProfilePage extends StatelessWidget {
               onChanged: (v) => onMenarcheChanged(v),
             ),
           ),
+          if (menarcheError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                menarcheError!,
+                style: text.bodySmall?.copyWith(color: scheme.error),
+              ),
+            ),
           if (menarcheAge != null)
             Center(
               child: TextButton(
@@ -790,7 +940,7 @@ class _BaselineScaffold extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Optional — this one is logged as today, not as a general answer.',
+            'Logged as today, not as a general answer.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: scheme.onSurfaceVariant),
           ),
@@ -822,8 +972,13 @@ Widget _todayChips({
   required List<TrackOption> options,
   required bool Function(String) isSelected,
   required void Function(String, bool) onToggle,
+  // Each baseline page renders the same option list twice — once for
+  // "generally", once for "today" — so the two groups are otherwise
+  // indistinguishable to anything looking at labels alone.
+  Key? key,
 }) =>
     Wrap(
+      key: key,
       spacing: 8,
       runSpacing: 8,
       children: [
@@ -856,7 +1011,8 @@ class _SexBaselinePage extends StatelessWidget {
         todayLabel: 'Today',
         today: [
           _todayChips(
-            options: kSexOptions,
+            key: const Key('sex-today'),
+          options: kSexOptions,
             isSelected: (k) => today == k,
             onToggle: (k, on) => onToday(on ? k : null),
           ),
@@ -892,6 +1048,7 @@ class _SexualHealthBaselinePage extends StatelessWidget {
       question: 'Have you ever experienced any of these?',
       baseline: [
         _todayChips(
+          key: const Key('shx-history'),
           options: kSexualHistoryOptions,
           isSelected: history.contains,
           onToggle: onHistory,
@@ -902,6 +1059,7 @@ class _SexualHealthBaselinePage extends StatelessWidget {
                 ?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 12),
         _todayChips(
+          key: const Key('libido-baseline'),
           options: kLibidoOptions,
           isSelected: (k) => libido == k,
           onToggle: (k, on) => onLibido(on ? k : null),
@@ -910,12 +1068,14 @@ class _SexualHealthBaselinePage extends StatelessWidget {
       todayLabel: 'Today',
       today: [
         _todayChips(
+          key: const Key('shx-today'),
           options: kSexualHealthOptions,
           isSelected: today.contains,
           onToggle: onToday,
         ),
         const SizedBox(height: 12),
         _todayChips(
+          key: const Key('libido-today'),
           options: kLibidoOptions,
           isSelected: (k) => todayLibido == k,
           onToggle: (k, on) => onTodayLibido(on ? k : null),
@@ -925,32 +1085,75 @@ class _SexualHealthBaselinePage extends StatelessWidget {
   }
 }
 
+/// Step 9 — the solo baseline: how often, in what ways, and how long it takes.
+///
+/// The ways and time questions were added on 2026-09-14 at the owner's
+/// request, reversing the exclusion recorded on [kIntimacyWaysOptions]. Both
+/// carry a "prefer not to say" option, which is the only thing that keeps a
+/// REQUIRED question at this level of intimacy answerable by someone who does
+/// not want to answer it.
 class _IntimacyBaselinePage extends StatelessWidget {
   const _IntimacyBaselinePage({
     required this.frequency,
     required this.onFrequency,
     required this.today,
     required this.onToday,
+    required this.ways,
+    required this.onWays,
+    required this.satisfactionTime,
+    required this.onSatisfactionTime,
   });
 
   final String? frequency;
   final ValueChanged<String?> onFrequency;
   final Set<String> today;
   final void Function(String, bool) onToday;
+  final Set<String> ways;
+  final void Function(String, bool) onWays;
+  final String? satisfactionTime;
+  final ValueChanged<String?> onSatisfactionTime;
 
   @override
-  Widget build(BuildContext context) => _BaselineScaffold(
-        question: 'How often do you masturbate?',
-        baseline: _frequencyCards(frequency, onFrequency),
-        todayLabel: 'Today',
-        today: [
-          _todayChips(
-            options: kIntimacyOptions,
-            isSelected: today.contains,
-            onToggle: onToday,
-          ),
-        ],
-      );
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return _BaselineScaffold(
+      question: 'How often do you masturbate?',
+      baseline: [
+        ..._frequencyCards(frequency, onFrequency),
+        const SizedBox(height: 24),
+        Text('Usually, in what ways?',
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 12),
+        _todayChips(
+          key: const Key('solo-ways'),
+          options: kIntimacyWaysOptions,
+          isSelected: ways.contains,
+          onToggle: onWays,
+        ),
+        const SizedBox(height: 24),
+        Text('How long until you feel satisfied?',
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 12),
+        _todayChips(
+          key: const Key('solo-time'),
+          options: kSatisfactionTimeOptions,
+          isSelected: (k) => satisfactionTime == k,
+          onToggle: (k, on) => onSatisfactionTime(on ? k : null),
+        ),
+      ],
+      todayLabel: 'Today',
+      today: [
+        _todayChips(
+          key: const Key('solo-today'),
+          options: kIntimacyOptions,
+          isSelected: today.contains,
+          onToggle: onToday,
+        ),
+      ],
+    );
+  }
 }
 
 class _ModePage extends StatelessWidget {
@@ -970,7 +1173,7 @@ class _ModePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return _QuestionPage(
-      question: 'What are you using LunaTrack for?',
+      question: 'What are you using LunarFlow for?',
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
@@ -1011,7 +1214,7 @@ class _ModePage extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'LunaTrack provides estimates for general wellness. It is not '
+                  'LunarFlow provides estimates for general wellness. It is not '
                   'a contraceptive method and does not provide medical '
                   'diagnosis.',
                   style: Theme.of(context)

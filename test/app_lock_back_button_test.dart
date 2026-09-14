@@ -24,7 +24,7 @@ import 'package:menstrul_track/services/lock_service.dart';
 /// the lock. The pop is only DEFERRED by the muted `TickerMode` — it completes
 /// silently the moment the lock lifts.
 ///
-/// These tests pump the REAL [LunaTrackApp] for the same reason
+/// These tests pump the REAL [LunarFlowApp] for the same reason
 /// `app_lock_route_coverage_test.dart` does: the fix has to live in
 /// `main.dart`, where the app actually installs an observer above
 /// `MaterialApp`.
@@ -74,7 +74,7 @@ void main() {
 
   Future<void> launch(WidgetTester tester) async {
     await tester.pumpWidget(
-      LunaTrackApp(database: db, authService: _FakeSignedInAuthService()),
+      LunarFlowApp(database: db, authService: _FakeSignedInAuthService()),
     );
     await tester.pumpAndSettle();
   }

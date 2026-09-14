@@ -69,7 +69,7 @@ void main() {
 
   Future<void> launch(WidgetTester tester) async {
     await tester.pumpWidget(
-      LunaTrackApp(database: db, authService: _FakeSignedInAuthService()),
+      LunarFlowApp(database: db, authService: _FakeSignedInAuthService()),
     );
     await tester.pumpAndSettle();
   }

@@ -9,16 +9,19 @@ import 'package:menstrul_track/main.dart';
 import 'package:menstrul_track/services/auth_service.dart';
 import 'package:menstrul_track/services/sync_trigger.dart';
 
+import 'support/onboarding_walk.dart';
+
 /// Onboarding is the ONLY place every user passes through — `AppGate` routes
 /// account holders and local-only-hatch users alike into this wizard — so it is
 /// where the four profile fields (date of birth, height, current weight, age at
 /// first period) are collected.
 ///
-/// Every one of them is skippable, in the same sense the last-period date
-/// already is: skipping is a first-class answer that leaves the column NULL,
-/// and the app must behave exactly as it did before.
+/// Every one of them is REQUIRED as of 2026-09-14. They used to be skippable,
+/// with a skip storing NULL; the wizard now refuses to advance past an
+/// unanswered question, and the tests that pinned the old posture are inverted
+/// below rather than deleted, so the reversal is a fact the suite states.
 ///
-/// Modelled on `test/widget_test.dart`, which pumps the real [LunaTrackApp].
+/// Modelled on `test/widget_test.dart`, which pumps the real [LunarFlowApp].
 
 /// See `test/widget_test.dart`: the real [FirebaseAuthService] touches
 /// `FirebaseAuth.instance`, which throws with no Firebase app initialized.
@@ -50,13 +53,6 @@ SyncTrigger _testSyncTrigger(AppDatabase db) => SyncTrigger(
       writeClaim: (_) async {},
     );
 
-const _dobQuestion = 'When were you born?';
-const _bodyQuestion = 'A few more details about you';
-const _modeQuestion = 'What are you using LunaTrack for?';
-const _contraceptionQuestion = 'Are you using contraception?';
-const _sexQuestion = 'How often do you have sex?';
-const _shxQuestion = 'Have you ever experienced any of these?';
-const _soloQuestion = 'How often do you masturbate?';
 
 Future<AppDatabase> _pumpOnboarding(WidgetTester tester) async {
   // Phone-sized, per the app_theme lesson in CLAUDE.md: an 800x600 default
@@ -69,7 +65,7 @@ Future<AppDatabase> _pumpOnboarding(WidgetTester tester) async {
   addTearDown(db.close);
 
   await tester.pumpWidget(
-    LunaTrackApp(
+    LunarFlowApp(
       database: db,
       authService: _FakeSignedInAuthService(),
       syncTrigger: _testSyncTrigger(db),
@@ -79,28 +75,8 @@ Future<AppDatabase> _pumpOnboarding(WidgetTester tester) async {
   return db;
 }
 
-Future<void> _continue(WidgetTester tester) async {
-  await tester.tap(find.text('Continue'));
-  await tester.pumpAndSettle();
-}
-
-/// Taps Continue until [question] is on screen. Deliberately not a hard-coded
-/// tap count: where the profile pages sit is a layout decision, what these
-/// tests are about is that they are reachable and that what is typed on them
-/// lands in the settings row.
-Future<void> _walkTo(WidgetTester tester, String question) async {
-  // Bound, not a page count: the wizard grows, and a bound equal to the page
-  // count silently stops working the day a page is added.
-  for (var i = 0; i < 25 && find.text(question).evaluate().isEmpty; i++) {
-    await _continue(tester);
-  }
-  expect(find.text(question), findsOneWidget);
-}
-
 Future<AppSetting> _finishAndRead(WidgetTester tester, AppDatabase db) async {
-  await _walkTo(tester, _modeQuestion);
-  await tester.tap(find.text('Get started'));
-  await tester.pumpAndSettle();
+  await finishWizard(tester);
   return db.getSettings();
 }
 
@@ -109,31 +85,26 @@ void main() {
       'questions and before the mode question', (tester) async {
     await _pumpOnboarding(tester);
 
-    expect(find.text('Welcome to LunaTrack'), findsOneWidget);
-    await _continue(tester);
-    expect(find.text('Your data, on your terms'), findsOneWidget);
-    await _continue(tester);
-    expect(find.text('When did your last period start?'), findsOneWidget);
-    await _continue(tester);
-    expect(find.text('How long is your cycle, usually?'), findsOneWidget);
-
-    await _continue(tester);
-    expect(find.text(_dobQuestion), findsOneWidget);
-    await _continue(tester);
-    expect(find.text(_bodyQuestion), findsOneWidget);
-
-    await _continue(tester);
-    expect(find.text(_contraceptionQuestion), findsOneWidget);
-
-    await _continue(tester);
-    expect(find.text(_sexQuestion), findsOneWidget);
-    await _continue(tester);
-    expect(find.text(_shxQuestion), findsOneWidget);
-    await _continue(tester);
-    expect(find.text(_soloQuestion), findsOneWidget);
-
-    await _continue(tester);
-    expect(find.text(_modeQuestion), findsOneWidget);
+    // Each page is ANSWERED before Continue, which it did not used to need.
+    // That is the point of the change and not incidental to this test: an
+    // unanswered page no longer advances, so a bare tap would simply sit here.
+    for (final question in const [
+      'Welcome to LunarFlow',
+      'Your data, on your terms',
+      periodQuestion,
+      cycleQuestion,
+      dobQuestion,
+      bodyQuestion,
+      contraceptionQuestion,
+      sexQuestion,
+      shxQuestion,
+      soloQuestion,
+    ]) {
+      expect(find.text(question), findsOneWidget, reason: 'expected $question');
+      await answerVisiblePage(tester);
+      await tapContinue(tester);
+    }
+    expect(find.text(modeQuestion), findsOneWidget);
     // Still the last page: the wizard grew, it did not sprout a second CTA.
     expect(find.text('Get started'), findsOneWidget);
     expect(find.text('Continue'), findsNothing);
@@ -142,7 +113,7 @@ void main() {
   testWidgets('a date of birth picked in onboarding persists to the settings '
       'row', (tester) async {
     final db = await _pumpOnboarding(tester);
-    await _walkTo(tester, _dobQuestion);
+    await walkTo(tester, dobQuestion);
 
     // The picker opens on the year grid (nobody scrolls 30 years of months),
     // and its range IS the refusal — the youngest selectable year is the one
@@ -159,7 +130,7 @@ void main() {
   testWidgets('height, current weight and age at first period persist to the '
       'settings row in canonical units', (tester) async {
     final db = await _pumpOnboarding(tester);
-    await _walkTo(tester, _bodyQuestion);
+    await walkTo(tester, bodyQuestion);
 
     await tester.enterText(
         find.byKey(const Key('onboarding-height-field')), '165');
@@ -191,32 +162,31 @@ void main() {
     }
   });
 
-  testWidgets('skipping every profile question leaves all four columns null',
-      (tester) async {
+  testWidgets('every profile question is required, so all four columns are '
+      'written', (tester) async {
+    // The inverse of the test this replaces, which asserted that skipping left
+    // all four NULL. There is no longer a skip: the birth-date page's decline
+    // button is gone, and the wizard refuses to advance past any of them.
     final db = await _pumpOnboarding(tester);
 
-    await _walkTo(tester, _dobQuestion);
-    // The explicit skip affordance, mirroring the last-period page's
-    // "I'm not sure" — taking it must advance AND leave nothing behind.
-    await tester.tap(find.text("I'd rather not say"));
-    await tester.pumpAndSettle();
-    expect(find.text(_bodyQuestion), findsOneWidget);
+    await walkTo(tester, dobQuestion);
+    expect(find.text("I'd rather not say"), findsNothing,
+        reason: 'the decline affordance was removed when this became required');
 
     final settings = await _finishAndRead(tester, db);
-    // Not vacuous: onboarding really did run and write.
     expect(settings.onboardingComplete, isTrue);
     expect(settings.defaultCycleLength, 28);
 
-    expect(settings.dateOfBirth, isNull);
-    expect(settings.heightCm, isNull);
-    expect(settings.profileWeightKg, isNull);
-    expect(settings.menarcheAge, isNull);
+    expect(settings.dateOfBirth, isNotNull);
+    expect(settings.heightCm, isNotNull);
+    expect(settings.profileWeightKg, isNotNull);
+    expect(settings.menarcheAge, isNotNull);
   });
 
   testWidgets('an out-of-range height is REFUSED: the wizard does not advance '
       'and nothing is clamped', (tester) async {
     final db = await _pumpOnboarding(tester);
-    await _walkTo(tester, _bodyQuestion);
+    await walkTo(tester, bodyQuestion);
 
     await tester.enterText(
         find.byKey(const Key('onboarding-height-field')), '999');
@@ -224,51 +194,55 @@ void main() {
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    expect(find.text(_bodyQuestion), findsOneWidget);
-    expect(find.text(_modeQuestion), findsNothing);
+    expect(find.text(bodyQuestion), findsOneWidget);
+    expect(find.text(modeQuestion), findsNothing);
     expect(find.textContaining('Enter a height between'), findsOneWidget);
 
     // Fixing it lets the wizard through, and the fixed value is what lands.
+    // The rest of the page has to be supplied as well now — a blank field is
+    // itself a refusal, so fixing only the bad value no longer advances.
     await tester.enterText(
         find.byKey(const Key('onboarding-height-field')), '172.5');
+    await tester.enterText(
+        find.byKey(const Key('onboarding-weight-field')), '61.5');
     await tester.pump();
+    await tester.tap(find.descendant(
+      of: find.byKey(const Key('menarche-stepper')),
+      matching: find.byIcon(Icons.add),
+    ));
+    await tester.pumpAndSettle();
+    await tapContinue(tester);
+
     final settings = await _finishAndRead(tester, db);
-    expect(settings.heightCm, 172.5);
+    expect(settings.heightCm, 172.5,
+        reason: 'the corrected value must be what lands, not a re-entered one');
   });
 
-  testWidgets('SWIPING past an out-of-range height does not bypass the '
-      'refusal — "Get started" sends the user back to the question',
-      (tester) async {
+  testWidgets('SWIPING does not move the wizard at all — Continue is the only '
+      'exit', (tester) async {
+    // This used to swipe to the LAST page and assert that "Get started"
+    // re-ran the refusal. Gesture scrolling is now off entirely, which is the
+    // stronger guarantee: the bad page is never left in the first place. The
+    // final re-check still exists in `_finish` as defence in depth.
     final db = await _pumpOnboarding(tester);
-    await _walkTo(tester, _bodyQuestion);
+    await walkTo(tester, bodyQuestion);
 
     await tester.enterText(
         find.byKey(const Key('onboarding-weight-field')), '900');
     await tester.pump();
 
-    // The Continue button is the checked exit; a horizontal swipe is not, so
-    // the last page has to re-run the check before it writes anything.
-    // Dragged from the question itself: the centre of the page sits on a text
-    // field, which claims a horizontal drag for selection instead.
-    // Swiped all the way to the LAST page, bounded rather than counted: a
-    // single drag used to reach it, and silently stopped doing so when pages
-    // were added between. What is being tested is that the final page re-runs
-    // the refusal, not how many swipes away it is.
-    for (var i = 0; i < 25 && find.text(_modeQuestion).evaluate().isEmpty; i++) {
-      // From a fixed point in the heading band, NOT the PageView's centre:
-      // the centre sits on a text field on some pages, which claims a
-      // horizontal drag for selection and swallows the swipe.
+    for (var i = 0; i < 10; i++) {
+      // From a fixed point in the heading band, NOT the PageView's centre: the
+      // centre sits on a text field on some pages, which claims a horizontal
+      // drag for selection and swallows the swipe.
       await tester.dragFrom(const Offset(300, 150), const Offset(-600, 0));
       await tester.pumpAndSettle();
     }
-    expect(find.text(_modeQuestion), findsOneWidget);
 
-    await tester.tap(find.text('Get started'));
-    await tester.pumpAndSettle();
+    expect(find.text(bodyQuestion), findsOneWidget,
+        reason: 'a swipe carried the user off an unanswered page');
+    expect(find.text(modeQuestion), findsNothing);
 
-    expect(find.text(_bodyQuestion), findsOneWidget);
-    expect(find.textContaining('Enter a weight between'), findsOneWidget);
-    // Nothing was written: onboarding is still in front of the user.
     final settings = await db.getSettings();
     expect(settings.onboardingComplete, isFalse);
     expect(settings.profileWeightKg, isNull);
@@ -279,24 +253,30 @@ void main() {
     // it changes what the app PREDICTS from day one — a method that suppresses
     // ovulation removes the fertile window — while diagnoses and breastfeeding
     // only colour how results are read, and can wait for Settings.
-    testWidgets('skipping it leaves the column null, as before', (tester) async {
+    testWidgets('walking past it is refused', (tester) async {
+      // Inverted. This used to assert that skipping left the column null so
+      // "never asked" stayed distinct from "uses nothing". The question is now
+      // required, and `contra_none` carries the "uses nothing" meaning on its
+      // own — so the distinction survives in the DATA even though the wizard
+      // no longer offers a way to produce the null.
       final db = await _pumpOnboarding(tester);
-      await _walkTo(tester, _contraceptionQuestion);
+      await walkTo(tester, contraceptionQuestion);
 
-      final settings = await _finishAndRead(tester, db);
-      expect(settings.contraceptionMethod, isNull,
-          reason: 'never asked must not become an answer');
+      await tapContinue(tester);
+      expect(find.text(contraceptionQuestion), findsOneWidget);
+      expect((await db.getSettings()).onboardingComplete, isFalse);
     });
 
     testWidgets('a chosen method persists as its stable key', (tester) async {
       final db = await _pumpOnboarding(tester);
-      await _walkTo(tester, _contraceptionQuestion);
+      await walkTo(tester, contraceptionQuestion);
 
       await tester.dragUntilVisible(find.text('Hormonal IUD'),
           find.byType(Scrollable).last, const Offset(0, -120));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Hormonal IUD'));
       await tester.pumpAndSettle();
+      await tapContinue(tester);
 
       final settings = await _finishAndRead(tester, db);
       expect(settings.contraceptionMethod, 'contra_hormonal_iud');
@@ -305,9 +285,10 @@ void main() {
     testWidgets('"None" is answerable and is not the same as skipping',
         (tester) async {
       final db = await _pumpOnboarding(tester);
-      await _walkTo(tester, _contraceptionQuestion);
+      await walkTo(tester, contraceptionQuestion);
       await tester.tap(find.text('None'));
       await tester.pumpAndSettle();
+      await tapContinue(tester);
 
       final settings = await _finishAndRead(tester, db);
       expect(settings.contraceptionMethod, 'contra_none');
@@ -320,26 +301,40 @@ void main() {
     // log). They are deliberately not the same field — the baseline answers
     // "how often, generally" and the log answers "what happened on the 13th",
     // and nothing merges them.
-    testWidgets('walking past all three leaves the column null', (tester) async {
+    testWidgets('the column is always written, because none of it is skippable',
+        (tester) async {
+      // Inverted. The null used to mean "never asked" and was reachable by
+      // walking past all three pages. Every answer is now required, so the
+      // column is always populated — the encoder's null branch survives for
+      // rows written by older builds, not for anything this wizard can produce.
       final db = await _pumpOnboarding(tester);
-      await _walkTo(tester, _soloQuestion);
 
       final settings = await _finishAndRead(tester, db);
-      expect(settings.sexualHealthBaseline, isNull,
-          reason: 'skipped must stay distinguishable from answered-nothing');
+      expect(settings.sexualHealthBaseline, isNotNull);
+      final b = decodeSexualBaseline(settings.sexualHealthBaseline);
+      expect(b.isEmpty, isFalse);
     });
 
     testWidgets('the typical-frequency answers persist as a baseline',
         (tester) async {
       final db = await _pumpOnboarding(tester);
 
-      await _walkTo(tester, _sexQuestion);
+      // Each page is finished BY HAND, not by [answerVisiblePage]: that helper
+      // answers a refused page from scratch and would tap "Never", overwriting
+      // the very frequency this test is asserting on.
+      await walkTo(tester, sexQuestion);
       await tester.tap(find.text('Weekly').first);
       await tester.pumpAndSettle();
+      await tapInGroup(tester, 'sex-today', 'None');
+      await tapContinue(tester);
 
-      await _walkTo(tester, _soloQuestion);
+      await walkTo(tester, soloQuestion);
       await tester.tap(find.text('Rarely').first);
       await tester.pumpAndSettle();
+      await tapInGroup(tester, 'solo-ways', 'Prefer not to say');
+      await tapInGroup(tester, 'solo-time', 'Prefer not to answer');
+      await tapInGroup(tester, 'solo-today', 'Not today');
+      await tapContinue(tester);
 
       final settings = await _finishAndRead(tester, db);
       final b = decodeSexualBaseline(settings.sexualHealthBaseline);
@@ -350,10 +345,13 @@ void main() {
     testWidgets('history is a multi-select reusing the day-tag keys',
         (tester) async {
       final db = await _pumpOnboarding(tester);
-      await _walkTo(tester, _shxQuestion);
+      await walkTo(tester, shxQuestion);
 
-      await tester.tap(find.text('Bleeding after sex').first);
-      await tester.pumpAndSettle();
+      await tapInGroup(tester, 'shx-history', 'Bleeding after sex');
+      await tapInGroup(tester, 'libido-baseline', 'Medium libido');
+      await tapInGroup(tester, 'shx-today', 'None of these');
+      await tapInGroup(tester, 'libido-today', 'High libido');
+      await tapContinue(tester);
 
       final settings = await _finishAndRead(tester, db);
       expect(decodeSexualBaseline(settings.sexualHealthBaseline).history,
@@ -365,11 +363,16 @@ void main() {
     testWidgets("a today answer is written as today's day tags",
         (tester) async {
       final db = await _pumpOnboarding(tester);
-      await _walkTo(tester, _soloQuestion);
+      await walkTo(tester, soloQuestion);
 
-      await tester.tap(find.text('Masturbation').first);
+      await tester.tap(find.text('Never').first);
       await tester.pumpAndSettle();
-      await _walkTo(tester, _modeQuestion);
+      await tapInGroup(tester, 'solo-ways', 'Prefer not to say');
+      await tapInGroup(tester, 'solo-time', 'Prefer not to answer');
+      await tapInGroup(tester, 'solo-today', 'Masturbation');
+      await tapContinue(tester);
+
+      await walkTo(tester, modeQuestion);
       await tester.tap(find.text('Get started'));
       await tester.pumpAndSettle();
 
@@ -382,15 +385,29 @@ void main() {
           {'slf_masturbation'});
     });
 
-    testWidgets('answering nothing for today writes NO log at all',
-        (tester) async {
+    testWidgets('the escape answers ARE logged, so signup day is never an '
+        'empty row', (tester) async {
+      // Inverted, and worth reading carefully. The old test asserted that a
+      // user who answered nothing for today got NO row, because an empty row
+      // reads as a logged day forever.
+      //
+      // Answering nothing is no longer possible: the three "today" questions
+      // are required. What a user with nothing to report now produces is a row
+      // of explicit NONE markers — `sex_none` (which already existed and is
+      // logged by real users), plus the new `shx_none` and `slf_none`. That is
+      // a positive statement ("nothing happened today"), not an empty row, so
+      // the original hazard does not apply.
+      //
+      // The guard in `_finish` that refuses to write an empty day is kept: it
+      // is simply unreachable through the wizard now, and still protects the
+      // code path.
       final db = await _pumpOnboarding(tester);
-      await _walkTo(tester, _modeQuestion);
-      await tester.tap(find.text('Get started'));
-      await tester.pumpAndSettle();
+      await finishWizard(tester);
 
-      expect(await db.select(db.dailyLogs).get(), isEmpty,
-          reason: 'an empty day row would read as a logged day forever');
+      final logs = await db.select(db.dailyLogs).get();
+      expect(logs, hasLength(1));
+      expect(decodeGroup(logs.single.symptoms, kIntimacyKeyPrefix),
+          {kSoloNone});
     });
 
     testWidgets('when the last period IS today, the flow and the tags land in '
@@ -400,16 +417,20 @@ void main() {
       // period the user just entered disappears behind a day tag.
       final db = await _pumpOnboarding(tester);
 
-      await _walkTo(tester, 'When did your last period start?');
+      await walkTo(tester, 'When did your last period start?');
       final today = dateOnly(DateTime.now());
       await tester.tap(find.text('${today.day}').first);
       await tester.pumpAndSettle();
 
-      await _walkTo(tester, _soloQuestion);
-      await tester.tap(find.text('Masturbation').first);
+      await walkTo(tester, soloQuestion);
+      await tester.tap(find.text('Never').first);
       await tester.pumpAndSettle();
+      await tapInGroup(tester, 'solo-ways', 'Prefer not to say');
+      await tapInGroup(tester, 'solo-time', 'Prefer not to answer');
+      await tapInGroup(tester, 'solo-today', 'Masturbation');
+      await tapContinue(tester);
 
-      await _walkTo(tester, _modeQuestion);
+      await walkTo(tester, modeQuestion);
       await tester.tap(find.text('Get started'));
       await tester.pumpAndSettle();
 

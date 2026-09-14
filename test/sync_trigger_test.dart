@@ -738,7 +738,7 @@ void main() {
     // setup -- is deliberately deferred). The DEFAULT constructor (no
     // overrides) touches the real `lunaFirestore()`, which throws in that
     // state; the trigger must swallow it and leave sync disabled rather than
-    // crashing the app, since `LunaTrackApp.build` calls `setUser` on every
+    // crashing the app, since `LunarFlowApp.build` calls `setUser` on every
     // signed-in rebuild, including in widget tests that sign a fake user in
     // with no Firebase app configured at all. `lunaFirestore()` is evaluated
     // BEFORE `DeviceId.get()`/`ClaimPreference.read()`, so this also never

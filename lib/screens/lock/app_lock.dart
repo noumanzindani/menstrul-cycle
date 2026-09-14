@@ -115,7 +115,7 @@ class AppLock extends StatefulWidget {
   ///
   /// Returns `false` with no [AppLock] above: a tree with no lock installed
   /// cannot be locked. The app installs it in `main.dart`, and
-  /// `test/app_lock_route_coverage_test.dart` pumps the real `LunaTrackApp` —
+  /// `test/app_lock_route_coverage_test.dart` pumps the real `LunarFlowApp` —
   /// not a hand-built harness — precisely so that wiring cannot go missing
   /// unnoticed.
   static bool isLocked(BuildContext context, {bool listen = true}) {

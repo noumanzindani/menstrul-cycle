@@ -20,6 +20,8 @@ import 'package:menstrul_track/services/lock_service.dart';
 import 'package:menstrul_track/services/sync_trigger.dart';
 import 'package:menstrul_track/widgets/cloud_sync_unavailable_banner.dart';
 
+import 'support/onboarding_walk.dart';
+
 /// Covers the owner's 2026-08-06 ruling: with no usable Firebase app,
 /// `SignInScreen` offers "Continue without syncing" so a missing/failed
 /// cloud does not lock anyone out of their own local encrypted data. See
@@ -147,7 +149,7 @@ void main() {
     addTearDown(db.close);
     final sync = _TestSync(db);
 
-    await tester.pumpWidget(LunaTrackApp(
+    await tester.pumpWidget(LunarFlowApp(
       database: db,
       firebaseAvailable: true,
       authService: _FakeSignedOutAuthService(),
@@ -168,7 +170,7 @@ void main() {
     addTearDown(db.close);
     final sync = _TestSync(db);
 
-    await tester.pumpWidget(LunaTrackApp(
+    await tester.pumpWidget(LunarFlowApp(
       database: db,
       firebaseAvailable: false,
       authService: _FakeSignedOutAuthService(),
@@ -190,7 +192,7 @@ void main() {
     addTearDown(db.close);
     final sync = _TestSync(db);
 
-    await tester.pumpWidget(LunaTrackApp(
+    await tester.pumpWidget(LunarFlowApp(
       database: db,
       firebaseAvailable: false,
       authService: _FakeSignedOutAuthService(),
@@ -219,7 +221,7 @@ void main() {
     addTearDown(db.close);
     final sync = _TestSync(db);
 
-    await tester.pumpWidget(LunaTrackApp(
+    await tester.pumpWidget(LunarFlowApp(
       database: db,
       firebaseAvailable: false,
       authService: _FakeSignedOutAuthService(),
@@ -230,17 +232,12 @@ void main() {
     await tester.tap(hatch);
     await tester.pumpAndSettle();
 
-    expect(find.text('Welcome to LunaTrack'), findsOneWidget);
-    // Onboarding is now one question per page rather than a single combined
-    // setup step, so walk it to the end instead of hard-coding how many
-    // "Continue" taps that is — the count is a layout decision, and what this
-    // proof is about is that a local-only user can finish and reach the shell.
-    for (var i = 0; i < 10 && find.text('Continue').evaluate().isNotEmpty; i++) {
-      await tester.tap(find.text('Continue'));
-      await tester.pumpAndSettle();
-    }
-    await tester.tap(find.text('Get started'));
-    await tester.pumpAndSettle();
+    expect(find.text('Welcome to LunarFlow'), findsOneWidget);
+    // Onboarding is one question per page, and since 2026-09-14 every question
+    // must be ANSWERED before Continue will move — so this walks the wizard
+    // through the shared helper rather than tapping Continue blindly, which
+    // would now sit on the first question forever.
+    await finishWizard(tester);
 
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(CloudSyncUnavailableBanner), findsOneWidget);
@@ -259,7 +256,7 @@ void main() {
     );
     final sync = _TestSync(db);
 
-    await tester.pumpWidget(LunaTrackApp(
+    await tester.pumpWidget(LunarFlowApp(
       database: db,
       firebaseAvailable: false,
       authService: _FakeSignedOutAuthService(),
@@ -300,7 +297,7 @@ void main() {
     addTearDown(db.close);
     final sync = _TestSync(db);
 
-    await tester.pumpWidget(LunaTrackApp(
+    await tester.pumpWidget(LunarFlowApp(
       database: db,
       firebaseAvailable: false,
       authService: _FakeSignedOutAuthService(),
@@ -340,7 +337,7 @@ void main() {
     );
     final sync = _TestSync(db);
 
-    await tester.pumpWidget(LunaTrackApp(
+    await tester.pumpWidget(LunarFlowApp(
       database: db,
       firebaseAvailable: false,
       authService: _FakeSignedOutAuthService(),
@@ -401,7 +398,7 @@ void main() {
     addTearDown(auth.dispose);
 
     // Firebase has recovered by this (later) launch.
-    await tester.pumpWidget(LunaTrackApp(
+    await tester.pumpWidget(LunarFlowApp(
       database: db,
       firebaseAvailable: true,
       authService: auth,

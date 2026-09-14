@@ -2,7 +2,7 @@
 ///
 /// Decided EXACTLY ONCE, in `main.dart`'s `initializeFirebase()` (the try/catch
 /// around `Firebase.initializeApp()`), and threaded through the app from there:
-/// into `LunaTrackApp.firebaseAvailable` (which picks
+/// into `LunarFlowApp.firebaseAvailable` (which picks
 /// `FirebaseAuthService`/`UnavailableAuthService` for `AuthProvider`) and, via a
 /// single `Provider<FirebaseAvailability>` planted alongside the rest of
 /// `main.dart`'s providers, into `AccountSection` (which shows "Cloud sync

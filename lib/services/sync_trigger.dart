@@ -39,7 +39,7 @@ class SyncTrigger extends ChangeNotifier {
   /// These two are overridable for the same reason as [_deviceId]:
   /// `ClaimPreference`'s default is backed by `flutter_secure_storage`, whose
   /// platform channel has no handler in a test harness (on this host it hangs
-  /// indefinitely rather than throwing). `LunaTrackApp` accepts a whole
+  /// indefinitely rather than throwing). `LunarFlowApp` accepts a whole
   /// pre-built `SyncTrigger` so widget tests that pump the real app can inject
   /// through this seam too, instead of relying on "don't seed a log in that
   /// test" to keep the storage path unreached.

@@ -64,7 +64,7 @@ Future<void> main() async {
   // `_pickAndUpload`'s finally.
   unawaited(sweepPickerTempFiles());
   final db = AppDatabase();
-  runApp(LunaTrackApp(database: db, firebaseAvailable: firebaseAvailable));
+  runApp(LunarFlowApp(database: db, firebaseAvailable: firebaseAvailable));
 }
 
 /// Initializes the default Firebase app, tolerating a build with no native
@@ -98,8 +98,8 @@ Future<bool> initializeFirebase() async {
   }
 }
 
-class LunaTrackApp extends StatelessWidget {
-  const LunaTrackApp({
+class LunarFlowApp extends StatelessWidget {
+  const LunarFlowApp({
     super.key,
     required this.database,
     this.authService,
