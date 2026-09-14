@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:drift/native.dart';
@@ -29,18 +30,48 @@ class _FakeAnalyzer implements MediaAnalyzer {
   /// state, and this is where it becomes observable.
   List<AnalysisTurn> lastHistory = const [];
 
+  /// The health context the service handed over on the most recent call —
+  /// observable proof the service forwards it verbatim rather than parsing,
+  /// logging or dropping it.
+  String? lastHealthContext;
+
   @override
   Future<AnalysisResult> analyze({
     required Uint8List bytes,
     required String mimeType,
     required String question,
     List<AnalysisTurn> history = const [],
+    String? healthContext,
   }) async {
     calls++;
     lastQuestion = question;
     lastHistory = history;
+    lastHealthContext = healthContext;
     if (throws != null) throw throws!;
     return AnalysisResult(prose: answer);
+  }
+}
+
+/// Stands in for the `AnalysisSessionRepository` wiring built in
+/// `media_route.dart`: resolves an existing session for a mediaId (or creates
+/// one) and records every turn appended to it. Lets tests observe persistence
+/// — including session resumption — without a database.
+class _FakeSessionStore {
+  final Map<String, String> sessionIdByMedia = {};
+  int createCount = 0;
+  final List<({String sessionId, String role, String text})> messages = [];
+
+  Future<void> persistTurn({
+    required String mediaId,
+    required String question,
+    required String answer,
+  }) async {
+    final sessionId = sessionIdByMedia.putIfAbsent(mediaId, () {
+      createCount++;
+      return 'session-$createCount';
+    });
+    messages.add((sessionId: sessionId, role: 'user', text: question));
+    messages.add((sessionId: sessionId, role: 'model', text: answer));
   }
 }
 
@@ -49,6 +80,7 @@ void main() {
   late FakeFirebaseFirestore firestore;
   late SyncTrigger trigger;
   late _FakeAnalyzer analyzer;
+  late _FakeSessionStore sessionStore;
   ClaimRecord? claim;
 
   const uid = 'uid-1';
@@ -79,6 +111,7 @@ void main() {
           usageDay = d;
           usageCount = c;
         },
+        persistTurn: sessionStore.persistTurn,
         now: () => now ?? DateTime(2026, 8, 12, 10),
         available: true,
       );
@@ -89,6 +122,7 @@ void main() {
     bool isImage = true,
     int bytes = 1024,
     String? question,
+    String? healthContext,
   }) =>
       service.analyze(
         mediaId: id,
@@ -96,12 +130,14 @@ void main() {
         mimeType: 'image/jpeg',
         isImage: isImage,
         question: question,
+        healthContext: healthContext,
       );
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     firestore = FakeFirebaseFirestore();
     analyzer = _FakeAnalyzer();
+    sessionStore = _FakeSessionStore();
     claim = const ClaimRecord(uid: uid, declined: false);
     consentUid = uid;
     usageDay = null;
@@ -163,6 +199,7 @@ void main() {
         consentUid: () => consentUid,
         readUsage: () => (day: usageDay, count: usageCount),
         writeUsage: (d, c) async {},
+        persistTurn: sessionStore.persistTurn,
         available: false,
       );
       final outcome = await run(service);
@@ -369,6 +406,77 @@ void main() {
     test('false when signed out', () async {
       trigger = await buildTrigger(null);
       expect(buildService().consented, isFalse);
+    });
+  });
+
+  group('health context', () {
+    test('forwards the context verbatim to the analyzer', () async {
+      final service = buildService();
+      await run(
+        service,
+        healthContext: '<<<TRACKED_DATA\nAge: 30\nEND_TRACKED_DATA>>>',
+      );
+      expect(analyzer.lastHealthContext, contains('Age: 30'));
+    });
+
+    test('a null health context still works and forwards null', () async {
+      final outcome = await run(buildService());
+      expect(outcome.blocked, isNull);
+      expect(outcome.error, isNull);
+      expect(analyzer.lastHealthContext, isNull);
+    });
+
+    test('the service still cannot reach the database', () {
+      final src = File('lib/services/media_analysis_service.dart').readAsStringSync();
+      for (final banned in const [
+        'media_repository', 'media_blob_store', 'db/database', 'firestore_ref',
+      ]) {
+        expect(src.contains(banned), isFalse, reason: 'must not import $banned');
+      }
+    });
+  });
+
+  group('persistence', () {
+    test('a successful turn persists both the user turn and the model reply',
+        () async {
+      final service = buildService();
+      await run(service, question: 'what is this');
+
+      expect(sessionStore.messages.length, 2);
+      expect(sessionStore.messages[0].role, 'user');
+      expect(sessionStore.messages[0].text, 'what is this');
+      expect(sessionStore.messages[1].role, 'model');
+      expect(sessionStore.messages[1].text, 'a description');
+    });
+
+    test('an error is not persisted', () async {
+      analyzer = _FakeAnalyzer(throws: const AnalysisException('boom'));
+      final service = buildService();
+      await run(service, question: 'what is this');
+      expect(sessionStore.messages, isEmpty);
+    });
+
+    test('a request blocked before the network is not persisted', () async {
+      consentUid = null;
+      final service = buildService();
+      await run(service, question: 'what is this');
+      expect(sessionStore.messages, isEmpty);
+    });
+
+    test(
+        're-opening a photo that already has a session resumes it rather '
+        'than creating a second', () async {
+      final service = buildService();
+      await run(service, question: 'first');
+      service.endConversation('media-1'); // the sheet closed
+      await run(service, question: 'second');
+
+      expect(sessionStore.createCount, 1);
+      expect(sessionStore.messages.length, 4);
+      expect(
+        sessionStore.messages.every((m) => m.sessionId == 'session-1'),
+        isTrue,
+      );
     });
   });
 }

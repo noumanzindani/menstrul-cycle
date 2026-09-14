@@ -66,6 +66,11 @@ class MediaAnalysisService {
     required String? Function() consentUid,
     required AnalysisUsage Function() readUsage,
     required Future<void> Function(String day, int count) writeUsage,
+    required Future<void> Function({
+      required String mediaId,
+      required String question,
+      required String answer,
+    }) persistTurn,
     DateTime Function() now = DateTime.now,
     // Nullable rather than defaulted: `analysisAvailable` reads a
     // `String.fromEnvironment` getter, which is not a constant expression and
@@ -76,6 +81,7 @@ class MediaAnalysisService {
         _consentUid = consentUid,
         _readUsage = readUsage,
         _writeUsage = writeUsage,
+        _persistTurn = persistTurn,
         _now = now,
         _available = available ?? analysisAvailable;
 
@@ -84,6 +90,22 @@ class MediaAnalysisService {
   final String? Function() _consentUid;
   final AnalysisUsage Function() _readUsage;
   final Future<void> Function(String day, int count) _writeUsage;
+
+  /// Saves one errorless exchange (the user's question and the model's
+  /// reply) to whatever conversation store the CALLER wires up.
+  ///
+  /// Opaque and injected for the same reason [MediaAnalysisService] never
+  /// imports `AnalysisSessionRepository` itself: this class must not be able
+  /// to reach the database (`test/media_guardrails_test.dart` enforces it).
+  /// The production implementation, built in `media_route.dart`, resolves an
+  /// existing session for the mediaId or creates one, then appends both
+  /// turns — this class knows none of that; it just calls the function once
+  /// per successful turn.
+  final Future<void> Function({
+    required String mediaId,
+    required String question,
+    required String answer,
+  }) _persistTurn;
   final DateTime Function() _now;
   final bool _available;
 
@@ -137,12 +159,19 @@ class MediaAnalysisService {
   ///
   /// [mediaId] keys the memo only. [isImage] is passed rather than derived so
   /// this file does not need to know the `MediaItem` shape.
+  ///
+  /// [healthContext] is built by the CALLER and passed through untouched.
+  ///
+  /// It is assembled outside this class on purpose: a service that could read
+  /// the database could leak health data into a request by accident, which is
+  /// why `test/media_guardrails_test.dart` forbids the import.
   Future<AnalysisOutcome> analyze({
     required String mediaId,
     required Uint8List bytes,
     required String mimeType,
     required bool isImage,
     String? question,
+    String? healthContext,
   }) async {
     if (!_available) {
       return const AnalysisOutcome(blocked: AnalysisBlock.unavailable);
@@ -198,7 +227,7 @@ class MediaAnalysisService {
         // Seeded so a follow-up after a memo hit still has a referent. Without
         // this, re-opening a photo and asking "and the other one?" would send
         // that phrase with no conversation attached.
-        _remember(mediaId, history, asked, memoized);
+        await _remember(mediaId, history, asked, memoized);
         return AnalysisOutcome(result: memoized);
       }
     }
@@ -228,6 +257,7 @@ class MediaAnalysisService {
         mimeType: mimeType,
         question: asked,
         history: history,
+        healthContext: healthContext,
       );
     } on AnalysisException catch (e) {
       // The transcript is deliberately NOT extended on a failure. Appending a
@@ -242,20 +272,27 @@ class MediaAnalysisService {
     }
 
     if (history.isEmpty) _memo['$mediaId|$asked'] = result;
-    _remember(mediaId, history, asked, result);
+    await _remember(mediaId, history, asked, result);
     return AnalysisOutcome(result: result);
   }
 
-  /// Appends one exchange to [mediaId]'s conversation.
+  /// Appends one exchange to [mediaId]'s conversation, and saves it through
+  /// [_persistTurn].
   ///
   /// A result with no prose (a classifier backend fills `labels` instead) is not
-  /// recorded: there is no model utterance to echo back on the next turn.
-  void _remember(
+  /// recorded: there is no model utterance to echo back on the next turn, and
+  /// nothing to save either.
+  ///
+  /// This is the ONLY path that calls [_persistTurn] — every early return
+  /// above it (a gate, a daily-cap refusal, a thrown [AnalysisException])
+  /// skips this method entirely, which is what keeps errors and refusals out
+  /// of the saved transcript. See "Only errorless turns are persisted".
+  Future<void> _remember(
     String mediaId,
     List<AnalysisTurn> history,
     String asked,
     AnalysisResult result,
-  ) {
+  ) async {
     final prose = result.prose;
     if (prose == null || prose.trim().isEmpty) return;
     _transcripts[mediaId] = <AnalysisTurn>[
@@ -263,5 +300,6 @@ class MediaAnalysisService {
       AnalysisTurn.user(asked),
       AnalysisTurn.model(prose),
     ];
+    await _persistTurn(mediaId: mediaId, question: asked, answer: prose);
   }
 }

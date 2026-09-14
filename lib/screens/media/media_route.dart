@@ -5,13 +5,18 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../data/analysis_session_repository.dart';
 import '../../data/media_repository.dart';
 import '../../db/database.dart';
+import '../../providers/log_provider.dart';
 import '../../providers/media_provider.dart';
+import '../../providers/medication_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../models/prediction.dart';
 import '../../services/device_id.dart';
 import '../../services/firebase_availability.dart';
 import '../../services/firestore_ref.dart';
+import '../../services/health_context.dart';
 import '../../services/media_analysis.dart';
 import '../../services/media_analysis_service.dart';
 import '../../services/media_analyzer.dart';
@@ -76,6 +81,46 @@ Route<void> mediaTimelineRoute(BuildContext context) {
   // listening to anything.
   final settings = context.read<SettingsProvider>();
   final canAnalyze = available && analysisAvailable;
+
+  // Saved conversations. Local-only (see AnalysisSessionRepository's own
+  // doc comment) — this repository never touches Firestore or Cloud Storage.
+  final sessionRepo = AnalysisSessionRepository(db);
+
+  // Persists one errorless exchange, resuming the existing session for this
+  // mediaId when there is one rather than starting a second conversation
+  // about the same photo. Handed to MediaAnalysisService as an opaque
+  // callback: that class must never import AnalysisSessionRepository or
+  // AppDatabase itself (test/media_guardrails_test.dart enforces it), so the
+  // find-or-create logic lives here, where the database already is.
+  Future<void> persistAnalysisTurn({
+    required String mediaId,
+    required String question,
+    required String answer,
+  }) async {
+    final uid = trigger.currentUid;
+    if (uid == null) return;
+    final existing =
+        await sessionRepo.forMedia(uid: uid, mediaId: mediaId);
+    final session = existing ??
+        await sessionRepo.create(
+          uid: uid,
+          mediaId: mediaId,
+          // Literal until the next task introduces kCurrentConsentVersion,
+          // which will replace this — see the plan's Task 7 notes.
+          consentVersion: 2,
+        );
+    await sessionRepo.append(
+      sessionId: session.id,
+      role: 'user',
+      text: question,
+    );
+    await sessionRepo.append(
+      sessionId: session.id,
+      role: 'model',
+      text: answer,
+    );
+  }
+
   final analysisService = MediaAnalysisService(
     analyzer: canAnalyze ? GeminiMediaAnalyzer() : const UnavailableMediaAnalyzer(),
     trigger: trigger,
@@ -85,6 +130,7 @@ Route<void> mediaTimelineRoute(BuildContext context) {
       count: settings.analysisCountToday,
     ),
     writeUsage: settings.recordAnalysisUsage,
+    persistTurn: persistAnalysisTurn,
     available: canAnalyze,
   );
 
@@ -117,13 +163,37 @@ Route<void> mediaTimelineRoute(BuildContext context) {
               load: (item) => _loadFile(item, cache, blobs),
               analyze: !canAnalyze
                   ? null
-                  : (item, file, question) async => analysisService.analyze(
+                  : (item, file, question) async {
+                      // Gathered from providers BEFORE the async gap, so no
+                      // BuildContext is used across an await — mirrors
+                      // insights_screen.dart:79-99's PDF export. The service
+                      // itself may not read these providers (or the database
+                      // behind them) at all; assembling the context is this
+                      // caller's job precisely so it stays that way.
+                      final logProvider = context.read<LogProvider>();
+                      final medicationProvider =
+                          context.read<MedicationProvider>();
+                      final prediction = context.read<PredictionResult?>();
+                      final appSettings = settings.settings;
+                      final healthContext = appSettings == null
+                          ? null
+                          : buildHealthContext(
+                              logs: logProvider.logs,
+                              cycles: logProvider.cycles,
+                              prediction: prediction,
+                              medications: medicationProvider.items,
+                              settings: appSettings,
+                              asOf: DateTime.now(),
+                            );
+                      return analysisService.analyze(
                         mediaId: item.id,
                         bytes: await file.readAsBytes(),
                         mimeType: _guessContentType(item.storagePath),
                         isImage: item.kind == 'image',
                         question: question,
-                      ),
+                        healthContext: healthContext,
+                      );
+                    },
               needsConsent: () => !analysisService.consented,
               endConversation: () => analysisService.endConversation(item.id),
               // Display only, and computed from the SAME pure helper the
