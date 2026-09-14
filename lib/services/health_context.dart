@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import '../common/catalog.dart';
 import '../db/database.dart';
+import '../models/cycle.dart';
 import '../models/enums.dart';
+import '../models/prediction.dart';
 import 'bmi_service.dart';
 
 /// How much daily history travels with a photo.
@@ -204,3 +206,99 @@ String buildDayLine({
 
   return parts.isEmpty ? head : '$head - ${parts.join('; ')}';
 }
+
+/// Delimiters around the context block.
+///
+/// The model is told, in the system instruction, that everything between these
+/// is information and never instructions. The diary is free text the user wrote
+/// themselves, so this is not an attack on the user — but a note reading "ignore
+/// the previous instructions" would otherwise be replayed verbatim into the
+/// prompt on every turn of the conversation.
+const String kHealthContextOpenDelimiter = '<<<TRACKED_DATA';
+const String kHealthContextCloseDelimiter = 'END_TRACKED_DATA>>>';
+
+/// Everything the app knows about this person, as one delimited block.
+///
+/// Pure: rows in, string out. It performs no I/O and touches no provider, so
+/// the caller gathers from providers BEFORE the async gap — the same shape as
+/// `PdfReportService.build` and its call site at insights_screen.dart:79-99.
+/// That is what keeps `MediaAnalysisService` unable to reach the database.
+String buildHealthContext({
+  required List<DailyLog> logs,
+  required List<Cycle> cycles,
+  required PredictionResult? prediction,
+  required List<Medication> medications,
+  required AppSetting settings,
+  required DateTime asOf,
+  int windowDays = kContextWindowDays,
+}) {
+  final sections = <String>[];
+
+  final profile = buildProfileBlock(settings: settings, asOf: asOf);
+  if (profile.isNotEmpty) sections.add('About this person:\n$profile');
+
+  if (prediction != null && prediction.cyclesTracked > 0) {
+    sections.add('Cycle summary:\n'
+        'Cycles tracked: ${prediction.cyclesTracked}\n'
+        'Average cycle length: ${prediction.averageCycleLength} days\n'
+        'Average period length: ${prediction.averagePeriodLength} days');
+  }
+
+  final cutoff = asOf.subtract(Duration(days: windowDays));
+  final windowed = logs.where((l) => l.date.isAfter(cutoff)).toList()
+    ..sort((a, b) => a.date.compareTo(b.date));
+
+  final medNames = <int, String>{
+    for (final m in medications) m.id: m.name,
+  };
+
+  final dayLines = windowed
+      .map((log) => buildDayLine(
+            log: log,
+            cycleDay: _cycleDayFor(log.date, cycles),
+            phase: _phaseFor(log.date, cycles, prediction),
+            medicationNames: medNames,
+          ))
+      .toList();
+
+  if (dayLines.isNotEmpty) {
+    sections.add('Daily log, last $windowDays days:\n${dayLines.join('\n')}');
+  }
+
+  if (sections.isEmpty) return '';
+  return '$kHealthContextOpenDelimiter\n${sections.join('\n\n')}\n$kHealthContextCloseDelimiter';
+}
+
+/// 1-based day within whichever derived cycle contains [date], or null.
+int? _cycleDayFor(DateTime date, List<Cycle> cycles) {
+  for (final c in cycles) {
+    final end = c.lengthDays == null
+        ? c.end
+        : c.start.add(Duration(days: c.lengthDays! - 1));
+    if (!date.isBefore(c.start) && !date.isAfter(end)) {
+      return date.difference(c.start).inDays + 1;
+    }
+  }
+  return null;
+}
+
+/// The phase for [date]. Only the CURRENT day can borrow the live prediction;
+/// every other day falls back to bleeding-or-unknown rather than being guessed.
+CyclePhase _phaseFor(
+  DateTime date,
+  List<Cycle> cycles,
+  PredictionResult? prediction,
+) {
+  for (final c in cycles) {
+    if (!date.isBefore(c.start) && !date.isAfter(c.end)) {
+      return CyclePhase.menstrual;
+    }
+  }
+  if (prediction != null && _isSameDay(date, DateTime.now())) {
+    return prediction.currentPhase;
+  }
+  return CyclePhase.unknown;
+}
+
+bool _isSameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;

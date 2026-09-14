@@ -511,4 +511,47 @@ void main() {
       expect(line, isNot(contains('vag_unknown_key')));
     });
   });
+
+  group('full context', () {
+    test('is empty when there is nothing to say', () {
+      final out = buildHealthContext(
+        logs: const [],
+        cycles: const [],
+        prediction: null,
+        medications: const [],
+        settings: _settings(),
+        asOf: asOf,
+      );
+      expect(out, isEmpty);
+    });
+
+    test('drops days older than the window', () {
+      final out = buildHealthContext(
+        logs: [
+          makeLog(date: DateTime(2026, 9, 10), flow: FlowIntensity.light),
+          makeLog(date: DateTime(2025, 1, 1), flow: FlowIntensity.light),
+        ],
+        cycles: const [],
+        prediction: null,
+        medications: const [],
+        settings: _settings(),
+        asOf: asOf,
+      );
+      expect(out, contains('2026-09-10'));
+      expect(out, isNot(contains('2025-01-01')));
+    });
+
+    test('is delimited so the model can tell data from instructions', () {
+      final out = buildHealthContext(
+        logs: [makeLog(date: DateTime(2026, 9, 10), flow: FlowIntensity.light)],
+        cycles: const [],
+        prediction: null,
+        medications: const [],
+        settings: _settings(),
+        asOf: asOf,
+      );
+      expect(out, startsWith(kHealthContextOpenDelimiter));
+      expect(out, endsWith(kHealthContextCloseDelimiter));
+    });
+  });
 }
