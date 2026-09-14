@@ -30,6 +30,7 @@ import '../../services/media_thumbnailer.dart';
 import '../../services/media_upload_service.dart';
 import '../../services/sync_trigger.dart';
 import 'analysis_consent_sheet.dart';
+import 'analysis_sessions_screen.dart';
 import 'media_timeline_screen.dart';
 import 'media_viewer_screen.dart';
 
@@ -147,6 +148,102 @@ Route<void> mediaTimelineRoute(BuildContext context) {
     available: canAnalyze,
   );
 
+  // Opens one item full-screen. Factored out of `onOpen` below so the same
+  // viewer construction is reachable from a saved conversation's row in
+  // `AnalysisSessionsScreen`, not only from a grid tile — a row there has a
+  // `mediaId`, not a `MediaItem`, so its own onOpen resolves the item first
+  // (see below) and then calls this exact function, rather than duplicating
+  // the ~80 lines of `analyze`/`needsConsent`/`requestConsent` wiring.
+  void openViewer(BuildContext context, MediaItem item) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MediaViewerScreen(
+          item: item,
+          load: (item) => _loadFile(item, cache, blobs),
+          analyze: !canAnalyze
+              ? null
+              : (item, file, question) async {
+                  // Gathered from providers BEFORE the async gap, so no
+                  // BuildContext is used across an await — mirrors
+                  // insights_screen.dart:79-99's PDF export. The service
+                  // itself may not read these providers (or the database
+                  // behind them) at all; assembling the context is this
+                  // caller's job precisely so it stays that way.
+                  final logProvider = context.read<LogProvider>();
+                  final medicationProvider =
+                      context.read<MedicationProvider>();
+                  final prediction = context.read<PredictionResult?>();
+                  final appSettings = settings.settings;
+                  final healthContext = appSettings == null
+                      ? null
+                      : buildHealthContext(
+                          logs: logProvider.logs,
+                          cycles: logProvider.cycles,
+                          prediction: prediction,
+                          medications: medicationProvider.items,
+                          settings: appSettings,
+                          asOf: DateTime.now(),
+                        );
+                  return analysisService.analyze(
+                    mediaId: item.id,
+                    bytes: await file.readAsBytes(),
+                    mimeType: _guessContentType(item.storagePath),
+                    isImage: item.kind == 'image',
+                    question: question,
+                    healthContext: healthContext,
+                  );
+                },
+          needsConsent: () => !analysisService.consented,
+          endConversation: () => analysisService.endConversation(item.id),
+          // Display only, and computed from the SAME pure helper the
+          // service counts with — a second reading of "how many are left"
+          // is a second place for it to be wrong. Read lazily, so it is
+          // current every time the sheet rebuilds.
+          messagesLeft: !canAnalyze
+              ? null
+              : () {
+                  final used = analysisCountForDay(
+                    storedDay: settings.analysisCountDay,
+                    storedCount: settings.analysisCountToday,
+                    now: DateTime.now(),
+                  );
+                  final left = kMaxAnalysesPerDay - used;
+                  return left < 0 ? 0 : left;
+                },
+          // Looked up fresh on every Describe tap rather than once here: a
+          // conversation can be created (or, via `deleteForMedia`, removed)
+          // while this viewer is already open.
+          loadExistingTurns: !canAnalyze
+              ? null
+              : (item) async {
+                  final uid = trigger.currentUid;
+                  if (uid == null) return const <AnalysisTurn>[];
+                  final session =
+                      await sessionRepo.forMedia(uid: uid, mediaId: item.id);
+                  if (session == null) return const <AnalysisTurn>[];
+                  final messages = await sessionRepo.messagesFor(session.id);
+                  return messages
+                      .map((m) => m.role == 'user'
+                          ? AnalysisTurn.user(m.messageText)
+                          : AnalysisTurn.model(m.messageText))
+                      .toList();
+                },
+          requestConsent: (context) async {
+            final allowed = await showAnalysisConsentSheet(context);
+            if (allowed != true) return false;
+            final uid = trigger.currentUid;
+            if (uid == null) return false;
+            // Recorded against the UID that is signed in RIGHT NOW, read
+            // after the sheet rather than before it: the account can change
+            // while a modal is open, and consent belongs to whoever gave it.
+            await settings.setAnalysisConsent(uid);
+            return true;
+          },
+        ),
+      ),
+    );
+  }
+
   return MaterialPageRoute<void>(
     builder: (_) => ChangeNotifierProvider<MediaProvider>.value(
       // Re-provided for the same reason `DayEntrySheet` re-provides
@@ -169,75 +266,37 @@ Route<void> mediaTimelineRoute(BuildContext context) {
         onAdd: !available
             ? null
             : (source) => _pickAndUpload(uploader, source),
-        onOpen: (context, item) => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => MediaViewerScreen(
-              item: item,
-              load: (item) => _loadFile(item, cache, blobs),
-              analyze: !canAnalyze
-                  ? null
-                  : (item, file, question) async {
-                      // Gathered from providers BEFORE the async gap, so no
-                      // BuildContext is used across an await — mirrors
-                      // insights_screen.dart:79-99's PDF export. The service
-                      // itself may not read these providers (or the database
-                      // behind them) at all; assembling the context is this
-                      // caller's job precisely so it stays that way.
-                      final logProvider = context.read<LogProvider>();
-                      final medicationProvider =
-                          context.read<MedicationProvider>();
-                      final prediction = context.read<PredictionResult?>();
-                      final appSettings = settings.settings;
-                      final healthContext = appSettings == null
-                          ? null
-                          : buildHealthContext(
-                              logs: logProvider.logs,
-                              cycles: logProvider.cycles,
-                              prediction: prediction,
-                              medications: medicationProvider.items,
-                              settings: appSettings,
-                              asOf: DateTime.now(),
-                            );
-                      return analysisService.analyze(
-                        mediaId: item.id,
-                        bytes: await file.readAsBytes(),
-                        mimeType: _guessContentType(item.storagePath),
-                        isImage: item.kind == 'image',
-                        question: question,
-                        healthContext: healthContext,
-                      );
-                    },
-              needsConsent: () => !analysisService.consented,
-              endConversation: () => analysisService.endConversation(item.id),
-              // Display only, and computed from the SAME pure helper the
-              // service counts with — a second reading of "how many are left"
-              // is a second place for it to be wrong. Read lazily, so it is
-              // current every time the sheet rebuilds.
-              messagesLeft: !canAnalyze
-                  ? null
-                  : () {
-                      final used = analysisCountForDay(
-                        storedDay: settings.analysisCountDay,
-                        storedCount: settings.analysisCountToday,
-                        now: DateTime.now(),
-                      );
-                      final left = kMaxAnalysesPerDay - used;
-                      return left < 0 ? 0 : left;
-                    },
-              requestConsent: (context) async {
-                final allowed = await showAnalysisConsentSheet(context);
-                if (allowed != true) return false;
-                final uid = trigger.currentUid;
-                if (uid == null) return false;
-                // Recorded against the UID that is signed in RIGHT NOW, read
-                // after the sheet rather than before it: the account can change
-                // while a modal is open, and consent belongs to whoever gave it.
-                await settings.setAnalysisConsent(uid);
-                return true;
-              },
-            ),
-          ),
-        ),
+        onOpen: openViewer,
+        // Local-only and independent of `available` (Firestore/cloud): the
+        // sessions list reads nothing but this device's own database. Gated
+        // on `canAnalyze` instead, matching the Describe action itself — a
+        // build with no analysis feature has nothing here to browse.
+        onOpenSessions: !canAnalyze
+            ? null
+            : (context) => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => AnalysisSessionsScreen(
+                      load: () async {
+                        final uid = trigger.currentUid;
+                        if (uid == null) return const <AnalysisSession>[];
+                        return sessionRepo.allFor(uid);
+                      },
+                      loadMessages: sessionRepo.messagesFor,
+                      loadMedia: repo.byId,
+                      // Reopens the PHOTO rather than the transcript
+                      // directly: `openViewer` already owns every consent,
+                      // cap and resume rule Describe needs, and tapping
+                      // Describe there immediately resumes this same session
+                      // via `loadExistingTurns` above — one code path for
+                      // "show me this conversation" instead of two.
+                      onOpen: (context, session) async {
+                        final media = await repo.byId(session.mediaId);
+                        if (media == null || !context.mounted) return;
+                        openViewer(context, media);
+                      },
+                    ),
+                  ),
+                ),
       ),
     ),
   );

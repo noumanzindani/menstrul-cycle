@@ -195,6 +195,69 @@ void main() {
     expect(find.text(kAnalysisCaveat), findsOneWidget);
   });
 
+  testWidgets('hydrates a stored transcript, in order, turns distinguished',
+      (tester) async {
+    // A resumed session: initialText is unused whenever initialTurns is
+    // non-empty (it exists only to satisfy call sites that always have some
+    // string on hand), so it deliberately does NOT match anything here.
+    await tester.pumpWidget(
+      wrap(
+        AnalysisResultSheet(
+          initialText: 'unused',
+          initialTurns: const [
+            AnalysisTurn.model('A pink diamond pattern.'),
+            AnalysisTurn.user('what colour is it'),
+            AnalysisTurn.model('It is pink.'),
+          ],
+          onAsk: (_) async => const AnalysisSheetReply('unused'),
+        ),
+      ),
+    );
+
+    expect(find.text('unused'), findsNothing);
+    expect(find.text('A pink diamond pattern.'), findsOneWidget);
+    expect(find.text('what colour is it'), findsOneWidget);
+    expect(find.text('It is pink.'), findsOneWidget);
+
+    // Order: the model's opening line sits above the user's follow-up, which
+    // sits above the model's second reply — the same top-to-bottom order the
+    // turns were supplied in.
+    final openingY =
+        tester.getTopLeft(find.text('A pink diamond pattern.')).dy;
+    final followUpY = tester.getTopLeft(find.text('what colour is it')).dy;
+    final secondReplyY = tester.getTopLeft(find.text('It is pink.')).dy;
+    expect(openingY, lessThan(followUpY));
+    expect(followUpY, lessThan(secondReplyY));
+
+    // User and model turns render distinguishably: only a user turn's bubble
+    // is wrapped in `Align(alignment: Alignment.centerRight, ...)` — the
+    // model's answer is plain, left-flowing prose with no such wrapper.
+    Iterable<Alignment> alignmentsAbove(Finder text) => find
+        .ancestor(of: text, matching: find.byType(Align))
+        .evaluate()
+        .map((e) => (e.widget as Align).alignment as Alignment);
+    expect(alignmentsAbove(find.text('what colour is it')),
+        contains(Alignment.centerRight));
+    expect(alignmentsAbove(find.text('It is pink.')),
+        isNot(contains(Alignment.centerRight)));
+  });
+
+  testWidgets(
+      'an empty initialTurns list behaves exactly as before (regression)',
+      (tester) async {
+    // No initialTurns argument at all — the default `const []` — must still
+    // seed the single model bubble from initialText, unchanged.
+    await tester.pumpWidget(
+      wrap(
+        AnalysisResultSheet(
+          initialText: 'A pink diamond pattern.',
+          onAsk: (_) async => const AnalysisSheetReply('unused'),
+        ),
+      ),
+    );
+    expect(find.text('A pink diamond pattern.'), findsOneWidget);
+  });
+
   testWidgets('onClosed fires when the sheet is dismissed', (tester) async {
     // This is what forgets the conversation. If it stops firing, re-opening a
     // photo silently resumes a transcript the user can no longer see.

@@ -309,6 +309,32 @@ void main() {
 
     expect(opened, idOf('a'));
   });
+
+  group('saved-conversations action', () {
+    testWidgets('is hidden when onOpenSessions is null', (tester) async {
+      await provider.setUid(uid);
+      await tester.pumpWidget(wrap(const MediaTimelineScreen()));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Saved descriptions'), findsNothing);
+    });
+
+    testWidgets('opens the sessions list when tapped', (tester) async {
+      await provider.setUid(uid);
+      var tapped = false;
+
+      await tester.pumpWidget(wrap(MediaTimelineScreen(
+        onOpenSessions: (_) => tapped = true,
+      )));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Saved descriptions'), findsOneWidget);
+      await tester.tap(find.byTooltip('Saved descriptions'));
+      await tester.pumpAndSettle();
+
+      expect(tapped, isTrue);
+    });
+  });
 }
 
 /// The smallest valid PNG, so `Image.memory` has something real to decode.

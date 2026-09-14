@@ -46,6 +46,7 @@ class MediaViewerScreen extends StatefulWidget {
     this.requestConsent,
     this.endConversation,
     this.messagesLeft,
+    this.loadExistingTurns,
   });
 
   final MediaItem item;
@@ -81,6 +82,14 @@ class MediaViewerScreen extends StatefulWidget {
   /// the counter — a display of a budget nobody supplied would be a guess, and
   /// this one costs real money to be wrong about.
   final int Function()? messagesLeft;
+
+  /// The saved conversation about this photo, if one exists, oldest turn
+  /// first. Checked on every Describe tap, before any network call: when this
+  /// returns a non-empty list, Describe reopens that conversation instead of
+  /// asking the model a brand new opening question and silently starting a
+  /// second one about the same picture. Null or an empty list behaves exactly
+  /// as before — a fresh description is requested.
+  final Future<List<AnalysisTurn>> Function(MediaItem item)? loadExistingTurns;
 
   @override
   State<MediaViewerScreen> createState() => _MediaViewerScreenState();
@@ -165,6 +174,19 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
     }
 
     setState(() => _analyzing = true);
+
+    // Checked BEFORE any network call: a saved conversation about this photo
+    // means Describe should reopen it, not silently start a second one and
+    // spend another call (and another slice of the daily cap) asking the
+    // model the same opening question again.
+    final existing = await _loadExisting();
+    if (!mounted) return;
+    if (existing.isNotEmpty) {
+      setState(() => _analyzing = false);
+      await _openSheet(analyze, file, initialTurns: existing);
+      return;
+    }
+
     final outcome = await analyze(widget.item, file, null);
     if (!mounted) return;
     setState(() => _analyzing = false);
@@ -185,9 +207,39 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
       return;
     }
 
-    await showAnalysisResultSheet(
+    await _openSheet(analyze, file, initialText: prose);
+  }
+
+  /// Reads the stored conversation for this photo, if [MediaViewerScreen.
+  /// loadExistingTurns] was given one. A lookup failure reads the same as "no
+  /// saved conversation" — Describe simply falls through to asking the model
+  /// fresh, rather than getting stuck on a database error the user cannot act
+  /// on.
+  Future<List<AnalysisTurn>> _loadExisting() async {
+    final load = widget.loadExistingTurns;
+    if (load == null) return const [];
+    try {
+      return await load(widget.item);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Opens the conversation sheet, either freshly seeded from [initialText]
+  /// (a new description just came back) or hydrated from [initialTurns] (an
+  /// existing session is being resumed). Exactly one of the two is meaningful
+  /// per call; [showAnalysisResultSheet] itself ignores [initialText]
+  /// whenever [initialTurns] is non-empty.
+  Future<void> _openSheet(
+    Future<AnalysisOutcome> Function(MediaItem, File, String?) analyze,
+    File file, {
+    String? initialText,
+    List<AnalysisTurn> initialTurns = const [],
+  }) {
+    return showAnalysisResultSheet(
       context,
-      initialText: prose,
+      initialText: initialText ?? '',
+      initialTurns: initialTurns,
       // The sheet sits over the photo but does not show it: at 80% height the
       // top-left thumbnail is the only thing that says which picture the
       // answer is about.

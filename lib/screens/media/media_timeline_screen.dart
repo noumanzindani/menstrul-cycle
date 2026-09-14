@@ -32,6 +32,7 @@ class MediaTimelineScreen extends StatefulWidget {
     this.onRefresh,
     this.onAdd,
     this.onOpen,
+    this.onOpenSessions,
   });
 
   /// Pull metadata, hydrate thumbnails, sweep orphans. Null when offline-hatched.
@@ -48,6 +49,15 @@ class MediaTimelineScreen extends StatefulWidget {
   /// Opens one item full-screen. Injected so the grid does not depend on the
   /// viewer (and its video controller) in widget tests.
   final void Function(BuildContext context, MediaItem item)? onOpen;
+
+  /// Opens the saved-conversations list. Null hides the action — same
+  /// "hidden, not disabled" rule the media entry point itself follows, and
+  /// what keeps this off a build with no photo-description feature at all.
+  ///
+  /// An app-bar action rather than a sixth bottom-nav destination or a second
+  /// FAB: the `NavigationBar` is fixed at Material's five, and a second FAB on
+  /// a 360dp screen already carrying one for Add would collide with it.
+  final void Function(BuildContext context)? onOpenSessions;
 
   bool get canAdd => onAdd != null;
 
@@ -216,7 +226,17 @@ class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
     final items = provider.items;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Photos & videos')),
+      appBar: AppBar(
+        title: const Text('Photos & videos'),
+        actions: [
+          if (widget.onOpenSessions != null)
+            IconButton(
+              tooltip: 'Saved descriptions',
+              icon: const Icon(Icons.forum_outlined),
+              onPressed: () => widget.onOpenSessions!(context),
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'media.add',
         tooltip: 'Add a photo or video',
