@@ -180,6 +180,14 @@ class AppDatabase extends _$AppDatabase {
       // and Firestore's own unencrypted on-device cache
       // (`clearLunaFirestoreCache`).
       await delete(mediaItems).go();
+      // Saved conversations about photographs. Persisting transcripts was a
+      // deliberate reversal of the original in-memory design, and this is one
+      // of the four erasure paths that reversal owes — leaving them would make
+      // "everything on this device is erased" false in the most sensitive way.
+      // Messages first: they carry a foreign key (sessionId) to the row
+      // deleted next.
+      await delete(analysisMessages).go();
+      await delete(analysisSessions).go();
       await into(appSettings).insert(const AppSettingsCompanion(id: Value(0)));
     });
   }

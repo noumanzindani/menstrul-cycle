@@ -1,6 +1,9 @@
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:menstrul_track/data/analysis_session_repository.dart';
+import 'package:menstrul_track/db/database.dart';
 
 /// Structural guardrails for the media timeline.
 ///
@@ -295,6 +298,47 @@ void main() {
       // reshuffle silently re-targets it.
       final src = _code('lib/screens/app_shell.dart');
       expect(src.contains('Media'), isFalse);
+    });
+  });
+
+  group('saved photo-analysis conversations are erased everywhere they must be', () {
+    // Persisting analysis transcripts (schema v11) was a deliberate reversal
+    // of the original in-memory-only design, and the rationale in
+    // `media_analysis_service.dart` spelled out exactly what persistence
+    // would owe: a stored chat log about a body photo needs its own erasure
+    // path in `deleteAllData`, the backup file, and the doctor PDF, and it
+    // must stay out of the home-screen widget. This group is that bill.
+    test('deleteAllData clears saved conversations', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      final repo = AnalysisSessionRepository(db);
+      final s = await repo.create(uid: 'u1', mediaId: 'm1', consentVersion: 2);
+      await repo.append(sessionId: s.id, role: 'model', text: 'a description');
+
+      await db.deleteAllData();
+
+      expect(await db.select(db.analysisSessions).get(), isEmpty);
+      expect(await db.select(db.analysisMessages).get(), isEmpty);
+      await db.close();
+    });
+
+    test('the backup file carries no saved conversations', () {
+      // A `.lunabak` file is a plaintext export that leaves the device, so
+      // this is asserted on the encoded output's source rather than merely
+      // trusted as an omission.
+      final src = _read('lib/services/backup_service.dart');
+      expect(src.contains('analysisSessions'), isFalse);
+      expect(src.contains('analysisMessages'), isFalse);
+    });
+
+    test('saved conversations never reach the doctor PDF or the widget', () {
+      for (final path in const [
+        'lib/services/pdf_report_service.dart',
+        'lib/services/home_widget_service.dart',
+      ]) {
+        final src = _read(path);
+        expect(src.contains('analysisSessions'), isFalse, reason: path);
+        expect(src.contains('AnalysisMessage'), isFalse, reason: path);
+      }
     });
   });
 

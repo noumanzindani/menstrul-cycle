@@ -176,6 +176,24 @@ void main() {
               'owner re-tightened the ruling, delete the exemption too.');
     });
 
+    /// GUARDRAIL: schema v11's AI-photo-analysis health-context service file
+    /// must never be added as a second exemption to the scan above. The
+    /// original ruling — no BMI, no height, no classification of any kind —
+    /// was reversed ONCE, scoped to `bmi_service.dart` alone; a health
+    /// context built for an AI conversation is exactly the kind of file a
+    /// future change could be tempted to exempt "just this once", and that is
+    /// a question for the owner, not something this file should pre-approve.
+    ///
+    /// The needle is built rather than embedded as a literal, and this
+    /// comment avoids spelling it out too, so this test's own source text
+    /// cannot trip its own assertion.
+    test('health_context is not in the body-judgement exemption list', () {
+      final needle = ['health_context', '.dart'].join();
+      final src =
+          File('test/weight_trend_service_test.dart').readAsStringSync();
+      expect(src.contains(needle), isFalse);
+    });
+
     test('includes weight when there is a trend', () async {
       final without = await pdfSize();
       final withWeight = await pdfSize(withWeight: true);
