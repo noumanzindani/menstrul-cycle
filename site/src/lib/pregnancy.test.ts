@@ -133,6 +133,84 @@ describe('weeksToMonths', () => {
     expect(() => weeksToMonths(46, 0, 'lmp')).toThrow(RangeError)
     expect(() => weeksToMonths(44, 0, 'conception')).toThrow(/43 weeks 6 days/)
   })
+
+  it('never emits a negative or NaN month field, at or past term', () => {
+    // The coercion this guards: month - 1 === -1, MONTH_START_DAYS[-1] is
+    // undefined, and the page prints "-1 months complete" with a NaN day of the
+    // month. Reachable from an ordinary 40w0d entry, so it is not an edge case.
+    for (let w = 40; w <= 45; w += 1) {
+      const r = weeksToMonths(w, 0, 'lmp')
+      expect(r.postTerm).toBe(true)
+      expect(r.monthsComplete).toBe(9)
+      for (const v of [r.month, r.monthStartDay, r.monthEndDay, r.monthWeeks,
+        r.dayOfMonth, r.weekOfMonth, r.daysToNextMonth, r.daysToTerm]) {
+        expect(v).toBeNull()
+      }
+    }
+  })
+
+  it('emits no term countdown past term, and a positive one before it', () => {
+    expect(weeksToMonths(39, 6, 'lmp').daysToTerm).toBe(1)
+    expect(weeksToMonths(40, 0, 'lmp').daysToTerm).toBeNull()
+    for (let d = 0; d < 280; d += 1) {
+      expect(weeksToMonths(Math.floor(d / 7), d % 7, 'lmp').daysToTerm).toBeGreaterThan(0)
+    }
+  })
+
+  it('counts months complete as one less than the month you are in', () => {
+    expect(weeksToMonths(0, 0, 'lmp').monthsComplete).toBe(0)
+    expect(weeksToMonths(3, 6, 'lmp').monthsComplete).toBe(0) // day 27, still month 1
+    expect(weeksToMonths(4, 0, 'lmp').monthsComplete).toBe(1) // day 28, month 2
+  })
+
+  it('gives every month four or five whole weeks, summing to term', () => {
+    let total = 0
+    const seen = new Map<number, number>()
+    for (let d = 0; d < 280; d += 1) {
+      const r = weeksToMonths(Math.floor(d / 7), d % 7, 'lmp')
+      expect([4, 5]).toContain(r.monthWeeks)
+      seen.set(r.month!, r.monthWeeks!)
+    }
+    for (const weeks of seen.values()) total += weeks
+    expect(seen.size).toBe(9)
+    expect(total * 7).toBe(280)
+  })
+
+  it('keeps the day of the month inside the month it reports', () => {
+    for (let d = 0; d < 280; d += 1) {
+      const r = weeksToMonths(Math.floor(d / 7), d % 7, 'lmp')
+      expect(r.dayOfMonth).toBe(d - r.monthStartDay! + 1)
+      expect(r.dayOfMonth).toBeGreaterThanOrEqual(1)
+      expect(r.dayOfMonth).toBeLessThanOrEqual(r.monthEndDay! - r.monthStartDay! + 1)
+      expect(r.daysToNextMonth).toBe(r.monthEndDay! + 1 - d)
+      expect(r.weekOfMonth).toBeGreaterThanOrEqual(1)
+      expect(r.weekOfMonth).toBeLessThanOrEqual(r.monthWeeks!)
+    }
+  })
+
+  it('counts down to the next trimester, and not past the third', () => {
+    expect(weeksToMonths(0, 0, 'lmp').daysToNextTrimester).toBe(98)
+    expect(weeksToMonths(13, 6, 'lmp').daysToNextTrimester).toBe(1)
+    expect(weeksToMonths(14, 0, 'lmp').daysToNextTrimester).toBe(98)
+    expect(weeksToMonths(27, 6, 'lmp').daysToNextTrimester).toBe(1)
+    expect(weeksToMonths(28, 0, 'lmp').daysToNextTrimester).toBeNull()
+  })
+
+  it('withholds a conception figure before conception could have happened', () => {
+    expect(weeksToMonths(1, 6, 'lmp').conceptionWeeks).toBeNull() // day 13
+    expect(weeksToMonths(1, 6, 'lmp').conceptionDays).toBeNull()
+    expect(weeksToMonths(2, 0, 'lmp').conceptionWeeks).toBe(0)    // day 14
+    expect(weeksToMonths(2, 0, 'lmp').conceptionDays).toBe(0)
+    expect(weeksToMonths(10, 0, 'lmp').conceptionWeeks).toBe(8)
+  })
+
+  it('restates elapsed time without claiming it is the month you are in', () => {
+    const r = weeksToMonths(40, 0, 'lmp')
+    // The figure the page's own rationale rejects, printed only as elapsed time.
+    expect(r.fourWeekMonths).toBe(10)
+    expect(r.averageCalendarMonths).toBe(9.2)
+    expect(r.month).toBeNull()
+  })
 })
 
 describe('ivfDueDate', () => {

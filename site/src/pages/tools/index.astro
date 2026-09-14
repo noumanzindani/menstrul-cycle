@@ -3,25 +3,28 @@ import Base from '../../layouts/Base.astro'
 import CycleFocus from '../../components/CycleFocus.astro'
 ---
 <Base
-  title="Cycle Calculators — LunarFlow"
-  description="Period, ovulation, cycle-length, and due-date calculators that run locally in your browser. Nothing you type into any of them is ever transmitted."
+  title="Cycle and Pregnancy Calculators"
+  description="Period, ovulation, cycle-length and due-date calculators, plus a pregnancy weeks-to-months converter. Every one runs locally and transmits nothing."
   path="/tools"
 >
-  <h1 class="display text-[2.1rem] sm:text-[2.6rem]">Cycle calculators</h1>
+  <h1 class="display text-[2.1rem] sm:text-[2.6rem]">Calculators</h1>
   <p class="mt-4 max-w-prose">
-    These tools estimate dates from cycle information you already have — a
-    last period, an average length, a handful of recent start dates — using
-    the same calendar arithmetic built into the LunarFlow app. Each one runs
-    as plain JavaScript in your own browser: nothing you type into a
-    calculator on this page is sent anywhere, and using one doesn't require
-    the app itself.
+    These tools work from information you already have — a last period, an
+    average cycle length, a handful of recent start dates, a gestational age
+    from an appointment — using the same arithmetic built into the LunarFlow
+    app. Each one runs as plain JavaScript in your own browser: nothing you
+    type into a calculator on this page is sent anywhere, and using one
+    doesn't require the app itself.
   </p>
 
   <p class="mt-3 max-w-prose text-sm text-ink-muted dark:text-white/60">
-    The track under each one marks the part of a 28-day cycle it can speak to.
+    The track under each cycle calculator marks the part of a 28-day cycle it
+    can speak to.
   </p>
 
-  <div class="mt-10 grid gap-x-10 gap-y-9 sm:grid-cols-2">
+  <h2 class="display-sm mt-12 text-[1.6rem]">From your cycle</h2>
+
+  <div class="mt-7 grid gap-x-10 gap-y-9 sm:grid-cols-2">
     <section class="border-t border-outline pt-5 dark:border-white/15">
       <h2 class="display-sm text-[1.35rem]">
         <a href="/tools/period-calculator" class="pressable hover:text-menstrual">Period calculator</a>
@@ -64,6 +67,24 @@ import CycleFocus from '../../components/CycleFocus.astro'
       <p class="prose-body mt-4 text-sm">
         Estimate a due date and trimester timeline from your last period and
         cycle length, using Naegele's rule adjusted for cycle length.
+      </p>
+    </section>
+  </div>
+
+  <h2 class="display-sm mt-14 text-[1.6rem]">From a pregnancy figure</h2>
+  <p class="mt-3 max-w-prose text-sm text-ink-muted dark:text-white/60">
+    These start from a pregnancy figure or date rather than from a cycle, so
+    there is no 28-day track to mark.
+  </p>
+
+  <div class="mt-7 grid gap-x-10 gap-y-9 sm:grid-cols-2">
+    <section class="border-t border-outline pt-5 dark:border-white/15">
+      <h2 class="display-sm text-[1.35rem]">
+        <a href="/tools/pregnancy-weeks-to-months" class="pressable hover:text-follicular">Pregnancy weeks to months</a>
+      </h2>
+      <p class="prose-body mt-4 text-sm">
+        Convert a gestational age in weeks and days into a pregnancy month and
+        trimester, with the exact day each boundary falls on.
       </p>
     </section>
   </div>

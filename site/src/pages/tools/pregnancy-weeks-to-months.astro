@@ -1,0 +1,292 @@
+---
+import Tool from '../../layouts/Tool.astro'
+import WeeksToMonthsForm from '../../components/WeeksToMonthsForm.astro'
+import {
+  MONTH_START_DAYS, TERM_DAY, TRIMESTER_2_START, TRIMESTER_3_START, gaLabel,
+} from '../../lib/gestation.ts'
+import type { FaqEntry } from '../../types.ts'
+
+/**
+ * The month table is generated from MONTH_START_DAYS rather than typed out, so
+ * the prose cannot drift from the arithmetic the calculator runs. A hand-written
+ * copy of a boundary table goes stale silently — the page keeps rendering.
+ */
+const MONTHS = MONTH_START_DAYS.map((start, i) => {
+  const end = (MONTH_START_DAYS[i + 1] ?? TERM_DAY) - 1
+  return {
+    month: i + 1,
+    from: gaLabel(start),
+    to: gaLabel(end),
+    weeks: (end + 1 - start) / 7,
+    days: end + 1 - start,
+    trimester: end < TRIMESTER_2_START ? 'First' : end < TRIMESTER_3_START ? 'Second' : 'Third',
+  }
+})
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Is 40 weeks of pregnancy the same as 10 months?',
+    a: 'No. Forty weeks is 280 days, and a calendar month averages about 30.4 days, so 280 days is roughly 9.2 calendar months — nine months, not ten. The confusion comes from dividing 40 weeks by four: that gives ten four-week blocks, but calendar months are longer than four weeks, so ten of them would be about 304 days. Pregnancy months are conventionally counted as a mix of four-week and five-week blocks that add up to 280 days across nine months.',
+  },
+  {
+    q: 'How many weeks are in each month of pregnancy?',
+    a: 'Not the same number in each. The usual convention runs five four-week months and four five-week months, arranged so the totals land on the trimester boundaries: months 1, 2, 4, 5, 7 and 8 are four weeks in most published tables, while months 3, 6 and 9 are five. That is why a pregnancy month is not simply your gestational week divided by four, and why moving from one month to the next sometimes takes 28 days and sometimes 35.',
+  },
+  {
+    q: 'Does my gestational age count from my last period or from conception?',
+    a: 'Antenatal care counts from the first day of the last menstrual period, which is about 14 days before conception. So a figure from a midwife, a dating scan or a due-date estimate is almost always counted from the last period, and it will be about two weeks higher than the same pregnancy measured from conception. Two weeks is a whole pregnancy month, so mixing the two is the single easiest way to end up a month out.',
+  },
+  {
+    q: 'What are the trimester boundaries in weeks?',
+    a: 'On the boundaries this converter uses, the first trimester runs to the end of week 13, the second trimester begins at 14 weeks 0 days, and the third trimester begins at 28 weeks 0 days. Published boundaries vary a little between sources — some place the second trimester at 13 weeks, some at 14 — so a figure a day or two either side of a boundary may be described differently elsewhere without either source being wrong.',
+  },
+  {
+    q: 'Why does this converter refuse a figure of 7 days?',
+    a: 'Because 7 days is another whole week. Gestational age is written as completed weeks plus 0 to 6 extra days, so 22 weeks 7 days is simply 23 weeks 0 days, and accepting it would let the same pregnancy be entered two different ways with two different answers. The same rule is why a midwife writes 22w3d rather than 22w10d.',
+  },
+  {
+    q: 'Does this converter tell me anything about how the pregnancy is going?',
+    a: 'No. It converts one unit into another, and that is all it does: weeks and days in, a pregnancy month and a trimester out. It has no information about you beyond the number you typed, so it cannot say whether a measurement is expected, whether a figure has changed since a previous appointment, or what any of it means. Those are questions for a midwife or doctor, who has the rest of the picture.',
+  },
+  {
+    q: 'Why does the answer stop at 40 weeks?',
+    a: 'Because the nine-month convention is defined across the 280 days to 40 weeks 0 days, and there is no tenth month to move into. Past that point this converter reports that all nine months are complete and stops counting, rather than inventing a month or printing a countdown to a date already passed. Pregnancies continuing past 40 weeks are ordinarily monitored, and that monitoring is a conversation with a midwife rather than something a unit converter can speak to.',
+  },
+]
+---
+<Tool
+  title="Pregnancy Weeks to Months — Exact Day Boundaries"
+  h1="Pregnancy Weeks to Months Converter"
+  description="Convert gestational weeks and days into a pregnancy month and trimester, with the exact day boundaries counted from the first day of your last period."
+  path="/tools/pregnancy-weeks-to-months"
+  faq={faq}
+>
+  <WeeksToMonthsForm slot="widget" />
+
+  <p>
+    Antenatal care is measured in weeks and days, and almost everything else in
+    life is measured in months. That mismatch is the whole reason this page
+    exists: a midwife says 22 weeks 3 days, and the question that follows is
+    which month that is. Type in the figure you were given, say whether it was
+    counted from your last period or from conception, and this converter returns
+    the pregnancy month, the trimester, and the exact gestational days that month
+    runs between. It is arithmetic on a number you already have — nothing is
+    predicted, and nothing you type is sent anywhere.
+  </p>
+
+  <h2>Why 40 weeks is not ten months</h2>
+  <p>
+    Forty weeks is 280 days. A calendar month averages 30.44 days, so 280 days is
+    about 9.2 calendar months. The "ten months" figure comes from dividing 40 by
+    four, which quietly swaps a calendar month for a four-week block — and a
+    four-week block is shorter than every real month except February. Ten actual
+    months would be around 304 days, more than three weeks past term.
+  </p>
+  <p>
+    The convention that resolves this is to define pregnancy months as blocks of
+    whole weeks that add to 280 days across nine months: five months of four
+    weeks and four months of five. That is why the months below are not all the
+    same length, and why your month number is not your week number divided by
+    four.
+  </p>
+
+  <h2>The month boundaries this converter uses</h2>
+  <div class="not-prose my-6 overflow-x-auto">
+    <table class="w-full min-w-[30rem] border-collapse text-sm">
+      <thead>
+        <tr class="border-b border-outline text-left dark:border-white/15">
+          <th class="py-2 pr-4 font-semibold">Month</th>
+          <th class="py-2 pr-4 font-semibold">From</th>
+          <th class="py-2 pr-4 font-semibold">To</th>
+          <th class="py-2 pr-4 font-semibold">Length</th>
+          <th class="py-2 font-semibold">Trimester</th>
+        </tr>
+      </thead>
+      <tbody>
+        {MONTHS.map((m) => (
+          <tr class="border-b border-outline/60 dark:border-white/10">
+            <td class="py-2 pr-4">Month {m.month}</td>
+            <td class="py-2 pr-4">{m.from}</td>
+            <td class="py-2 pr-4">{m.to}</td>
+            <td class="py-2 pr-4">{m.weeks} weeks ({m.days} days)</td>
+            <td class="py-2">{m.trimester}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Every boundary above is a gestational day counted from the first day of the
+    last menstrual period, written as completed weeks and days. The nine lengths
+    sum to exactly 280 days, and the month boundaries fall on the trimester
+    boundaries rather than cutting across them — that alignment is the reason the
+    five-week months sit where they do.
+  </p>
+
+  <h2>Counted from your last period, or from conception</h2>
+  <p>
+    Gestational age in antenatal care is counted from the first day of the last
+    menstrual period, not from conception. Conception happens roughly 14 days
+    later, around ovulation, so the same pregnancy is about two weeks further
+    along on the first measure than the second. Two weeks is a whole pregnancy
+    month, which makes this the most consequential thing to get right on this
+    page.
+  </p>
+  <p>
+    A figure from a midwife, a scan report, a hospital letter or a due-date
+    estimate is almost always counted from the last period. A figure you worked
+    out yourself from an ovulation date, a positive test at a known point, or an
+    embryo transfer is counted from conception. If you choose conception, this
+    converter adds a fixed 14 days to reach the gestational figure — and it says
+    so on the result, because that 14 days is an assumption it made rather than
+    something you measured. The{' '}
+    <a href="/tools/due-date-calculator" class="underline">due date calculator</a>{' '}
+    takes your cycle length into account instead, which is why the two pages
+    agree exactly only when that cycle length is 28 days.
+  </p>
+
+  <h2>Trimesters, and the days they start on</h2>
+  <p>
+    This converter puts the second trimester at 14 weeks 0 days — gestational day
+    {' '}{TRIMESTER_2_START} — and the third at 28 weeks 0 days, day{' '}
+    {TRIMESTER_3_START}. Those are the boundaries the LunarFlow app uses, and they
+    follow the common convention of a first trimester through the end of week 13.
+  </p>
+  <p>
+    Other sources draw the first line at 13 weeks instead, and some describe the
+    third trimester as starting at 27 weeks. A figure sitting within a few days of
+    a boundary can therefore be described differently by two sources that are both
+    reporting the convention they use. The result on this page names the exact day
+    each boundary falls on so you can see how close a figure is to one, rather
+    than only the label.
+  </p>
+
+  <h2>Limitations worth reading before you use the answer</h2>
+  <p>
+    A gestational age is a measurement taken at a moment. If the figure you typed
+    came from an appointment last week, the month and trimester this page returns
+    are the month and trimester for that figure, not for today — every countdown
+    in the result is counted forward from the number you entered, and the result
+    says so on the row. Adding the days that have passed since the measurement is
+    something only you can do, because only you know when it was taken.
+  </p>
+  <p>
+    The conception option adds a fixed 14 days that this page assumed rather than
+    measured. A longer or shorter follicular phase moves conception relative to
+    the last period, so that offset can be out by several days in either
+    direction, and a few days is enough to change the month or the trimester when
+    a figure sits near a boundary. Month conventions also differ between
+    published tables: some sites report pregnancy months as four-week blocks
+    throughout, which yields ten of them, and a page using that convention will
+    disagree with this one by up to a month late in pregnancy.
+  </p>
+  <p>
+    Nothing here is a clinical assessment. This page converts a unit; it has no
+    information about you beyond the number you typed, so it cannot say whether a
+    figure is expected, whether it has changed since a previous scan, or what
+    either would mean. Those are questions for a midwife or doctor.
+  </p>
+
+  <h2>Following it week by week instead</h2>
+  <p>
+    A converter answers one question about one figure. If you want the figure
+    itself to keep up, that needs a date rather than a number: pregnancy mode in
+    the{' '}
+    <a href="/features" class="underline">LunarFlow app</a>{' '}
+    tracks gestational age forward from the date you set, so the week and
+    trimester move on their own instead of being re-typed after every
+    appointment. The{' '}
+    <a href="/tools" class="underline">other calculators</a>{' '}
+    cover the neighbouring questions — a due date from a last period, an
+    estimated ovulation day, an average cycle length.
+  </p>
+</Tool>
+
+<!-- This page's island. See the note in Calculator.astro. -->
+<script>
+  import { mount } from '../../lib/island.ts'
+  import { weeksToMonths, type GaBasis } from '../../lib/pregnancy.ts'
+  import { gaParts } from '../../lib/gestation.ts'
+  import { hard, fixedExtent } from '../../lib/band.ts'
+  import { track } from '../../lib/track.ts'
+
+  const ORDINAL = ['', 'first', 'second', 'third', 'fourth']
+  const WORD = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+  /** Spelled out, because the units are this page's entire subject. */
+  const wdp = (weeks: number, days: number) => `${plural(weeks, 'week')} ${plural(days, 'day')}`
+  const wd = (days: number) => {
+    const p = gaParts(days)
+    return wdp(p.weeks, p.days)
+  }
+
+  const row = (label: string, value: string) =>
+    `<div class="mt-3 border-t border-outline pt-2 dark:border-white/15">` +
+    `<dt class="text-xs uppercase tracking-wide text-ink-muted dark:text-white/55">${label}</dt>` +
+    `<dd class="mt-1">${value}</dd></div>`
+
+  mount((v) => {
+    const basis = v.str('basis') as GaBasis
+    const r = weeksToMonths(v.num('weeks'), v.num('days'), basis)
+
+    const head = r.postTerm
+      ? 'All nine pregnancy months are complete'
+      : `That figure is in month ${r.month} of nine`
+
+    // The caveat sits on the primary result, not in an FAQ. The 14 days are the
+    // largest single source of error on this page and the reader did not type them.
+    const caveat = basis === 'conception'
+      ? `<p class="mt-2 max-w-prose text-sm text-ink-muted dark:text-white/60">` +
+        `Includes a fixed 14-day offset this page assumed, not measured. A longer or ` +
+        `shorter cycle shifts this by several days, and can shift the month and ` +
+        `trimester with it.</p>`
+      : ''
+
+    let rows = row('Gestational age',
+      `${wd(r.gestationalDays)}, or ${r.gestationalDays} days from the first day of the last period`)
+
+    rows += row('Trimester', `The ${ORDINAL[r.trimester]} trimester` +
+      (r.daysToNextTrimester === null ? ', the last one'
+        : `, with ${plural(r.daysToNextTrimester, 'day')} to the ${ORDINAL[r.trimester + 1]}`))
+
+    if (!r.postTerm) {
+      const next = r.month === 9
+        ? `${plural(r.daysToNextMonth!, 'day')} to 40 weeks 0 days`
+        : `${plural(r.daysToNextMonth!, 'day')} to month ${r.month! + 1}`
+      rows += row(`Month ${r.month}`,
+        `Day ${r.dayOfMonth} of ${r.monthWeeks! * 7}, and week ${r.weekOfMonth} of ` +
+        `${r.monthWeeks}. This month runs ${wd(r.monthStartDay!)} to ` +
+        `${wd(r.monthEndDay!)}. ${next}.`)
+    }
+
+    rows += row('Months complete',
+      `${WORD[r.monthsComplete]} month${r.monthsComplete === 1 ? ' is' : 's are'} complete`)
+
+    if (r.daysToTerm !== null) {
+      rows += row('To 40 weeks 0 days',
+        `${plural(r.daysToTerm, 'day')}, counted forward from the figure you entered, ` +
+        `not from today`)
+    }
+
+    rows += row('Since conception',
+      r.conceptionWeeks === null
+        ? 'Counting from the last period, conception has not happened yet at this figure'
+        : `About ${wdp(r.conceptionWeeks, r.conceptionDays!)}, on the same fixed 14-day offset`)
+
+    rows += row('The same time in other units',
+      `${r.gestationalDays} days elapsed is ${r.fourWeekMonths.toFixed(1)} four-week months, ` +
+      `or ${r.averageCalendarMonths.toFixed(1)} average calendar months. That is elapsed ` +
+      `time, not the month you are in.`)
+
+    const band = r.postTerm ? '' : track(
+      [{ span: hard(r.monthStartDay!, r.monthEndDay!), color: 'var(--color-follicular)' }],
+      `The rail is the whole 280 days from the first day of the last period to 40 weeks ` +
+      `0 days. The band is pregnancy month ${r.month}. Its edges are hard because they are ` +
+      `fixed day boundaries, not an estimate.`,
+      fixedExtent(0, 279),
+    )
+
+    return `<h3 class="display-sm text-xl">${head}</h3>${caveat}<dl class="mt-4">${rows}</dl>${band}`
+  })
+</script>

@@ -1,0 +1,46 @@
+---
+/**
+ * Fields for the weeks-to-months converter. No dates: the reader already has a
+ * gestational age and wants it in another unit.
+ *
+ * `basis` is a required radio with no preselection on purpose. A figure counted
+ * from conception is 14 days behind the same figure counted from the last
+ * period, so defaulting to either one silently converts the other kind of number
+ * two weeks wrong — and the reader would have no way to notice.
+ */
+import ToolForm from './ToolForm.astro'
+---
+<ToolForm privacy="This runs entirely in your browser. Nothing you type is sent anywhere.">
+  <fieldset>
+    <legend class="font-semibold">The gestational age you were given</legend>
+    <div class="mt-2 flex flex-wrap gap-4">
+      <label class="text-sm">
+        Weeks
+        <input type="number" name="weeks" min="0" max="45" step="1" required
+               class="mt-1 block w-24" />
+      </label>
+      <label class="text-sm">
+        Days
+        <input type="number" name="days" min="0" max="6" step="1" value="0" required
+               class="mt-1 block w-24" />
+      </label>
+    </div>
+  </fieldset>
+
+  <fieldset class="mt-5">
+    <legend class="font-semibold">Counted from</legend>
+    <label class="mt-2 block text-sm">
+      <input type="radio" name="basis" value="lmp" required />
+      The first day of my last period
+    </label>
+    <label class="mt-1 block text-sm">
+      <input type="radio" name="basis" value="conception" />
+      Conception, ovulation, or an embryo transfer
+    </label>
+    <p class="mt-2 max-w-prose text-xs text-ink-muted dark:text-white/55">
+      Antenatal care counts from the first day of the last period, so a figure
+      from a midwife, a scan report or a due-date app is almost always that one.
+      The two differ by about two weeks, which is a whole pregnancy month.
+    </p>
+  </fieldset>
+</ToolForm>

@@ -18,7 +18,8 @@ const fail = (page, msg) => failures.push(`${page}: ${msg}`)
 const CLAIM_EXEMPT = new Set(['/privacy-policy'])
 /** Pages allowed to ship a hydrated island, with their JS byte budget. */
 const JS_BUDGET = { '/tools/period-calculator': 8192, '/tools/ovulation-calculator': 8192,
-                    '/tools/cycle-length-calculator': 8192, '/tools/due-date-calculator': 8192 }
+                    '/tools/cycle-length-calculator': 8192, '/tools/due-date-calculator': 8192,
+                    '/tools/pregnancy-weeks-to-months': 8192 }
 
 function walk(dir) {
   return readdirSync(dir).flatMap((e) => {

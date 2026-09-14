@@ -59,6 +59,7 @@ export const NAV = [
       { href: '/tools/ovulation-calculator', label: 'Ovulation calculator' },
       { href: '/tools/cycle-length-calculator', label: 'Menstrual cycle calculator' },
       { href: '/tools/due-date-calculator', label: 'Pregnancy due date calculator' },
+      { href: '/tools/pregnancy-weeks-to-months', label: 'Pregnancy weeks to months' },
     ],
   },
   { href: '/articles', label: 'Articles' },
