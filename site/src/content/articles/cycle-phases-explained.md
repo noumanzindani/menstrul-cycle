@@ -1,7 +1,7 @@
 ---
 title: The Four Menstrual Cycle Phases, Explained
 description: What actually happens in the menstrual, follicular, ovulatory and luteal phases, and why a calendar's phase colour is an estimate, not a measurement.
-author: LunaTrack
+author: LunarFlow
 reviewedBy: Not medically reviewed
 datePublished: 2026-09-10
 dateModified: 2026-09-13
@@ -13,7 +13,7 @@ sources:
 ---
 
 Clinicians typically describe the menstrual cycle in four phases:
-menstrual, follicular, ovulatory, and luteal. LunaTrack uses those same
+menstrual, follicular, ovulatory, and luteal. LunarFlow uses those same
 four names to colour its calendar and highlight where you are in your
 cycle, which is exactly why it's worth understanding what each phase
 actually involves before treating that colour as more than it is. This
@@ -86,7 +86,7 @@ day a period starts and ends at ovulation — without saying which part of
 a cycle absorbs the month-to-month variation, so that next point is worth
 attributing to where it actually belongs: it's the working assumption
 behind this site's own calculators, not a claim from either cited source.
-LunaTrack's [prediction arithmetic](/articles/how-period-predictions-work)
+LunarFlow's [prediction arithmetic](/articles/how-period-predictions-work)
 holds the luteal phase fixed at close to fourteen days and counts backward
 from a projected period to estimate ovulation, precisely because that
 arithmetic only makes sense if a longer or shorter cycle is mostly the
@@ -125,13 +125,13 @@ follicular phase before it, ovulation timing shifts around with the rest
 of the cycle rather than falling on a fixed day — it typically lands
 roughly midway through an individual's own cycle, but "midway through a
 28-day cycle" and "midway through a 35-day cycle" are different calendar
-dates entirely. This is the phase LunaTrack's calendar marks most
+dates entirely. This is the phase LunarFlow's calendar marks most
 cautiously: the ovulatory marker and fertile-window highlight are only
 shown once there's enough of your own logged history to make a reasonably
 confident estimate, and even then the marker is a projection, not a
 measurement of an egg actually being released on that day. Basal body
 temperature charting and ovulation test (OPK/LH) results, both available
-in [LunaTrack's tracking features](/features), can corroborate that a
+in [LunarFlow's tracking features](/features), can corroborate that a
 calendar estimate lines up with what's actually happening in your body
 that cycle — they reflect a real physical signal rather than only an
 assumption baked into the arithmetic, which is worth knowing if the
@@ -154,7 +154,7 @@ the next cycle, closing the loop.
 The luteal phase is, notably, the most stable-length part of the entire
 cycle, commonly cited as lasting close to fourteen days regardless of how
 long the rest of the cycle runs. That figure isn't incidental to this
-site: it's the same fourteen-day assumption LunaTrack's own calendar uses
+site: it's the same fourteen-day assumption LunarFlow's own calendar uses
 when it counts backward from a projected next period to estimate an
 ovulation day, described in full in [how period predictions actually
 work](/articles/how-period-predictions-work). It's a population average
@@ -184,7 +184,7 @@ and a more useful thing to tell a clinician.
 ## What the calendar colours are, and are not
 
 Here's the point worth carrying away from all four phases above: a phase
-label on LunaTrack's calendar, or on any period-tracking calendar built
+label on LunarFlow's calendar, or on any period-tracking calendar built
 the same way, is calculated from your logged or typed dates using the
 pattern this article just walked through — it is never a direct
 measurement of your hormone levels, your ovaries, or anything happening
@@ -193,7 +193,7 @@ inside your body on that specific day. Two people the calendar labels as
 biological places if either of their actual cycles is running longer or
 shorter than their own recent average, because the whole estimate rests on
 that average holding steady this time. This isn't a flaw specific to
-LunaTrack; it's true of calendar-based phase estimation generally, and
+LunarFlow; it's true of calendar-based phase estimation generally, and
 it's worth being explicit about rather than letting a confident-looking
 colour on a calendar imply more certainty than calendar arithmetic can
 honestly offer.

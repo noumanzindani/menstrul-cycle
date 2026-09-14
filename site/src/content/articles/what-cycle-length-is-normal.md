@@ -1,7 +1,7 @@
 ---
 title: What Cycle Length Is Normal, and What Isn't
 description: Typical cycle-length ranges, what counts as irregular, why sources draw that line differently, and when a pattern is actually worth a doctor's opinion.
-author: LunaTrack
+author: LunarFlow
 reviewedBy: Not medically reviewed
 datePublished: 2026-09-08
 dateModified: 2026-09-13
@@ -99,7 +99,7 @@ different situation from an unexplained change showing up in the middle
 of an otherwise steady decade of cycles — that second kind of change is
 the one worth mentioning to a clinician, covered in the section below.
 
-## Why LunaTrack's calculators accept 21 to 45 days
+## Why LunarFlow's calculators accept 21 to 45 days
 
 If you've used the [period calculator](/tools/period-calculator) or
 [ovulation calculator](/tools/ovulation-calculator) on this site, you may
@@ -224,7 +224,7 @@ figure hide, like a gradual lengthening over many months or a cluster of
 skipped cycles rather than one outlier. This is also where a period of
 logging genuinely pays off over a one-off guess: an app that keeps every
 logged start date builds a fuller history than the four dates any
-calculator here can accept at once, and LunaTrack's own
+calculator here can accept at once, and LunarFlow's own
 [cycle predictions](/features) are built from exactly that kind of ongoing
 history rather than a single number typed in once. If pain, heavy bleeding,
 or a change in symptoms is part of what's prompting the conversation

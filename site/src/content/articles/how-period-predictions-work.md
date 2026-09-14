@@ -1,7 +1,7 @@
 ---
 title: How Period Predictions Actually Work
 description: Period and ovulation predictions project your own typed average forward. Here is the exact arithmetic behind them, and why real cycles drift from it.
-author: LunaTrack
+author: LunarFlow
 reviewedBy: Not medically reviewed
 datePublished: 2026-09-13
 dateModified: 2026-09-13
@@ -174,7 +174,7 @@ a prediction expects, that pattern itself is worth mentioning to a doctor — no
 because the calculator was wrong, but because a cycle that will not settle into any
 stable average is a different question than the arithmetic here is built to answer.
 
-LunaTrack's own [prediction features](/features) work on exactly the method
+LunarFlow's own [prediction features](/features) work on exactly the method
 described above — a typed or logged average projected forward, ovulation counted
 back from the next projected period assuming a fourteen-day luteal phase — because
 that is the standard, defensible way to do calendar-based estimation, not because

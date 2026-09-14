@@ -1,7 +1,7 @@
 ---
 title: Which Symptoms Are Worth Tracking, and Why
-description: Not every symptom carries the same signal. A practical guide to which ones are worth logging, mapped to what LunaTrack actually tracks, and why.
-author: LunaTrack
+description: Not every symptom carries the same signal. A practical guide to which ones are worth logging, mapped to what LunarFlow actually tracks, and why.
+author: LunarFlow
 reviewedBy: Not medically reviewed
 datePublished: 2026-09-09
 dateModified: 2026-09-13
@@ -22,7 +22,7 @@ all, just a few weeks of dense data followed by silence. A shorter, more
 consistent log beats a comprehensive one you quit in month two. This
 article is about which symptoms actually carry signal worth the taps, why,
 and how to log them so a real pattern can show up in a few cycles — mapped
-specifically to [what LunaTrack tracks](/features) today, not a longer
+specifically to [what LunarFlow tracks](/features) today, not a longer
 wish-list of categories.
 
 ## Signal versus noise
@@ -45,7 +45,7 @@ cycles.
 Before any symptom pattern means anything, the flow log underneath it has
 to be consistent, because every phase estimate and every cycle-length
 figure on this site is measured from the days you mark as bleeding.
-LunaTrack's daily log and its "period ended" toggle exist specifically so
+LunarFlow's daily log and its "period ended" toggle exist specifically so
 that boundary is unambiguous rather than inferred — marking the day flow
 actually stops is what lets the app (and you, looking back later) tell a
 short, light period from a period that's still ongoing but very light on
@@ -58,7 +58,7 @@ day without exception, even on days when nothing else seems worth noting.
 
 ## The physical and emotional symptoms most people recognize
 
-LunaTrack's symptom and mood logging covers a defined set of options
+LunarFlow's symptom and mood logging covers a defined set of options
 rather than a free-text mood essay, and that constraint is deliberate: the
 same label used consistently across months is what makes a pattern visible
 at all. Many of the most commonly reported symptoms map closely to what
@@ -128,7 +128,7 @@ gives you and a single memory of "it hurt a lot this month" does not.
 
 ## Fertility-awareness signs: useful, but only as corroboration
 
-LunaTrack also offers basal body temperature (BBT) charting and a place to
+LunarFlow also offers basal body temperature (BBT) charting and a place to
 record ovulation test (OPK/LH) results, both framed on the features page
 as awareness tools rather than diagnostic ones. These carry a different
 kind of signal from a symptom chip: they're a direct physical measurement
@@ -142,7 +142,7 @@ rest on cycle-length arithmetic alone.
 
 ## Notes: the category for everything a chip can't capture
 
-Alongside flow, symptoms, mood, BBT, and OPK results, LunaTrack's daily
+Alongside flow, symptoms, mood, BBT, and OPK results, LunarFlow's daily
 log includes a plain notes field, and it's worth treating as a real
 tracking category rather than an afterthought. Some genuinely useful
 context doesn't fit a predefined chip at all — starting a new medication,

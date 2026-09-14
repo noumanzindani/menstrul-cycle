@@ -1,7 +1,7 @@
 ---
 title: Preparing a Doctor-Ready Cycle Summary
-description: What a clinician actually wants to see about your cycle, how to bring it, and exactly what LunaTrack's doctor PDF export includes and leaves out.
-author: LunaTrack
+description: What a clinician actually wants to see about your cycle, how to bring it, and exactly what LunarFlow's doctor PDF export includes and leaves out.
+author: LunarFlow
 reviewedBy: Not medically reviewed
 datePublished: 2026-09-11
 dateModified: 2026-09-13
@@ -19,7 +19,7 @@ been bad lately" doesn't give a clinician much to work with in whatever
 time there is. Concrete dates, a described
 pattern, and specific details do. This article covers what's actually
 useful to bring to that conversation and why, and maps it directly onto
-LunaTrack's shipped doctor-summary PDF export — including two things worth
+LunarFlow's shipped doctor-summary PDF export — including two things worth
 knowing plainly before you rely on it, because a document you might print
 or hand to someone else deserves an honest account of what it leaves out
 as much as what it includes.
@@ -94,9 +94,9 @@ this same idea from the angle of a single calculator result; the doctor
 summary described below is the version of that principle built for an
 actual appointment, covering more than cycle length alone.
 
-## What LunaTrack's doctor-summary export actually contains
+## What LunarFlow's doctor-summary export actually contains
 
-LunaTrack can generate a PDF summary of your cycle and symptom history
+LunarFlow can generate a PDF summary of your cycle and symptom history
 from the [insights section of the app](/features), built entirely from
 data already on your device, and hand it to your phone's normal share
 sheet — from there, where it goes is entirely up to you. The export
@@ -146,7 +146,7 @@ other, and this document is exactly the kind of sensitive, potentially
 printed-or-emailed record where that assumption matters.
 
 **Photos are never included.** If you also keep a photo timeline in
-LunaTrack, none of it appears anywhere in the doctor-summary export — not
+LunarFlow, none of it appears anywhere in the doctor-summary export — not
 as a thumbnail, not as a reference, not as an attachment. This isn't a
 setting you have to remember to turn off; there is no version of this
 export that includes an image, full stop.
@@ -210,7 +210,7 @@ over none.
 If cycle length itself is part of what's uncertain going into the
 appointment, the [cycle-length calculator](/tools/cycle-length-calculator)
 on this site is a quick way to see your own recent average and spread
-before you go, and LunaTrack's full [feature set](/features) covers
+before you go, and LunarFlow's full [feature set](/features) covers
 everything else the app tracks toward the same summary over the longer
 term.
 

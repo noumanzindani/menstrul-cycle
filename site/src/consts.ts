@@ -10,8 +10,8 @@ export const SITE = 'https://lunatrack.web.app'
 export const UNREVIEWED = 'Not medically reviewed'
 
 export const ORG = {
-  name: 'LunaTrack',
-  legalName: 'LunaTrack',
+  name: 'LunarFlow',
+  legalName: 'LunarFlow',
   // No `logo` yet — there is no real asset at /images/logo.png and dist/images/
   // does not exist. Add a real logo/OG image back here (and to the Organization
   // node in SeoHead.astro) once one exists; a schema.org URL pointing at a 404

@@ -21,12 +21,12 @@ const withoutChecklist = raw.replace(/<blockquote>[\s\S]*?Before publishing[\s\S
 const html = withoutChecklist.replace(/<a href="docs\/account-deletion\.md">([^<]*)<\/a>/, '$1')
 ---
 <Base
-  title="Privacy policy — LunaTrack"
-  description="The full LunaTrack privacy policy: what the app stores on your device, what syncs to the cloud, advertising, and how to delete your data."
+  title="Privacy policy — LunarFlow"
+  description="The full LunarFlow privacy policy: what the app stores on your device, what syncs to the cloud, advertising, and how to delete your data."
   path="/privacy-policy"
 >
   <p class="text-sm opacity-70">
-    Looking for the short version? See <a href="/privacy" class="underline">how LunaTrack handles your data</a>.
+    Looking for the short version? See <a href="/privacy" class="underline">how LunarFlow handles your data</a>.
   </p>
   <div class="legal-doc mt-6" set:html={html} />
 </Base>

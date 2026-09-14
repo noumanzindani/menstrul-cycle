@@ -1,7 +1,7 @@
 ---
 title: What to Check in a Period Tracker's Privacy Policy
-description: A concrete checklist for reading any period tracker's privacy policy, applied honestly to LunaTrack itself — including the places it falls short.
-author: LunaTrack
+description: A concrete checklist for reading any period tracker's privacy policy, applied honestly to LunarFlow itself — including the places it falls short.
+author: LunarFlow
 reviewedBy: Not medically reviewed
 datePublished: 2026-09-12
 dateModified: 2026-09-13
@@ -21,7 +21,7 @@ is supposed to tell you exactly where that information goes — but most people
 never read one, and the ones that do read one often do not know what to look
 for. This article is a checklist you can run against any tracker's policy
 before installing it. Then, because a checklist that only ever gets pointed at
-competitors is not worth trusting, we run it against LunaTrack's own policy —
+competitors is not worth trusting, we run it against LunarFlow's own policy —
 including the parts where the answer is not the one we would prefer to give.
 
 ## The checklist
@@ -115,11 +115,11 @@ than assume the best.
 
 Answering all nine honestly takes more than a sentence, which is exactly why
 so many privacy policies use broad reassurance instead of specifics. Below is
-LunaTrack's own answer to each one.
+LunarFlow's own answer to each one.
 
-## Applying it to LunaTrack
+## Applying it to LunarFlow
 
-**1. Account.** LunaTrack requires creating an account with an email address
+**1. Account.** LunarFlow requires creating an account with an email address
 and a password before you can use the tracker; this is not optional for normal
 use. There is one narrow exception: if the app cannot reach its cloud service
 at all when it starts, the sign-in screen offers to continue with your data
@@ -130,7 +130,7 @@ up to your account, with your confirmation, the next time you sign in.
 
 **2. Storage and readability.** Once you are signed in, your daily logs —
 flow, symptoms, mood, notes, and the other tags you record — sync to
-LunaTrack's cloud database in a form that is not encrypted against the
+LunarFlow's cloud database in a form that is not encrypted against the
 operator. Access to it is restricted by account-scoped rules rather than by
 encryption that would keep the company itself out, which means the operator of
 the service is technically able to read it, the same way most cloud apps that
@@ -140,7 +140,7 @@ worth saying plainly rather than describing around: the protection here is
 "only people with the right access can reach it," not "the provider cannot
 read it even if they wanted to."
 
-**3. Photos and videos.** LunaTrack's photo and video timeline is a cloud
+**3. Photos and videos.** LunarFlow's photo and video timeline is a cloud
 feature with no option to keep media on the device only — an item exists in
 the app once it has finished uploading. Those files are stored unencrypted and
 are, like the logs above, viewable by the operator; they are protected by
@@ -149,14 +149,14 @@ opt-in photo-description feature, which is a further disclosure on top (a
 photo you choose to describe is sent to an outside recognition service) rather
 than the reason media reaches the cloud in the first place.
 
-**4. Advertising.** LunaTrack shows ads through Google AdMob on the free
+**4. Advertising.** LunarFlow shows ads through Google AdMob on the free
 tier. Ad requests are non-personalized, and no health data, cycle data, or
 personal identifier is included in what is sent to the ad network. Ads are not
 shown on the screens where symptoms, moods, or notes are actually logged, or
 on the insights screens — the parts of the app where an ad appearing would sit
 right next to the most sensitive part of what you are doing.
 
-**5. Paid tier.** LunaTrack has a one-time paid upgrade that removes ads. It
+**5. Paid tier.** LunarFlow has a one-time paid upgrade that removes ads. It
 does not change what data is collected or synced; the underlying account and
 sync behavior is identical on the free and paid tiers.
 
@@ -164,14 +164,14 @@ sync behavior is identical on the free and paid tiers.
 an instant erasure: your device is wiped immediately, and the account and its
 server-side data are scheduled for removal after a fixed number of days,
 during which the request can be cancelled. That much matches good practice.
-Where LunaTrack currently falls short is the automated step at the end of that
+Where LunarFlow currently falls short is the automated step at the end of that
 window — the scheduled removal job that is supposed to carry it out has not
 been switched on yet, which means a request today stops sync and wipes the
 device, but does not yet guarantee the scheduled server-side deletion happens
 without further action. A policy that said otherwise right now would not be
 telling the truth, so ours does not.
 
-**7. On-device encryption.** LunaTrack's local database is encrypted at rest,
+**7. On-device encryption.** LunarFlow's local database is encrypted at rest,
 using a key generated on the device and held in the operating system's secure
 keystore rather than anywhere the app itself can export it. That protection
 does not extend to everything on the device, though: the sync component keeps
@@ -180,7 +180,7 @@ and that working copy sits outside the encrypted database. It is erased by the
 same in-app controls that erase everything else, but while it exists it is not
 covered by the same guarantee as the main database.
 
-**8. Retention.** LunaTrack's policy states that your data is kept for as
+**8. Retention.** LunarFlow's policy states that your data is kept for as
 long as your account exists, with no other retention limit. The only
 exception is the dates-only deletion markers used to propagate erasures
 between devices, which are pruned after 180 days — everything else, including
@@ -188,7 +188,7 @@ every daily log and every uploaded photo, has no retention ceiling beyond
 "the account is still open." That is the honest answer, not a comfortable
 one: there is no independent limit here.
 
-**9. Legal and government requests.** LunaTrack's policy does not address
+**9. Legal and government requests.** LunarFlow's policy does not address
 this at all. It contains no section on law enforcement, subpoenas, court
 orders, or other government requests, no statement of what would or would not
 be disclosed, and no mention of a transparency report or a commitment to
@@ -198,7 +198,7 @@ here is that the policy is silent on this.
 
 ## The honest summary
 
-Run against its own checklist, LunaTrack requires an account for normal use,
+Run against its own checklist, LunarFlow requires an account for normal use,
 stores your synced logs and media in a form its operator can technically
 read, shows non-personalized ads that never touch the logging or insights
 screens, offers a paid ad-removal tier that does not change data handling, has
@@ -222,6 +222,6 @@ site is a reasonable next stop — it runs entirely in your own browser and does
 not ask you to sign up for anything to use it. For the mechanics behind the
 dates any tracker shows you, including the assumptions baked into an ovulation
 estimate, see [how period predictions actually work](/articles/how-period-predictions-work).
-And for LunaTrack's full policy in the exact legal language rather than this
+And for LunarFlow's full policy in the exact legal language rather than this
 summary, along with everything [this app tracks](/features), see the
 [privacy policy](/privacy-policy) and the plain-language [data page](/privacy).
