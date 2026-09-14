@@ -17,22 +17,27 @@ class AnalysisSessionRepository {
   AnalysisSessionRepository(this._db);
   final AppDatabase _db;
 
-  /// One account's sessions, newest first.
+  /// One account's sessions, most recently active first.
+  ///
+  /// Sorted by `updatedAt` (bumped by [append] on every turn), not
+  /// `createdAt` — a saved-conversations list should surface the
+  /// conversation the user most recently added to, not just the one they
+  /// started most recently.
   ///
   /// Drift's default `DateTime` column storage truncates to whole seconds,
-  /// so two sessions created back-to-back in the same second tie on
-  /// `createdAt`. The `rowid` tiebreak — SQLite's implicit, strictly
-  /// increasing insertion counter on every ordinary table — resolves that
-  /// tie toward "most recently created first" instead of leaving it to
-  /// undefined SQL sort order (see `MediaRepository.allFor`'s `id` tiebreak
-  /// for the sibling case; a random opaque id can't play that role here
-  /// because it carries no relation to insertion order).
+  /// so two sessions updated within the same second tie on `updatedAt`. The
+  /// `rowid` tiebreak — SQLite's implicit, strictly increasing insertion
+  /// counter on every ordinary table — resolves that tie deterministically
+  /// instead of leaving it to undefined SQL sort order (see
+  /// `MediaRepository.allFor`'s `id` tiebreak for the sibling case; a random
+  /// opaque id can't play that role here because it carries no relation to
+  /// insertion order).
   Future<List<AnalysisSession>> allFor(String uid) =>
       (_db.select(_db.analysisSessions)
             ..where((t) => t.uid.equals(uid))
             ..orderBy([
               (t) =>
-                  OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+                  OrderingTerm(expression: t.updatedAt, mode: OrderingMode.desc),
               (t) => OrderingTerm(
                   expression: const CustomExpression<int>('rowid'),
                   mode: OrderingMode.desc),
@@ -88,19 +93,27 @@ class AnalysisSessionRepository {
   ///
   /// The image itself is never stored here — it is attached to the request
   /// at build time, once, and this table only ever holds text.
+  ///
+  /// Also bumps the parent session's `updatedAt`, which is what makes that
+  /// column mean "last activity" rather than duplicating `createdAt`
+  /// forever — [allFor] sorts on it for exactly this reason.
   Future<void> append({
     required String sessionId,
     required String role,
     required String text,
-  }) =>
-      _db.into(_db.analysisMessages).insert(
-            AnalysisMessagesCompanion.insert(
-              id: newMediaId(),
-              sessionId: sessionId,
-              role: role,
-              messageText: text,
-            ),
-          );
+  }) async {
+    await _db.into(_db.analysisMessages).insert(
+          AnalysisMessagesCompanion.insert(
+            id: newMediaId(),
+            sessionId: sessionId,
+            role: role,
+            messageText: text,
+          ),
+        );
+    await (_db.update(_db.analysisSessions)
+          ..where((t) => t.id.equals(sessionId)))
+        .write(AnalysisSessionsCompanion(updatedAt: Value(DateTime.now())));
+  }
 
   /// Removes the conversation about [mediaId], and every turn in it.
   ///

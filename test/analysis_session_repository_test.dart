@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/data/analysis_session_repository.dart';
@@ -61,7 +62,8 @@ void main() {
       expect(await repo.allFor('u2'), hasLength(1));
     });
 
-    test('orders newest first', () async {
+    test('orders newest-created first when neither has been appended to',
+        () async {
       final first =
           await repo.create(uid: 'u1', mediaId: 'm1', consentVersion: 2);
       final second =
@@ -70,10 +72,56 @@ void main() {
       final sessions = await repo.allFor('u1');
       // Drift's default DateTime column storage truncates to whole seconds,
       // so two sessions created back-to-back in a test almost always tie on
-      // createdAt. This asserts the tiebreak (insertion order) resolves that
-      // tie deterministically toward "most recently created first" rather
-      // than leaving it to undefined SQL sort order.
+      // updatedAt (equal to createdAt for a fresh session). This asserts the
+      // tiebreak (insertion/rowid order) resolves that tie deterministically
+      // toward "most recently created first" rather than leaving it to
+      // undefined SQL sort order.
       expect(sessions.map((s) => s.id), [second.id, first.id]);
+    });
+
+    test('appending to the OLDER session moves it back to the front',
+        () async {
+      // Seeded directly (not through create()) with explicit, clearly
+      // ordered `updatedAt` values in the past. create() stamps
+      // DateTime.now(), and this DB's DateTime columns truncate to whole
+      // seconds (confirmed empirically while building this repository) —
+      // two create() calls in a fast test reliably tie on that column, so
+      // trusting relative wall-clock order between them would make this
+      // test flaky. test/sync_service_test.dart's `bumpMarkerForward` hits
+      // the identical problem and solves it the same way: force an
+      // unambiguous starting point directly, then exercise the real code
+      // path under test.
+      final older = DateTime(2020, 1, 1);
+      final newer = DateTime(2020, 1, 2);
+      await db.into(db.analysisSessions).insert(AnalysisSessionsCompanion.insert(
+            id: 'a',
+            uid: 'u1',
+            mediaId: 'm1',
+            consentVersion: 2,
+            createdAt: Value(older),
+            updatedAt: Value(older),
+          ));
+      await db.into(db.analysisSessions).insert(AnalysisSessionsCompanion.insert(
+            id: 'b',
+            uid: 'u1',
+            mediaId: 'm2',
+            consentVersion: 2,
+            createdAt: Value(newer),
+            updatedAt: Value(newer),
+          ));
+
+      // Before any activity, b (the more recently updated one) sorts first.
+      expect((await repo.allFor('u1')).map((s) => s.id), ['b', 'a']);
+
+      // Appending to a is "activity" on a — it must sort ahead of b
+      // afterward even though b's stored updatedAt is later, because
+      // append() bumps a's updatedAt to DateTime.now(), which — whatever the
+      // real clock reads when this test runs — is unambiguously after
+      // January 2020. This assertion fails if append() stops bumping
+      // AnalysisSessions.updatedAt.
+      await repo.append(sessionId: 'a', role: 'user', text: 'a follow-up');
+
+      expect((await repo.allFor('u1')).map((s) => s.id), ['a', 'b']);
     });
   });
 
