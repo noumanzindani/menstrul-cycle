@@ -1,0 +1,48 @@
+---
+/**
+ * Fields for the implantation window calculator.
+ *
+ * The luteal length is asked for here and NOT on the pregnancy test page, which
+ * is the one real difference between the two forms. The test page holds it fixed
+ * at 14 days because someone asking "when can I test" usually has nothing better
+ * than an average; someone asking which days implantation would fall on is more
+ * often charting, and a measured luteal length is the single input that most
+ * improves the answer. It ships blank rather than pre-filled at 14 so that
+ * leaving it alone is a visible choice — the label says what happens then.
+ *
+ * The last-period date cannot be in the future, enforced by the island against
+ * the device calendar rather than only by the `max` attribute baked in at build
+ * time.
+ */
+import { fromDayNum, todayDayNum, PLAUSIBLE_FIRST_DAY_ISO } from '../lib/days.ts'
+import ToolForm from './ToolForm.astro'
+
+const today = fromDayNum(todayDayNum())
+---
+<ToolForm privacy="This runs entirely in your browser. The dates you type are never sent anywhere.">
+  <label class="block font-semibold">
+    First day of your last period
+    <input type="date" name="lmp" required class="mt-2 block"
+           min={PLAUSIBLE_FIRST_DAY_ISO} max={today} />
+  </label>
+
+  <label class="mt-5 block font-semibold">
+    Your usual cycle length (days)
+    <input type="number" name="cycle" min="21" max="45" value="28" required
+           class="mt-2 block" />
+  </label>
+  <p class="mt-2 max-w-prose text-xs text-ink-muted dark:text-white/55">
+    Counted from the first day of one period to the first day of the next.
+  </p>
+
+  <label class="mt-5 block font-semibold">
+    Your luteal phase length, if you know it (days)
+    <input type="number" name="luteal" min="10" max="16" class="mt-2 block" />
+  </label>
+  <p class="mt-2 max-w-prose text-xs text-ink-muted dark:text-white/55">
+    The days from ovulation to the start of your next period. Leave it empty and
+    14 days is assumed, which is the usual figure. Fill it in only if you have
+    measured it — from temperature charting or ovulation tests across a few
+    cycles — because a guess here moves every date below by however much it is out.
+  </p>
+</ToolForm>

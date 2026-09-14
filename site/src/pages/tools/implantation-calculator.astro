@@ -1,0 +1,272 @@
+---
+import Tool from '../../layouts/Tool.astro'
+import ImplantationForm from '../../components/ImplantationForm.astro'
+import { implantationWindow } from '../../lib/pregnancy.ts'
+import { LUTEAL_DAYS } from '../../lib/constants.ts'
+import type { FaqEntry } from '../../types.ts'
+
+/**
+ * Generated from `implantationWindow` on a 28-day cycle so the table cannot drift
+ * from the arithmetic the island runs. Stated in days past ovulation rather than as
+ * dates, because that is the form the underlying figures are actually given in —
+ * turning them into dates is what the calculator above is for.
+ */
+const W = implantationWindow(0, 28)
+const dpo = (day: number) => day - W.ovulation
+const WINDOW: ReadonlyArray<readonly [string, string]> = [
+  ['Ovulation', 'day 0, the day the calculator counts from'],
+  ['Earliest implantation', `${dpo(W.windowStart)} days after ovulation`],
+  ['Most common', `${dpo(W.commonStart)} to ${dpo(W.commonEnd)} days after ovulation`],
+  ['Latest implantation', `${dpo(W.windowEnd)} days after ovulation`],
+  ['Next period due', `${dpo(W.nextPeriodDue)} days after ovulation, on a ${LUTEAL_DAYS}-day luteal phase`],
+]
+
+const faq: FaqEntry[] = [
+  {
+    q: 'How many days after ovulation does implantation happen?',
+    a: 'Between 6 and 12 days, and most often between 8 and 10. That is the range this page works with, applied to an ovulation date estimated from your cycle. It is a population range rather than a fact about any one cycle, so the honest output is a window of days rather than a single date — which is why this page gives you both the whole window and the part of it most days fall in.',
+  },
+  {
+    q: 'Can I tell when implantation happened?',
+    a: 'Not from anything you can observe. There is no sensation, no reliable sign, and nothing a home test can show at the time — a pregnancy test detects hCG, which is only produced after implantation and then takes a few days to reach a detectable level. So the dates on this page are worked out entirely from the calendar, and they stay estimates however closely they match something you noticed.',
+  },
+  {
+    q: 'What about implantation bleeding? Does this page predict it?',
+    a: 'No, and it deliberately does not try to. Light bleeding or spotting in the second half of a cycle is common, and the term is widely used for it, but nothing about how it looks or when it happens distinguishes one cause from another — the same days can carry spotting for reasons that have nothing to do with a pregnancy. Marking days on a calendar as the ones to attribute bleeding to would invite exactly that mistake. Bleeding you are unsure about is worth raising with a doctor or nurse rather than dating.',
+  },
+  {
+    q: 'Why does the page ask for my luteal phase length?',
+    a: 'Because it is the input that most changes the answer, and the one you might actually know. Everything here is counted forward from ovulation, and ovulation is placed by subtracting the luteal phase from the cycle length — so a luteal phase two days off moves every date two days. Leaving the field empty assumes 14 days, which is the usual figure and a reasonable default. Fill it in only if you have measured it across a few cycles, from temperature charting or ovulation tests; a guess is worse than the default because it feels more specific without being more accurate.',
+  },
+  {
+    q: 'Can implantation happen earlier than 6 days or later than 12?',
+    a: 'The 6 to 12 day range covers the great majority, and outside it becomes progressively less common rather than impossible. This page reports the range rather than extending it, because a window wide enough to include every rare case would be too wide to be useful and would still not be a guarantee. Read the edges as edges: a date near either end of the window is less likely than one in the middle, and the page marks the middle separately for that reason.',
+  },
+  {
+    q: 'Does an implantation date tell me my due date?',
+    a: 'Only indirectly, and it is not how due dates are worked out. A pregnancy is dated from the first day of the last menstrual period, not from implantation, so the standard calculation never uses an implantation date at all. If a due date is what you came for, the due date calculator on this site does it the conventional way from your last period and cycle length — and if you have had a dating scan, that estimate supersedes any calendar arithmetic.',
+  },
+  {
+    q: 'Can this page tell me whether I am pregnant?',
+    a: 'No. It converts the dates you typed into other dates. It sees no test result, no symptom and nothing about your body beyond a cycle length, and it does not describe anything as having happened or not happened. A question about whether you are pregnant is settled by a test and, if you are unsure of one, by a doctor, nurse or pharmacist.',
+  },
+]
+---
+<Tool
+  title="Implantation Calculator — When It Happens"
+  h1="Implantation window calculator"
+  description="Estimate the days implantation would most likely fall on from your last period, cycle length and — if you have measured it — your own luteal phase length."
+  path="/tools/implantation-calculator"
+  faq={faq}
+>
+  <ImplantationForm slot="widget" />
+
+  <p>
+    Implantation is the point at which an embryo attaches to the lining of the
+    uterus, and it happens somewhere in a window of days rather than on a
+    predictable date. This page places that window on your own calendar: it
+    estimates your ovulation date from the cycle length you enter, then counts
+    forward across the range implantation falls in — showing you both the whole
+    window and the part of it most days fall in.
+  </p>
+  <p>
+    It is worth saying at the top what the page cannot do, because it is the
+    question most people arrive with. Nothing you can observe marks the day
+    implantation happens. There is no sign to watch for and no test that shows it at
+    the time, so these dates are arithmetic on a calendar and remain estimates
+    however closely they line up with something you noticed.
+  </p>
+
+  <h2>What the calculator is actually doing</h2>
+  <p>
+    Two steps. First it places ovulation, by subtracting the luteal phase — the days
+    from ovulation to the next period — from your cycle length. Then it counts
+    forward across the implantation range from that day:
+  </p>
+  <div class="not-prose my-6 overflow-x-auto">
+    <table class="w-full min-w-[28rem] border-collapse text-sm">
+      <caption class="pb-2 text-left text-xs text-ink-muted dark:text-white/55">
+        The estimated window, on a 28-day cycle
+      </caption>
+      <thead>
+        <tr class="border-b border-outline text-left dark:border-white/15">
+          <th class="py-2 pr-4 font-semibold">Estimated step</th>
+          <th class="py-2 font-semibold">When</th>
+        </tr>
+      </thead>
+      <tbody>
+        {WINDOW.map(([label, when]) => (
+          <tr class="border-b border-outline/60 dark:border-white/10">
+            <th scope="row" class="py-2 pr-4 text-left font-normal">{label}</th>
+            <td class="py-2">{when}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Only the first step uses anything you typed. The second is the same range for
+    everyone, so the whole accuracy of the result rests on where ovulation was
+    placed — which is why the luteal phase field is there, and why a figure you have
+    measured is worth more than any amount of care over the other two.
+  </p>
+
+  <h2>Nothing you can feel marks the day</h2>
+  <p>
+    This is the section worth reading if you found this page while trying to work out
+    what something you noticed meant. Light bleeding or spotting in the second half
+    of a cycle is common, and there is a widely used term for it, but nothing about
+    how it looks or exactly when it appears separates one cause from another. The
+    same days can carry spotting for reasons that have nothing to do with a
+    pregnancy, and a date on a calendar cannot distinguish between them.
+  </p>
+  <p>
+    That is why this page marks a window of days and stops there, rather than
+    labelling any day as the one to attribute something to. A calculator that
+    encouraged that reading would be inviting a conclusion it has no way to support.
+    If you are unsure about bleeding, or about anything else you have noticed, that
+    is a question for a doctor or nurse, who can do more than count days.
+  </p>
+
+  <h2>Why the luteal phase length is the input that matters most</h2>
+  <p>
+    Every date here is counted forward from the estimated ovulation day, so anything
+    that moves ovulation moves all of them together by the same amount. Ovulation is
+    placed by subtracting the luteal phase from the cycle length, and of those two
+    numbers the luteal phase is both the smaller and the more stable — which makes
+    it the one worth knowing precisely.
+  </p>
+  <p>
+    Left empty, the field assumes {LUTEAL_DAYS} days, which is the conventional
+    figure and a sound default. Filled in from a measurement — temperature charting,
+    or ovulation tests across a few cycles — it makes the answer meaningfully better.
+    Filled in from a guess it makes the answer worse, because it replaces a stated
+    convention with a number that looks specific and is not. The field is accepted
+    between 10 and 16 days; outside that the calendar method has nothing useful to
+    say, so the page declines rather than extrapolating.
+  </p>
+
+  <h2>Where these numbers come from</h2>
+  <p>
+    The window of 6 to 12 days after ovulation, most commonly 8 to 10, and the
+    treatment of the luteal phase as roughly {LUTEAL_DAYS} days, are the conventional
+    figures used in reproductive physiology and in the calendar method generally.
+    Both are population ranges rather than facts about any one cycle, and this page
+    reports them as ranges for that reason.
+  </p>
+  <p>
+    They also compound. An ovulation date estimated from an average, plus a window
+    that is itself a range, gives a result with more spread than either part — so the
+    window on your screen is a wide bracket around a day nobody can pin down, not a
+    narrow one around a day the page nearly knows.
+  </p>
+
+  <h2>Limitations worth reading before you use a date</h2>
+  <p>
+    The page knows the two or three numbers you typed and nothing else. It cannot
+    tell whether you ovulated when the model assumes, whether this cycle resembled
+    your others, or whether anything at all has happened. It produces a range of
+    dates; it does not produce a finding.
+  </p>
+  <p>
+    Nothing here is medical advice, and the page deliberately names no outcome and
+    describes no symptom as meaning anything. Those are questions for a doctor,
+    nurse or midwife who can see more than a calendar. This is also not a method of
+    contraception, and no date on this page should be read as one.
+  </p>
+
+  <h2>The questions that usually come next</h2>
+  <p>
+    Implantation is the step before a test can show anything: hCG is produced only
+    once it has happened, and then takes a few days to become detectable, which is
+    what the{' '}
+    <a href="/tools/pregnancy-test-calculator" class="underline">pregnancy test
+    calculator</a>{' '}
+    works out. If a test has already come back positive, a due date is dated from
+    your last period rather than from implantation — the{' '}
+    <a href="/tools/due-date-calculator" class="underline">due date calculator</a>{' '}
+    does that, and the{' '}
+    <a href="/tools/pregnancy-weeks-to-months" class="underline">weeks to months
+    converter</a>{' '}
+    turns a gestational age into a pregnancy month. For following a cycle over time
+    rather than calculating once, see{' '}
+    <a href="/features" class="underline">what the LunarFlow app tracks</a>.
+  </p>
+</Tool>
+
+<!-- This page's island. See the note in Calculator.astro. -->
+<script>
+  import { mount } from '../../lib/island.ts'
+  import { implantationWindow } from '../../lib/pregnancy.ts'
+  import { humanDate, dateRange, requireDayWithin } from '../../lib/days.ts'
+  import { hard, mark, fixedExtent } from '../../lib/band.ts'
+  import { track } from '../../lib/track.ts'
+
+  const ROW = 'mt-3 border-t border-outline pt-2 dark:border-white/15'
+  const KEY = 'text-xs uppercase tracking-wide text-ink-muted dark:text-white/55'
+  const row = (label: string, value: string) =>
+    `<div class="${ROW}"><dt class="${KEY}">${label}</dt><dd class="mt-1">${value}</dd></div>`
+
+  const SOFT = 'color-mix(in oklab, var(--color-predicted) 40%, transparent)'
+
+  mount((v) => {
+    // Check order matters, and this is check one: a missing date is reported as a
+    // missing date rather than reaching the range test, which would name the wrong
+    // problem. requireDayWithin calls requireDay first for exactly that reason.
+    // The ceiling of 0 means "not after today" — a period that has not started is
+    // not a last period — checked against the device calendar rather than trusting
+    // the `max` attribute, which was baked in when the site was built.
+    const lmp = requireDayWithin(v.str('lmp'), 'Last period date', 0)
+    const cycle = v.num('cycle')
+    // Empty is a real answer here: it means "use the conventional 14 days", and the
+    // library's own default is the single place that number lives. Passing
+    // Number('') would send NaN into the range check and report a nonsense error.
+    const luteal = v.str('luteal') === '' ? undefined : v.num('luteal')
+    const w = implantationWindow(lmp, cycle, luteal)
+
+    let rows = row('Estimated implantation window',
+      `${dateRange(w.windowStart, w.windowEnd)} — 6 to 12 days after ovulation.`) +
+      row('Estimated most common part of that window',
+        `${dateRange(w.commonStart, w.commonEnd)} — 8 to 10 days after ovulation. ` +
+        `A date here is likelier than one at either edge, and none of them is ` +
+        `something you could notice happening.`) +
+      row('Estimated ovulation', `${humanDate(w.ovulation)} — the day every other ` +
+        `date here is counted from. If this is wrong, all of them move with it.`) +
+      row('Estimated date your next period is due', humanDate(w.nextPeriodDue))
+
+    // A luteal phase shorter than 12 days puts the far edge of the window past the
+    // day the next period is due. That is the model reaching its limit, not a
+    // finding, and it is worth saying so where it happens rather than leaving the
+    // reader to notice two dates in an impossible order.
+    if (w.windowEnd > w.nextPeriodDue) {
+      rows += row('Why the window runs past your next period',
+        `With the luteal phase you entered, the last few days of the 6-to-12-day ` +
+        `range fall after the date your next period is due. That is the calendar ` +
+        `model reaching the end of what it can say, not a result — read the earlier ` +
+        `part of the window as the useful part.`)
+    }
+
+    const o = w.ovulation
+    const end = Math.max(w.windowEnd, w.nextPeriodDue) - o
+    return `<h3 class="display-sm text-xl">Estimated implantation window: ` +
+      `${dateRange(w.windowStart, w.windowEnd)}</h3>` +
+      `<p class="mt-1 text-sm text-ink-muted dark:text-white/60">Most commonly ` +
+      `${dateRange(w.commonStart, w.commonEnd)}. Every date here is an estimate ` +
+      `counted forward from an estimated ovulation day.</p>` +
+      `<dl class="mt-4">${rows}</dl>` +
+      track(
+        [
+          { span: hard(w.windowStart - o, w.windowEnd - o), color: SOFT },
+          { span: hard(w.commonStart - o, w.commonEnd - o), color: 'var(--color-predicted)' },
+          { span: mark(0), color: 'var(--color-ovulatory)' },
+          { span: mark(w.nextPeriodDue - o), color: 'var(--color-menstrual)' },
+        ],
+        'Estimated only. Ovulation is the mark at the left-hand end, the lighter ' +
+        'band is the whole 6-to-12-day window, and the solid part is the ' +
+        '8-to-10-day middle. The second mark is the day your next period is due, ' +
+        'which on a short luteal phase falls inside the band rather than after it. ' +
+        'The bands show a range of possible days, not progress through one.',
+        fixedExtent(0, end),
+      )
+  })
+</script>

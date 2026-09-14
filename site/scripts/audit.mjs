@@ -56,6 +56,7 @@ const JS_BUDGET = { '/tools/period-calculator': 8192, '/tools/ovulation-calculat
                     '/tools/cycle-length-calculator': 8192, '/tools/due-date-calculator': 8192,
                     '/tools/pregnancy-weeks-to-months': 8192,
                     '/tools/pregnancy-test-calculator': 8192,
+                    '/tools/implantation-calculator': 8192,
                     '/tools/ivf-due-date-calculator': 10240,
                     '/tools/ultrasound-due-date-calculator': 10240 }
 

@@ -63,6 +63,7 @@ export const NAV = [
       { href: '/tools/ivf-due-date-calculator', label: 'IVF and FET due date calculator' },
       { href: '/tools/ultrasound-due-date-calculator', label: 'Due date by ultrasound' },
       { href: '/tools/pregnancy-test-calculator', label: 'Pregnancy test calculator' },
+      { href: '/tools/implantation-calculator', label: 'Implantation calculator' },
     ],
   },
   { href: '/articles', label: 'Articles' },
