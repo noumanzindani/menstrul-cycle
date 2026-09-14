@@ -17,8 +17,9 @@ import 'package:menstrul_track/models/enums.dart';
 /// adapting to the dark theme, and stops dimming when the chip is disabled.
 const kRasterArt = <String>{
   // Owner decision 2026-09-14: the illustration itself is the mark. This now
-  // covers every symptom option except `headache`, which is still the old
-  // single-colour glyph, and `soaking_hourly`, which has no art at all.
+  // covers the symptom and emotional groups ENTIRELY, and five of the eight
+  // moods. The three remaining `.svg` moods are the only tinted chips left
+  // outside the reserved groups.
   'assets/track/cramps.png',
   'assets/track/acne.png',
   'assets/track/fatigue.png',
@@ -44,6 +45,23 @@ const kRasterArt = <String>{
   // that reversal is one visible line in the diff rather than an absence.
   'assets/track/tender_breasts.png',
   'assets/track/clots_large.png',
+  'assets/track/headache.png',
+  'assets/track/soaking_hourly.png',
+  // kEmotionalOptions, complete.
+  'assets/track/mood_swings.png',
+  'assets/track/anxiety.png',
+  'assets/track/low_mood.png',
+  'assets/track/irritability.png',
+  'assets/track/sensitive_emotional.png',
+  'assets/track/tearful.png',
+  'assets/track/low_motivation.png',
+  'assets/track/brain_fog.png',
+  // kMoodOptions, five of eight; anxious / irritable / angry are still SVG.
+  'assets/track/calm.png',
+  'assets/track/happy.png',
+  'assets/track/energetic.png',
+  'assets/track/sensitive.png',
+  'assets/track/sad.png',
 };
 
 void main() {
@@ -88,7 +106,7 @@ void main() {
       expect(doubleClassified, isEmpty, reason: 'these are in both art sets');
     });
 
-    // Now that the art is complete, the partition is exhaustive: 77 drawn + 12
+    // Now that the art is complete, the partition is exhaustive: 78 drawn + 11
     // deliberately undrawn. Asserting the totals makes an accidental DELETION
     // fail, which the per-key partition above cannot catch — dropping a key
     // from the catalog and from kOptionArt together leaves it consistent.
@@ -129,6 +147,25 @@ void main() {
         );
         expect(artFor(o.key), isNull);
       }
+    });
+
+    // The REVERSE direction, and it only became assertable on 2026-09-14, when
+    // the last exclusion made on other grounds (`soaking_hourly`) was reversed
+    // by supplied art. kNoArtKeys is now EXACTLY those four groups, so the set
+    // states a rule instead of accumulating a history. Any other key appearing
+    // here would be one quietly parked as "not drawn yet" under cover of a
+    // harm decision it has nothing to do with — the failure this catches.
+    test('nothing outside those groups is excluded', () {
+      final shoulderSurf = {
+        for (final o in [
+          ...kSexOptions,
+          ...kSexualHealthOptions,
+          ...kIntimacyOptions,
+          ...kLibidoOptions,
+        ])
+          o.key,
+      };
+      expect(kNoArtKeys, shoulderSurf);
     });
   });
 

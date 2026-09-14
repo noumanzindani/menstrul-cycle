@@ -32,12 +32,12 @@ import 'catalog.dart';
 /// the point.
 const Map<String, String> kOptionArt = {
   // kSymptomOptions
-  // Raster by owner decision: the illustration IS the mark for this whole
-  // group. `headache` is the LAST remaining glyph here, and it is the odd one
-  // out -- a single-colour stroke among 22 illustrations. That is a gap, not a
-  // style: supply a headache illustration and this group becomes uniform.
+  // Raster by owner decision: the illustration IS the mark. This group is now
+  // COMPLETE -- every symptom option carries one, so none of it recolours with
+  // the theme and none of it dims when a chip is disabled. See the raster
+  // caveats above; that trade was made deliberately, group-wide.
   'cramps': 'assets/track/cramps.png',
-  'headache': 'assets/track/headache.svg',
+  'headache': 'assets/track/headache.png',
   'bloating': 'assets/track/bloating.png',
   // Reversed 2026-09-14 by the owner, who supplied the art. This key sat in
   // [kNoArtKeys] because a mark for it had been drawn, shipped and withdrawn --
@@ -67,24 +67,29 @@ const Map<String, String> kOptionArt = {
   'fever': 'assets/track/fever.png',
   'chills': 'assets/track/chills.png',
   'clots_large': 'assets/track/clots_large.png',
-  // kMoodOptions
-  'calm': 'assets/track/calm.svg',
-  'happy': 'assets/track/happy.svg',
-  'energetic': 'assets/track/energetic.svg',
-  'sensitive': 'assets/track/sensitive.svg',
-  'sad': 'assets/track/sad.svg',
+  'soaking_hourly': 'assets/track/soaking_hourly.png',
+  // kMoodOptions -- the one MIXED group. The last three are still glyphs, so
+  // this row shows both kinds side by side: a glyph follows the label colour
+  // and inverts in dark mode, an illustration does neither. Supplying art for
+  // the remaining three is what makes the row consistent.
+  'calm': 'assets/track/calm.png',
+  'happy': 'assets/track/happy.png',
+  'energetic': 'assets/track/energetic.png',
+  'sensitive': 'assets/track/sensitive.png',
+  // 'sad' is keyed sad but LABELLED "Low" -- the art matches the label.
+  'sad': 'assets/track/sad.png',
   'anxious': 'assets/track/anxious.svg',
   'irritable': 'assets/track/irritable.svg',
   'angry': 'assets/track/angry.svg',
-  // kEmotionalOptions
-  'mood_swings': 'assets/track/mood_swings.svg',
-  'anxiety': 'assets/track/anxiety.svg',
-  'low_mood': 'assets/track/low_mood.svg',
-  'irritability': 'assets/track/irritability.svg',
-  'sensitive_emotional': 'assets/track/sensitive_emotional.svg',
-  'tearful': 'assets/track/tearful.svg',
-  'low_motivation': 'assets/track/low_motivation.svg',
-  'brain_fog': 'assets/track/brain_fog.svg',
+  // kEmotionalOptions -- complete.
+  'mood_swings': 'assets/track/mood_swings.png',
+  'anxiety': 'assets/track/anxiety.png',
+  'low_mood': 'assets/track/low_mood.png',
+  'irritability': 'assets/track/irritability.png',
+  'sensitive_emotional': 'assets/track/sensitive_emotional.png',
+  'tearful': 'assets/track/tearful.png',
+  'low_motivation': 'assets/track/low_motivation.png',
+  'brain_fog': 'assets/track/brain_fog.png',
   // kDischargeOptions
   'cm_dry': 'assets/track/cm_dry.svg',
   'cm_sticky': 'assets/track/cm_sticky.svg',
@@ -138,6 +143,20 @@ const Map<String, String> kOptionArt = {
 /// memory. No test can fail because a drawing is undignified — but a test CAN
 /// fail because a drawing exists where one was forbidden, and that is what
 /// `kNoArtKeys` buys.
+///
+/// As of 2026-09-14 every remaining entry is a SHOULDER-SURF decision, and that
+/// uniformity is worth stating because it was not always true. Three keys were
+/// excluded on other grounds and all three came back once art was supplied:
+/// `tender_breasts` (the argument was about a 16px monochrome glyph, not a 28px
+/// illustration) and the heavy-bleeding pair `clots_large` / `soaking_hourly`
+/// (the argument was that "no pictogram can carry a number" — the art supplied
+/// for `soaking_hourly` carries a literal "1h" badge, and `clots_large`'s label
+/// states its threshold).
+///
+/// So the rule that survived contact is narrow: an exclusion holds when the
+/// harm is someone ELSE reading the screen. An exclusion made because a mark
+/// seemed undrawable is a prediction about illustration, and predictions like
+/// that have lost three times. Weigh a new one accordingly.
 const Set<String> kNoArtKeys = {
   // Sexual activity. An icon is glanceable in a way a word is not — which is
   // the entire point of this feature, and it cuts both ways. Someone reading
@@ -163,17 +182,6 @@ const Set<String> kNoArtKeys = {
   'lbd_low',
   'lbd_medium',
   'lbd_high',
-  // Soaking through hourly. The whole clinical content of this one is a RATE --
-  // once an hour -- and no pictogram carries a number, so a drawn pad would be
-  // read and still leave the user guessing about the only thing that matters.
-  //
-  // `clots_large` sat here under the same argument until 2026-09-14, when the
-  // owner supplied art for it. That reversal is narrower than it looks: its
-  // LABEL already states the threshold ("Large clots (2.5 cm or more)"), so the
-  // mark only has to identify the row. No art was supplied for this key, which
-  // leaves it the ONLY undecorated chip among 23 decorated ones -- a reason to
-  // close the gap with a drawing, not a reason to re-argue the exclusion.
-  'soaking_hourly',
 };
 
 /// The one icon shared by every user-created medication row.
