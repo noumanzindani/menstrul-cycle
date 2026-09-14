@@ -26,11 +26,42 @@ export const ORG = {
  * page that has not been built, so `/tools` is added in Task 6 and `/articles`
  * in Task 7 — not before.
  */
+/**
+ * Top-level nav. An entry with `children` renders as a dropdown; the parent is
+ * still a REAL link to the section index, which is what makes the menu work
+ * without JavaScript — the panel opens on :hover and :focus-within, and anyone
+ * who cannot trigger either (touch, or a reader that does not move focus) lands
+ * on a page that lists the same links.
+ *
+ * Deliberately no `aria-expanded`: it cannot be updated without JS, and a value
+ * hardcoded to "false" while the panel is visibly open lies to assistive tech.
+ *
+ * The six pregnancy calculators are NOT here yet. The audit fails the build on a
+ * link to a page that has not been built, so each one joins this list in the same
+ * commit as its page.
+ */
 export const NAV = [
-  { href: '/features', label: 'Features' },
-  { href: '/tools', label: 'Calculators' },
+  {
+    href: '/features',
+    label: 'Product',
+    children: [
+      { href: '/features', label: 'Everything it tracks' },
+      { href: '/privacy', label: 'Your data' },
+      { href: '/privacy-policy', label: 'Privacy policy' },
+      { href: '/terms', label: 'Terms' },
+    ],
+  },
+  {
+    href: '/tools',
+    label: 'Calculators',
+    children: [
+      { href: '/tools/period-calculator', label: 'Period calculator' },
+      { href: '/tools/ovulation-calculator', label: 'Ovulation calculator' },
+      { href: '/tools/cycle-length-calculator', label: 'Menstrual cycle calculator' },
+      { href: '/tools/due-date-calculator', label: 'Pregnancy due date calculator' },
+    ],
+  },
   { href: '/articles', label: 'Articles' },
-  { href: '/privacy', label: 'Your data' },
   { href: '/download', label: 'Download' },
 ] as const
 

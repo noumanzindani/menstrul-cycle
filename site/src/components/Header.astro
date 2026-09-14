@@ -1,30 +1,61 @@
 ---
 import { NAV, ORG } from '../consts.ts'
 const path = Astro.url.pathname.replace(/\/$/, '') || '/'
+
+/** A nav entry is "current" if it is the page, or owns the page's section. */
+const isCurrent = (href: string) => path === href
+const owns = (item: { href: string; children?: readonly { href: string }[] }) =>
+  isCurrent(item.href) || (item.children ?? []).some((c) => isCurrent(c.href))
 ---
 <header class="sticky top-0 z-40 border-b border-black/5 bg-white/90 backdrop-blur-sm dark:border-white/10 dark:bg-surface-dark/90">
-  <nav
-    aria-label="Main"
-    class="mx-auto flex max-w-6xl items-center gap-x-8 px-5 py-3.5"
-  >
-    <a href="/" class="pressable flex shrink-0 items-center gap-2.5">
+  <nav aria-label="Main" class="mx-auto flex max-w-6xl items-center gap-x-7 px-5">
+    <a href="/" class="pressable flex shrink-0 items-center gap-2.5 py-3.5">
       <!--
-        The mark is decorative here: the wordmark beside it already carries the
-        name, so giving the image its own alt text would make a screen reader
-        announce the brand twice in a row.
+        Decorative: the wordmark beside it already carries the name, so alt text
+        here would make a screen reader announce the brand twice.
       -->
       <img src="/icon-64.webp" alt="" aria-hidden="true" width="64" height="64" class="h-8 w-8 rounded-lg" />
       <span class="text-[1.35rem] font-bold tracking-tight text-ink dark:text-white">{ORG.name}</span>
     </a>
 
-    <ul class="hidden flex-1 gap-x-7 text-[0.95rem] font-medium md:flex">
+    <ul class="hidden flex-1 items-stretch gap-x-1 text-[0.95rem] font-medium md:flex">
       {NAV.map((item) => (
-        <li>
+        <li class={item.children ? 'nav-group relative flex' : 'flex'}>
           <a
             href={item.href}
-            aria-current={path === item.href ? 'page' : undefined}
-            class="pressable inline-block py-1 hover:text-brand-deep aria-[current=page]:text-brand-deep aria-[current=page]:font-semibold"
-          >{item.label}</a>
+            aria-current={isCurrent(item.href) ? 'page' : undefined}
+            class:list={[
+              'pressable flex items-center gap-1 rounded-md px-3 py-3.5 hover:text-brand-deep',
+              owns(item) && 'text-brand-deep font-semibold',
+            ]}
+          >
+            {item.label}
+            {item.children && (
+              <svg width="11" height="7" viewBox="0 0 11 7" fill="none" aria-hidden="true" class="chev mt-px">
+                <path d="M1 1.4L5.5 5.6L10 1.4" stroke="currentColor" stroke-width="1.7"
+                  stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            )}
+          </a>
+
+          {item.children && (
+            <div class="nav-panel absolute left-0 top-full min-w-[17rem] pt-1">
+              <ul class="rounded-xl border border-black/5 bg-white py-2 shadow-[0_16px_40px_-12px_rgba(35,16,24,.28)] dark:border-white/10 dark:bg-surface-dark-2">
+                {item.children.map((child) => (
+                  <li>
+                    <a
+                      href={child.href}
+                      aria-current={isCurrent(child.href) ? 'page' : undefined}
+                      class:list={[
+                        'block whitespace-nowrap px-5 py-2.5 text-[0.95rem] font-normal hover:bg-brand-wash hover:text-brand-deep dark:hover:bg-white/5',
+                        isCurrent(child.href) && 'font-semibold text-brand-deep',
+                      ]}
+                    >{child.label}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </li>
       ))}
     </ul>
@@ -36,20 +67,69 @@ const path = Astro.url.pathname.replace(/\/$/, '') || '/'
   </nav>
 
   <!--
-    The nav collapses at md rather than shrinking: seven links plus a wordmark
-    plus a pill will not fit a 360px phone, and a horizontally scrolling nav bar
-    is worse than one that simply moves below. Zero JS budget means no burger
-    menu, so the links reappear as a plain wrapped row.
+    Below md the dropdowns collapse to a flat wrapped row of the top-level links.
+    Two reasons this is not a burger menu: the JS budget for this page is zero
+    bytes, and :hover is unreliable on touch, so a hover-opened panel would be a
+    dead end. Each parent still links to a section index that lists its children.
   -->
   <ul class="flex flex-wrap gap-x-5 gap-y-1 border-t border-black/5 px-5 py-2.5 text-sm font-medium md:hidden dark:border-white/10">
     {NAV.map((item) => (
       <li>
         <a
           href={item.href}
-          aria-current={path === item.href ? 'page' : undefined}
-          class="pressable inline-block hover:text-brand-deep aria-[current=page]:text-brand-deep aria-[current=page]:font-semibold"
+          aria-current={isCurrent(item.href) ? 'page' : undefined}
+          class:list={['pressable inline-block hover:text-brand-deep', owns(item) && 'text-brand-deep font-semibold']}
         >{item.label}</a>
       </li>
     ))}
   </ul>
 </header>
+
+<style>
+  /*
+    Zero-JS dropdown.
+
+    :focus-within is what makes it keyboard-operable — tabbing to the parent link
+    opens the panel, and tabbing onward moves through its items. There is no
+    JavaScript anywhere on this site to toggle a class or maintain aria-expanded.
+
+    visibility (not display) so the panel can transition, and so it is removed
+    from the tab order while closed — a display:none panel cannot animate, and an
+    opacity:0 one stays focusable and traps keyboard users in an invisible menu.
+  */
+  .nav-panel {
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 140ms ease, transform 140ms ease, visibility 0s linear 140ms;
+  }
+
+  .nav-group:hover .nav-panel,
+  .nav-group:focus-within .nav-panel {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    transition-delay: 0s;
+  }
+
+  .chev {
+    transition: transform 140ms ease;
+  }
+
+  .nav-group:hover .chev,
+  .nav-group:focus-within .chev {
+    transform: rotate(180deg);
+  }
+
+  /*
+    The trigger's padding runs to the header's bottom edge and the panel starts
+    exactly at top-full, so the pointer never crosses a gap on its way down. A
+    1px gap here makes the menu close mid-reach and feel broken.
+  */
+  @media (prefers-reduced-motion: reduce) {
+    .nav-panel,
+    .chev {
+      transition-duration: 0.01ms;
+    }
+  }
+</style>
