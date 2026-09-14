@@ -118,5 +118,36 @@ void main() {
       expect(provider.analysisConsentUid, isNull);
       expect(provider.analysisConsentVersion, isNull);
     });
+
+    // isAnalysisConsentedFor is what the Settings "Photo descriptions" toggle
+    // reads, and it must mirror MediaAnalysisService.consented's own check
+    // exactly (uid match AND current-version match) — a consent toggle that
+    // disagrees with the real gate is a trust problem on a consent surface.
+    group('isAnalysisConsentedFor', () {
+      test('a v1 consenter reads as NOT consented', () async {
+        await provider.setAnalysisConsent('uid-1', version: 1);
+        expect(provider.isAnalysisConsentedFor('uid-1'), isFalse);
+      });
+
+      test('a v2 (current) consenter reads as consented', () async {
+        await provider.setAnalysisConsent('uid-1');
+        expect(provider.isAnalysisConsentedFor('uid-1'), isTrue);
+      });
+
+      test("another account's consent does not read as this account's",
+          () async {
+        await provider.setAnalysisConsent('uid-1');
+        expect(provider.isAnalysisConsentedFor('uid-2'), isFalse);
+      });
+
+      test('a null uid (signed out) never reads as consented', () async {
+        await provider.setAnalysisConsent('uid-1');
+        expect(provider.isAnalysisConsentedFor(null), isFalse);
+      });
+
+      test('never consented reads as not consented', () {
+        expect(provider.isAnalysisConsentedFor('uid-1'), isFalse);
+      });
+    });
   });
 }

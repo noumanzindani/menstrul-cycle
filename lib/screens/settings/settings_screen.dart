@@ -1062,10 +1062,15 @@ class SettingsScreen extends StatelessWidget {
                   }
                 },
               ),
-              // Photo descriptions. Off unless the CURRENT account turned it on
-              // — `analysisConsentUid` holds a uid, not a bool, so another
-              // account's consent on this device reads as off here and cannot
-              // be withdrawn from the wrong account either.
+              // Photo descriptions. Off unless the CURRENT account turned it
+              // on for the CURRENT consent disclosure —
+              // `settings.isAnalysisConsentedFor` mirrors
+              // `MediaAnalysisService.consented` exactly (uid match AND
+              // current-version match), so this toggle can never show ON for
+              // an account the real gate would re-prompt. `analysisConsentUid`
+              // holds a uid, not a bool, so another account's consent on this
+              // device reads as off here and cannot be withdrawn from the
+              // wrong account either.
               //
               // Rendered only when a key was compiled in: with no backend the
               // switch would toggle a preference that does nothing, which is
@@ -1076,7 +1081,7 @@ class SettingsScreen extends StatelessWidget {
                   secondary: const Icon(Icons.auto_awesome_outlined),
                   title: Text(l10n.settingsPhotoDescriptionsTitle),
                   subtitle: Text(l10n.settingsPhotoDescriptionsSubtitle),
-                  value: uid != null && settings.analysisConsentUid == uid,
+                  value: settings.isAnalysisConsentedFor(uid),
                   onChanged: uid == null
                       ? null
                       : (v) async {

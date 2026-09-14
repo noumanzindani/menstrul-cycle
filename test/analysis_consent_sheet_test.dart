@@ -39,9 +39,19 @@ void main() {
     return answer;
   }
 
-  testWidgets('the Allow button is actually on screen', (tester) async {
-    // The regression. Before the fix this button was laid out past the right
-    // edge and clipped, so the sheet offered no way to say yes.
+  testWidgets(
+      'the Allow button is actually on screen, on first paint, with no '
+      'scrolling', (tester) async {
+    // The original regression: this button was laid out past the RIGHT edge
+    // and clipped (a bare FilledButton in a Row demands infinite width), so
+    // the sheet offered no way to say yes. A second, later regression reached
+    // the same failure a different way: once the disclosure named every
+    // tracked category, the whole content column grew taller than the
+    // viewport and both buttons landed below the BOTTOM edge — reachable only
+    // after a manual scroll, with no on-screen affordance hinting one was
+    // needed. Deliberately no `ensureVisible`/scrolling call anywhere in this
+    // test: the button must be visible at first paint, unscrolled, because
+    // that is what a first-time user actually sees.
     await setPhoneSize(tester);
     await openSheet(tester);
 
@@ -49,26 +59,49 @@ void main() {
     expect(allow, findsOneWidget);
 
     final rect = tester.getRect(allow);
-    final screen = tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    final screenWidth =
+        tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    final screenHeight =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
     expect(rect.left, greaterThanOrEqualTo(0.0));
     expect(
       rect.right,
-      lessThanOrEqualTo(screen),
+      lessThanOrEqualTo(screenWidth),
       reason: 'Allow is off the right edge — consent cannot be granted',
     );
+    expect(
+      rect.top,
+      greaterThanOrEqualTo(0.0),
+      reason: 'Allow is off the top edge — consent cannot be granted',
+    );
+    expect(
+      rect.bottom,
+      lessThanOrEqualTo(screenHeight),
+      reason: 'Allow is below the fold on first paint — consent cannot be '
+          'granted without an unprompted scroll',
+    );
     expect(rect.width, greaterThan(0.0));
+    expect(rect.height, greaterThan(0.0));
   });
 
-  testWidgets('both choices are on screen and neither is hidden',
+  testWidgets(
+      'both choices are on screen and neither is hidden, with no scrolling',
       (tester) async {
     await setPhoneSize(tester);
     await openSheet(tester);
 
-    final screen = tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    final screenWidth =
+        tester.view.physicalSize.width / tester.view.devicePixelRatio;
+    final screenHeight =
+        tester.view.physicalSize.height / tester.view.devicePixelRatio;
     for (final label in ['Not now', 'Allow']) {
       final rect = tester.getRect(find.text(label));
       expect(rect.left, greaterThanOrEqualTo(0.0), reason: '$label off left');
-      expect(rect.right, lessThanOrEqualTo(screen), reason: '$label off right');
+      expect(rect.right, lessThanOrEqualTo(screenWidth),
+          reason: '$label off right');
+      expect(rect.top, greaterThanOrEqualTo(0.0), reason: '$label off top');
+      expect(rect.bottom, lessThanOrEqualTo(screenHeight),
+          reason: '$label off bottom — below the fold with no scroll');
     }
   });
 
@@ -91,11 +124,9 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    // The fuller disclosure no longer fits a 360x800 viewport in one page, so
-    // the sheet scrolls (see analysis_consent_sheet.dart) — a real tap would
-    // scroll to reach the button too.
-    await tester.ensureVisible(find.byKey(const Key('analysis-consent-allow')));
-    await tester.pumpAndSettle();
+    // No ensureVisible/scroll here, deliberately: the button row is pinned
+    // outside the scrollable copy (see analysis_consent_sheet.dart), so it
+    // must already be reachable at first paint.
     await tester.tap(find.byKey(const Key('analysis-consent-allow')));
     await tester.pumpAndSettle();
     expect(answer, isTrue);
@@ -120,8 +151,7 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Not now'));
-    await tester.pumpAndSettle();
+    // No ensureVisible/scroll here either — see the previous test.
     await tester.tap(find.text('Not now'));
     await tester.pumpAndSettle();
     expect(answer, isFalse);

@@ -155,6 +155,20 @@ class SettingsProvider extends ChangeNotifier {
         analysisConsentVersion: Value(null),
       ));
 
+  /// Whether [uid] is currently consented to photo descriptions.
+  ///
+  /// Mirrors `MediaAnalysisService.consented`'s own check EXACTLY — uid match
+  /// AND current-version match — so the Settings "Photo descriptions" toggle
+  /// can never show a different answer than the real gate. Before this
+  /// existed, the toggle compared only the uid, so a v1 consenter (someone
+  /// who agreed to the old, photo-only disclosure) saw the switch ON even
+  /// though the gate now re-prompts them — a consent surface silently
+  /// disagreeing with the consent it enforces.
+  bool isAnalysisConsentedFor(String? uid) =>
+      uid != null &&
+      analysisConsentUid == uid &&
+      analysisConsentVersion == kCurrentConsentVersion;
+
   /// Advances the daily-cap counter.
   ///
   /// Deliberately `updateSyncState`, NOT [update]. This fires on every analysis

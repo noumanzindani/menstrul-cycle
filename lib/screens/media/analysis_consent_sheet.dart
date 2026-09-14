@@ -49,49 +49,73 @@ class _AnalysisConsentSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SafeArea(
-      // The copy now names every tracked category the request carries, which
-      // no longer reliably fits a short screen in one page — see
-      // `claim_local_data_sheet.dart` for the same fix on the same problem:
-      // the sheet sizes to its content (`isScrollControlled: true` on the
-      // call site) and the content scrolls inside it, so the two buttons are
-      // never the part that falls off the bottom.
-      child: SingleChildScrollView(
+      child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Describe photos?', style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 16),
-            Text(
-              'To describe a photo, LunaTrack sends it to Google, an automatic '
-              'image-recognition service outside LunaTrack, together with what '
-              'you have tracked: your cycle and period history, symptoms and '
-              'mood, height and weight, discharge, sexual activity and '
-              'masturbation, libido, contraception, any diagnoses a clinician '
-              'has given you, and your diary notes. This happens only when '
-              'you tap Describe on a photo — never on its own, and never to '
-              'your other photos.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'LunaTrack keeps the conversation about a photo on this device, '
-              'tied to that photo, so you can reopen it. Deleting the photo '
-              'deletes the conversation with it.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'It describes what is in a picture. It is not a medical opinion '
-              'and cannot tell you what something is or what to do about it.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'You can turn this off again in Settings.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            // The copy names every tracked category the request carries,
+            // which no longer reliably fits a short screen in one page —
+            // this part alone scrolls. `claim_local_data_sheet.dart` puts
+            // its whole body (copy AND buttons) inside one scroll view; this
+            // sheet deliberately does NOT copy that, because a consent gate
+            // is not an ordinary sheet. Device-found 2026-09-14: with the
+            // button row inside the scroll area, both buttons landed below
+            // the bottom edge on first paint — visible only after an
+            // unprompted scroll, with nothing on screen hinting one was
+            // needed. The button row below is a SIBLING of this Flexible,
+            // not a child of it, so it is laid out after the scrollable
+            // area and is never itself scrolled away. `Flexible` (loose fit,
+            // not `Expanded`) lets this shrink to the copy's own height when
+            // it is short enough to need no scrolling at all; when it
+            // isn't, this scrolls within whatever space is left after the
+            // pinned row below, which never moves.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Describe photos?',
+                        style: theme.textTheme.headlineSmall),
+                    const SizedBox(height: 16),
+                    Text(
+                      'To describe a photo, LunaTrack sends it to Google, an '
+                      'automatic image-recognition service outside '
+                      'LunaTrack, together with what you have tracked: your '
+                      'cycle and period history, symptoms and mood, height '
+                      'and weight, discharge, sexual activity and '
+                      'masturbation, libido, contraception, any diagnoses a '
+                      'clinician has given you, and your diary notes. This '
+                      'happens only when you tap Describe on a photo — '
+                      'never on its own, and never to your other photos.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'LunaTrack keeps the conversation about a photo on '
+                      'this device, tied to that photo, so you can reopen '
+                      'it. Deleting the photo deletes the conversation with '
+                      'it.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'It describes what is in a picture. It is not a '
+                      'medical opinion and cannot tell you what something '
+                      'is or what to do about it.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'You can turn this off again in Settings.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 24),
