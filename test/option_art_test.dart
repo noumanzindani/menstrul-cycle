@@ -17,9 +17,9 @@ import 'package:menstrul_track/models/enums.dart';
 /// adapting to the dark theme, and stops dimming when the chip is disabled.
 const kRasterArt = <String>{
   // Owner decision 2026-09-14: the illustration itself is the mark. Symptoms,
-  // emotional, discharge and skin are now ENTIRELY raster; mood and vaginal are
-  // one key short each. The tinted `.svg` chips left are `angry`,
-  // `vag_discomfort`, and the OPK / habit / urine / digestion groups.
+  // emotional, mood, discharge, skin, OPK and habits are now ENTIRELY raster.
+  // The tinted `.svg` chips left are `vag_discomfort`, the urine and digestion
+  // groups, and the shared medication mark.
   'assets/track/cramps.png',
   'assets/track/acne.png',
   'assets/track/fatigue.png',
@@ -84,6 +84,16 @@ const kRasterArt = <String>{
   'assets/track/skin_rash.png',
   'assets/track/skin_hair_loss.png',
   'assets/track/skin_hair_oily.png',
+  // kMoodOptions completed, plus kOpkOptions and kHabitOptions entire.
+  'assets/track/angry.png',
+  'assets/track/negative.png',
+  'assets/track/positive.png',
+  'assets/track/peak.png',
+  'assets/track/habit_exercise.png',
+  'assets/track/habit_caffeine.png',
+  'assets/track/habit_alcohol.png',
+  'assets/track/habit_smoking.png',
+  'assets/track/habit_meditation.png',
 };
 
 void main() {

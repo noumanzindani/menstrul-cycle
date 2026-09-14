@@ -68,10 +68,7 @@ const Map<String, String> kOptionArt = {
   'chills': 'assets/track/chills.png',
   'clots_large': 'assets/track/clots_large.png',
   'soaking_hourly': 'assets/track/soaking_hourly.png',
-  // kMoodOptions -- `angry` is the LAST glyph in this group, and it sits in the
-  // final row on its own, so the mismatch is less conspicuous than the
-  // three-glyph row it replaces. Still a gap: a glyph follows the label colour
-  // and inverts in dark mode, an illustration does neither.
+  // kMoodOptions -- complete.
   'calm': 'assets/track/calm.png',
   'happy': 'assets/track/happy.png',
   'energetic': 'assets/track/energetic.png',
@@ -80,7 +77,7 @@ const Map<String, String> kOptionArt = {
   'sad': 'assets/track/sad.png',
   'anxious': 'assets/track/anxious.png',
   'irritable': 'assets/track/irritable.png',
-  'angry': 'assets/track/angry.svg',
+  'angry': 'assets/track/angry.png',
   // kEmotionalOptions -- complete.
   'mood_swings': 'assets/track/mood_swings.png',
   'anxiety': 'assets/track/anxiety.png',
@@ -112,16 +109,22 @@ const Map<String, String> kOptionArt = {
   'vag_swelling': 'assets/track/vag_swelling.png',
   'vag_lumps': 'assets/track/vag_lumps.png',
   'vag_discomfort': 'assets/track/vag_discomfort.svg',
-  // kOpkOptions
-  'negative': 'assets/track/negative.svg',
-  'positive': 'assets/track/positive.svg',
-  'peak': 'assets/track/peak.svg',
-  // kHabitOptions
-  'habit_exercise': 'assets/track/habit_exercise.svg',
-  'habit_caffeine': 'assets/track/habit_caffeine.svg',
-  'habit_alcohol': 'assets/track/habit_alcohol.svg',
-  'habit_smoking': 'assets/track/habit_smoking.svg',
-  'habit_meditation': 'assets/track/habit_meditation.svg',
+  // kOpkOptions -- complete. The supplied `negative` art had the words
+  // "Ovulation test" baked in beneath the disc; it was stripped, not shipped.
+  // A caption inside a chip mark duplicates the label 6px to its right and
+  // steals the space the mark needs to be legible at 28px.
+  'negative': 'assets/track/negative.png',
+  'positive': 'assets/track/positive.png',
+  'peak': 'assets/track/peak.png',
+  // kHabitOptions -- complete, and the only group whose marks are OBJECTS
+  // rather than people (a cup, a glass, a cigarette). That is the artwork's
+  // choice, not a rule; noted because it is visible beside the figure-based
+  // groups above and reads as deliberate rather than inconsistent.
+  'habit_exercise': 'assets/track/habit_exercise.png',
+  'habit_caffeine': 'assets/track/habit_caffeine.png',
+  'habit_alcohol': 'assets/track/habit_alcohol.png',
+  'habit_smoking': 'assets/track/habit_smoking.png',
+  'habit_meditation': 'assets/track/habit_meditation.png',
   // kUrineOptions
   'urn_frequent': 'assets/track/urn_frequent.svg',
   'urn_urgency': 'assets/track/urn_urgency.svg',
