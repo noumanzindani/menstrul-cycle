@@ -20,7 +20,35 @@
  *    2027", which reads as 30 December 2027. `dateRange` repeats whichever
  *    parts actually differ.
  */
-import { parseISO, formatISO, MS_PER_DAY } from './cycle.ts'
+import { MS_PER_DAY } from './constants.ts'
+
+export { MS_PER_DAY }
+
+const ISO = /^\d{4}-\d{2}-\d{2}$/
+
+/** Parse `YYYY-MM-DD` to UTC midnight. Throws rather than returning NaN. */
+export function parseISO(iso: string): number {
+  if (!ISO.test(iso)) throw new RangeError(`Expected YYYY-MM-DD, got "${iso}"`)
+  const t = Date.parse(`${iso}T00:00:00Z`)
+  if (Number.isNaN(t)) throw new RangeError(`Not a real date: "${iso}"`)
+  // Date.parse accepts 2026-02-30 in some engines by rolling over; reject that.
+  if (new Date(t).toISOString().slice(0, 10) !== iso) throw new RangeError(`Not a real date: "${iso}"`)
+  return t
+}
+
+export function formatISO(epochMs: number): string {
+  return new Date(epochMs).toISOString().slice(0, 10)
+}
+
+export function addDays(epochMs: number, days: number): number {
+  return epochMs + days * MS_PER_DAY
+}
+
+export function assertRange(name: string, value: number, min: number, max: number): void {
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new RangeError(`${name} must be a whole number between ${min} and ${max}, got ${value}`)
+  }
+}
 
 /** A day number: whole days since the epoch. The unit every calculator works in. */
 export const dayNum = (iso: string): number => Math.round(parseISO(iso) / MS_PER_DAY)
@@ -38,6 +66,26 @@ export function todayDayNum(): number {
   const n = new Date()
   const p = (x: number) => String(x).padStart(2, '0')
   return dayNum(`${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`)
+}
+
+/** The earliest date any calculator here treats as a real entry. */
+export const PLAUSIBLE_FIRST_DAY_ISO = '2000-01-01'
+
+/**
+ * A required date, bounded to a plausible window, named in the error.
+ *
+ * The bound is checked here rather than left to the input's `min`/`max`: those are
+ * baked in at build time and drift as the deploy ages, and a typed year like 2062
+ * otherwise produces a confident due date four decades out.
+ */
+export function requireDayWithin(
+  iso: string | null | undefined, field: string, maxAheadDays = 400,
+): number {
+  const d = requireDay(iso, field)
+  if (d < dayNum(PLAUSIBLE_FIRST_DAY_ISO) || d > todayDayNum() + maxAheadDays) {
+    throw new RangeError(`${field} is outside the range this page can work with — check the year.`)
+  }
+  return d
 }
 
 /** Throws a RangeError naming the field, rather than letting NaN reach the maths. */

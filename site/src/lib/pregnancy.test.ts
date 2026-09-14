@@ -246,6 +246,30 @@ describe('ivfDueDate', () => {
     expect(() => ivfDueDate(0, 4)).toThrow(RangeError)
     expect(() => ivfDueDate(0, 0)).toThrow(RangeError)
   })
+
+  it('refuses a string embryo age, the concatenation bug, rather than coercing it', () => {
+    // With `embryoAge` as a string, `transferDay - (embryoAge + 14)` concatenates:
+    // 20710 - ('5' + 14) === 20710 - 514. The due date still looks right, because
+    // object keys are strings and `-` coerces, while the anchor and every date
+    // derived from it are 500 days out. The allow-list is what makes that
+    // impossible, so it must reject the string form too.
+    expect(() => ivfDueDate(20710, '5' as never)).toThrow(RangeError)
+  })
+
+  it('echoes the age and offset back, so nothing downstream re-reads the form', () => {
+    const r = ivfDueDate(dayNum('2026-09-14'), 5)
+    expect(r.embryoAge).toBe(5)
+    expect(r.offsetDays).toBe(261)
+    expect(r.dueDate).toBe(r.transferDay + r.offsetDays)
+    expect(r.gestationalAnchor).toBe(r.conceptionEquivalent - 14)
+  })
+
+  it('reports the as-of day it was given, and refuses one before the transfer', () => {
+    const t = dayNum('2026-09-14')
+    expect(ivfDueDate(t, 5).asOfDay).toBeNull()
+    expect(ivfDueDate(t, 5, t + 30).asOfDay).toBe(t + 30)
+    expect(() => ivfDueDate(t, 5, t - 1)).toThrow(/cannot be before the transfer/)
+  })
 })
 
 describe('redatingThresholdDays', () => {

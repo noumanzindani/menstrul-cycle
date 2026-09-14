@@ -3,7 +3,7 @@ import {
   CONCEPTION_OFFSET_DAYS, TERM_DAY, MAX_GA_DAY, MONTH_START_DAYS,
   TRIMESTER_2_START, TRIMESTER_3_START,
   wdToDays, gaParts, gaLabel, trimesterOf, pregnancyMonth,
-  MILESTONES, milestoneDates,
+  MILESTONES, TERM_REFERENCE, milestoneDates, gaLabel as label,
 } from './gestation.ts'
 import { LUTEAL_DAYS, GESTATION_DAYS } from './cycle.ts'
 
@@ -128,5 +128,30 @@ describe('MILESTONES', () => {
     const dates = milestoneDates(anchor)
     expect(dates).toHaveLength(MILESTONES.length)
     dates.forEach((d, i) => expect(d.day).toBe(anchor + MILESTONES[i][1]))
+  })
+
+  it('names no pregnancy state, here or in the term reference', () => {
+    // "full term" and "post term" are states a care team assigns. A page that
+    // prints one beside a date the reader has passed has made an assessment.
+    const banned = ['term', 'overdue', 'late', 'early']
+    for (const [text] of MILESTONES) {
+      for (const word of banned) expect(text.toLowerCase()).not.toContain(word)
+    }
+  })
+})
+
+describe('TERM_REFERENCE', () => {
+  it('is ordered, and carries the due date', () => {
+    expect([...TERM_REFERENCE].sort((a, b) => a - b)).toEqual([...TERM_REFERENCE])
+    expect(TERM_REFERENCE).toContain(TERM_DAY)
+  })
+
+  it('stops at 41w6d rather than crossing into 42 weeks', () => {
+    // 42w0d carries nothing 41w6d does not, and its only reading is a threshold.
+    expect(label(TERM_REFERENCE[TERM_REFERENCE.length - 1])).toBe('41w6d')
+  })
+
+  it('lands every row on a whole week or the last day of one', () => {
+    for (const d of TERM_REFERENCE) expect(d % 7 === 0 || d % 7 === 6).toBe(true)
   })
 })

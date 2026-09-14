@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { dayNum, fromDayNum, requireDay, humanDate, dateRange, daysBetween } from './days.ts'
+import {
+  dayNum, fromDayNum, requireDay, requireDayWithin, humanDate, humanDateShort,
+  dateRange, daysBetween, todayDayNum,
+} from './days.ts'
 
 describe('dayNum / fromDayNum', () => {
   it('round-trips an ISO date', () => {
@@ -70,5 +73,26 @@ describe('daysBetween', () => {
   it('is a plain signed difference', () => {
     expect(daysBetween(dayNum('2026-09-14'), dayNum('2026-09-21'))).toBe(7)
     expect(daysBetween(dayNum('2026-09-21'), dayNum('2026-09-14'))).toBe(-7)
+  })
+})
+
+describe('requireDayWithin', () => {
+  it('accepts a date inside the window', () => {
+    expect(requireDayWithin('2026-09-14', 'Transfer date')).toBe(dayNum('2026-09-14'))
+  })
+
+  it('rejects a mistyped year in either direction, naming the field', () => {
+    expect(() => requireDayWithin('1999-12-31', 'Transfer date')).toThrow(/Transfer date/)
+    expect(() => requireDayWithin('2062-01-01', 'Transfer date')).toThrow(/check the year/)
+  })
+
+  it('allows a date within the stated look-ahead but not past it', () => {
+    const t = todayDayNum()
+    expect(requireDayWithin(fromDayNum(t + 400), 'x')).toBe(t + 400)
+    expect(() => requireDayWithin(fromDayNum(t + 401), 'x')).toThrow(RangeError)
+  })
+
+  it('still requires a value at all', () => {
+    expect(() => requireDayWithin('', 'Scan date')).toThrow(/Scan date is required/)
   })
 })

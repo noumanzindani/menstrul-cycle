@@ -9,7 +9,7 @@
  * named constant that aliases LUTEAL_DAYS rather than a literal 14 anyone can
  * retype differently.
  */
-import { LUTEAL_DAYS, GESTATION_DAYS } from './cycle.ts'
+import { LUTEAL_DAYS, GESTATION_DAYS } from './constants.ts'
 
 /** Conception sits this many days after gestational day 0. Aliased so it cannot drift. */
 export const CONCEPTION_OFFSET_DAYS = LUTEAL_DAYS // 14
@@ -94,10 +94,16 @@ export function pregnancyMonth(day: number): MonthPosition | null {
 }
 
 /**
- * Milestones as ONE table. The IVF page's prose, its band labels and its tests
- * all read this, so a milestone cannot be listed in one place and missing from
- * another — which is exactly how the spec's worked example ended up with 11
- * rows against a 13-row milestone list.
+ * Milestones as ONE table. Each page's prose, its rendered rows and its tests all
+ * read this, so a milestone cannot be listed in one place and missing from
+ * another — which is how one spec's worked example ended up with 11 rows against
+ * its own 13-row milestone list.
+ *
+ * Deliberately NO term or post-term rows. Those are in TERM_REFERENCE below, and
+ * they are labelled by gestational age rather than by name, because "full term"
+ * and "post term" are states a care team assigns to a pregnancy. A calendar
+ * subtraction is not a status, and a page that prints one next to a date the
+ * reader has passed has made a clinical assessment it cannot stand behind.
  */
 export const MILESTONES: ReadonlyArray<readonly [string, number]> = [
   ['End of first trimester', TRIMESTER_2_START - 1],
@@ -105,11 +111,20 @@ export const MILESTONES: ReadonlyArray<readonly [string, number]> = [
   ['Anatomy scan window opens', 126], // 18w0d
   ['Anatomy scan window closes', 153], // 21w6d
   ['Start of third trimester', TRIMESTER_3_START],
-  ['Early term begins', EARLY_TERM_DAY],
-  ['Full term begins', FULL_TERM_DAY],
   ['Estimated due date', TERM_DAY],
-  ['Late term begins', LATE_TERM_DAY],
-  ['Post term begins', POST_TERM_DAY],
+] as const
+
+/**
+ * The gestational-age boundaries antenatal care uses to describe timing near the
+ * end of a pregnancy, as ages rather than names.
+ *
+ * Rendered as a STATIC reference: the same rows for every reader, one neutral
+ * hue, never highlighted, never compared against an as-of date, and with no
+ * distinct rendering at or past the last row. The moment a row lights up because
+ * the reader has reached it, the table has become a risk gauge.
+ */
+export const TERM_REFERENCE: ReadonlyArray<number> = [
+  EARLY_TERM_DAY, FULL_TERM_DAY, TERM_DAY, LATE_TERM_DAY, TERM_END_DAY,
 ] as const
 
 export function milestoneDates(anchorDay: number): Array<{ label: string; day: number }> {

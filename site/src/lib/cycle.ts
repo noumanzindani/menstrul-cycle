@@ -1,46 +1,34 @@
-export const MS_PER_DAY = 86_400_000
+/**
+ * The four original cycle calculators.
+ *
+ * The date primitives and `assertRange` moved to days.ts, and the shared numeric
+ * conventions to constants.ts, so that the pregnancy calculators can reach them
+ * without pulling the predictors below into their page bundles. Both are
+ * re-exported here: this module was the public surface first, and a caller that
+ * already imports from it should not have to care where a helper now lives.
+ */
+export {
+  MS_PER_DAY, parseISO, formatISO, addDays, assertRange,
+} from './days.ts'
+export {
+  LUTEAL_DAYS, GESTATION_DAYS, REFERENCE_CYCLE, TRIMESTER_2_DAY, TRIMESTER_3_DAY,
+} from './constants.ts'
+
+import { parseISO, formatISO, addDays, assertRange } from './days.ts'
+import {
+  MS_PER_DAY, LUTEAL_DAYS, GESTATION_DAYS, REFERENCE_CYCLE,
+  TRIMESTER_2_DAY, TRIMESTER_3_DAY,
+} from './constants.ts'
 
 const MIN_CYCLE = 21
 const MAX_CYCLE = 45
 const MIN_PERIOD = 1
 const MAX_PERIOD = 10
-/** Length of the luteal phase, assumed fixed. See the plan's constants table. */
-export const LUTEAL_DAYS = 14
 /** Sperm viability (5 days) plus the ovum's ~24 hours. */
 const FERTILE_BEFORE = 5
 const FERTILE_AFTER = 1
-export const GESTATION_DAYS = 280
-export const REFERENCE_CYCLE = 28
-export const TRIMESTER_2_DAY = 98   // 14 weeks
-export const TRIMESTER_3_DAY = 196  // 28 weeks — ACOG/NHS: T1 wk 1-13, T2 wk 14-27, T3 wk 28-40
 /** Spread between shortest and longest cycle still described as regular. */
 const REGULAR_MAX_VARIATION = 7
-
-const ISO = /^\d{4}-\d{2}-\d{2}$/
-
-/** Parse `YYYY-MM-DD` to UTC midnight. Throws rather than returning NaN. */
-export function parseISO(iso: string): number {
-  if (!ISO.test(iso)) throw new RangeError(`Expected YYYY-MM-DD, got "${iso}"`)
-  const t = Date.parse(`${iso}T00:00:00Z`)
-  if (Number.isNaN(t)) throw new RangeError(`Not a real date: "${iso}"`)
-  // Date.parse accepts 2026-02-30 in some engines by rolling over; reject that.
-  if (new Date(t).toISOString().slice(0, 10) !== iso) throw new RangeError(`Not a real date: "${iso}"`)
-  return t
-}
-
-export function formatISO(epochMs: number): string {
-  return new Date(epochMs).toISOString().slice(0, 10)
-}
-
-export function addDays(epochMs: number, days: number): number {
-  return epochMs + days * MS_PER_DAY
-}
-
-export function assertRange(name: string, value: number, min: number, max: number): void {
-  if (!Number.isInteger(value) || value < min || value > max) {
-    throw new RangeError(`${name} must be a whole number between ${min} and ${max}, got ${value}`)
-  }
-}
 
 export interface PeriodWindow { start: string; end: string }
 
