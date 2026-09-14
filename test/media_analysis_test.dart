@@ -416,8 +416,13 @@ void main() {
       );
       final sys = (req['systemInstruction'] as Map<String, Object?>)['parts']
           as List<Object?>;
+      // Strictly stronger than a substring exclusion (which a healthContext
+      // containing no digit-"30" sequence could pass by accident): the system
+      // instruction must be EXACTLY the fixed safety string, unchanged by
+      // whatever healthContext was passed — see the identical assertion at
+      // line 49 for a request built with no healthContext at all.
       expect((sys.first as Map<String, Object?>)['text'],
-          isNot(contains('Age: 30')));
+          kAnalysisSystemInstruction);
     });
 
     test(
