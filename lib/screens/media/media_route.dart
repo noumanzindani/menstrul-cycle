@@ -92,15 +92,29 @@ Route<void> mediaTimelineRoute(BuildContext context) {
   // callback: that class must never import AnalysisSessionRepository or
   // AppDatabase itself (test/media_guardrails_test.dart enforces it), so the
   // find-or-create logic lives here, where the database already is.
+  //
+  // [isMemoHit] (see MediaAnalysisService._persistTurn's doc comment) is
+  // where the duplicate-turn defect lived: a memo hit re-serves an answer
+  // already shown once before, and `AnalysisSessionRepository.append` is a
+  // pure insert with no dedup, so persisting it again would insert an exact
+  // duplicate pair into a session that already holds it. The live transcript
+  // never repeats that exchange, so the saved one must not either — hence
+  // the early return below whenever a session already exists. The one case
+  // that must still persist a memo hit is when NO session exists yet (it was
+  // deleted independently of the in-memory memo, e.g. by `deleteForMedia`):
+  // skipping there would leave a later follow-up with no opening turn to
+  // attach to, which is a worse transcript than a duplicated one.
   Future<void> persistAnalysisTurn({
     required String mediaId,
     required String question,
     required String answer,
+    required bool isMemoHit,
   }) async {
     final uid = trigger.currentUid;
     if (uid == null) return;
     final existing =
         await sessionRepo.forMedia(uid: uid, mediaId: mediaId);
+    if (isMemoHit && existing != null) return;
     final session = existing ??
         await sessionRepo.create(
           uid: uid,

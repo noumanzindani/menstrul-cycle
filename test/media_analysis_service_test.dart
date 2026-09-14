@@ -52,10 +52,14 @@ class _FakeAnalyzer implements MediaAnalyzer {
   }
 }
 
-/// Stands in for the `AnalysisSessionRepository` wiring built in
-/// `media_route.dart`: resolves an existing session for a mediaId (or creates
-/// one) and records every turn appended to it. Lets tests observe persistence
-/// — including session resumption — without a database.
+/// Stands in for the `persistAnalysisTurn` wiring built in `media_route.dart`
+/// against `AnalysisSessionRepository`: resolves an existing session for a
+/// mediaId (or creates one) and appends turns to it as PURE inserts — this
+/// deliberately mirrors `AnalysisSessionRepository.append`, which has no
+/// dedup of its own, so a caller-side mistake that re-persists an
+/// already-saved exchange shows up here as an observable duplicate rather
+/// than being silently absorbed. Lets tests observe persistence — including
+/// session resumption and the memo-hit skip — without a database.
 class _FakeSessionStore {
   final Map<String, String> sessionIdByMedia = {};
   int createCount = 0;
@@ -65,13 +69,24 @@ class _FakeSessionStore {
     required String mediaId,
     required String question,
     required String answer,
+    required bool isMemoHit,
   }) async {
-    final sessionId = sessionIdByMedia.putIfAbsent(mediaId, () {
-      createCount++;
-      return 'session-$createCount';
-    });
+    final existingId = sessionIdByMedia[mediaId];
+    // Mirrors persistAnalysisTurn's own early return: a memo hit re-serves an
+    // exchange already shown once before, and when a session already exists
+    // it already holds that opening exchange — appending it again would be a
+    // duplicate. See the doc comment on that function in media_route.dart.
+    if (isMemoHit && existingId != null) return;
+    final sessionId = existingId ?? _createSession(mediaId);
     messages.add((sessionId: sessionId, role: 'user', text: question));
     messages.add((sessionId: sessionId, role: 'model', text: answer));
+  }
+
+  String _createSession(String mediaId) {
+    createCount++;
+    final id = 'session-$createCount';
+    sessionIdByMedia[mediaId] = id;
+    return id;
   }
 }
 
@@ -477,6 +492,48 @@ void main() {
         sessionStore.messages.every((m) => m.sessionId == 'session-1'),
         isTrue,
       );
+    });
+
+    test(
+        'a memo hit does not duplicate the exchange when a session already '
+        'exists', () async {
+      // This is the regression this group exists to guard: re-opening a
+      // photo and re-asking its exact opening question serves the answer
+      // from the in-memory memo rather than the network, but the SAME
+      // exchange was already saved the first time. Persisting it again would
+      // insert an exact duplicate pair — the live transcript never repeats
+      // it, so the saved one must not either.
+      final service = buildService();
+      await run(service, question: 'what is this');
+      expect(sessionStore.messages.length, 2); // the original save
+
+      service.endConversation('media-1'); // the sheet closed
+      await run(service, question: 'what is this'); // a memo hit
+
+      expect(sessionStore.createCount, 1);
+      expect(sessionStore.messages.length, 2);
+    });
+
+    test('a memo hit is still persisted when no session exists yet',
+        () async {
+      // The one case a blanket skip would break: the session was deleted
+      // independently of the in-memory memo (e.g. `deleteForMedia` ran, or
+      // this is a fresh MediaAnalysisService instance whose memo somehow
+      // still has the entry). Skipping here would leave a later follow-up
+      // with no opening turn to attach to — worse than a duplicate.
+      final service = buildService();
+      await run(service, question: 'what is this');
+      expect(sessionStore.messages.length, 2);
+
+      // Simulate the session having been deleted out from under the memo.
+      sessionStore.sessionIdByMedia.remove('media-1');
+
+      service.endConversation('media-1');
+      await run(service, question: 'what is this'); // a memo hit, no session
+
+      expect(sessionStore.createCount, 2);
+      expect(sessionStore.messages.length, 4);
+      expect(sessionStore.messages.last.sessionId, 'session-2');
     });
   });
 }

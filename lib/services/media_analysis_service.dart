@@ -70,6 +70,7 @@ class MediaAnalysisService {
       required String mediaId,
       required String question,
       required String answer,
+      required bool isMemoHit,
     }) persistTurn,
     DateTime Function() now = DateTime.now,
     // Nullable rather than defaulted: `analysisAvailable` reads a
@@ -101,10 +102,21 @@ class MediaAnalysisService {
   /// existing session for the mediaId or creates one, then appends both
   /// turns — this class knows none of that; it just calls the function once
   /// per successful turn.
+  ///
+  /// [isMemoHit] is true when [result] came from the in-memory memo rather
+  /// than a fresh network call — see [_memo]. It exists ONLY so the caller
+  /// can decide whether this exchange is already saved: a memo hit re-serves
+  /// an answer already shown once before, and if a session already holds
+  /// that opening exchange, persisting again would insert an exact
+  /// duplicate (`AnalysisSessionRepository.append` is a pure insert, not an
+  /// upsert). This class does not make that decision itself — it has no
+  /// concept of a "session" to check — it only tells the caller which case
+  /// this is and lets `persistAnalysisTurn` in `media_route.dart` decide.
   final Future<void> Function({
     required String mediaId,
     required String question,
     required String answer,
+    required bool isMemoHit,
   }) _persistTurn;
   final DateTime Function() _now;
   final bool _available;
@@ -227,7 +239,7 @@ class MediaAnalysisService {
         // Seeded so a follow-up after a memo hit still has a referent. Without
         // this, re-opening a photo and asking "and the other one?" would send
         // that phrase with no conversation attached.
-        await _remember(mediaId, history, asked, memoized);
+        await _remember(mediaId, history, asked, memoized, isMemoHit: true);
         return AnalysisOutcome(result: memoized);
       }
     }
@@ -272,7 +284,7 @@ class MediaAnalysisService {
     }
 
     if (history.isEmpty) _memo['$mediaId|$asked'] = result;
-    await _remember(mediaId, history, asked, result);
+    await _remember(mediaId, history, asked, result, isMemoHit: false);
     return AnalysisOutcome(result: result);
   }
 
@@ -287,12 +299,16 @@ class MediaAnalysisService {
   /// above it (a gate, a daily-cap refusal, a thrown [AnalysisException])
   /// skips this method entirely, which is what keeps errors and refusals out
   /// of the saved transcript. See "Only errorless turns are persisted".
+  ///
+  /// [isMemoHit] is forwarded to [_persistTurn] untouched — see that field's
+  /// doc comment for why this class does not act on it itself.
   Future<void> _remember(
     String mediaId,
     List<AnalysisTurn> history,
     String asked,
-    AnalysisResult result,
-  ) async {
+    AnalysisResult result, {
+    required bool isMemoHit,
+  }) async {
     final prose = result.prose;
     if (prose == null || prose.trim().isEmpty) return;
     _transcripts[mediaId] = <AnalysisTurn>[
@@ -300,6 +316,11 @@ class MediaAnalysisService {
       AnalysisTurn.user(asked),
       AnalysisTurn.model(prose),
     ];
-    await _persistTurn(mediaId: mediaId, question: asked, answer: prose);
+    await _persistTurn(
+      mediaId: mediaId,
+      question: asked,
+      answer: prose,
+      isMemoHit: isMemoHit,
+    );
   }
 }
