@@ -7,7 +7,9 @@ explains what data the app handles and how. **Short version: LunaTrack uses an
 account, and the health data you log is uploaded to our cloud database so it can
 sync between your devices. It is stored in a readable form and is not sold or
 shared with advertisers. If you turn on photo descriptions, a photo you tap
-Describe on is sent to Google; that is off unless you turn it on.**
+Describe on — together with your tracked health record — is sent to Google;
+that is off unless you turn it on, and the resulting conversation is now kept
+on your device.**
 
 > ⚠️ Before publishing, all of the following must be true:
 >
@@ -105,34 +107,57 @@ works differently than it does.
 
 ### Describing a photo (off unless you turn it on)
 
-LunaTrack can describe what is in one of your photos. This feature is **off by
-default**, and turning it on is a separate choice from cloud sync.
+LunaTrack can describe what is in one of your photos, and let you ask
+follow-up questions about it. This feature is **off by default**, and turning
+it on is a separate choice from cloud sync.
 
-- It is **off until you turn it on**, per account, on each device. You are asked
-  once, the first time you tap **Describe** on a photo, and you can turn it off
-  again at any time in Settings → Describe photos.
-- When you tap **Describe**, that one photo is **sent to Google**, an automatic
-  image-recognition service that is not part of LunaTrack and not part of your
-  account. It happens only for the photo you tapped, only when you tap, and
-  never on its own or in the background.
-- You can then **ask follow-up questions** about that photo. Each question you
-  send **sends the photo again**, along with the questions and answers so far,
-  because the service keeps nothing between messages. Nothing is sent while you
-  are typing — only when you send a message.
-- **Google is a separate company with its own terms and its own handling of what
-  it receives.** LunaTrack cannot speak for what happens to a photo after it is
-  sent, and does not claim to.
-- LunaTrack **does not store the description or the conversation**. Both are
-  shown to you and discarded when you close the photo — closing it and opening
-  it again starts over, with nothing carried across. Nothing derived from your
-  photo is written to the database, to the cloud, to the doctor PDF, or to the
-  backup file.
+- It is **off until you turn it on**, per account, on each device. You are
+  asked before you can use it, and you can turn it off again at any time in
+  Settings → Describe photos.
+- **This does not send only the photo.** Along with it, LunaTrack sends what
+  you have tracked, from roughly the last 90 days: your cycle and period
+  history, symptoms and mood, height and weight (and the BMI figure
+  calculated from them), discharge, sexual activity and masturbation, libido,
+  vaginal and other sexual-health notes, habits, medications you have marked
+  as taken (by name), basal body temperature and ovulation test results,
+  your contraception method, any diagnoses a clinician has given you,
+  breastfeeding status, and your free-text diary notes. This happens only
+  when you tap **Describe** on a photo, and again on every follow-up question
+  you send in that conversation — the service keeps nothing between messages,
+  so the same information is sent again each time. Nothing is sent while you
+  are typing, only when you send a message.
+- **If you previously agreed to an earlier version of this feature that sent
+  only the photo, you will be asked to agree again** before it sends anything
+  more. LunaTrack tracks which version of this disclosure you agreed to, and
+  widening what is sent asks again rather than being applied automatically.
+- When you tap **Describe**, the photo and that record are **sent to Google**,
+  an automatic image-recognition service that is not part of LunaTrack and
+  not part of your account. It happens only for the photo you tapped, only
+  when you send a message, and never on its own or in the background.
+- **Google is a separate company with its own terms and its own handling of
+  what it receives.** LunaTrack cannot speak for what happens to a photo, or
+  the tracked information sent with it, after it is sent, and does not claim
+  to.
+- **LunaTrack now keeps the conversation on your device.** This is a change:
+  it used to be shown to you and discarded the moment you closed the photo.
+  Each conversation is stored, per photo, in the same encrypted on-device
+  database as the rest of your data, so you can reopen a photo later and pick
+  up where you left off. It is:
+  - **not** uploaded to our cloud database or to any LunaTrack server — it
+    stays on this device only;
+  - **not** included in the doctor-summary PDF;
+  - **not** included in the `.lunabak` backup file;
+  - **erased** whenever the photo it is about is deleted, whenever you use
+    **Settings → Delete all my data**, and whenever you sign out or switch
+    accounts on this device.
 - A description is **not a medical opinion**. The feature describes what is
-  visible in a picture. It cannot tell you what something is, how serious it is,
-  or what to do about it, and it is instructed to refuse if asked.
-- **Once a photo has been sent, it has left LunaTrack.** Turning the feature off,
-  deleting the photo, or deleting your LunaTrack account does not reach a copy
-  held by Google.
+  visible in a picture. It cannot tell you what something is, how serious it
+  is, or what to do about it, and it is instructed to refuse if asked — even
+  with your tracked health information available to it.
+- **Once a photo and your tracked record have been sent, they have left
+  LunaTrack.** Turning the feature off, deleting the photo, deleting the
+  on-device conversation, or deleting your LunaTrack account does not reach a
+  copy held by Google.
 - The number of **messages** is limited per day, and the number of questions
   about any one photo is limited too. These are cost limits, not privacy
   controls.
