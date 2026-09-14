@@ -162,4 +162,76 @@ void main() {
     );
     expect(out, isEmpty);
   });
+
+  DailyLog makeLog({required DateTime date, String symptoms = '{}', String? mood, String? notes, FlowIntensity? flow}) =>
+      DailyLog(
+        id: 1,
+        date: date,
+        flow: flow,
+        symptoms: symptoms,
+        mood: mood,
+        notes: notes,
+        createdAt: date,
+        updatedAt: date,
+      );
+
+  group('day lines', () {
+    test('labels the day with cycle day and phase', () {
+      final line = buildDayLine(
+        log: makeLog(date: DateTime(2026, 9, 1)),
+        cycleDay: 19,
+        phase: CyclePhase.luteal,
+        medicationNames: const {},
+      );
+      expect(line, contains('day 19'));
+      expect(line, contains('luteal'));
+    });
+
+    test('a day outside any cycle is labelled unknown, never guessed', () {
+      final line = buildDayLine(
+        log: makeLog(date: DateTime(2026, 9, 1)),
+        cycleDay: null,
+        phase: CyclePhase.unknown,
+        medicationNames: const {},
+      );
+      expect(line, contains('phase unknown'));
+      expect(line, isNot(contains('day null')));
+    });
+
+    test('carries the reserved groups the doctor PDF excludes', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({
+            'cm_eggwhite': true,
+            'slf_masturbation': true,
+            'sex_unprotected': true,
+            'vag_itching': true,
+          }),
+        ),
+        cycleDay: 14,
+        phase: CyclePhase.ovulatory,
+        medicationNames: const {},
+      );
+      expect(line, contains('Egg white'));
+      expect(line, contains('Masturbation'));
+      expect(line, contains('Unprotected'));
+      expect(line, contains('Itching'));
+    });
+
+    test('a zero metric is omitted, never sent as a reading', () {
+      final line = buildDayLine(
+        log: makeLog(
+          date: DateTime(2026, 9, 1),
+          symptoms: jsonEncode({'pain': 0, 'weight': 0, 'sleep': 7}),
+        ),
+        cycleDay: 3,
+        phase: CyclePhase.menstrual,
+        medicationNames: const {},
+      );
+      expect(line, isNot(contains('pain')));
+      expect(line, isNot(contains('weight')));
+      expect(line, contains('sleep 7'));
+    });
+  });
 }

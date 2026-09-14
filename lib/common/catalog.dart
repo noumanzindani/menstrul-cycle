@@ -234,7 +234,7 @@ const List<TrackOption> kDischargeOptions = [
   TrackOption('cm_sticky', 'Sticky'),
   TrackOption('cm_creamy', 'Creamy'),
   TrackOption('cm_watery', 'Watery'),
-  TrackOption('cm_eggwhite', 'Egg-white'),
+  TrackOption('cm_eggwhite', 'Egg white'),
 ];
 
 /// Vaginal-health flags (boolean multi-select, [kVaginalKeyPrefix]). Sensitive

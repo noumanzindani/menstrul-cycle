@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../common/catalog.dart';
 import '../db/database.dart';
+import '../models/enums.dart';
 import 'bmi_service.dart';
 
 /// How much daily history travels with a photo.
@@ -103,4 +104,98 @@ List<String> _decodeKeyList(String? json) {
     // A malformed blob is treated as absent, never as an error the user sees.
   }
   return const [];
+}
+
+/// One day, rendered as a single labelled line.
+///
+/// [cycleDay] and [phase] are DERIVED by the caller from CycleCalculator — they
+/// are not stored. That derivation is what turns a pile of dated rows into
+/// something a model can reason about cyclically: "day 19, luteal - discharge:
+/// creamy" answers "is this normal for me at this point" in a way a bare date
+/// cannot.
+///
+/// Reads the reserved-prefix groups DIRECTLY. `decodeSymptoms` strips them, and
+/// that stripping is deliberate — it keeps intimate data out of a printout
+/// handed to a clinician. The AI context has different inclusion rules on
+/// purpose, so this must never route through the PDF helpers.
+String buildDayLine({
+  required DailyLog log,
+  required int? cycleDay,
+  required CyclePhase phase,
+  required Map<int, String> medicationNames,
+}) {
+  final head = cycleDay == null
+      ? '${_ymd(log.date)} (phase unknown)'
+      : '${_ymd(log.date)} (day $cycleDay, ${phase.name})';
+
+  final parts = <String>[];
+
+  if (log.flow != null) {
+    parts.add('flow: ${FlowIntensity.values[log.flow!.index].name}');
+  }
+  if (log.mood != null) {
+    final mood = _labelFor(kMoodOptions, log.mood!);
+    if (mood != null) parts.add('mood: $mood');
+  }
+
+  final symptoms = decodeSymptoms(log.symptoms)
+      .map(symptomLabel)
+      .where((l) => l.isNotEmpty)
+      .toList();
+  if (symptoms.isNotEmpty) parts.add('symptoms: ${symptoms.join(', ')}');
+
+  void addSingle(String prefix, List<TrackOption> options, String label) {
+    final key = decodeSingle(log.symptoms, prefix);
+    if (key == null) return;
+    final text = _labelFor(options, key);
+    if (text != null) parts.add('$label: $text');
+  }
+
+  void addGroup(String prefix, List<TrackOption> options, String label) {
+    final labels = _labelsFor(options, decodeGroup(log.symptoms, prefix));
+    if (labels.isNotEmpty) parts.add('$label: ${labels.join(', ')}');
+  }
+
+  addSingle(kDischargeKeyPrefix, kDischargeOptions, 'discharge');
+  addSingle(kSexKeyPrefix, kSexOptions, 'sexual activity');
+  addSingle(kLibidoKeyPrefix, kLibidoOptions, 'libido');
+  addGroup(kIntimacyKeyPrefix, kIntimacyOptions, 'solo activity');
+  addGroup(kVaginalKeyPrefix, kVaginalOptions, 'vaginal');
+  addGroup(kSexualHealthKeyPrefix, kSexualHealthOptions, 'sexual health');
+  addGroup(kUrineKeyPrefix, kUrineOptions, 'urinary');
+  addGroup(kDigestionKeyPrefix, kDigestionOptions, 'digestion');
+  addGroup(kSkinKeyPrefix, kSkinOptions, 'skin');
+  addGroup(kHabitKeyPrefix, kHabitOptions, 'habits');
+
+  // 0 is the unset sentinel for every numeric metric (catalog.dart:106-112).
+  // Serialising it would hand the model a confident reading of nothing.
+  for (final key in const [
+    kMetricPain,
+    kMetricWater,
+    kMetricSleep,
+    kMetricSleepQuality,
+    kMetricEnergy,
+    kMetricStress,
+    kMetricWeight,
+  ]) {
+    final v = decodeNumber(log.symptoms, key);
+    if (v != null && v != 0) parts.add('$key $v');
+  }
+
+  if (log.bbt != null) parts.add('temperature ${log.bbt}');
+  if (log.opk != null) parts.add('ovulation test: ${log.opk}');
+
+  final meds = <String>[];
+  for (final entry in medicationNames.entries) {
+    if (decodeGroup(log.symptoms, kMedicationKeyPrefix)
+        .contains('$kMedicationKeyPrefix${entry.key}')) {
+      meds.add(entry.value);
+    }
+  }
+  if (meds.isNotEmpty) parts.add('medication taken: ${meds.join(', ')}');
+
+  final note = log.notes?.trim();
+  if (note != null && note.isNotEmpty) parts.add('note: $note');
+
+  return parts.isEmpty ? head : '$head - ${parts.join('; ')}';
 }
