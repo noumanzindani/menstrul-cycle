@@ -5,14 +5,14 @@ const MAX_CYCLE = 45
 const MIN_PERIOD = 1
 const MAX_PERIOD = 10
 /** Length of the luteal phase, assumed fixed. See the plan's constants table. */
-const LUTEAL_DAYS = 14
+export const LUTEAL_DAYS = 14
 /** Sperm viability (5 days) plus the ovum's ~24 hours. */
 const FERTILE_BEFORE = 5
 const FERTILE_AFTER = 1
-const GESTATION_DAYS = 280
-const REFERENCE_CYCLE = 28
-const TRIMESTER_2_DAY = 98   // 14 weeks
-const TRIMESTER_3_DAY = 196  // 28 weeks — ACOG/NHS: T1 wk 1-13, T2 wk 14-27, T3 wk 28-40
+export const GESTATION_DAYS = 280
+export const REFERENCE_CYCLE = 28
+export const TRIMESTER_2_DAY = 98   // 14 weeks
+export const TRIMESTER_3_DAY = 196  // 28 weeks — ACOG/NHS: T1 wk 1-13, T2 wk 14-27, T3 wk 28-40
 /** Spread between shortest and longest cycle still described as regular. */
 const REGULAR_MAX_VARIATION = 7
 
@@ -36,7 +36,7 @@ export function addDays(epochMs: number, days: number): number {
   return epochMs + days * MS_PER_DAY
 }
 
-function assertRange(name: string, value: number, min: number, max: number): void {
+export function assertRange(name: string, value: number, min: number, max: number): void {
   if (!Number.isInteger(value) || value < min || value > max) {
     throw new RangeError(`${name} must be a whole number between ${min} and ${max}, got ${value}`)
   }
