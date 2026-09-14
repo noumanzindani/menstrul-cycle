@@ -16,10 +16,10 @@ import 'package:menstrul_track/models/enums.dart';
 /// tint provides free: the mark stops following the label colour, stops
 /// adapting to the dark theme, and stops dimming when the chip is disabled.
 const kRasterArt = <String>{
-  // Owner decision 2026-09-14: the illustration itself is the mark. This now
-  // covers the symptom and emotional groups ENTIRELY, and five of the eight
-  // moods. The three remaining `.svg` moods are the only tinted chips left
-  // outside the reserved groups.
+  // Owner decision 2026-09-14: the illustration itself is the mark. Symptoms,
+  // emotional, discharge and skin are now ENTIRELY raster; mood and vaginal are
+  // one key short each. The tinted `.svg` chips left are `angry`,
+  // `vag_discomfort`, and the OPK / habit / urine / digestion groups.
   'assets/track/cramps.png',
   'assets/track/acne.png',
   'assets/track/fatigue.png',
@@ -62,6 +62,28 @@ const kRasterArt = <String>{
   'assets/track/energetic.png',
   'assets/track/sensitive.png',
   'assets/track/sad.png',
+  'assets/track/anxious.png',
+  'assets/track/irritable.png',
+  // kDischargeOptions, complete.
+  'assets/track/cm_dry.png',
+  'assets/track/cm_sticky.png',
+  'assets/track/cm_creamy.png',
+  'assets/track/cm_watery.png',
+  'assets/track/cm_eggwhite.png',
+  // kVaginalOptions, six of seven.
+  'assets/track/vag_itching.png',
+  'assets/track/vag_burning.png',
+  'assets/track/vag_dryness.png',
+  'assets/track/vag_odor.png',
+  'assets/track/vag_swelling.png',
+  'assets/track/vag_lumps.png',
+  // kSkinOptions, complete.
+  'assets/track/skin_dry.png',
+  'assets/track/skin_oily.png',
+  'assets/track/skin_itchy.png',
+  'assets/track/skin_rash.png',
+  'assets/track/skin_hair_loss.png',
+  'assets/track/skin_hair_oily.png',
 };
 
 void main() {

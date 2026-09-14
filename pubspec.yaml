@@ -126,10 +126,17 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Per-option chip artwork. Monochrome, single-colour SVGs only: TrackArt
-  # recolours them with ColorFilter.mode(..., BlendMode.srcIn), which repaints
-  # every drawn pixel, so a multi-colour file would collapse to one tint and a
-  # light-mode-only palette would be invisible in dark mode.
+  # Per-option chip artwork, declared DIRECTORY-WIDE rather than per file, so
+  # adding or swapping a mark needs no edit here. Two kinds live side by side
+  # and lib/common/option_art.dart is the register of which is which:
+  #
+  #   .svg  monochrome, SINGLE-COLOUR only. TrackArt recolours these with
+  #         ColorFilter.mode(..., BlendMode.srcIn), repainting every drawn
+  #         pixel, so a multi-colour file collapses to one tint and a
+  #         light-mode-only palette vanishes in dark mode.
+  #   .png  full-colour illustration, rendered untinted at 1.75x. Does NOT
+  #         follow the label colour, adapt to the dark theme, or dim when the
+  #         chip is disabled. Owner decision per icon, never a default.
   assets:
     - assets/track/
 

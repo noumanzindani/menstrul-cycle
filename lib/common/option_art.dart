@@ -68,18 +68,18 @@ const Map<String, String> kOptionArt = {
   'chills': 'assets/track/chills.png',
   'clots_large': 'assets/track/clots_large.png',
   'soaking_hourly': 'assets/track/soaking_hourly.png',
-  // kMoodOptions -- the one MIXED group. The last three are still glyphs, so
-  // this row shows both kinds side by side: a glyph follows the label colour
-  // and inverts in dark mode, an illustration does neither. Supplying art for
-  // the remaining three is what makes the row consistent.
+  // kMoodOptions -- `angry` is the LAST glyph in this group, and it sits in the
+  // final row on its own, so the mismatch is less conspicuous than the
+  // three-glyph row it replaces. Still a gap: a glyph follows the label colour
+  // and inverts in dark mode, an illustration does neither.
   'calm': 'assets/track/calm.png',
   'happy': 'assets/track/happy.png',
   'energetic': 'assets/track/energetic.png',
   'sensitive': 'assets/track/sensitive.png',
   // 'sad' is keyed sad but LABELLED "Low" -- the art matches the label.
   'sad': 'assets/track/sad.png',
-  'anxious': 'assets/track/anxious.svg',
-  'irritable': 'assets/track/irritable.svg',
+  'anxious': 'assets/track/anxious.png',
+  'irritable': 'assets/track/irritable.png',
   'angry': 'assets/track/angry.svg',
   // kEmotionalOptions -- complete.
   'mood_swings': 'assets/track/mood_swings.png',
@@ -90,19 +90,27 @@ const Map<String, String> kOptionArt = {
   'tearful': 'assets/track/tearful.png',
   'low_motivation': 'assets/track/low_motivation.png',
   'brain_fog': 'assets/track/brain_fog.png',
-  // kDischargeOptions
-  'cm_dry': 'assets/track/cm_dry.svg',
-  'cm_sticky': 'assets/track/cm_sticky.svg',
-  'cm_creamy': 'assets/track/cm_creamy.svg',
-  'cm_watery': 'assets/track/cm_watery.svg',
-  'cm_eggwhite': 'assets/track/cm_eggwhite.svg',
-  // kVaginalOptions
-  'vag_itching': 'assets/track/vag_itching.svg',
-  'vag_burning': 'assets/track/vag_burning.svg',
-  'vag_dryness': 'assets/track/vag_dryness.svg',
-  'vag_odor': 'assets/track/vag_odor.svg',
-  'vag_swelling': 'assets/track/vag_swelling.svg',
-  'vag_lumps': 'assets/track/vag_lumps.svg',
+  // kDischargeOptions -- complete.
+  'cm_dry': 'assets/track/cm_dry.png',
+  'cm_sticky': 'assets/track/cm_sticky.png',
+  'cm_creamy': 'assets/track/cm_creamy.png',
+  'cm_watery': 'assets/track/cm_watery.png',
+  'cm_eggwhite': 'assets/track/cm_eggwhite.png',
+  // kVaginalOptions -- six of seven; `vag_discomfort` is the odd one left.
+  //
+  // `vag_dryness` is ALSO a member of `kSexualHistoryOptions`, which re-uses
+  // keys rather than defining its own. That list is rendered by
+  // `onboarding_screen.dart`'s `_todayChips`, which builds a bare `Text` label
+  // and never calls `artFor` -- so this illustration does not follow the key
+  // into the "Have you ever experienced any of these?" question, where it would
+  // sit beside two chips that are text-only for shoulder-surf reasons. Checked,
+  // not assumed; if that helper ever grows art, re-check this one first.
+  'vag_itching': 'assets/track/vag_itching.png',
+  'vag_burning': 'assets/track/vag_burning.png',
+  'vag_dryness': 'assets/track/vag_dryness.png',
+  'vag_odor': 'assets/track/vag_odor.png',
+  'vag_swelling': 'assets/track/vag_swelling.png',
+  'vag_lumps': 'assets/track/vag_lumps.png',
   'vag_discomfort': 'assets/track/vag_discomfort.svg',
   // kOpkOptions
   'negative': 'assets/track/negative.svg',
@@ -128,13 +136,13 @@ const Map<String, String> kOptionArt = {
   'dig_no_bm': 'assets/track/dig_no_bm.svg',
   'dig_loose_stool': 'assets/track/dig_loose_stool.svg',
   'dig_hard_stool': 'assets/track/dig_hard_stool.svg',
-  // kSkinOptions
-  'skin_dry': 'assets/track/skin_dry.svg',
-  'skin_oily': 'assets/track/skin_oily.svg',
-  'skin_itchy': 'assets/track/skin_itchy.svg',
-  'skin_rash': 'assets/track/skin_rash.svg',
-  'skin_hair_loss': 'assets/track/skin_hair_loss.svg',
-  'skin_hair_oily': 'assets/track/skin_hair_oily.svg',
+  // kSkinOptions -- complete.
+  'skin_dry': 'assets/track/skin_dry.png',
+  'skin_oily': 'assets/track/skin_oily.png',
+  'skin_itchy': 'assets/track/skin_itchy.png',
+  'skin_rash': 'assets/track/skin_rash.png',
+  'skin_hair_loss': 'assets/track/skin_hair_loss.png',
+  'skin_hair_oily': 'assets/track/skin_hair_oily.png',
 };
 
 /// Options that must NEVER get artwork, each for a stated reason.
