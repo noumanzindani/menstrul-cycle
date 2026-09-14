@@ -62,6 +62,7 @@ export const NAV = [
       { href: '/tools/pregnancy-weeks-to-months', label: 'Pregnancy weeks to months' },
       { href: '/tools/ivf-due-date-calculator', label: 'IVF and FET due date calculator' },
       { href: '/tools/ultrasound-due-date-calculator', label: 'Due date by ultrasound' },
+      { href: '/tools/pregnancy-test-calculator', label: 'Pregnancy test calculator' },
     ],
   },
   { href: '/articles', label: 'Articles' },

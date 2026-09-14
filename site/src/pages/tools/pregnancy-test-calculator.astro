@@ -1,0 +1,308 @@
+---
+import Tool from '../../layouts/Tool.astro'
+import TestTimingForm from '../../components/TestTimingForm.astro'
+import { testTiming, HCG_LAG_DAYS } from '../../lib/pregnancy.ts'
+import type { FaqEntry } from '../../types.ts'
+
+/**
+ * The timetable below is generated from `testTiming` itself, on a 28-day cycle, so
+ * the prose cannot drift from the arithmetic the island runs. Every row is stated as
+ * an offset from the day the period is due, because that is the one landmark a
+ * reader already knows without doing any arithmetic of their own — and because the
+ * luteal phase is the fixed part of the model, so these offsets are the same
+ * whatever cycle length is entered.
+ */
+const T = testTiming(0, 28)
+const plural = (n: number) => `${n} day${n === 1 ? '' : 's'}`
+const rel = (day: number) => {
+  const n = day - T.periodDue
+  if (n === 0) return 'the day it is due'
+  return n < 0 ? `${plural(-n)} before` : `${plural(n)} after`
+}
+const TIMETABLE: ReadonlyArray<readonly [string, string]> = [
+  ['Estimated ovulation', rel(T.ovulation)],
+  ['Earliest implantation', rel(T.implantEarliest)],
+  ['Most common implantation', `${plural(T.periodDue - T.implantCommonStart)} to ` +
+    `${plural(T.periodDue - T.implantCommonEnd)} before`],
+  ['Latest implantation', rel(T.implantLatest)],
+  ['Earliest suggested test date', rel(T.earliestSuggestedTest)],
+  ['Latest a test could first turn positive', rel(T.latestDetectable)],
+  ['From here, a negative is no longer a question of timing', rel(T.timingReliable)],
+]
+
+const faq: FaqEntry[] = [
+  {
+    q: 'How soon can I take a pregnancy test?',
+    a: 'On a calendar estimate, about two days before your period is due — which this page works out from your own dates. The reasoning is a chain of three steps: ovulation is assumed to be 14 days before the next period, implantation follows 6 to 12 days after that and most often 8 to 10, and a home urine test needs roughly 3 more days after implantation before there is enough hCG to detect. Taking the middle of the implantation window and adding the detection lag is where the suggested date comes from. Testing earlier is possible, and more likely to be negative whatever the answer really is.',
+  },
+  {
+    q: 'Can I take a test before my period is due?',
+    a: 'Yes, and this page suggests a date that is before it. What changes when you test early is not whether the test works but what a negative means: earlier than the suggested date, a negative is at least as likely to be telling you the test was too early as telling you there is nothing there. That is why the page also reports the date from which a negative stops being a timing question, rather than only the earliest date you could try.',
+  },
+  {
+    q: 'I got a negative result — could I still be pregnant?',
+    a: 'If you tested before the last date on this page, yes — timing alone can explain it. Implantation can happen as late as 12 days after ovulation, and hCG takes about 3 more days to reach a level a home urine test detects, so the latest a test could first turn positive is about a day after the period was due. Testing again a few days later is what separates "too early" from "not pregnant". A negative test alongside a period that has not arrived is worth raising with a doctor, nurse or pharmacist rather than resolving with a calculator.',
+  },
+  {
+    q: 'Does it matter what time of day I test?',
+    a: 'Urine that has been in the bladder longer is more concentrated, so first thing in the morning is the conventional advice and it matters most when you are testing early, because that is when the level is closest to the threshold. Later in the day, especially after drinking a lot, a very early result can be diluted below what the test can pick up. Once you are past the date your period was due, the concentration difference matters much less. The instructions in your test packet are the ones to follow — they are written for that specific test.',
+  },
+  {
+    q: 'What if my cycles are irregular?',
+    a: 'Then treat these dates as a rough bracket rather than a schedule. Every date here is built on ovulation having happened 14 days before the next period, and with irregular cycles the thing that varies is exactly when ovulation happened, which moves all of them together. Entering your shortest recent cycle gives the earliest set of dates, which is the cautious way round: it errs toward testing too soon, which costs a test, rather than too late. If your period is simply not arriving and you do not know when to expect it, a test now and another in a week is more use than any calendar.',
+  },
+  {
+    q: 'Do early-detection tests change these dates?',
+    a: 'They can move the earliest date a little, and this page deliberately does not try to say by how much. Test packets state a sensitivity in mIU/mL, but converting that number into a date requires assuming how fast hCG rises in a particular pregnancy, and that rate varies enough between pregnancies that the result would look far more precise than it is. What the page does instead is use one commonly cited detection lag for home urine tests generally, and say plainly that it is an approximation. The instructions in your packet will tell you the earliest day that specific test is designed for.',
+  },
+  {
+    q: 'Can this page tell me whether I am pregnant?',
+    a: 'No. It converts two dates you typed into other dates, and it never sees a test result. It cannot tell you what a result means, it does not describe any outcome, and a faint line, a changed result or a period that has not arrived are all questions for a doctor, nurse or pharmacist. What this page is for is one narrow thing: working out which days a test is worth taking on.',
+  },
+]
+---
+<Tool
+  title="Pregnancy Test Calculator — When to Take One"
+  h1="When to take a pregnancy test"
+  description="Work out the earliest date a home pregnancy test is worth taking, and when a negative stops being explained by having simply tested too early."
+  path="/tools/pregnancy-test-calculator"
+  faq={faq}
+>
+  <TestTimingForm slot="widget" />
+
+  <p>
+    A home pregnancy test looks for hCG, a hormone that is only produced once an
+    embryo has implanted. That is what makes this a timing question rather than a
+    patience one: before implantation there is nothing to find, and for a few days
+    after it there is not yet enough. This page works out the dates from your last
+    period and your usual cycle length — and, just as usefully, the date after which
+    a negative result stops being explainable by having tested too early.
+  </p>
+
+  <h2>The one assumption everything here rests on</h2>
+  <p>
+    Every date on this page is built on a single estimate: that ovulation happened
+    14 days before your next period was due. That is the standard calendar
+    assumption, and it works the way it does because the second half of the cycle —
+    from ovulation to the next period — varies much less between people than the
+    first half. So the cycle length you enter is treated as absorbing all of the
+    variation, and the 14 days are held fixed.
+  </p>
+  <p>
+    The consequence worth understanding is that the estimate can only be as good as
+    that assumption. If you ovulated four days later than the model supposes, every
+    date below is four days early, and the page has no way to know. That is also why
+    all of them are stated as offsets from the day your period is due rather than
+    from your last period: the offsets themselves do not change with the cycle length
+    you enter.
+  </p>
+  <div class="not-prose my-6 overflow-x-auto">
+    <table class="w-full min-w-[30rem] border-collapse text-sm">
+      <caption class="pb-2 text-left text-xs text-ink-muted dark:text-white/55">
+        Estimated timing, relative to the day your period is due
+      </caption>
+      <thead>
+        <tr class="border-b border-outline text-left dark:border-white/15">
+          <th class="py-2 pr-4 font-semibold">Estimated step</th>
+          <th class="py-2 font-semibold">When</th>
+        </tr>
+      </thead>
+      <tbody>
+        {TIMETABLE.map(([label, when]) => (
+          <tr class="border-b border-outline/60 dark:border-white/10">
+            <th scope="row" class="py-2 pr-4 text-left font-normal">{label}</th>
+            <td class="py-2">{when}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Why the suggested date is not the earliest possible date</h2>
+  <p>
+    Implantation happens somewhere in a window 6 to 12 days after ovulation, most
+    often 8 to 10. Adding the detection lag of about {HCG_LAG_DAYS} days to the
+    earliest edge of that window would give a date roughly nine days after ovulation
+    — a date on which a test genuinely can be positive, and on which it is far more
+    often negative regardless of the answer, because most pregnancies have not
+    reached a detectable level yet.
+  </p>
+  <p>
+    So the suggested date is built from the middle of the common part of the window
+    instead, plus the same lag. That is a deliberate trade: it gives up the earliest
+    conceivable date in exchange for the earliest date on which a negative carries
+    much information. A test taken before it is not wasted, exactly — it can be
+    positive — but a negative from it tells you almost nothing.
+  </p>
+  <p>
+    One consequence of those two sums is worth pointing out, because the table above
+    shows it and it looks like a contradiction: the suggested test date and the last
+    possible implantation day land on the same day. They are not related. One is the
+    middle of the common window plus the detection lag; the other is the far edge of
+    the whole window. They coincide on these particular numbers and nothing follows
+    from it — in particular, a pregnancy that implanted on that last day will not show
+    up on a test taken the same day, which is the point of the next section.
+  </p>
+
+  <h2>What a negative result actually rules out</h2>
+  <p>
+    This is the part the dates are really for. Implantation can be as late as 12 days
+    after ovulation, and hCG takes about {HCG_LAG_DAYS} more days to reach a level a
+    home urine test detects, which puts the latest a test could first turn positive at
+    {rel(T.latestDetectable)} your period was due. A negative before
+    that point is compatible with a pregnancy that simply has not shown up yet.
+  </p>
+  <p>
+    That is why the last row of the table sits a further week out. By
+    {rel(T.timingReliable)} your period was due, a negative result is no
+    longer explained by timing — which is not the same as saying it explains
+    anything else. A period that has not arrived, a negative test, or a result you
+    are unsure how to read are all worth taking to a doctor, nurse or pharmacist,
+    who can do things a calendar cannot.
+  </p>
+
+  <h2>Why this page does not ask which test you bought</h2>
+  <p>
+    Test packets state a sensitivity in mIU/mL, and it would be easy to ask for that
+    number and hand back a date built on it. This page does not, on purpose. Turning
+    a sensitivity into a date means assuming a rate at which hCG rises, and that rate
+    varies enough between pregnancies that the resulting date would look far more
+    precise than the evidence behind it. A date that is wrong but looks calculated is
+    worse than a range that is honest about being a range.
+  </p>
+  <p>
+    What this page uses instead is one commonly cited lag for home urine tests
+    generally, applied the same way for everyone, and stated as the approximation it
+    is. The instructions in your packet are more specific than anything here, because
+    they were written for that test: if they name an earliest day, that is the number
+    to trust over this one.
+  </p>
+
+  <h2>Where these numbers come from</h2>
+  <p>
+    The implantation window of 6 to 12 days after ovulation, most commonly 8 to 10,
+    and the treatment of the luteal phase as roughly 14 days, are the conventional
+    figures used in reproductive physiology and in the calendar method generally. The
+    detection lag of about {HCG_LAG_DAYS} days after implantation reflects that hCG
+    is produced only after implantation and has to accumulate to a threshold
+    concentration before a urine test registers it.
+  </p>
+  <p>
+    Each of those is a population range rather than a fact about any one cycle, and
+    they compound: three approximations chained together give a result with more
+    spread than any one of them. That is the honest reason this page reports several
+    dates rather than one, and why the later ones matter more than the earliest.
+  </p>
+
+  <h2>Limitations worth reading before you act on a date</h2>
+  <p>
+    The page knows two things: the date you typed and the cycle length you typed. It
+    cannot tell whether you ovulated when the model assumes, whether this cycle was
+    like your others, or anything at all about a test you have already taken. It
+    produces dates, not a result and not an assessment.
+  </p>
+  <p>
+    Nothing here is medical advice, and this page deliberately does not name any
+    outcome or explain what a particular result might mean. Those questions belong to
+    someone who can see more than two numbers — a doctor, a nurse, or the pharmacist
+    at the counter you bought the test from, all of whom answer them routinely.
+  </p>
+
+  <h2>Following it forward instead of re-typing it</h2>
+  <p>
+    Everything above is a snapshot of two numbers. LunarFlow tracks your cycles on
+    your device and keeps its own estimate of when your next period is due, which is
+    the figure every date here is derived from — see{' '}
+    <a href="/features" class="underline">what the app tracks</a>{' '}
+    if following it over time is more use than one calculation. If a test has already
+    come back positive, the{' '}
+    <a href="/tools/due-date-calculator" class="underline">due date calculator</a>{' '}
+    is the next question, and the{' '}
+    <a href="/tools/pregnancy-weeks-to-months" class="underline">weeks to months
+    converter</a>{' '}
+    turns a gestational age into a pregnancy month.
+  </p>
+</Tool>
+
+<!-- This page's island. See the note in Calculator.astro. -->
+<script>
+  import { mount } from '../../lib/island.ts'
+  import { testTiming } from '../../lib/pregnancy.ts'
+  import { humanDate, dateRange, requireDayWithin } from '../../lib/days.ts'
+  import { hard, mark, fixedExtent } from '../../lib/band.ts'
+  import { track } from '../../lib/track.ts'
+  import { testTimingSummary } from '../../lib/summary/test-timing.ts'
+
+  const esc = (s: string) => s.replace(/[&<>]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!)
+
+  const ROW = 'mt-3 border-t border-outline pt-2 dark:border-white/15'
+  const KEY = 'text-xs uppercase tracking-wide text-ink-muted dark:text-white/55'
+  const row = (label: string, value: string) =>
+    `<div class="${ROW}"><dt class="${KEY}">${label}</dt><dd class="mt-1">${value}</dd></div>`
+
+  const SOFT = 'color-mix(in oklab, var(--color-predicted) 40%, transparent)'
+
+  mount((v) => {
+    // The last period cannot be in the future: a period that has not started is not
+    // a last period. Checked against the device calendar rather than left to the
+    // input's `max`, which was baked in when the site was built and drifts.
+    const lmp = requireDayWithin(v.str('lmp'), 'Last period date', 0)
+    const cycle = v.num('cycle')
+    const t = testTiming(lmp, cycle)
+
+    // Every label carries "Estimated". The period due date especially: it is the
+    // number a reader is most likely to quote back later, and a bare date reads as
+    // a fact about the coming month rather than as arithmetic on an assumption.
+    const rows =
+      row('Estimated date your period is due', humanDate(t.periodDue)) +
+      row('Estimated latest a test could first turn positive',
+        `${humanDate(t.latestDetectable)} — the latest implantation day plus about ` +
+        `three days for hCG to become detectable. A negative before this is still ` +
+        `compatible with a pregnancy that has not shown up yet.`) +
+      row('Estimated date from which a negative is no longer about timing',
+        `${humanDate(t.timingReliable)}. That is not the same as it explaining ` +
+        `anything else — a period that has not arrived is worth raising with a ` +
+        `doctor, nurse or pharmacist.`) +
+      row('Estimated ovulation', `${humanDate(t.ovulation)}, assumed to be 14 days ` +
+        `before your period is due. If this is wrong, every date here moves with it.`) +
+      row('Estimated implantation window',
+        `${dateRange(t.implantEarliest, t.implantLatest)}, most commonly ` +
+        `${dateRange(t.implantCommonStart, t.implantCommonEnd)}. Nothing you can ` +
+        `observe marks the day it happens.`)
+
+    // The track's domain is fixed to the span the page talks about — ovulation to
+    // the reliable-negative date — so the bands keep the same width and position
+    // whatever cycle length is entered, and cannot be read as a progress bar.
+    const o = t.ovulation
+    return `<h3 class="display-sm text-xl">Estimated earliest suggested test date: ` +
+      `${humanDate(t.earliestSuggestedTest)}</h3>` +
+      `<p class="mt-1 text-sm text-ink-muted dark:text-white/60">Two days before your ` +
+      `period is due. A test before this can be positive; a negative from it tells ` +
+      `you very little.</p>` +
+      `<dl class="mt-4">${rows}</dl>` +
+      track(
+        [
+          { span: hard(t.implantEarliest - o, t.implantLatest - o), color: SOFT },
+          { span: hard(t.implantCommonStart - o, t.implantCommonEnd - o),
+            color: 'var(--color-predicted)' },
+          { span: hard(t.earliestSuggestedTest - o, t.latestDetectable - o),
+            color: 'var(--color-fertile)' },
+          { span: mark(t.periodDue - o), color: 'var(--color-menstrual)' },
+        ],
+        'Estimated only. Left to right: ovulation at the left-hand end, the ' +
+        'implantation window in the lighter band with its commonest part solid, ' +
+        'the days a test could first turn positive in the third colour, and the ' +
+        'day your period is due as the single mark. The scale is fixed, so it is ' +
+        'not a measure of how far along anything is.',
+        fixedExtent(0, t.timingReliable - o),
+      ) +
+      `<details class="mt-8 rounded-lg border border-outline p-3 dark:border-white/15">` +
+      `<summary class="cursor-pointer text-sm font-semibold">Copy as text</summary>` +
+      `<p class="mt-2 text-xs text-ink-muted dark:text-white/55">Select and copy. This is the ` +
+      `text itself, not a link: nothing is uploaded.</p>` +
+      `<pre class="mt-2 overflow-x-auto whitespace-pre-wrap text-xs">` +
+      `${esc(testTimingSummary(t, cycle, lmp, humanDate))}</pre>` +
+      `</details>`
+  })
+</script>

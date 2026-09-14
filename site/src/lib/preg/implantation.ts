@@ -10,9 +10,16 @@
  *
  * `../pregnancy.ts` re-exports all of these, so callers and tests need not care
  * which file a formula lives in.
+ *
+ * The default luteal length comes from `../constants.ts` rather than
+ * `CONCEPTION_OFFSET_DAYS` in `../gestation.ts`, which is the same integer.
+ * Reading it from gestation.ts put `MILESTONES`, `TERM_REFERENCE` and the month
+ * and milestone helpers into this page's bundle for the sake of the number 14.
+ * It is also the more accurate name here: this module counts a luteal phase, not
+ * a gestation.
  */
 import { assertRange } from '../days.ts'
-import { CONCEPTION_OFFSET_DAYS } from '../gestation.ts'
+import { LUTEAL_DAYS } from '../constants.ts'
 
 export interface ImplantationWindow {
   ovulation: number
@@ -31,7 +38,7 @@ export interface ImplantationWindow {
  * outside 10-16 days the calendar method has nothing useful to say.
  */
 export function implantationWindow(
-  lmpDay: number, cycleLength: number, lutealLength = CONCEPTION_OFFSET_DAYS,
+  lmpDay: number, cycleLength: number, lutealLength = LUTEAL_DAYS,
 ): ImplantationWindow {
   assertRange('Cycle length', cycleLength, 21, 45)
   assertRange('Luteal phase length', lutealLength, 10, 16)

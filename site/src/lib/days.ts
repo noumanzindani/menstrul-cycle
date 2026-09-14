@@ -77,13 +77,23 @@ export const PLAUSIBLE_FIRST_DAY_ISO = '2000-01-01'
  * The bound is checked here rather than left to the input's `min`/`max`: those are
  * baked in at build time and drift as the deploy ages, and a typed year like 2062
  * otherwise produces a confident due date four decades out.
+ *
+ * `maxAheadDays: 0` means "not after today", which pages with a field that can only
+ * describe something already past use. It gets its own message: "check the year" is
+ * the right hint for a mistyped 2062 and the wrong one for a date the reader chose
+ * deliberately, which is what tomorrow almost always is.
  */
 export function requireDayWithin(
   iso: string | null | undefined, field: string, maxAheadDays = 400,
 ): number {
   const d = requireDay(iso, field)
-  if (d < dayNum(PLAUSIBLE_FIRST_DAY_ISO) || d > todayDayNum() + maxAheadDays) {
-    throw new RangeError(`${field} is outside the range this page can work with — check the year.`)
+  if (d > todayDayNum() + maxAheadDays) {
+    throw new RangeError(maxAheadDays === 0
+      ? `${field} cannot be in the future.`
+      : `${field} is too far ahead for this page to work with — check the year.`)
+  }
+  if (d < dayNum(PLAUSIBLE_FIRST_DAY_ISO)) {
+    throw new RangeError(`${field} is too far in the past for this page — check the year.`)
   }
   return d
 }
@@ -100,9 +110,15 @@ const FMT: Intl.DateTimeFormatOptions = {
   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
 }
 
-/** Renders one day number. `timeZone: 'UTC'` is mandatory — see note 3 above. */
-export function humanDate(n: number): string {
-  return new Date(n * MS_PER_DAY).toLocaleDateString(undefined, FMT)
+/**
+ * Renders one day number. `timeZone: 'UTC'` is mandatory — see note 3 above.
+ *
+ * `locale` is for tests only, matching `dateRange`: production passes nothing and
+ * gets the reader's own. Never assemble a date out of parts to control its order —
+ * see the note on `dateRange` for what that cost.
+ */
+export function humanDate(n: number, locale?: string): string {
+  return new Date(n * MS_PER_DAY).toLocaleDateString(locale, FMT)
 }
 
 /**
@@ -118,29 +134,28 @@ export function humanDateShort(n: number): string {
 }
 
 /**
- * Renders a range, repeating whatever actually differs between the endpoints.
+ * Renders a range, repeating only what actually differs between the endpoints.
  *
- * Same month and year  → "Monday 5 to Friday 9 January 2027"
- * Different month      → "Wednesday 30 December to Tuesday 5 January 2027"
- * Different year       → "Wednesday 30 December 2026 to Tuesday 5 January 2027"
+ * Same month and year  → "Thursday, September 17 – Wednesday, September 23, 2026"
+ * Different month      → "Wednesday, December 30, 2026 – Tuesday, January 5, 2027"
  *
- * The middle case is the one that matters: dropping the first month makes the
- * whole range read as belonging to the second one.
+ * That eliding is the whole point: "30 December to 5 January 2027" reads as 30
+ * December 2027, and it is 2026.
+ *
+ * `Intl.DateTimeFormat.formatRange` does it, and this function used to do it by
+ * hand — picking a partial option set per case and letting `toLocaleDateString`
+ * render it. That is what broke: a partial set of `{ weekday, day }` has no
+ * defined order, and under en-US it came out "17 Thursday". Found by driving the
+ * pregnancy test page, which was the first caller; the existing tests asserted
+ * that "January" appeared once rather than what order the words were in, so they
+ * passed throughout. Never hand-assemble a date; ask Intl for the whole thing.
+ *
+ * `locale` exists so a test can pin the ORDER of the words under a named locale.
+ * Production always passes nothing and gets the reader's own.
  */
-export function dateRange(a: number, b: number): string {
-  const da = new Date(a * MS_PER_DAY)
-  const db = new Date(b * MS_PER_DAY)
-  const sameYear = da.getUTCFullYear() === db.getUTCFullYear()
-  const sameMonth = sameYear && da.getUTCMonth() === db.getUTCMonth()
-
-  const head: Intl.DateTimeFormatOptions = sameMonth
-    ? { weekday: 'long', day: 'numeric', timeZone: 'UTC' }
-    : sameYear
-      ? { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }
-      : FMT
-
-  const first = da.toLocaleDateString(undefined, head)
-  return `${first} to ${humanDate(b)}`
+export function dateRange(a: number, b: number, locale?: string): string {
+  return new Intl.DateTimeFormat(locale, FMT)
+    .formatRange(new Date(a * MS_PER_DAY), new Date(b * MS_PER_DAY))
 }
 
 /** Inclusive whole-day count between two day numbers. */

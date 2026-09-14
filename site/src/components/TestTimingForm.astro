@@ -1,0 +1,39 @@
+---
+/**
+ * Fields for the pregnancy test timing calculator.
+ *
+ * Two dates would be the obvious design — last period, and "today" — and the
+ * second one is deliberately absent. Everything this page returns is a date, and
+ * a reader comparing those dates to their own calendar is doing the comparison
+ * themselves, consciously. Taking today as an input would let the page write the
+ * sentence instead ("you can test in 3 days"), and that sentence reads as a
+ * status rather than as arithmetic on an assumption.
+ *
+ * The last-period date cannot be in the future — a period that has not started
+ * yet is not a last period — and the island enforces that against the device
+ * calendar, not just the `max` attribute baked in at build time.
+ */
+import { fromDayNum, todayDayNum, PLAUSIBLE_FIRST_DAY_ISO } from '../lib/days.ts'
+import ToolForm from './ToolForm.astro'
+
+const today = fromDayNum(todayDayNum())
+---
+<ToolForm privacy="This runs entirely in your browser. The dates you type are never sent anywhere.">
+  <label class="block font-semibold">
+    First day of your last period
+    <input type="date" name="lmp" required class="mt-2 block"
+           min={PLAUSIBLE_FIRST_DAY_ISO} max={today} />
+  </label>
+
+  <label class="mt-5 block font-semibold">
+    Your usual cycle length (days)
+    <input type="number" name="cycle" min="21" max="45" value="28" required
+           class="mt-2 block" />
+  </label>
+  <p class="mt-2 max-w-prose text-xs text-ink-muted dark:text-white/55">
+    Counted from the first day of one period to the first day of the next. If your
+    cycles vary, the shortest recent one gives the earliest of these dates — which is
+    the cautious way round, because it is the date that would have you testing too
+    soon rather than too late.
+  </p>
+</ToolForm>

@@ -34,16 +34,28 @@ const CLAIM_EXEMPT = new Set(['/privacy-policy'])
  *      predictors into every pregnancy page's graph. Moved to `constants.ts`.
  *   3. `pregnancy.ts` exported all five pregnancy formulas from one module, so
  *      each page carried the other four. Split into `lib/preg/*`, barrel kept.
+ *   4. `summary.ts` held `ivfSummary`, which needs `MILESTONES`, `TERM_REFERENCE`
+ *      and `gaLabel`, so any page with a copyable block paid for the gestation
+ *      tables. Core assembler kept; per-page blocks moved to `summary/<page>.ts`.
  *
- * 8192 is the bar for a calculator whose result is a few dates. The IVF page is
- * higher because it legitimately renders more: two dated tables, a conditional
- * progress readout, and the snapshot-tested copyable summary block. That figure is
- * what remains after the three savings above, and it carries real headroom rather
- * than sitting one word of copy below the limit.
+ * 8192 is the bar for a calculator whose result is a few dates. The two dating
+ * pages are higher because they legitimately render more: two dated tables, a
+ * conditional progress readout, and a snapshot-tested copyable summary block.
+ * Those figures are what remains after the four savings above, and they carry real
+ * headroom rather than sitting one word of copy below the limit.
+ *
+ * One layer of this is NOT yet split, and the numbers show it: `days.ts` is a single
+ * shared chunk reached by every calculator, so an export added for one page is paid
+ * for by all eight. `dateRange`, added for the ultrasound page, costs every route
+ * about 400 bytes. Nothing is over budget because of it, which is why it has been
+ * left alone rather than split on speculation — but it is the next thing to cut if
+ * a route gets tight, and it is the reason a route's number can rise without that
+ * route changing.
  */
 const JS_BUDGET = { '/tools/period-calculator': 8192, '/tools/ovulation-calculator': 8192,
                     '/tools/cycle-length-calculator': 8192, '/tools/due-date-calculator': 8192,
                     '/tools/pregnancy-weeks-to-months': 8192,
+                    '/tools/pregnancy-test-calculator': 8192,
                     '/tools/ivf-due-date-calculator': 10240,
                     '/tools/ultrasound-due-date-calculator': 10240 }
 

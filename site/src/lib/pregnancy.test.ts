@@ -14,18 +14,37 @@ describe('testTiming', () => {
     for (const c of ALL_CYCLES) {
       const t = testTiming(0, c)
       expect(t.ovulation).toBe(t.periodDue - CONCEPTION_OFFSET_DAYS)
-      expect(t.earliestUsefulTest).toBe(t.periodDue - 2)
+      expect(t.implantEarliest).toBe(t.ovulation + 6)
+      expect(t.implantLatest).toBe(t.ovulation + 12)
       expect(t.timingReliable).toBe(t.periodDue + 7)
-      expect(t.timingReliable - t.earliestUsefulTest).toBe(9)
-      expect(t.implantLatest + HCG_LAG_DAYS).toBe(t.periodDue + 1)
+      // Each test date is pinned to the derivation the page describes, NOT to the
+      // other one. With a 3-day lag `earliestSuggestedTest` happens to land on
+      // `implantLatest`; asserting THAT equality would have frozen a zero-day
+      // detection lag into the suite while the page's own margin paragraph said a
+      // test can turn positive days after the last possible implantation day.
+      const commonMid = (t.implantCommonStart + t.implantCommonEnd) / 2
+      expect(t.earliestSuggestedTest).toBe(commonMid + HCG_LAG_DAYS)
+      expect(t.latestDetectable).toBe(t.implantLatest + HCG_LAG_DAYS)
+      // The two the page's prose states as offsets from the period being due.
+      expect(t.earliestSuggestedTest).toBe(t.periodDue - 2)
+      expect(t.latestDetectable).toBe(t.periodDue + 1)
     }
+  })
+
+  it('leaves room for hCG to rise between the last implantation day and a reliable negative', () => {
+    // The margin the page promises in prose. If HCG_LAG_DAYS ever changed, this is
+    // the assertion that should move — not the one tying two outputs together.
+    const t = testTiming(0, 28)
+    expect(t.latestDetectable - t.implantLatest).toBe(HCG_LAG_DAYS)
+    expect(t.timingReliable).toBeGreaterThan(t.latestDetectable)
   })
 
   it('orders every milestone, so a timeline can never render backwards', () => {
     for (const c of ALL_CYCLES) {
       const t = testTiming(0, c)
       const seq = [t.ovulation, t.implantEarliest, t.implantCommonStart,
-        t.implantCommonEnd, t.implantLatest, t.earliestUsefulTest, t.timingReliable]
+        t.implantCommonEnd, t.implantLatest, t.earliestSuggestedTest, t.periodDue,
+        t.latestDetectable, t.timingReliable]
       expect([...seq].sort((a, b) => a - b)).toEqual(seq)
     }
   })
@@ -35,7 +54,8 @@ describe('testTiming', () => {
     const t = testTiming(lmp, 28)
     expect(t.periodDue - lmp).toBe(28)
     expect(t.ovulation - lmp).toBe(14)
-    expect(t.earliestUsefulTest - lmp).toBe(26)
+    expect(t.earliestSuggestedTest - lmp).toBe(26)
+    expect(t.latestDetectable - lmp).toBe(29)
   })
 
   it('refuses a cycle length outside 21 to 45', () => {
