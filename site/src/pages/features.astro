@@ -1,107 +1,165 @@
 ---
 import Base from '../layouts/Base.astro'
+
+/**
+ * Organised by what someone is trying to do, not by what the code is called.
+ *
+ * The previous version of this page was a flat list of ten capabilities —
+ * "Cycle predictions", "Symptom and mood logging", "Medication marks". That is
+ * how the people who built a thing describe it, and it asks the reader to work
+ * out for themselves which parts apply to them. The app already segments by
+ * intent: `AppSettings.mode` is Track or Conceive, and pregnancy mode is a third
+ * state that reorders Home and suppresses predictions. The site now says so.
+ *
+ * The full capability list survives underneath, because someone comparing two
+ * trackers feature-by-feature is a real reader too.
+ *
+ * Each mode's link goes to a calculator rather than to /download. The
+ * calculators run the same arithmetic and work in the browser right now, which
+ * is a better answer to "show me" than a store listing.
+ */
+interface Mode {
+  title: string
+  lede: string
+  points: string[]
+  link: { href: string; label: string }
+}
+
+const MODES: Mode[] = [
+  {
+    title: 'Tracking a cycle',
+    lede:
+      'The default. Log a day in a few taps — flow, symptoms, mood, notes — and ' +
+      'the app works out the rest from the days you have already logged. Cycles ' +
+      'are derived from what you logged rather than stored separately, so ' +
+      'correcting a day corrects everything downstream of it.',
+    points: [
+      'An estimate of your next period, and a month ring on the home screen showing where you are in the current cycle',
+      'A daily check-in that answers "did it start?" or "has it ended?" from the notification shade, without opening the app',
+      '"Your patterns" — plain-language observations drawn from your own logs, such as which phase you most often log a symptom in',
+      'Reminders, an optional app lock, and a diary that reads back the notes you have already written',
+    ],
+    link: { href: '/tools/period-calculator', label: 'Try the period calculator' },
+  },
+  {
+    title: 'Trying to conceive',
+    lede:
+      'Switching to Conceive mode reorders the home screen to lead with fertility ' +
+      'and turns on the symptothermal signs. What it will not do is give you a ' +
+      'percentage: fertility here is a qualitative band, and it disappears ' +
+      'entirely when there is not enough data to support it.',
+    points: [
+      'Basal body temperature, charted against your cycle, with a non-diagnostic note when a sustained thermal shift appears',
+      'Cervical mucus quality and ovulation (LH) test results — a positive test near the estimated ovulation raises the confidence of the fertility band by one step',
+      'A fertile window that is awareness only. It is never a "safe day" indicator and never a method of contraception',
+      'The band is withheld below medium confidence, and while a contraception method that suppresses ovulation is on file',
+    ],
+    link: { href: '/tools/ovulation-calculator', label: 'Try the ovulation calculator' },
+  },
+  {
+    title: 'Pregnancy',
+    lede:
+      'Pregnancy mode replaces the home screen, stops the period predictions and ' +
+      'turns the ads off. Two things it deliberately leaves out are worth saying ' +
+      'plainly, because most trackers include them.',
+    points: [
+      'Gestational age, a due date estimate and the trimester you are in, with the week shown on the home-screen widget',
+      'No fetal development content. It is a date and a week count, not a weekly bulletin about a baby',
+      'No milestone notifications — that is not built, rather than switched off',
+      'Ending pregnancy mode is a plain, neutral exit with no congratulations and no follow-up, because it is used after a loss as well as after a birth',
+    ],
+    link: { href: '/tools/due-date-calculator', label: 'Try the due date calculator' },
+  },
+]
+
+const TRACKS: ReadonlyArray<readonly [string, string]> = [
+  ['Daily logging', 'Flow, symptoms, mood, sex and notes, day by day, plus a "period ended" marker. This is one of the screens that carries no ads.'],
+  ['Cycle predictions', "A calendar estimate built from the cycles you've logged. An estimate based on averages — not a diagnosis, and not a method of contraception."],
+  ['Symptothermal signs', 'Basal body temperature with a chart, cervical mucus quality, and ovulation test results.'],
+  ['Medication marks', 'Mark when you took a medication, day by day. The medication list itself stays on your device; only the daily mark syncs.'],
+  ['Weight', 'Weight over time with a trend. Height is a separate optional profile field — with both on file, Insights and the PDF also show a BMI figure and its band label.'],
+  ['Gynaecological history', 'Contraception method, known diagnoses and breastfeeding status, kept as profile context rather than as a score. The app never rates your gynaecological health.'],
+  ['Product-change timer', 'How long a pad, tampon, cup or period underwear has been in. Elapsed time counts up; the app never shows a countdown and never authors a duration of its own.'],
+  ['Reminders', 'Best-effort local notifications for logging and for product changes. These stay on your device.'],
+  ['App lock', 'Require your device PIN or biometric unlock before the app opens. Handled by your device; LunarFlow never receives biometric data.'],
+  ['Doctor-ready PDF export', 'A summary of your cycle, symptom and mood history to bring to an appointment. Sexual activity is excluded by default, and photos are never included — there is no setting for it.'],
+  ['Photo timeline', 'Photos and videos on a dedicated timeline. Automatic descriptions are off by default, and turning them on is a separate choice made per account.'],
+  ['Backup and restore', 'An encrypted backup file you hold yourself, protected by a passphrase you choose. No cloud step, and no copy anyone else can open.'],
+]
 ---
 <Base
   title="Features — LunarFlow cycle tracking"
-  description="Everything LunarFlow tracks today: predictions, symptoms and mood, BBT, ovulation tests, reminders, app lock, and a doctor-ready PDF export."
+  description="What LunarFlow does across the three things people use it for — tracking a cycle, trying to conceive, and pregnancy — plus the full list of what it tracks."
   path="/features"
 >
-  <h1 class="display text-[2.1rem] sm:text-[2.6rem]">What LunarFlow tracks</h1>
+  <h1 class="display text-[2.1rem] sm:text-[2.6rem]">What LunarFlow does</h1>
   <p class="mt-4 max-w-prose">
-    This is the shipped list, not a roadmap. Everything here is written to the
-    on-device database first — see <a href="/privacy" class="underline">how your data is handled</a>{' '}
-    for what also leaves the device.
+    One app across three different things people use a tracker for. The app has a
+    mode for each, and switching between them changes what the home screen leads
+    with — so the parts that do not apply to you stay out of the way.
+  </p>
+  <p class="mt-3 max-w-prose text-sm text-ink-muted dark:text-white/60">
+    This is the shipped list, not a roadmap. Everything is written to the on-device
+    database first — see{' '}
+    <a href="/privacy" class="underline">how your data is handled</a>{' '}
+    for what also leaves the device, and what that means.
   </p>
 
-  <div class="mt-10 grid gap-x-10 gap-y-9 sm:grid-cols-2">
-    <section class="border-t border-outline pt-5 dark:border-white/15">
-      <h2 class="display-sm text-[1.3rem]">Cycle predictions</h2>
-      <p class="prose-body mt-3 text-sm">
-        A calendar estimate of your next period and fertile window, built from the
-        cycles you've logged. It is an estimate based on averages, not a diagnosis
-        and not a method of contraception.
+  {MODES.map((m, i) => (
+    <section class="mt-12 border-t border-outline pt-7 dark:border-white/15">
+      <p class="text-xs uppercase tracking-wide text-ink-muted dark:text-white/55">
+        Mode {i + 1} of {MODES.length}
       </p>
+      <h2 class="display-sm mt-2 text-[1.6rem]">{m.title}</h2>
+      <p class="prose-body mt-3 max-w-prose">{m.lede}</p>
+      <ul class="mt-5 max-w-prose space-y-3">
+        {m.points.map((p) => (
+          <li class="flex gap-3 text-sm">
+            <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-seed-strong" aria-hidden="true"></span>
+            <span class="prose-body">{p}</span>
+          </li>
+        ))}
+      </ul>
+      <a href={m.link.href}
+         class="pressable mt-5 inline-block py-1.5 font-semibold text-brand-deep underline decoration-2 underline-offset-4 hover:decoration-4 dark:text-brand"
+      >{m.link.label}</a>
     </section>
+  ))}
 
-    <section class="border-t border-outline pt-5 dark:border-white/15">
-      <h2 class="display-sm text-[1.3rem]">Symptom and mood logging</h2>
-      <p class="prose-body mt-3 text-sm">
-        Log flow, symptoms, mood and notes for each day. This is one of the screens
-        that carries no ads — see <a href="/privacy" class="underline">how ads work</a> across the app.
-      </p>
-    </section>
+  <h2 class="display-sm mt-16 text-[1.6rem]">Everything it tracks</h2>
+  <p class="mt-3 max-w-prose text-sm text-ink-muted dark:text-white/60">
+    The same features again, listed flat, for comparing against another tracker.
+  </p>
 
-    <section class="border-t border-outline pt-5 dark:border-white/15">
-      <h2 class="display-sm text-[1.3rem]">Medication marks</h2>
-      <p class="prose-body mt-3 text-sm">
-        Mark when you took a medication, day by day. Your medication list itself
-        stays on your device; only the daily "took it" mark syncs.
-      </p>
-    </section>
-
-    <section class="border-t border-outline pt-5 dark:border-white/15">
-      <h2 class="display-sm text-[1.3rem]">Weight</h2>
-      <p class="prose-body mt-3 text-sm">
-        Track weight over time and see the trend. Height is a separate, optional
-        profile field — when both height and weight are on file, Insights and the
-        doctor PDF also show a calculated BMI figure with its band label.
-      </p>
-    </section>
-
-    <section class="border-t border-outline pt-5 dark:border-white/15">
-      <h2 class="display-sm text-[1.3rem]">Basal body temperature</h2>
-      <p class="prose-body mt-3 text-sm">
-        Log BBT and see it charted alongside your cycle, for a symptothermal view
-        of your fertility signs. Like predictions, this is awareness only — not
-        a diagnosis and not a method of contraception.
-      </p>
-    </section>
-
-    <section class="border-t border-outline pt-5 dark:border-white/15">
-      <h2 class="display-sm text-[1.3rem]">Ovulation test results</h2>
-      <p class="prose-body mt-3 text-sm">
-        Record an OPK/LH strip result. A positive result can corroborate the
-        calendar estimate; it never overrides the disclaimer that this is
-        awareness, not a "safe day" indicator.
-      </p>
-    </section>
-
-    <section class="border-t border-outline pt-5 dark:border-white/15">
-      <h2 class="display-sm text-[1.3rem]">Reminders</h2>
-      <p class="prose-body mt-3 text-sm">
-        Best-effort local notifications for logging and for product changes.
-        Reminders stay on your device and are never uploaded.
-      </p>
-    </section>
-
-    <section class="border-t border-outline pt-5 dark:border-white/15">
-      <h2 class="display-sm text-[1.3rem]">App lock</h2>
-      <p class="prose-body mt-3 text-sm">
-        Require your device PIN or biometric unlock before the app opens. Handled
-        entirely by your device; LunarFlow never receives biometric data.
-      </p>
-    </section>
-
-    <section class="border-t border-outline pt-5 dark:border-white/15">
-      <h2 class="display-sm text-[1.3rem]">Doctor-ready PDF export</h2>
-      <p class="prose-body mt-3 text-sm">
-        Generate a summary PDF of your cycle, symptom and mood history to bring to
-        an appointment. Sexual activity is excluded from it by default. Photos are
-        never included — there's no setting for it.
-      </p>
-    </section>
-
-    <section class="border-t border-outline pt-5 dark:border-white/15">
-      <h2 class="display-sm text-[1.3rem]">Photo timeline</h2>
-      <p class="prose-body mt-3 text-sm">
-        Keep photos and videos on a dedicated timeline. Automatic descriptions of a
-        photo are off by default — turning that on is a separate choice, made per
-        account and per device.
-      </p>
-    </section>
+  <div class="mt-8 grid gap-x-10 gap-y-9 sm:grid-cols-2">
+    {TRACKS.map(([title, body]) => (
+      <section class="border-t border-outline pt-5 dark:border-white/15">
+        <h3 class="display-sm text-[1.3rem]">{title}</h3>
+        <p class="prose-body mt-3 text-sm">{body}</p>
+      </section>
+    ))}
   </div>
 
-  <p class="mt-10 max-w-prose text-sm">
+  <section class="mt-14 max-w-prose border-t border-outline pt-7 dark:border-white/15">
+    <h2 class="display-sm text-[1.5rem]">What it does not do</h2>
+    <p class="prose-body mt-3">
+      A tracker is easier to judge by its refusals than by its feature list. This
+      app does not rate your health, name a condition, or turn a calendar estimate
+      into a number that looks like a measurement. Fertility is shown as a band and
+      never as a percentage, because a precise-looking figure derived from a
+      calendar reads as certainty the method does not have.
+    </p>
+    <p class="prose-body mt-3">
+      It is also not a method of contraception, and no screen in it will tell you a
+      day is a safe one. Where the app can only estimate, it says so on the screen
+      rather than in a settings page — see the{' '}
+      <a href="/tools" class="underline">calculators</a>{' '}
+      for the same arithmetic, running in your browser, with the same caveats
+      attached.
+    </p>
+  </section>
+
+  <p class="mt-12 max-w-prose text-sm">
     Ready to try it? <a href="/download" class="underline">Get LunarFlow on Google Play</a>,
     or read the <a href="/terms" class="underline">terms of use</a> first.
   </p>
