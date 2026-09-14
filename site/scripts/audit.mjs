@@ -44,7 +44,8 @@ const CLAIM_EXEMPT = new Set(['/privacy-policy'])
 const JS_BUDGET = { '/tools/period-calculator': 8192, '/tools/ovulation-calculator': 8192,
                     '/tools/cycle-length-calculator': 8192, '/tools/due-date-calculator': 8192,
                     '/tools/pregnancy-weeks-to-months': 8192,
-                    '/tools/ivf-due-date-calculator': 10240 }
+                    '/tools/ivf-due-date-calculator': 10240,
+                    '/tools/ultrasound-due-date-calculator': 10240 }
 
 function walk(dir) {
   return readdirSync(dir).flatMap((e) => {

@@ -1,0 +1,267 @@
+---
+import Tool from '../../layouts/Tool.astro'
+import UltrasoundWidget from '../../components/UltrasoundWidget.astro'
+import type { FaqEntry } from '../../types.ts'
+
+const THRESHOLDS = [
+  { upTo: '8 weeks 6 days', days: 5 },
+  { upTo: '13 weeks 6 days', days: 7 },
+  { upTo: '15 weeks 6 days', days: 7 },
+  { upTo: '21 weeks 6 days', days: 10 },
+  { upTo: '27 weeks 6 days', days: 14 },
+  { upTo: '28 weeks 0 days and beyond', days: 21 },
+]
+
+const faq: FaqEntry[] = [
+  {
+    q: 'How does a dating scan give a due date?',
+    a: 'The scan reports how far along the pregnancy appears to be, as a gestational age in weeks and days. Subtracting that age from the date of the scan gives a notional starting point — gestational day zero, the equivalent of a first day of a last period — and adding 280 days to that gives the estimated due date. Everything else on a dating report, including the trimester boundaries, is worked out from the same starting point, so all of it moves together if that point moves.',
+  },
+  {
+    q: 'Which estimate is used when a scan and a last period disagree?',
+    a: 'Published guidance compares the two and keeps the last-period estimate unless the gap is larger than a threshold that widens as the pregnancy advances — 5 days in the earliest weeks, up to 21 days in the third trimester. If the gap exceeds the threshold, the scan’s estimate is the one used. The comparison is intended for early scans: an estimate already set by a first-trimester scan is essentially never revised by a later one.',
+  },
+  {
+    q: 'Why does the threshold depend on how far along I am?',
+    a: 'Because early scans measure a length and later scans measure size, and size varies far more between pregnancies than early length does. At seven weeks, embryos of the same age are nearly the same size, so a five-day disagreement is genuinely surprising. At thirty weeks, babies of the same age differ enormously, so a two-week disagreement says very little about dating and may be telling you something about growth instead — which is a question for a care team, not a calculator.',
+  },
+  {
+    q: 'My report shows a decimal like 12.4 weeks. What do I enter?',
+    a: 'Check the report itself, because the two readings are three days apart. On some machines 12.4 means 12 weeks and 4 days; on others it means 12.4 decimal weeks, which is 12 weeks and 3 days. If it appears anywhere on the report as weeks plus days, use that. This page takes weeks and days as separate whole numbers and never accepts a decimal, precisely so the ambiguity is resolved from your paperwork rather than guessed here.',
+  },
+  {
+    q: 'Can a scan tell me the day I conceived?',
+    a: 'No. A dating estimate places a notional starting point and the conception date this kind of page reports is simply a fixed 14 days after it, by convention. The actual day can sit several days either side of that, and no scan measures it. If you need a firm conception date because dating matters for a specific reason, that is a conversation with a midwife or doctor who can see the whole record.',
+  },
+  {
+    q: 'Should I use this page instead of the date on my report?',
+    a: 'No — your report and your maternity team come first, every time. This page is useful for two narrow things: seeing the working behind a date you were given, and seeing how a last-period estimate compares. It cannot tell whether the weeks and days you typed match what the report actually says, and it knows nothing about anything else in your record.',
+  },
+  {
+    q: 'What if my pregnancy was dated from IVF or a known conception date?',
+    a: 'Then this page is the wrong tool. When fertilisation is known to the day there is nothing to estimate about the starting point, so a scan-based recalculation only adds uncertainty that was not there. Use a transfer date or a known conception date as the anchor instead.',
+  },
+]
+---
+<Tool
+  title="Ultrasound Due Date Calculator — Redating Thresholds"
+  h1="Due date calculator by ultrasound"
+  description="Enter your dating scan date and the gestational age it reported to get an estimated due date, plus how it compares with a last-period estimate."
+  path="/tools/ultrasound-due-date-calculator"
+  faq={faq}
+>
+  <UltrasoundWidget slot="widget" />
+
+  <p>
+    A dating scan reports how far along a pregnancy appears to be. Turning that
+    into a due date is subtraction and addition: take the reported gestational age
+    off the scan date to get a notional starting point, then add 280 days. This
+    page shows that working, and — if you enter a last-period date too — how the
+    two estimates compare against the thresholds published guidance actually uses.
+  </p>
+
+  <h2>The anchor, and why everything moves with it</h2>
+  <p>
+    The starting point this page calls the last-period-equivalent date is
+    gestational day zero. For most people using a scan estimate there was no
+    period that started on that day; it exists because antenatal care counts
+    gestational age from such a date. Every other date on the page — the due date,
+    the trimester boundaries, the anatomy scan window, the conception-convention
+    date — is that one point plus a fixed number of days. One consequence worth
+    holding onto: if the anchor is out by three days, every date on the page is out
+    by the same three days, in the same direction.
+  </p>
+
+  <h2>When a scan and a last period disagree</h2>
+  <p>
+    Both can be right about what they measure and still give different due dates.
+    Guidance resolves this by keeping the last-period estimate unless the gap is
+    larger than a threshold, and the threshold widens as the pregnancy advances:
+  </p>
+  <div class="not-prose my-6 overflow-x-auto">
+    <table class="w-full min-w-[24rem] border-collapse text-sm">
+      <thead>
+        <tr class="border-b border-outline text-left dark:border-white/15">
+          <th class="py-2 pr-4 font-semibold">Gestational age at the scan</th>
+          <th class="py-2 font-semibold">Redate only if the gap exceeds</th>
+        </tr>
+      </thead>
+      <tbody>
+        {THRESHOLDS.map((t) => (
+          <tr class="border-b border-outline/60 dark:border-white/10">
+            <td class="py-2 pr-4">Up to {t.upTo}</td>
+            <td class="py-2">{t.days} days</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <p>
+    These are the thresholds published by the American College of Obstetricians
+    and Gynecologists. Some services, including the NHS, date from the
+    first-trimester scan without applying a day-gap comparison at all, so a gap
+    this page describes as too small to redate may still be resolved in favour of
+    the scan where you are cared for.
+  </p>
+  <p>
+    One detail in that table matters more than it looks. The row is selected by the
+    gestational age your <em>last period</em> implies at the time of the scan, not
+    by the age the scan reported. Using the scan's own age would mean testing an
+    estimate against a threshold chosen by that same estimate, and it changes real
+    answers: a scan reading 8 weeks 2 days against a last period implying 9 weeks
+    1 day is a six-day gap, which the scan-selected row calls large enough to
+    redate and the period-selected row does not. The page prints which age selected
+    the row so you can see the choice it made.
+  </p>
+
+  <h2>Why the comparison is for early scans</h2>
+  <p>
+    Early in pregnancy, embryos of the same age are close to the same size, so a
+    measurement translates into an age tightly. As pregnancy advances that stops
+    being true — babies of the same gestational age differ a great deal — which is
+    why the threshold widens from 5 days to 21. Past a certain point the comparison
+    stops being about dating at all: a large disagreement at 30 weeks is far more
+    likely to be telling you something about growth than about the calendar, and
+    that is a finding for a care team rather than a due date to recalculate.
+  </p>
+  <p>
+    That is why this page withholds the recommendation entirely once the
+    last-period date implies 28 weeks or more at the scan, and whenever you tell it
+    an earlier scan has already set your dates. It still shows both estimates and
+    the gap between them, because those are facts. It just does not pretend the
+    threshold table answers a question it was not written for.
+  </p>
+
+  <h2>Limitations worth reading before you use the answer</h2>
+  <p>
+    This page cannot tell whether the weeks and days you typed match what your
+    report says. That is the single most likely source of a wrong answer here, and
+    it is the one check only you can make — so if the gap between two estimates
+    looks surprising, re-read the report before anything else.
+  </p>
+  <p>
+    It should not be used where IVF or a known conception date gives the anchor. In
+    that case the starting point is known rather than estimated, and recalculating
+    it from a scan only adds uncertainty that was not there; the{' '}
+    <a href="/tools/ivf-due-date-calculator" class="underline">IVF and FET
+    calculator</a>{' '}
+    uses a transfer date instead.
+  </p>
+  <p>
+    And a dating estimate carries several days of slack even when everything is
+    entered correctly. Two competent services can report gestational ages a day or
+    two apart from the same pregnancy, because they may use different reference
+    charts and round differently. Nothing here is a clinical assessment, and this
+    page deliberately does not describe a pregnancy as being in any particular
+    state — whether a timing is expected, and what it would mean if it were not,
+    are questions for a midwife or doctor.
+  </p>
+
+  <h2>Following it forward instead of re-typing it</h2>
+  <p>
+    Everything here is a snapshot of what you typed. Pregnancy mode in the{' '}
+    <a href="/features" class="underline">LunarFlow app</a>{' '}
+    counts gestational age forward from a date you set once. The{' '}
+    <a href="/tools/pregnancy-weeks-to-months" class="underline">weeks to months
+    converter</a>{' '}
+    covers what a given gestational age is in months.
+  </p>
+</Tool>
+
+<!-- This page's island. See the note in Calculator.astro. -->
+<script>
+  import { mount } from '../../lib/island.ts'
+  import { scanDueDate } from '../../lib/preg/scan.ts'
+  import { gaLabel } from '../../lib/gestation.ts'
+  import { humanDate, requireDayWithin } from '../../lib/days.ts'
+  import { hard, fixedExtent } from '../../lib/band.ts'
+  import { track } from '../../lib/track.ts'
+
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
+  const ROW = 'mt-3 border-t border-outline pt-2 dark:border-white/15'
+  const KEY = 'text-xs uppercase tracking-wide text-ink-muted dark:text-white/55'
+  const row = (label: string, value: string) =>
+    `<div class="${ROW}"><dt class="${KEY}">${label}</dt><dd class="mt-1">${value}</dd></div>`
+
+  mount((v) => {
+    // maxAheadDays 0: a scan cannot have happened after today. Compared against
+    // the device calendar date only, never against the as-of field, which the
+    // reader is allowed to backdate.
+    const scanDay = requireDayWithin(v.str('scan'), 'Scan date', 0)
+    const r = scanDueDate({
+      scanDay,
+      gaWeeks: Number(v.str('weeks')),
+      gaDays: Number(v.str('days')),
+      lmpDay: v.str('lmp') === '' ? null : requireDayWithin(v.str('lmp'), 'Last period', 0),
+      asOfDay: v.str('asOf') === '' ? null : requireDayWithin(v.str('asOf'), 'As-of date'),
+      datesAlreadySet: v.on('alreadySet'),
+    })
+
+    for (const el of document.querySelectorAll<HTMLElement>('#derived [data-offset]')) {
+      el.textContent = humanDate(r.gestationalAnchor + Number(el.dataset.offset))
+    }
+    document.getElementById('derived')!.hidden = false
+
+    let rows = row('Last-period-equivalent date (estimate)',
+      `${humanDate(r.gestationalAnchor)} — gestational day 0, the scan date less ` +
+      `${gaLabel(r.gestationalAge)}.`) +
+      row('Conception-convention date (estimate)',
+        `${humanDate(r.conceptionEquivalent)} — gestational day 14.`)
+
+    if (r.gestationalDaysAt !== null) {
+      const d = r.daysToDueDate
+      rows += row(`As of ${humanDate(r.asOfDay!)}`,
+        `A pregnancy dated from this scan would be ${gaLabel(r.gestationalDaysAt)}.` +
+        (d === null ? ''
+          : d >= 0 ? ` ${plural(d, 'day')} to the estimated due date.`
+            : ` ${plural(-d, 'day')} past the estimated due date.`))
+    }
+
+    const c = r.comparison
+    if (c) {
+      const gap = Math.abs(c.differenceDays)
+      const verdict = c.suppressed === 'dates-already-set'
+        ? 'Your dates are already set, so there is nothing here to decide: these are the two ' +
+          'estimates and the gap between them, for reference only.'
+        : c.suppressed === 'late-scan'
+          ? 'The day-gap comparison is written for early scans, and your last-period date ' +
+            'implies 28 weeks or more at this scan, so this page does not apply it. A ' +
+            'difference this late is something to raise with your maternity team rather ' +
+            'than a due date to recalculate.'
+          : c.atThreshold
+            ? `The guideline redates only above ${plural(c.thresholdDays, 'day')}, so the ` +
+              `period date stands — one more day would have gone the other way.`
+            : c.supportsRedating
+              ? `That is more than the ${c.thresholdDays}-day threshold for this row, so on ` +
+                `these thresholds the scan's estimate is the one used.`
+              : `That is within the ${c.thresholdDays}-day threshold for this row, so on these ` +
+                `thresholds the last-period estimate is the one kept.`
+
+      rows += row('Estimate from your last period',
+        `${humanDate(c.lmpDueDate)} (estimate). The two estimates differ by ` +
+        `${plural(gap, 'day')}.`) +
+        row('Threshold row',
+          `${plural(c.thresholdDays, 'day')}, selected from your period date's age at the ` +
+          `scan (${gaLabel(c.gaByLmp)}).` +
+          (c.nearThreshold ? ' The two ages fall in different rows of the table, so this row ' +
+            'is itself borderline.' : '')) +
+        row('What guidance supports', verdict)
+    }
+
+    return `<h3 class="display-sm text-xl">Estimated due date: ${humanDate(r.dueDate)}</h3>` +
+      `<p class="mt-1 text-sm text-ink-muted dark:text-white/60">From a scan on ` +
+      `${humanDate(scanDay)} reporting ${gaLabel(r.gestationalAge)}.</p>` +
+      `<dl class="mt-4">${rows}</dl>` +
+      track(
+        [
+          { span: hard(0, 97), color: 'color-mix(in oklab, var(--color-predicted) 40%, transparent)' },
+          { span: hard(98, 195), color: 'color-mix(in oklab, var(--color-predicted) 65%, transparent)' },
+          { span: hard(196, 279), color: 'var(--color-predicted)' },
+        ],
+        'The three trimesters of the 280 days to the estimated due date, which is the ' +
+        'right-hand end of the track. One neutral ramp, no marker: this is a scale, not a ' +
+        'position.',
+        fixedExtent(0, 279),
+      )
+  })
+</script>

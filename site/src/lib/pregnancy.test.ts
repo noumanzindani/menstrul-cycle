@@ -295,47 +295,133 @@ describe('redatingThresholdDays', () => {
 })
 
 describe('scanDueDate', () => {
+  const s = dayNum('2026-09-14')
+  const at = (gaWeeks: number, gaDays: number, extra = {}) =>
+    scanDueDate({ scanDay: s, gaWeeks, gaDays, ...extra })
+
   it('anchors the pregnancy from the scan and dates term 280 days on', () => {
-    const s = dayNum('2026-09-14')
-    const r = scanDueDate(s, 12, 0)
+    const r = at(12, 0)
+    expect(r.gestationalAge).toBe(84)
     expect(r.gestationalAnchor).toBe(s - 84)
     expect(r.dueDate).toBe(r.gestationalAnchor + TERM_DAY)
     expect(r.conceptionEquivalent).toBe(r.gestationalAnchor + CONCEPTION_OFFSET_DAYS)
   })
 
   it('omits the comparison when no last period is given', () => {
-    expect(scanDueDate(dayNum('2026-09-14'), 12, 0).comparison).toBeNull()
+    expect(at(12, 0).comparison).toBeNull()
+  })
+
+  it('selects the threshold row by the LAST PERIOD age, not the scan age', () => {
+    // The blocker, with the inputs that expose it. Scan says 8w2d (58 days); the
+    // last period implies 9w1d (64 days) at the scan, so the gap is 6 days.
+    // Indexed by the scan's own age the threshold is 5 and the page would say
+    // redate; indexed by the last period's it is 7 and the page says keep.
+    // Opposite recommendations from identical inputs, so the choice matters.
+    const r = at(8, 2, { lmpDay: s - 64 })
+    expect(r.comparison!.gaByLmp).toBe(64)
+    expect(r.comparison!.thresholdDays).toBe(7)
+    expect(Math.abs(r.comparison!.differenceDays)).toBe(6)
+    expect(r.comparison!.supportsRedating).toBe(false)
+    // Indexing the other way would have returned 5, which is the bug.
+    expect(redatingThresholdDays(58)).toBe(5)
+  })
+
+  it('prints the age that selected the row, so the choice is auditable', () => {
+    expect(at(18, 3, { lmpDay: s - wdToDays(18, 3) }).comparison!.gaByLmp).toBe(wdToDays(18, 3))
   })
 
   it('keeps the last-period date when the gap exactly equals the threshold', () => {
-    // 8w0d scan, LMP implying 8w5d: gap 5 days, threshold 5 at that age.
-    const s = dayNum('2026-09-14')
-    const lmp = s - wdToDays(8, 5)
-    const r = scanDueDate(s, 8, 0, lmp)
+    const r = at(8, 0, { lmpDay: s - wdToDays(8, 5) })
     expect(r.comparison!.thresholdDays).toBe(5)
     expect(Math.abs(r.comparison!.differenceDays)).toBe(5)
     expect(r.comparison!.supportsRedating).toBe(false) // strict: not ">"
+    expect(r.comparison!.atThreshold).toBe(true)
   })
 
   it('supports redating one day past the threshold', () => {
-    const s = dayNum('2026-09-14')
-    const lmp = s - wdToDays(8, 6)
-    const r = scanDueDate(s, 8, 0, lmp)
+    const r = at(8, 0, { lmpDay: s - wdToDays(8, 6) })
     expect(Math.abs(r.comparison!.differenceDays)).toBe(6)
     expect(r.comparison!.supportsRedating).toBe(true)
+    expect(r.comparison!.atThreshold).toBe(false)
   })
 
   it('keeps the difference consistent with both due dates', () => {
-    const s = dayNum('2026-09-14')
-    const lmp = s - wdToDays(10, 2)
-    const r = scanDueDate(s, 9, 0, lmp)
+    const r = at(9, 0, { lmpDay: s - wdToDays(10, 2) })
     expect(r.comparison!.differenceDays).toBe(r.dueDate - r.comparison!.lmpDueDate)
+    expect(r.comparison!.differenceDays).toBe(r.comparison!.gaByLmp - r.gestationalAge)
   })
 
-  it('refuses an out-of-range gestational age', () => {
-    const s = dayNum('2026-09-14')
-    expect(() => scanDueDate(s, 3, 0)).toThrow(RangeError)
-    expect(() => scanDueDate(s, 43, 0)).toThrow(RangeError)
-    expect(() => scanDueDate(s, 12, 7)).toThrow(RangeError)
+  it('answers nothing at all once the last period implies 28 weeks or more', () => {
+    // An estimate from a first-trimester scan is essentially never redated by a
+    // third-trimester one. Running the day-gap comparison there inverts the
+    // guidance it claims to apply, so the page must not answer.
+    const r = scanDueDate({ scanDay: s, gaWeeks: 30, gaDays: 0, lmpDay: s - wdToDays(33, 0) })
+    expect(r.comparison!.suppressed).toBe('late-scan')
+    expect(r.comparison!.supportsRedating).toBeNull()
+    // The dates and the gap are still reported; only the recommendation is
+    // withheld. The sign is positive: the scan reads 30w0d where the last period
+    // implies 33w0d, so the scan puts the anchor 21 days LATER and the due date
+    // with it.
+    expect(r.comparison!.differenceDays).toBe(21)
+    expect(r.comparison!.thresholdDays).toBe(21)
+  })
+
+  it('answers nothing when the reader says an earlier scan set their dates', () => {
+    const r = at(8, 0, { lmpDay: s - wdToDays(12, 0), datesAlreadySet: true })
+    expect(r.comparison!.suppressed).toBe('dates-already-set')
+    expect(r.comparison!.supportsRedating).toBeNull()
+  })
+
+  it('flags a borderline threshold row only when the two ages fall in different rows', () => {
+    // 62/63 is a row boundary; 97/98 carries the same threshold on both sides.
+    expect(at(8, 6, { lmpDay: s - 63 }).comparison!.nearThreshold).toBe(true)
+    expect(at(13, 6, { lmpDay: s - 98 }).comparison!.nearThreshold).toBe(false)
+  })
+
+  it('counts to the due date from the as-of day, and past it as a negative', () => {
+    const r = at(12, 0, { asOfDay: s + 10 })
+    expect(r.gestationalDaysAt).toBe(94)
+    expect(r.daysToDueDate).toBe(r.dueDate - (s + 10))
+    const past = at(12, 0, { asOfDay: s + 210 })
+    expect(past.daysToDueDate).toBeLessThan(0)
+  })
+
+  it('lets the as-of day sit before the scan, which is what backdating is for', () => {
+    const r = at(12, 0, { asOfDay: s - 20 })
+    expect(r.gestationalDaysAt).toBe(64)
+    expect(r.daysToDueDate).toBeGreaterThan(0)
+  })
+
+  it('stops counting down past 308 days from the anchor', () => {
+    const anchor = s - 84
+    expect(at(12, 0, { asOfDay: anchor + 308 }).daysToDueDate).not.toBeNull()
+    expect(at(12, 0, { asOfDay: anchor + 309 }).daysToDueDate).toBeNull()
+  })
+
+  it('refuses an out-of-range gestational age, and 42w6d with it', () => {
+    expect(() => at(3, 0)).toThrow(RangeError)
+    expect(() => at(43, 0)).toThrow(RangeError)
+    expect(() => at(12, 7)).toThrow(RangeError)
+    // 4-42 weeks with 0-6 days admits 42w6d; the total is what is capped.
+    expect(() => at(42, 0)).not.toThrow()
+    expect(() => at(42, 1)).toThrow(/42 weeks 0 days/)
+  })
+
+  it('refuses a last period that cannot precede the scan, as one rule', () => {
+    expect(() => at(12, 0, { lmpDay: s })).toThrow(/before the scan/)
+    expect(() => at(12, 0, { lmpDay: s + 1 })).toThrow(/before the scan/)
+  })
+
+  it('refuses a last-period date too close to or too far from the scan', () => {
+    expect(() => at(12, 0, { lmpDay: s - 27 })).toThrow(/four weeks/)
+    expect(() => at(12, 0, { lmpDay: s - 28 })).not.toThrow()
+    expect(() => at(12, 0, { lmpDay: s - 320 })).not.toThrow()
+    expect(() => at(12, 0, { lmpDay: s - 321 })).toThrow(/check the year/)
+  })
+
+  it('refuses an as-of date nowhere near the pregnancy it describes', () => {
+    const anchor = s - 84
+    expect(() => at(12, 0, { asOfDay: anchor - 31 })).toThrow(RangeError)
+    expect(() => at(12, 0, { asOfDay: anchor + 401 })).toThrow(RangeError)
   })
 })

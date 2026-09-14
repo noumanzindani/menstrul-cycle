@@ -2,16 +2,8 @@
 /**
  * The IVF and FET calculator's form, plus the two dated tables it fills in.
  *
- * The tables are rendered HERE, at build time, with their labels and their day
- * offsets in place and their date cells empty. The island writes only the dates,
- * by reading `data-offset` off each cell. Three reasons that is better than
- * building the tables in JavaScript:
- *
- * - The labels, the offsets and every class name stay out of the page's
- *   JavaScript. Generating these two tables in the island cost about 1.5 KB
- *   against an 8 KB per-route budget, for markup that never varies.
- * - `MILESTONES`, `TERM_REFERENCE` and `gaLabel` are then not in the bundle at all.
- * - The table structure is visible to anything reading the HTML.
+ * The two dated tables come from DatedTables.astro, which explains why they are
+ * built as markup rather than in the island.
  *
  * Two deliberate absences in the form:
  *
@@ -24,27 +16,13 @@
  *   page are reading it after a pregnancy ended.
  */
 import { fromDayNum, todayDayNum, PLAUSIBLE_FIRST_DAY_ISO } from '../lib/days.ts'
-import { MILESTONES, TERM_REFERENCE, gaLabel } from '../lib/gestation.ts'
+import DatedTables from './DatedTables.astro'
 import ToolForm from './ToolForm.astro'
 
 // A generous ceiling on the picker only. The island re-checks the range itself,
 // because these attributes are baked in at build time and drift as a deploy ages.
 const maxDate = fromDayNum(todayDayNum() + 400)
 
-const TABLES = [
-  {
-    id: 'milestones',
-    heading: 'Estimated milestone dates',
-    note: 'Worked out from the same anchor as the due date. The trimester boundaries are a convention that varies a little between sources.',
-    rows: MILESTONES.map(([label, offset]) => ({ label, offset })),
-  },
-  {
-    id: 'reference',
-    heading: 'Gestational-age reference dates for this anchor',
-    note: 'These are the same ages for every pregnancy, converted to dates. Which of them applies to yours, and what it would mean, is a description your maternity team gives.',
-    rows: TERM_REFERENCE.map((offset) => ({ label: gaLabel(offset), offset })),
-  },
-]
 ---
 <ToolForm privacy="This runs entirely in your browser. The dates you type are never sent anywhere.">
   <label class="block font-semibold">
@@ -79,21 +57,4 @@ const TABLES = [
   </p>
 </ToolForm>
 
-<div id="derived" hidden class="mt-8">
-  {TABLES.map((t) => (
-    <section class="mt-7 first:mt-0">
-      <h3 class="display-sm text-lg">{t.heading}</h3>
-      <p class="mt-1 max-w-prose text-sm text-ink-muted dark:text-white/60">{t.note}</p>
-      <table class="mt-3 w-full border-collapse text-sm">
-        <tbody>
-          {t.rows.map((r) => (
-            <tr class="border-b border-outline/60 dark:border-white/10">
-              <td class="py-1.5 pr-4">{r.label}</td>
-              <td class="py-1.5" data-offset={r.offset}></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
-  ))}
-</div>
+<DatedTables />

@@ -48,6 +48,12 @@ export function mount(render: (v: Input) => string): void {
     e.preventDefault()
     err.textContent = ''
     out.innerHTML = ''
+    // Pages that pre-render result tables reveal `#derived` on success. Hide it
+    // again first: otherwise a bad submit after a good one leaves last time's
+    // dates on screen next to an error message, which reads as the error applying
+    // to some other part of the page.
+    const derived = document.getElementById('derived')
+    if (derived) derived.hidden = true
     const f = new FormData(form)
     const v: Input = {
       str: (n) => String(f.get(n) ?? ''),

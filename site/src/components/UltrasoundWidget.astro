@@ -1,0 +1,87 @@
+---
+/**
+ * The ultrasound dating calculator's form, plus the dated tables it fills in.
+ *
+ * Three input decisions carry the page's two blockers:
+ *
+ * - **The scan's gestational age is two integer fields, never a decimal.** Reports
+ *   sometimes print "12.4 weeks", which means 12 weeks 4 days on some machines and
+ *   12.4 decimal weeks on others — a three-day difference. Separate fields make
+ *   the reader resolve that from their own report instead of the page guessing.
+ * - **The last period is optional.** The comparison only exists when there is
+ *   something to compare, and most readers arrive with a scan result alone.
+ * - **"An earlier scan has already set my dates" suppresses the recommendation
+ *   entirely.** Without it, a 30-week scan against a last period with a large gap
+ *   prints "guidance supports the scan estimate" — the opposite of the guidance it
+ *   cites. An estimate from a first-trimester scan is essentially never redated by
+ *   a third-trimester one.
+ */
+import { fromDayNum, todayDayNum, PLAUSIBLE_FIRST_DAY_ISO } from '../lib/days.ts'
+import DatedTables from './DatedTables.astro'
+import ToolForm from './ToolForm.astro'
+
+const today = fromDayNum(todayDayNum())
+const maxDate = fromDayNum(todayDayNum() + 400)
+
+const NOTES = [
+  'Every date above is worked out from the same estimated anchor, so every one of them moves if the anchor moves.',
+  'The conception-convention date is a fixed 14 days after the anchor. It cannot establish when conception happened, and the actual day can sit several days either side of it.',
+  'A day either way is the expected size of a rounding or reference-chart difference between two dating estimates. If the gap is bigger than that, check the weeks and days you entered against your report before anything else — this page cannot see the report, so that is the one check only you can make.',
+  'Some services, including the NHS, date from the first-trimester scan without applying a day-gap comparison at all.',
+]
+---
+<ToolForm privacy="This runs entirely in your browser. The dates you type are never sent anywhere.">
+  <label class="block font-semibold">
+    Date of the scan
+    <input type="date" name="scan" required class="mt-2 block"
+           min={PLAUSIBLE_FIRST_DAY_ISO} max={today} />
+  </label>
+
+  <fieldset class="mt-5">
+    <legend class="font-semibold">Gestational age the scan reported</legend>
+    <div class="mt-2 flex flex-wrap gap-4">
+      <label class="text-sm">
+        Weeks
+        <input type="number" name="weeks" min="4" max="42" step="1" required
+               class="mt-1 block w-24" />
+      </label>
+      <label class="text-sm">
+        Days
+        <input type="number" name="days" min="0" max="6" step="1" value="0" required
+               class="mt-1 block w-24" />
+      </label>
+    </div>
+    <p class="mt-2 max-w-prose text-xs text-ink-muted dark:text-white/55">
+      Enter the weeks and the days separately. If your report shows something like
+      12.4 weeks, check on the report itself whether that means 12 weeks 4 days or
+      12.4 decimal weeks — the two are three days apart, and only the report can
+      settle it.
+    </p>
+  </fieldset>
+
+  <label class="mt-5 block font-semibold">
+    First day of your last period (optional)
+    <input type="date" name="lmp" class="mt-2 block"
+           min={PLAUSIBLE_FIRST_DAY_ISO} max={today} />
+  </label>
+  <p class="mt-2 max-w-prose text-xs text-ink-muted dark:text-white/55">
+    Fill this in to also see the estimate your last period gives and how far apart
+    the two are. Leave it out for the scan's estimate alone.
+  </p>
+
+  <label class="mt-4 block text-sm">
+    <input type="checkbox" name="alreadySet" value="1" />
+    An earlier scan has already set my dates
+  </label>
+
+  <label class="mt-5 block font-semibold">
+    Work the dates out as of (optional)
+    <input type="date" name="asOf" class="mt-2 block"
+           min={PLAUSIBLE_FIRST_DAY_ISO} max={maxDate} />
+  </label>
+  <p class="mt-2 max-w-prose text-xs text-ink-muted dark:text-white/55">
+    Can be before the scan as well as after it. Leave it empty for the dates alone.
+  </p>
+</ToolForm>
+
+<DatedTables notes={NOTES} />
