@@ -43,22 +43,41 @@ typedef AnalysisUsage = ({String? day, int? count});
 ///
 /// Opening descriptions are held per media id for the life of this instance
 /// (which is the life of the timeline route). Re-opening the same photo does not
-/// re-bill, and nothing reaches disk — see the "nothing derived is stored" note
-/// in `media_analysis.dart`.
+/// re-bill. A memo hit is still forwarded to [_persistTurn] via [_remember] —
+/// see [_persistTurn]'s doc comment for why the caller must not simply
+/// re-persist it there.
 ///
-/// ## Conversations are in memory and end when the sheet does
+/// ## Conversations ARE persisted now, but not by this class
 ///
-/// [_transcripts] holds what the model has been told about each photo so far.
-/// It exists because `generateContent` keeps no session: without it, every
+/// [_transcripts] holds what the model has been told about each photo so far —
+/// the in-memory working copy [analyze] reads for `history` on every call,
+/// because `generateContent` keeps no session of its own: without it, every
 /// follow-up would be a cold start and "how many are there?" would have no
-/// referent. It is cleared by [endConversation] when the sheet closes, and it
-/// never touches disk.
+/// referent. It is cleared by [endConversation] when the sheet closes, so
+/// re-opening the same photo mid-session starts a fresh transcript rather than
+/// silently resuming — and it is seeded back from a STORED transcript by
+/// [seedConversation] when the caller resumes a saved conversation, for the
+/// same reason: restoring only what the user sees, without restoring what the
+/// model was told, gets a conversation that displays history but has none.
 ///
-/// That last part is not laziness. A saved chat log about a body photo would be
-/// a second, softer copy of the most sensitive content in the app, and it would
-/// then need its own erasure path in `deleteAllData`, the purge job, `.lunabak`
-/// exclusion and the doctor-PDF exclusion — the same argument that keeps single
-/// descriptions unsaved, only more so.
+/// The durable copy lives elsewhere. Conversations are now saved to the
+/// encrypted drift database (`AnalysisSessions` / `AnalysisMessages`, schema
+/// v11) — but this class still never imports a repository or the database to
+/// do it: [_persistTurn] is an injected closure, resolved in
+/// `lib/screens/media/media_route.dart`, and `test/media_guardrails_test.dart`
+/// structurally forbids this file from importing `MediaRepository`,
+/// `MediaBlobStore`, `AppDatabase` or `lunaFirestore`. Every early return above
+/// [_remember] — a gate, a daily-cap refusal, a thrown [AnalysisException] —
+/// skips persistence along with the transcript, so only errorless exchanges
+/// are ever saved (see [_remember]'s own doc comment).
+///
+/// The costs a saved chat log about a body photo would create were paid, not
+/// avoided: `deleteAllData()` clears both tables, sign-out and an account
+/// change wipe rows scoped to other uids, deleting a photo cascade-deletes its
+/// conversation and messages, and both tables are excluded from `.lunabak` and
+/// the doctor PDF — all structurally guarded in `test/media_guardrails_test.dart`.
+/// They are local-only and never reach Firestore, so unlike media itself they
+/// need no purge-job coverage.
 class MediaAnalysisService {
   MediaAnalysisService({
     required MediaAnalyzer analyzer,

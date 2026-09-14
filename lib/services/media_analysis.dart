@@ -18,13 +18,27 @@
 /// simply "on when signed in". Copy that describes it must say where the bytes
 /// go — see `analysis_consent_sheet.dart` and `PRIVACY_POLICY.md`.
 ///
-/// ## Nothing derived is stored
+/// ## Conversations are now stored — deliberately, and at a paid cost
 ///
-/// A result is held for the life of the viewer and discarded. Persisting model
-/// prose about a body photo would create a second, softer copy of the most
-/// sensitive thing in the app — one that would then need its own erasure path
-/// in `deleteAllData`, the purge job, `.lunabak` exclusion and the doctor PDF
-/// exclusion. Re-asking costs one call; storing costs all of that forever.
+/// A result used to be held for the life of the viewer and discarded; that is
+/// no longer the whole story. Conversations are now persisted to the encrypted
+/// drift database (`AnalysisSessions` / `AnalysisMessages`, schema v11), local
+/// to the device and never synced to Firestore. This file stays exactly as
+/// pure as the header above describes — no I/O, no database, no repository
+/// import — because persistence is not this file's job: `MediaAnalysisService`
+/// (`media_analysis_service.dart`) calls out to an injected closure the CALLER
+/// wires up in `media_route.dart`, and `test/media_guardrails_test.dart`
+/// structurally forbids the service from importing a repository or the
+/// database itself.
+///
+/// Storing model prose about a body photo is a second, softer copy of the most
+/// sensitive thing in the app, and that copy was not free: it meant owning its
+/// own erasure path in `deleteAllData`, the sign-out and account-change wipes,
+/// cascade-deleting a conversation when its photo is deleted, and exclusion
+/// from `.lunabak` and the doctor PDF — all of it built and structurally
+/// guarded (`test/media_guardrails_test.dart`), not merely asserted here.
+/// Because the store is local-only, it needs no purge-job coverage the way
+/// synced media does.
 library;
 
 import 'dart:convert';
