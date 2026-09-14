@@ -277,12 +277,17 @@ String buildHealthContext({
 /// A cycle runs from its start up to the day before the next cycle starts.
 /// The last (open) cycle with no lengthDays runs to asOf. Days before the
 /// first cycle or between cycles return null.
+///
+/// Cycles are sorted by start date internally; order of input is ignored.
 int? _cycleDayFor(DateTime date, List<Cycle> cycles, DateTime asOf) {
-  for (int i = 0; i < cycles.length; i++) {
-    final c = cycles[i];
+  // Sort cycles by start date to ensure correct boundary calculations.
+  final sorted = cycles.toList()..sort((a, b) => a.start.compareTo(b.start));
+
+  for (int i = 0; i < sorted.length; i++) {
+    final c = sorted[i];
     // Cycle end is the day before the next cycle starts, or asOf for the last cycle.
-    final cycleEnd = i + 1 < cycles.length
-        ? cycles[i + 1].start.subtract(Duration(days: 1))
+    final cycleEnd = i + 1 < sorted.length
+        ? sorted[i + 1].start.subtract(Duration(days: 1))
         : asOf;
     if (!date.isBefore(c.start) && !date.isAfter(cycleEnd)) {
       return date.difference(c.start).inDays + 1;

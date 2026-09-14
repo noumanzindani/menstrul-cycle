@@ -666,10 +666,12 @@ void main() {
       expect(out, contains('unknown'));
     });
 
-    test('only asOf date uses live prediction phase', () {
+    test('only asOf date uses live prediction phase, not DateTime.now()', () {
+      // Use an asOf far from today to ensure test fails if code reverts to DateTime.now()
+      final testAsOf = DateTime(2020, 3, 15);
       final cycle = Cycle(
-        start: DateTime(2026, 8, 15),
-        end: DateTime(2026, 8, 19),
+        start: DateTime(2020, 3, 1),
+        end: DateTime(2020, 3, 5),
         lengthDays: 28,
       );
       final pred = PredictionResult(
@@ -678,37 +680,37 @@ void main() {
         averagePeriodLength: 5,
         cyclesTracked: 1,
         confidence: PredictionConfidence.low,
-        lastPeriodStart: DateTime(2026, 8, 15),
-        cycleDay: 31,
+        lastPeriodStart: DateTime(2020, 3, 1),
+        cycleDay: 15,
         currentPhase: CyclePhase.luteal,
-        nextPeriodStart: DateTime(2026, 9, 12),
-        nextPeriodWindowStart: DateTime(2026, 9, 11),
-        nextPeriodWindowEnd: DateTime(2026, 9, 13),
-        ovulationDay: DateTime(2026, 8, 29),
-        fertileWindowStart: DateTime(2026, 8, 27),
-        fertileWindowEnd: DateTime(2026, 8, 31),
-        pmsWindowStart: DateTime(2026, 9, 7),
-        pmsWindowEnd: DateTime(2026, 9, 11),
+        nextPeriodStart: DateTime(2020, 3, 29),
+        nextPeriodWindowStart: DateTime(2020, 3, 28),
+        nextPeriodWindowEnd: DateTime(2020, 3, 30),
+        ovulationDay: DateTime(2020, 3, 15),
+        fertileWindowStart: DateTime(2020, 3, 13),
+        fertileWindowEnd: DateTime(2020, 3, 17),
+        pmsWindowStart: DateTime(2020, 3, 24),
+        pmsWindowEnd: DateTime(2020, 3, 28),
       );
-      // Today (asOf) gets live prediction phase
-      final today = makeLog(date: asOf);
-      // Yesterday does not
-      final yesterday = makeLog(date: DateTime(2026, 9, 13));
+      // testAsOf gets live prediction phase
+      final onTestDate = makeLog(date: testAsOf);
+      // Historical date does not
+      final historical = makeLog(date: DateTime(2020, 3, 10));
       final out = buildHealthContext(
-        logs: [yesterday, today],
+        logs: [historical, onTestDate],
         cycles: [cycle],
         prediction: pred,
         medications: const [],
         settings: _settings(),
-        asOf: asOf,
+        asOf: testAsOf,
       );
-      // Today should show luteal (from prediction)
+      // testAsOf (day 15) should show luteal (from prediction)
       final lines = out.split('\n');
-      final todayLine = lines.firstWhere((l) => l.contains('2026-09-14'));
-      expect(todayLine, contains('luteal'));
-      // Yesterday should show unknown (no prediction for historical dates)
-      final yesterdayLine = lines.firstWhere((l) => l.contains('2026-09-13'));
-      expect(yesterdayLine, contains('unknown'));
+      final testDateLine = lines.firstWhere((l) => l.contains('2020-03-15'));
+      expect(testDateLine, contains('luteal'));
+      // Historical date should show unknown (no prediction for past dates)
+      final historicalLine = lines.firstWhere((l) => l.contains('2020-03-10'));
+      expect(historicalLine, contains('unknown'));
     });
 
     test('empty logs with non-empty profile shows profile only', () {
@@ -729,34 +731,40 @@ void main() {
       expect(out, isNot(contains('Daily log')));
     });
 
-    test('medication id→name map is used in daily lines', () {
-      // This test would require creating actual Medication objects,
-      // which is complex with drift. Instead, test that the map is built
-      // and that buildDayLine receives it correctly via a log with meds.
+    test('medication id→name map is built and used in daily lines', () {
+      // Test that medications list is converted to id→name map
+      // and that map is actually passed to buildDayLine.
       final log = makeLog(
         date: DateTime(2026, 9, 10),
-        symptoms: jsonEncode({'med_42': true}),
+        symptoms: jsonEncode({'med_7': true, 'med_99': true}),
       );
-      // Note: medication matching happens in buildDayLine, which we call.
-      // The map should contain id 42 → some name for it to render.
-      // Since we can't easily create Medication objects in tests,
-      // we test the integration: logs with med_X keys should render
-      // medication names when the id exists in the map.
+      // Create actual Medication objects with specific ids and names
+      final med7 = Medication(
+        id: 7,
+        name: 'Metformin',
+        type: null,
+        schedule: null,
+        enabled: true,
+      );
+      final med99 = Medication(
+        id: 99,
+        name: 'Aspirin',
+        type: null,
+        schedule: null,
+        enabled: true,
+      );
       final out = buildHealthContext(
         logs: [log],
         cycles: const [],
         prediction: null,
-        // Create a fake list by using an empty list; the real test
-        // is that the code builds the map and passes it to buildDayLine.
-        medications: const [],
+        medications: [med7, med99],
         settings: _settings(),
         asOf: asOf,
       );
-      // With no medications in the list, med_42 won't match anything,
-      // so the line won't contain "medication taken".
-      // To properly test, we'd need Medication model instances.
-      // This is a limitation of the test harness, but the code is correct.
-      expect(out, isNotEmpty);
+      // The medication names must appear in the output
+      expect(out, contains('medication taken:'));
+      expect(out, contains('Metformin'));
+      expect(out, contains('Aspirin'));
     });
 
     test('asOf carries no time component; midnight is used for boundaries',
@@ -794,6 +802,105 @@ void main() {
         asOf: asOf,
       );
       expect(out, contains('menstrual'));
+    });
+
+    test('multi-cycle boundary: cycles[i+1].start branch executes with multiple cycles',
+        () {
+      // Two completed cycles; a cycle runs from start to day-before-next-start
+      final cycle1 = Cycle(
+        start: DateTime(2026, 7, 1),
+        end: DateTime(2026, 7, 5),
+        lengthDays: 28,
+      );
+      final cycle2 = Cycle(
+        start: DateTime(2026, 7, 29),
+        end: DateTime(2026, 8, 2),
+        lengthDays: 28,
+      );
+      final dayInCycle1Period = makeLog(date: DateTime(2026, 7, 3)); // day 3
+      final dayInCycle1PostPeriod = makeLog(date: DateTime(2026, 7, 15)); // day 15, post-period but still in cycle1
+      final dayInCycle2 = makeLog(date: DateTime(2026, 7, 30)); // day 2 of cycle2
+      final dayBeforeCycle1 = makeLog(date: DateTime(2026, 6, 30)); // before any cycle
+      final out = buildHealthContext(
+        logs: [dayBeforeCycle1, dayInCycle1Period, dayInCycle1PostPeriod, dayInCycle2],
+        cycles: [cycle1, cycle2],
+        prediction: null,
+        medications: const [],
+        settings: _settings(),
+        asOf: asOf,
+      );
+      final lines = out.split('\n');
+      // Day before cycle1 should show phase unknown
+      final beforeLine = lines.firstWhere((l) => l.contains('2026-06-30'));
+      expect(beforeLine, contains('phase unknown'));
+      // Day in cycle1 period should show day 3
+      final cycle1PeriodLine = lines.firstWhere((l) => l.contains('2026-07-03'));
+      expect(cycle1PeriodLine, contains('day 3'));
+      // Day in cycle1 post-period should show day 15
+      final cycle1PostLine = lines.firstWhere((l) => l.contains('2026-07-15'));
+      expect(cycle1PostLine, contains('day 15'));
+      // Day in cycle2 should show day 2
+      final cycle2Line = lines.firstWhere((l) => l.contains('2026-07-30'));
+      expect(cycle2Line, contains('day 2'));
+    });
+
+    test('cycle-summary renders when prediction has cyclesTracked > 0', () {
+      final pred = PredictionResult(
+        averageCycleLength: 28,
+        cycleVariabilityDays: 1.5,
+        averagePeriodLength: 5,
+        cyclesTracked: 3,
+        confidence: PredictionConfidence.medium,
+        lastPeriodStart: DateTime(2026, 9, 1),
+        cycleDay: 13,
+        currentPhase: CyclePhase.follicular,
+        nextPeriodStart: DateTime(2026, 9, 29),
+        nextPeriodWindowStart: DateTime(2026, 9, 28),
+        nextPeriodWindowEnd: DateTime(2026, 9, 30),
+        ovulationDay: DateTime(2026, 9, 15),
+        fertileWindowStart: DateTime(2026, 9, 13),
+        fertileWindowEnd: DateTime(2026, 9, 17),
+        pmsWindowStart: DateTime(2026, 9, 24),
+        pmsWindowEnd: DateTime(2026, 9, 28),
+      );
+      final out = buildHealthContext(
+        logs: [makeLog(date: DateTime(2026, 9, 10))],
+        cycles: const [],
+        prediction: pred,
+        medications: const [],
+        settings: _settings(),
+        asOf: asOf,
+      );
+      expect(out, contains('Cycle summary'));
+      expect(out, contains('Cycles tracked: 3'));
+      expect(out, contains('Average cycle length: 28 days'));
+      expect(out, contains('Average period length: 5 days'));
+    });
+
+    test('out-of-order cycles are sorted internally and work correctly', () {
+      // Pass cycles in reverse order to test internal sorting
+      final cycle2 = Cycle(
+        start: DateTime(2026, 8, 15),
+        end: DateTime(2026, 8, 19),
+        lengthDays: 28,
+      );
+      final cycle1 = Cycle(
+        start: DateTime(2026, 7, 18),
+        end: DateTime(2026, 7, 22),
+        lengthDays: 28,
+      );
+      // Pass in reverse order (cycle2, cycle1)
+      final dayInCycle1 = makeLog(date: DateTime(2026, 7, 20)); // should be day 3
+      final out = buildHealthContext(
+        logs: [dayInCycle1],
+        cycles: [cycle2, cycle1], // reversed order
+        prediction: null,
+        medications: const [],
+        settings: _settings(),
+        asOf: asOf,
+      );
+      // Even with reversed input, day should be correctly computed as day 3
+      expect(out, contains('day 3'));
     });
   });
 }
