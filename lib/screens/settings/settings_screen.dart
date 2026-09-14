@@ -783,7 +783,7 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => _editProfileWeight(context, settings),
               ),
               ListTile(
-                leading: const Icon(Icons.event_available_outlined),
+                leading: const TrackArt(path: kMenarcheArt),
                 title: Text(l10n.settingsProfileMenarcheTitle),
                 trailing: SettingsValue(
                   settings.menarcheAge == null
@@ -827,7 +827,7 @@ class SettingsScreen extends StatelessWidget {
               if (settings.contraceptionMethod != null &&
                   settings.contraceptionMethod != kContraceptionNone)
                 ListTile(
-                  leading: const Icon(Icons.event_outlined),
+                  leading: const TrackArt(path: kContraceptionSinceArt),
                   title: Text(l10n.settingsClinicalContraceptionStartTitle),
                   trailing: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 168),

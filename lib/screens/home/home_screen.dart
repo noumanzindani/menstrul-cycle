@@ -573,41 +573,59 @@ class _PhaseCard extends StatelessWidget {
       color: accent.withValues(alpha: 0.16),
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: accent,
-                    shape: BoxShape.circle,
+            // Null for CyclePhase.unknown, which has no mark on purpose — the
+            // card is then saying it does not know where the user is, and a
+            // picture would assert more than the copy does.
+            if (kPhaseArt[prediction.currentPhase] != null) ...[
+              TrackArt(path: kPhaseArt[prediction.currentPhase]!, size: 20),
+              const SizedBox(width: 14),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: accent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          prediction.currentPhase.label,
+                          style: text.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    prediction.currentPhase.label,
-                    style: text.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  if (prediction.cycleDay != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Day ${prediction.cycleDay}',
+                      style: text.displaySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Text(
+                    prediction.currentPhase.description,
+                    style: text.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
-                ),
-              ],
-            ),
-            if (prediction.cycleDay != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                'Day ${prediction.cycleDay}',
-                style: text.displaySmall?.copyWith(fontWeight: FontWeight.w600),
+                ],
               ),
-            ],
-            const SizedBox(height: 6),
-            Text(
-              prediction.currentPhase.description,
-              style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
         ),

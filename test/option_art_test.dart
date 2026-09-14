@@ -140,6 +140,18 @@ const kRasterArt = <String>{
   'assets/track/card_period.png',
   'assets/track/card_fertile.png',
   'assets/track/card_pms.png',
+  // Batch 4: the four Today phase marks, the last two Settings fact rows, and
+  // the Account group. phase_menstrual and phase_ovulatory both needed the
+  // saturation-based background cut -- a baked-in transparency checkerboard and
+  // a pale tinted disc the brightness test was eating.
+  'assets/track/phase_menstrual.png',
+  'assets/track/phase_follicular.png',
+  'assets/track/phase_ovulatory.png',
+  'assets/track/phase_luteal.png',
+  'assets/track/set_menarche.png',
+  'assets/track/set_since.png',
+  'assets/track/set_account.png',
+  'assets/track/set_signout.png',
 };
 
 void main() {
@@ -267,6 +279,7 @@ void main() {
         kCardPeriodArt,
         kCardFertileArt,
         kCardPmsArt,
+        ...kPhaseArt.values,
       ].where((p) => !File(p).existsSync());
       expect(missing, isEmpty);
     });
@@ -301,6 +314,7 @@ void main() {
         kCardPeriodArt,
         kCardFertileArt,
         kCardPmsArt,
+        ...kPhaseArt.values,
       ]) {
         if (kRasterArt.contains(p)) continue;
         final colours = RegExp(r'(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"')
@@ -327,6 +341,7 @@ void main() {
         kCardPeriodArt,
         kCardFertileArt,
         kCardPmsArt,
+        ...kPhaseArt.values,
       ].where((p) => !p.endsWith('.svg') && !kRasterArt.contains(p));
       expect(
         undeclared,

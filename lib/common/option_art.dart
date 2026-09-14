@@ -326,6 +326,14 @@ const String kPeriodLengthArt = 'assets/track/set_period_length.png';
 // leaves "Age at first period" as the only fact row without a mark.
 const String kContraceptionArt = 'assets/track/set_contraception.png';
 const String kDiagnosesArt = 'assets/track/set_diagnoses.png';
+// Age at first period was named in the comment above as the last fact row still
+// on a Material glyph. It no longer is, so that list is now closed.
+const String kMenarcheArt = 'assets/track/set_menarche.png';
+// The contraception start date only. The breastfeeding since-date row uses the
+// same `Icons.event_outlined` and is deliberately left on it: one supplied mark
+// cannot mean both, and reusing this one would show a contraception drawing
+// against a breastfeeding question.
+const String kContraceptionSinceArt = 'assets/track/set_since.png';
 
 /// Marks for the three prediction cards on the Today dashboard.
 ///
@@ -338,6 +346,35 @@ const String kDiagnosesArt = 'assets/track/set_diagnoses.png';
 const String kCardPeriodArt = 'assets/track/card_period.png';
 const String kCardFertileArt = 'assets/track/card_fertile.png';
 const String kCardPmsArt = 'assets/track/card_pms.png';
+
+/// Marks for the Today phase card, keyed by the phase it is naming.
+///
+/// [CyclePhase.unknown] is deliberately ABSENT rather than mapped to a
+/// placeholder. It is the state where the app does not yet know where the user
+/// is, and a picture there would assert something the card's own copy declines
+/// to. A null lookup renders the card exactly as it did before.
+///
+/// Like the prediction cards, these sit beside the phase dot rather than
+/// replacing it — `_PhaseCard` tints its whole surface with the same
+/// `PhaseColors` token, so the dot is the one place that colour is stated at
+/// full strength.
+///
+/// [CyclePhase.menstrual]'s mark is the odd one out: it is a cut-out
+/// composition where the other three sit on a lavender disc. Its source shipped
+/// the transparency CHECKERBOARD as real pixels (an RGB file with no alpha at
+/// all), which the saturation-based background cut removes — but there was
+/// never a disc underneath. Only one phase shows at a time, so the difference
+/// is visible across a month rather than side by side.
+const Map<CyclePhase, String> kPhaseArt = {
+  CyclePhase.menstrual: 'assets/track/phase_menstrual.png',
+  CyclePhase.follicular: 'assets/track/phase_follicular.png',
+  CyclePhase.ovulatory: 'assets/track/phase_ovulatory.png',
+  CyclePhase.luteal: 'assets/track/phase_luteal.png',
+};
+
+/// The Account group's two rows, in `account_section.dart`.
+const String kAccountArt = 'assets/track/set_account.png';
+const String kSignOutArt = 'assets/track/set_signout.png';
 
 /// Every [kDobArt]-family mark, for the asset tests to enumerate.
 ///
@@ -353,6 +390,10 @@ const List<String> kSettingsArt = [
   kPeriodLengthArt,
   kContraceptionArt,
   kDiagnosesArt,
+  kMenarcheArt,
+  kContraceptionSinceArt,
+  kAccountArt,
+  kSignOutArt,
 ];
 
 /// Flow-intensity artwork: a drop whose filled fraction rises with the level.

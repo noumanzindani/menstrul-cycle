@@ -16,6 +16,8 @@ import '../../services/lock_service.dart';
 import '../../services/media_cache.dart';
 import '../../services/notification_service.dart';
 import '../../services/sync_trigger.dart';
+import '../../common/option_art.dart';
+import '../../widgets/track_art.dart';
 import '../auth/auth_error_text.dart';
 import 'settings_group.dart';
 
@@ -583,7 +585,7 @@ class _AccountSectionState extends State<AccountSection> {
 
   Widget _signOutTile(BuildContext context) => ListTile(
         key: const Key('account.signOut'),
-        leading: const Icon(Icons.logout),
+        leading: const TrackArt(path: kSignOutArt),
         title: const Text('Sign out'),
         subtitle: const Text('Your logs stay on this device'),
         onTap: _busy ? null : () => context.read<AuthProvider>().signOut(),
@@ -626,7 +628,7 @@ class _AccountSectionState extends State<AccountSection> {
           title: 'Account',
           children: [
             ListTile(
-              leading: const Icon(Icons.person_outline),
+              leading: const TrackArt(path: kAccountArt),
               title: const Text('Account'),
               subtitle: Text(auth.user?.email ?? 'Not signed in'),
             ),
