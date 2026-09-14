@@ -114,6 +114,16 @@ const kRasterArt = <String>{
   // Not chips either: the product-change timer.
   'assets/track/product_pad.png',
   'assets/track/product_tampon.png',
+  // Not chips either: the Settings rows that state a fact about the user.
+  // These render in `ListTile.leading`, where the surrounding rows are still
+  // Material glyphs -- see kSettingsArt for why only some rows are illustrated.
+  'assets/track/set_dob.png',
+  'assets/track/set_height.png',
+  'assets/track/set_weight.png',
+  'assets/track/set_breastfeeding.png',
+  'assets/track/set_pregnancy.png',
+  'assets/track/set_cycle_length.png',
+  'assets/track/set_period_length.png',
 };
 
 void main() {
@@ -236,6 +246,7 @@ void main() {
         ...kMetricArt.values,
         kBbtArt,
         ...kProductArt.values,
+        ...kSettingsArt,
       ].where((p) => !File(p).existsSync());
       expect(missing, isEmpty);
     });
@@ -265,6 +276,7 @@ void main() {
         ...kMetricArt.values,
         kBbtArt,
         ...kProductArt.values,
+        ...kSettingsArt,
       ]) {
         if (kRasterArt.contains(p)) continue;
         final colours = RegExp(r'(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"')
@@ -286,6 +298,7 @@ void main() {
         ...kMetricArt.values,
         kBbtArt,
         ...kProductArt.values,
+        ...kSettingsArt,
       ].where((p) => !p.endsWith('.svg') && !kRasterArt.contains(p));
       expect(
         undeclared,

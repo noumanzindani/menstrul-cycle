@@ -266,6 +266,53 @@ const Map<ProductType, String> kProductArt = {
 /// The mark for the basal body temperature field — a [TextField], not a chip.
 const String kBbtArt = 'assets/track/bbt.png';
 
+/// Marks for seven Settings rows — date of birth, body measurements, clinical
+/// state, cycle defaults. These are `ListTile.leading` slots, not chips, so they
+/// are named constants rather than entries in a lookup map: each render site
+/// names its own mark directly and nothing resolves one dynamically.
+///
+/// These seven are simply the rows art has been drawn for, and that is the
+/// WHOLE rule. It is tempting to read a principle into which rows are
+/// illustrated — facts about the user rather than actions, say — but the screen
+/// refutes it: "Age at first period", "Contraception" and "Diagnoses" are as
+/// much facts as the rows above them and still render a Material glyph. Settings
+/// is therefore MIXED on purpose, and an un-illustrated row is a gap awaiting
+/// art, never a statement that the row should stay plain.
+///
+/// The action rows (back up, restore, app lock, notifications, theme, delete
+/// everything) are a separate question nobody has asked yet. An illustration
+/// there would dress up a control whose glyph already says what it does, so do
+/// not extend this set to them without checking first.
+///
+/// [kCycleLengthArt] and [kPeriodLengthArt] share a composition on purpose — a
+/// ring of arrows around a centre — because they are consecutive rows stating
+/// the same kind of number. The pixel difference between them (28.1 at the 28px
+/// they render) therefore sits below the band every other shipped pair scores,
+/// and that number is misleading here: the ring is common, but the centres are
+/// a calendar and a blood drop, which is the part the eye reads. See the commit
+/// that added them for the comparison at render size.
+const String kDobArt = 'assets/track/set_dob.png';
+const String kHeightArt = 'assets/track/set_height.png';
+const String kWeightArt = 'assets/track/set_weight.png';
+const String kBreastfeedingArt = 'assets/track/set_breastfeeding.png';
+const String kPregnancyArt = 'assets/track/set_pregnancy.png';
+const String kCycleLengthArt = 'assets/track/set_cycle_length.png';
+const String kPeriodLengthArt = 'assets/track/set_period_length.png';
+
+/// Every [kDobArt]-family mark, for the asset tests to enumerate.
+///
+/// Exists so that adding a Settings mark and forgetting to cover it cannot pass
+/// — the tests walk this list rather than a hand-copied one.
+const List<String> kSettingsArt = [
+  kDobArt,
+  kHeightArt,
+  kWeightArt,
+  kBreastfeedingArt,
+  kPregnancyArt,
+  kCycleLengthArt,
+  kPeriodLengthArt,
+];
+
 /// Flow-intensity artwork: a drop whose filled fraction rises with the level.
 ///
 /// [FlowIntensity.none] is deliberately absent — it is the "Period ended today"

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../common/catalog.dart';
 import '../../common/l10n.dart';
+import '../../common/option_art.dart';
 import '../../common/tracking_categories.dart';
 import '../../data/daily_log_repository.dart';
 import '../../db/database.dart';
@@ -21,6 +22,7 @@ import '../../services/media_cache.dart';
 import '../../services/notification_service.dart';
 import '../../services/sync_trigger.dart';
 import '../../widgets/ad_banner.dart';
+import '../../widgets/track_art.dart';
 import '../lock/setup_lock_screen.dart';
 import '../medications/medications_screen.dart';
 import 'account_section.dart';
@@ -735,7 +737,7 @@ class SettingsScreen extends StatelessWidget {
             title: l10n.settingsSectionProfile,
             children: [
               ListTile(
-                leading: const Icon(Icons.cake_outlined),
+                leading: const TrackArt(path: kDobArt),
                 title: Text(l10n.settingsProfileDobTitle),
                 // A full date reads long ("Monday, September 15, 2001"), and a
                 // `ListTile` hands its trailing widget the intrinsic width it
@@ -755,7 +757,7 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => _pickDateOfBirth(context, settings),
               ),
               ListTile(
-                leading: const Icon(Icons.straighten_outlined),
+                leading: const TrackArt(path: kHeightArt),
                 title: Text(l10n.settingsProfileHeightTitle),
                 trailing: SettingsValue(
                   settings.heightCm == null
@@ -766,7 +768,7 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => _editHeight(context, settings),
               ),
               ListTile(
-                leading: const Icon(Icons.monitor_weight_outlined),
+                leading: const TrackArt(path: kWeightArt),
                 title: Text(l10n.settingsProfileWeightTitle),
                 // The subtitle is load-bearing, not decoration: this is NOT the
                 // weight the day editor logs, and two fields called "Weight"
@@ -851,7 +853,7 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => _editDiagnoses(context, settings),
               ),
               ListTile(
-                leading: const Icon(Icons.child_care_outlined),
+                leading: const TrackArt(path: kBreastfeedingArt),
                 title: Text(l10n.settingsClinicalBreastfeedingTitle),
                 trailing: SettingsValue(switch (settings.breastfeeding) {
                   true => l10n.settingsClinicalBreastfeedingYes,
@@ -895,12 +897,12 @@ class SettingsScreen extends StatelessWidget {
             children: [
               ListTile(
                 leading: const Icon(Icons.flag_outlined),
-                title: const Text("What I'm using LunaTrack for"),
+                title: const Text("What I'm using LunarFlow for"),
                 trailing: SettingsValue(_modeLabel(context, settings.mode)),
                 onTap: () => _pickMode(context, settings),
               ),
               ListTile(
-                leading: const Icon(Icons.pregnant_woman_outlined),
+                leading: const TrackArt(path: kPregnancyArt),
                 title: Text(l10n.settingsPregnancyTitle),
                 subtitle: Text(settings.isPregnant
                     ? l10n.settingsPregnancyOn
@@ -916,7 +918,7 @@ class SettingsScreen extends StatelessWidget {
             title: l10n.settingsSectionCycleDefaults,
             children: [
               _StepperTile(
-                icon: Icons.event_repeat_outlined,
+                art: kCycleLengthArt,
                 title: l10n.settingsAvgCycleLength,
                 suffix: l10n.settingsUnitDays,
                 value: settings.cycleLength,
@@ -925,7 +927,7 @@ class SettingsScreen extends StatelessWidget {
                 onChanged: settings.setCycleLength,
               ),
               _StepperTile(
-                icon: Icons.water_drop_outlined,
+                art: kPeriodLengthArt,
                 title: l10n.settingsAvgPeriodLength,
                 suffix: l10n.settingsUnitDays,
                 value: settings.periodLength,
@@ -1482,9 +1484,15 @@ class _MenarcheDialogState extends State<_MenarcheDialog> {
 /// A cycle/period default, shown as one row with a compact stepper pill on the
 /// right. The pill keeps the ± controls (they are the only way to change these
 /// numbers) while reading as the mock's single right-aligned value.
+///
+/// Takes an ASSET PATH rather than an [IconData] because both of its two call
+/// sites are illustrated; a nullable glyph fallback would be dead configuration
+/// from the day it was written. Restore one if a third cycle default ever lands
+/// without art — do not reach for a placeholder mark, which would say something
+/// wrong rather than nothing.
 class _StepperTile extends StatelessWidget {
   const _StepperTile({
-    required this.icon,
+    required this.art,
     required this.title,
     required this.suffix,
     required this.value,
@@ -1493,7 +1501,7 @@ class _StepperTile extends StatelessWidget {
     required this.onChanged,
   });
 
-  final IconData icon;
+  final String art;
   final String title;
   final String suffix;
   final int value;
@@ -1505,7 +1513,7 @@ class _StepperTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return ListTile(
-      leading: Icon(icon),
+      leading: TrackArt(path: art),
       title: Text(title),
       trailing: Container(
         decoration: BoxDecoration(
