@@ -160,6 +160,16 @@ These block a Play release. None of them are done.
       do not ship; strengthen the clause order in `kAnalysisSystemInstruction`
       and re-run the whole probe. Re-run again whenever
       `kAnalysisSystemInstruction`, the model, or `kMaxChatTurns` changes.
+- [ ] **`FLAG_SECURE` gap now has a second surface.** `CLAUDE.md`'s media
+      device-verification item 6 already flags that the recents/app-switcher
+      thumbnail carries no `FLAG_SECURE` anywhere in this app, so an intimate
+      photo can land there. Found 2026-09-14: `AnalysisSessionsScreen` (the
+      saved-conversations list) and `analysis_result_sheet.dart` (the Describe
+      conversation) now render AI-written prose describing a body photo, and
+      neither screen is any more protected than the photo screens are — the
+      same gap now also exposes a *description* of an intimate photo in the
+      app switcher, even when the photo itself is never reopened. Not yet
+      device-verified; verify alongside the rest of item 6.
 - [ ] **Play Data Safety form** — health data must be declared **collected AND
       transmitted**, tied to the user's identity. Declare sexual-activity and
       pregnancy data. "Data is encrypted in transit" is true; do **not** claim

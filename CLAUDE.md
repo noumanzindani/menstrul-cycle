@@ -276,7 +276,46 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
     stored uid AND the stored version to match; anyone who agreed under
     version 1 is asked again. Each saved session also stamps its own
     `consentVersion`, so a stored transcript records what its user was
-    actually told when it started.
+    actually told when it started. **The READ was versioned first; the WRITE
+    drifted for one review cycle.** `SettingsProvider.isAnalysisConsentedFor`
+    (the Settings toggle's `value:`) got this uid-AND-version check
+    immediately, but the toggle's `onChanged` kept calling
+    `settings.setAnalysisConsent(uid)` directly — so a v1 consenter whose
+    switch now correctly read OFF could flip it back ON and be silently
+    re-stamped at the current version, never seeing the v2 disclosure at all.
+    Found and fixed at final review (2026-09-14):
+    `SettingsScreen.handlePhotoDescriptionsToggle` now shows the real
+    `showAnalysisConsentSheet` on ON and persists only on an explicit Allow,
+    reading the uid AFTER the sheet closes. The comparison itself is also now
+    ONE expression, `isConsentedFor()` (`media_analysis.dart`), called by both
+    `SettingsProvider.isAnalysisConsentedFor` and
+    `MediaAnalysisService.consented`/`analyze` — the duplication between those
+    two was exactly how the read and the write were able to drift apart in the
+    first place.
+  - **Phase derivation is narrower than "day 19, luteal" suggests.** `_phaseFor`
+    (`health_context.dart`) returns `menstrual` for a bleeding day, the LIVE
+    prediction for `asOf` only, and `unknown` for every other day, so most of a
+    90-day window actually reads `(day 19, unknown)`. Found at final review
+    (2026-09-14) and deliberately left as-is: asserting a retrospective
+    follicular/ovulatory/luteal phase would mean inferring past ovulation
+    timing from a calendar-only model — the same manufactured precision this
+    app's fertility guardrails refuse everywhere else. See D4 of the design
+    doc for the full ruling. Restoring historical phase derivation is an open
+    follow-up, not a shipped behaviour.
+  - **An open (still-ongoing) cycle no longer runs to `asOf` unbounded.**
+    `_cycleDayFor` used to let the most recent cycle's day count climb
+    forever if the user stopped logging — someone silent for months would
+    read as "day 137". `kMaxOpenCycleDays` (90, mirroring the amenorrhea
+    threshold `InsightsService` already flags on) caps how far an open cycle
+    can run before a date falls outside it entirely and reads `phase unknown`
+    like any other unattributed day.
+  - **`ovulation test` and the per-day metrics are unit-explicit.** The `opk`
+    column now renders through `kOpkOptions`' label lookup (`Positive` /
+    `Negative` / `Peak`) instead of the raw stored key, matching every other
+    option group's "unknown keys are dropped, never printed raw" rule. `bbt`
+    and `weight` now carry `°C` / `kg` — both canonical values the profile
+    block already labels the same way — so a model can no longer read them as
+    °F or lb.
 
   Persisting the conversation (also new in v11) adds three smaller traps worth
   recording:
@@ -736,6 +775,12 @@ question about whether the ruling changed — not about how to make the test pas
   6. **Recents thumbnail** — open an item, press Home, open the app switcher. `grep
      FLAG_SECURE` returns nothing anywhere today, so an intimate photo currently lands in
      the system launcher's thumbnail, OUTSIDE `AppLock`. This is a known open gap.
+     **Second surface, found 2026-09-14:** `AnalysisSessionsScreen` (the saved-conversations
+     list) and `analysis_result_sheet.dart` (the Describe conversation itself) render AI
+     PROSE about a body photo — not just the photo — and neither is any more protected than
+     the photo screens are. Same gap, same fix (`FLAG_SECURE`), wider surface: a description
+     mentioning what is visible in an intimate photo can now land in the recents thumbnail
+     even when the photo itself is never reopened.
   7. **Lock during video** — audio must stop (the viewer's lifecycle pause).
   8. **Schema v6 from the background isolate** — `CheckInWriter` opens a bare
      `AppDatabase()` from a killed-app notification action. Flagged as unverified since
