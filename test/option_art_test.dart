@@ -124,6 +124,22 @@ const kRasterArt = <String>{
   'assets/track/set_pregnancy.png',
   'assets/track/set_cycle_length.png',
   'assets/track/set_period_length.png',
+  // Batch 3, 2026-09-14: products completed, the five diagnoses, and the two
+  // Settings rows that the previous commit flagged as facts still on glyphs.
+  'assets/track/product_cup.png',
+  'assets/track/product_underwear.png',
+  'assets/track/dx_pcos.png',
+  'assets/track/dx_endometriosis.png',
+  'assets/track/dx_fibroids.png',
+  'assets/track/dx_adenomyosis.png',
+  'assets/track/dx_thyroid.png',
+  'assets/track/set_contraception.png',
+  'assets/track/set_diagnoses.png',
+  // The three Today prediction cards -- beside the accent dot, not instead
+  // of it; see kCardPeriodArt for the hue measurement behind that.
+  'assets/track/card_period.png',
+  'assets/track/card_fertile.png',
+  'assets/track/card_pms.png',
 };
 
 void main() {
@@ -168,8 +184,8 @@ void main() {
       expect(doubleClassified, isEmpty, reason: 'these are in both art sets');
     });
 
-    // Now that the art is complete, the partition is exhaustive: 78 drawn + 11
-    // deliberately undrawn. Asserting the totals makes an accidental DELETION
+    // The partition is exhaustive: every catalog key is drawn or deliberately
+    // undrawn. Asserting the totals makes an accidental DELETION
     // fail, which the per-key partition above cannot catch — dropping a key
     // from the catalog and from kOptionArt together leaves it consistent.
     test('the partition covers the whole catalog and nothing else', () {
@@ -247,6 +263,10 @@ void main() {
         kBbtArt,
         ...kProductArt.values,
         ...kSettingsArt,
+        ...kDiagnosisArt.values,
+        kCardPeriodArt,
+        kCardFertileArt,
+        kCardPmsArt,
       ].where((p) => !File(p).existsSync());
       expect(missing, isEmpty);
     });
@@ -277,6 +297,10 @@ void main() {
         kBbtArt,
         ...kProductArt.values,
         ...kSettingsArt,
+        ...kDiagnosisArt.values,
+        kCardPeriodArt,
+        kCardFertileArt,
+        kCardPmsArt,
       ]) {
         if (kRasterArt.contains(p)) continue;
         final colours = RegExp(r'(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"')
@@ -299,6 +323,10 @@ void main() {
         kBbtArt,
         ...kProductArt.values,
         ...kSettingsArt,
+        ...kDiagnosisArt.values,
+        kCardPeriodArt,
+        kCardFertileArt,
+        kCardPmsArt,
       ].where((p) => !p.endsWith('.svg') && !kRasterArt.contains(p));
       expect(
         undeclared,

@@ -249,11 +249,11 @@ const Map<String, String> kMetricArt = {
 
 /// Marks for the menstrual products a change timer can run for.
 ///
-/// PARTIAL on purpose: art exists for [ProductType.pad] and
-/// [ProductType.tampon] only. The render sites fall back to the Material icon
-/// they used before for the other two, so every product chip stays decorated
-/// and the gap shows as a style difference rather than as two bare chips in a
-/// row of four. Supply the remaining two and the fallback stops being reached.
+/// COMPLETE as of 2026-09-14 — all four [ProductType] values. The render sites
+/// still keep their Material fallback, and that is deliberate: [ProductType] is
+/// an enum that can grow, and a new value would otherwise render a bare chip
+/// beside four decorated ones. The fallback is now unreachable, which is the
+/// point of leaving it.
 ///
 /// Keyed by the enum rather than by name: [ProductType] is persisted BY NAME in
 /// the session payload (see its doc), so a string key here would look like part
@@ -261,6 +261,29 @@ const Map<String, String> kMetricArt = {
 const Map<ProductType, String> kProductArt = {
   ProductType.pad: 'assets/track/product_pad.png',
   ProductType.tampon: 'assets/track/product_tampon.png',
+  ProductType.cupOrDisc: 'assets/track/product_cup.png',
+  ProductType.periodUnderwear: 'assets/track/product_underwear.png',
+};
+
+/// Marks for the conditions in `kDiagnosisOptions`, keyed by the same stable
+/// `dx_` keys that are persisted in `AppSettings.knownDiagnoses`.
+///
+/// A SEPARATE map rather than entries in [kOptionArt], for the same reason
+/// [kMetricArt] and [kProductArt] are separate: `kDiagnosisOptions` is not one
+/// of the day-editor chip groups that `option_art_test.dart` partitions, and
+/// folding these in would silently redefine what that completeness test covers.
+/// These render as `CheckboxListTile`s in a picker dialog, not as chips.
+///
+/// Four of the five are anatomical drawings of a uterus or an ovary. That is
+/// the artwork's choice and it is the right one here — this dialog is reached
+/// only from Settings, deliberately, by someone entering their own diagnoses,
+/// which is not a shoulder-surf surface the way a day-editor chip row is.
+const Map<String, String> kDiagnosisArt = {
+  'dx_pcos': 'assets/track/dx_pcos.png',
+  'dx_endometriosis': 'assets/track/dx_endometriosis.png',
+  'dx_fibroids': 'assets/track/dx_fibroids.png',
+  'dx_adenomyosis': 'assets/track/dx_adenomyosis.png',
+  'dx_thyroid': 'assets/track/dx_thyroid.png',
 };
 
 /// The mark for the basal body temperature field — a [TextField], not a chip.
@@ -298,6 +321,23 @@ const String kBreastfeedingArt = 'assets/track/set_breastfeeding.png';
 const String kPregnancyArt = 'assets/track/set_pregnancy.png';
 const String kCycleLengthArt = 'assets/track/set_cycle_length.png';
 const String kPeriodLengthArt = 'assets/track/set_period_length.png';
+// Added 2026-09-14, and they are exactly the two rows the comment above called
+// out as facts still rendering a Material glyph. That gap is now closed, which
+// leaves "Age at first period" as the only fact row without a mark.
+const String kContraceptionArt = 'assets/track/set_contraception.png';
+const String kDiagnosesArt = 'assets/track/set_diagnoses.png';
+
+/// Marks for the three prediction cards on the Today dashboard.
+///
+/// These sit BESIDE `_InfoCard`'s accent dot, never in place of it. The dot
+/// carries the `PhaseColors` token that ties the card to the month ring and the
+/// calendar, and only [kCardPeriodArt] happens to share its phase's hue (345
+/// against menstrual's 346); the fertile-window mark is blue-violet where the
+/// fertile token is teal, and the PMS mark's dominant colour is a figure's
+/// hair. Swapping the dot out would have dropped the key on two of three.
+const String kCardPeriodArt = 'assets/track/card_period.png';
+const String kCardFertileArt = 'assets/track/card_fertile.png';
+const String kCardPmsArt = 'assets/track/card_pms.png';
 
 /// Every [kDobArt]-family mark, for the asset tests to enumerate.
 ///
@@ -311,6 +351,8 @@ const List<String> kSettingsArt = [
   kPregnancyArt,
   kCycleLengthArt,
   kPeriodLengthArt,
+  kContraceptionArt,
+  kDiagnosesArt,
 ];
 
 /// Flow-intensity artwork: a drop whose filled fraction rises with the level.

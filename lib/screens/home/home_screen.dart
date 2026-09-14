@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../common/catalog.dart';
 import '../../common/date_utils.dart';
+import '../../common/option_art.dart';
 import '../../common/insights_text.dart';
 import '../../models/enums.dart';
 import '../../models/insights.dart';
@@ -21,6 +22,7 @@ import '../../widgets/disclaimer_banner.dart';
 import '../../widgets/month_ring.dart';
 import '../../widgets/product_timer_card.dart';
 import '../../widgets/product_timer_start_card.dart';
+import '../../widgets/track_art.dart';
 import '../log/day_log_screen.dart';
 import '../pregnancy/pregnancy_screen.dart';
 
@@ -51,9 +53,9 @@ class HomeScreen extends StatelessWidget {
         // subtree at once, and two default-tagged heroes there make the hero
         // controller assert on any push out of the shell.
         heroTag: 'home.logToday',
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => DayLogScreen(date: today)),
-        ),
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => DayLogScreen(date: today))),
         icon: const Icon(Icons.add),
         label: const Text('Log today'),
       ),
@@ -108,29 +110,44 @@ class _PregnancyHome extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Pregnancy',
-                      style: text.labelLarge
-                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                  Text(
+                    'Pregnancy',
+                    style: text.labelLarge?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   Text(
                     '${ga.weeks} weeks${ga.days > 0 ? ' ${ga.days} days' : ''}',
-                    style: text.displaySmall
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: text.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 2),
-                  Text('Trimester $tri',
-                      style: text.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    'Trimester $tri',
+                    style: text.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  Text('Estimated due date',
-                      style: text.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant)),
-                  Text(DateFormat.yMMMMd().format(due),
-                      style: text.titleMedium),
+                  Text(
+                    'Estimated due date',
+                    style: text.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    DateFormat.yMMMMd().format(due),
+                    style: text.titleMedium,
+                  ),
                   const SizedBox(height: 8),
-                  Text('An estimate, not medical advice.',
-                      style: text.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                  Text(
+                    'An estimate, not medical advice.',
+                    style: text.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -143,9 +160,9 @@ class _PregnancyHome extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           OutlinedButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PregnancyScreen()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const PregnancyScreen())),
             child: const Text('Manage pregnancy tracking'),
           ),
         ],
@@ -173,20 +190,29 @@ class _InsightHighlight extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.insights_outlined,
-                size: 20, color: scheme.onSurfaceVariant),
+            Icon(
+              Icons.insights_outlined,
+              size: 20,
+              color: scheme.onSurfaceVariant,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Your patterns',
-                      style: styles.labelLarge
-                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    'Your patterns',
+                    style: styles.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(text,
-                      style: styles.bodyMedium
-                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                  Text(
+                    text,
+                    style: styles.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -217,13 +243,19 @@ class _OvulationConfirmedNote extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.thermostat_outlined,
-                    size: 20, color: scheme.onTertiaryContainer),
+                Icon(
+                  Icons.thermostat_outlined,
+                  size: 20,
+                  color: scheme.onTertiaryContainer,
+                ),
                 const SizedBox(width: 8),
-                Text('Ovulation likely confirmed',
-                    style: text.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: scheme.onTertiaryContainer)),
+                Text(
+                  'Ovulation likely confirmed',
+                  style: text.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onTertiaryContainer,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 6),
@@ -233,7 +265,9 @@ class _OvulationConfirmedNote extends StatelessWidget {
               'For conception, the days leading up to ovulation are the most '
               'fertile, so this helps with planning. It is an estimate for '
               'awareness, not a contraceptive method.',
-              style: text.bodySmall?.copyWith(color: scheme.onTertiaryContainer),
+              style: text.bodySmall?.copyWith(
+                color: scheme.onTertiaryContainer,
+              ),
             ),
           ],
         ),
@@ -257,8 +291,9 @@ class _CheckInCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final started = prompt == CheckInPrompt.didItStart;
-    final title =
-        started ? 'Did your period start?' : 'Are you still on your period?';
+    final title = started
+        ? 'Did your period start?'
+        : 'Are you still on your period?';
     final logLabel = started ? 'Started — log it' : 'Still bleeding — log it';
     final noBleedLabel = started ? 'Not yet' : 'It ended';
 
@@ -271,14 +306,20 @@ class _CheckInCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.event_available_outlined,
-                    size: 20, color: scheme.onPrimaryContainer),
+                Icon(
+                  Icons.event_available_outlined,
+                  size: 20,
+                  color: scheme.onPrimaryContainer,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(title,
-                      style: text.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onPrimaryContainer)),
+                  child: Text(
+                    title,
+                    style: text.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onPrimaryContainer,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -298,19 +339,23 @@ class _CheckInCard extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: scheme.onPrimaryContainer,
                     side: BorderSide(
-                        color: scheme.onPrimaryContainer
-                            .withValues(alpha: 0.28)),
+                      color: scheme.onPrimaryContainer.withValues(alpha: 0.28),
+                    ),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: Text(noBleedLabel),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => DayLogScreen(date: today)),
+                    MaterialPageRoute(
+                      builder: (_) => DayLogScreen(date: today),
+                    ),
                   ),
                   style: TextButton.styleFrom(
-                      foregroundColor: scheme.onPrimaryContainer),
+                    foregroundColor: scheme.onPrimaryContainer,
+                  ),
                   child: Text(logLabel),
                 ),
               ],
@@ -360,8 +405,9 @@ class _PredictionBody extends StatelessWidget {
     // The single most-notable pattern, if any. Skip the 'phase' narrative — the
     // _PhaseCard already says where the user is now — so this highlights a trend
     // or symptom correlation instead. Empty when data is still thin.
-    final patterns =
-        context.watch<List<CycleNarrative>>().where((n) => n.key != 'phase');
+    final patterns = context.watch<List<CycleNarrative>>().where(
+      (n) => n.key != 'phase',
+    );
     final topInsight = patterns.isEmpty ? null : patterns.first;
 
     // Conceive-only: if this cycle's temperatures already show a thermal shift,
@@ -411,10 +457,7 @@ class _PredictionBody extends StatelessWidget {
         ],
         if (peri) ...[
           nextPeriod,
-          if (pmsWindow != null) ...[
-            const SizedBox(height: 16),
-            pmsWindow,
-          ],
+          if (pmsWindow != null) ...[const SizedBox(height: 16), pmsWindow],
           const SizedBox(height: 16),
           const _PerimenopauseNote(),
         ] else if (conceive) ...[
@@ -429,10 +472,7 @@ class _PredictionBody extends StatelessWidget {
           nextPeriod,
           const SizedBox(height: 16),
           fertile,
-          if (pmsWindow != null) ...[
-            const SizedBox(height: 16),
-            pmsWindow,
-          ],
+          if (pmsWindow != null) ...[const SizedBox(height: 16), pmsWindow],
         ],
         const SizedBox(height: 20),
         const DisclaimerBanner(),
@@ -465,17 +505,21 @@ class _PerimenopauseNote extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Cycles may be irregular now',
-                      style: text.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: scheme.onTertiaryContainer)),
+                  Text(
+                    'Cycles may be irregular now',
+                    style: text.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onTertiaryContainer,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     'In perimenopause, cycle timing becomes less predictable, so '
                     'these estimates get rougher. You can still become pregnant '
                     '— cycle timing is not a reliable guide.',
-                    style: text.bodyMedium
-                        ?.copyWith(color: scheme.onTertiaryContainer),
+                    style: text.bodyMedium?.copyWith(
+                      color: scheme.onTertiaryContainer,
+                    ),
                   ),
                 ],
               ),
@@ -537,27 +581,34 @@ class _PhaseCard extends StatelessWidget {
                 Container(
                   width: 10,
                   height: 10,
-                  decoration:
-                      BoxDecoration(color: accent, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: accent,
+                    shape: BoxShape.circle,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(prediction.currentPhase.label,
-                      style: text.labelLarge
-                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  child: Text(
+                    prediction.currentPhase.label,
+                    style: text.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
             if (prediction.cycleDay != null) ...[
               const SizedBox(height: 6),
-              Text('Day ${prediction.cycleDay}',
-                  style:
-                      text.displaySmall?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                'Day ${prediction.cycleDay}',
+                style: text.displaySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
             ],
             const SizedBox(height: 6),
-            Text(prediction.currentPhase.description,
-                style: text.bodyMedium
-                    ?.copyWith(color: scheme.onSurfaceVariant)),
+            Text(
+              prediction.currentPhase.description,
+              style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            ),
           ],
         ),
       ),
@@ -595,9 +646,11 @@ class _NextPeriodCard extends StatelessWidget {
 
     return _InfoCard(
       accent: phases.menstrual,
+      art: kCardPeriodArt,
       label: 'Next period',
       value: value,
-      detail: 'Around ${DateFormat.MMMMd().format(next)} · '
+      detail:
+          'Around ${DateFormat.MMMMd().format(next)} · '
           '± $window ${window == 1 ? 'day' : 'days'}',
       tag: _ConfidenceChip(confidence: prediction.confidence),
     );
@@ -641,6 +694,7 @@ class _FertileCard extends StatelessWidget {
     final phases = Theme.of(context).extension<PhaseColors>()!;
     return _InfoCard(
       accent: phases.fertile,
+      art: kCardFertileArt,
       label: inWindow ? 'Fertile window (now)' : 'Estimated fertile window',
       // The card IS a date range. The band below is the only fertility signal,
       // and only the band self-suppresses.
@@ -678,6 +732,7 @@ class _PmsWindowCard extends StatelessWidget {
     final phases = Theme.of(context).extension<PhaseColors>()!;
     return _InfoCard(
       accent: phases.luteal,
+      art: kCardPmsArt,
       label: inWindow ? 'PMS window (now)' : 'Estimated PMS window',
       value: range,
     );
@@ -714,23 +769,28 @@ class _BandLabel extends StatelessWidget {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                    color: scheme.primary, shape: BoxShape.circle),
+                  color: scheme.primary,
+                  shape: BoxShape.circle,
+                ),
               ),
               const SizedBox(width: 6),
-              Text(label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                label,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
             ],
           ),
           if (corroborated)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text('Confirmed by your recent ovulation test',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      )),
+              child: Text(
+                'Confirmed by your recent ovulation test',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+              ),
             ),
         ],
       ),
@@ -751,6 +811,7 @@ class _InfoCard extends StatelessWidget {
     required this.accent,
     required this.label,
     required this.value,
+    this.art,
     this.detail,
     this.tag,
     this.footer,
@@ -759,6 +820,18 @@ class _InfoCard extends StatelessWidget {
   /// The phase token this card is about — the same colour the ring and the
   /// calendar use for it, so the dot is a key rather than decoration.
   final Color accent;
+
+  /// An illustration for the card's subject, or null for a card with no mark.
+  ///
+  /// ADDED BESIDE the accent dot rather than replacing it, and that was a
+  /// measurement rather than a preference. Replacing the dot only works if the
+  /// artwork carries the phase colour itself, so the marks were sampled against
+  /// the `PhaseColors` tokens: the period mark lands at hue 345 against
+  /// menstrual's 346 and would have been safe, but the fertile-window mark is
+  /// blue-violet at 240 where the fertile token is teal at 169, and the PMS
+  /// mark's dominant colour is the figure's hair. Two of three would have
+  /// silently dropped the key that ties this card to the ring and the calendar.
+  final String? art;
   final String label;
   final String value;
   final String? detail;
@@ -772,37 +845,60 @@ class _InfoCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration:
-                      BoxDecoration(color: accent, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(label,
-                      style: text.labelLarge
-                          ?.copyWith(color: scheme.onSurfaceVariant)),
-                ),
-                if (tag != null) ...[const SizedBox(width: 8), tag!],
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(value,
-                style: text.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600, height: 1.15)),
-            if (detail != null) ...[
-              const SizedBox(height: 4),
-              Text(detail!,
-                  style: text.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant)),
+            if (art != null) ...[
+              TrackArt(path: art!),
+              const SizedBox(width: 12),
             ],
-            ?footer,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: accent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: text.labelLarge?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      if (tag != null) ...[const SizedBox(width: 8), tag!],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    value,
+                    style: text.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      height: 1.15,
+                    ),
+                  ),
+                  if (detail != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      detail!,
+                      style: text.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  ?footer,
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -831,9 +927,9 @@ class _ConfidenceChip extends StatelessWidget {
         child: Text(
           confidence.label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-              ),
+            color: Theme.of(context).colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -852,14 +948,19 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.spa_outlined,
-                size: 64, color: Theme.of(context).colorScheme.primary),
+            Icon(
+              Icons.spa_outlined,
+              size: 64,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(height: 16),
-            Text('Welcome to LunaTrack',
-                style: Theme.of(context).textTheme.headlineSmall),
+            Text(
+              'Welcome to LunarFlow',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             const SizedBox(height: 8),
             Text(
-              'Log the days of your period and LunaTrack will start predicting '
+              'Log the days of your period and LunarFlow will start predicting '
               'your next one — stored on this device and synced to your '
               'account.',
               textAlign: TextAlign.center,

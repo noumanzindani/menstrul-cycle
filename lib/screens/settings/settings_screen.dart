@@ -807,7 +807,7 @@ class SettingsScreen extends StatelessWidget {
             title: l10n.settingsSectionClinical,
             children: [
               ListTile(
-                leading: const Icon(Icons.medication_liquid_outlined),
+                leading: const TrackArt(path: kContraceptionArt),
                 title: Text(l10n.settingsClinicalContraceptionTitle),
                 subtitle: settings.suppressesOvulation
                     ? Text(l10n.settingsClinicalFertilityPaused)
@@ -841,7 +841,7 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => _pickContraceptionStart(context, settings),
                 ),
               ListTile(
-                leading: const Icon(Icons.assignment_outlined),
+                leading: const TrackArt(path: kDiagnosesArt),
                 title: Text(l10n.settingsClinicalDiagnosesTitle),
                 subtitle: Text(l10n.settingsClinicalDiagnosesSubtitle),
                 trailing: SettingsValue(
@@ -1402,6 +1402,14 @@ class _DiagnosesDialogState extends State<_DiagnosesDialog> {
                 CheckboxListTile(
                   value: _selected.contains(o.key),
                   title: Text(o.label),
+                  // Control forced to the TRAILING edge so `secondary` lands at
+                  // the leading one. Left as `platform` the checkbox takes the
+                  // leading slot and the mark is pushed to the right, which
+                  // would read as a second control rather than as a label.
+                  controlAffinity: ListTileControlAffinity.trailing,
+                  secondary: kDiagnosisArt[o.key] == null
+                      ? null
+                      : TrackArt(path: kDiagnosisArt[o.key]!),
                   onChanged: (on) => setState(() =>
                       on == true ? _selected.add(o.key) : _selected.remove(o.key)),
                 ),
