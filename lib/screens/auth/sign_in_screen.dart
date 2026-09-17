@@ -143,7 +143,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     const Center(child: LunaRingMark()),
                     const SizedBox(height: 16),
                     Text(
-                      'LunaTrack',
+                      'LunarFlow',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.w700,

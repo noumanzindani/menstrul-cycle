@@ -1,4 +1,4 @@
-# LunaTrack redesign — status and outstanding work
+# LunarFlow redesign — status and outstanding work
 
 Last updated 2026-09-07.
 
@@ -54,7 +54,7 @@ whether the ruling changed, not a test to update.
 ### 2.1 Dark mode: design system exists, screens do not
 
 A Stitch design system carries one `colorMode`, so light cannot be re-themed. A
-dark system was created — **`assets/8873628026339279935`** ("LunaTrack — dark",
+dark system was created — **`assets/8873628026339279935`** ("LunarFlow — dark",
 `colorMode: DARK`, `TONAL_SPOT`, seed `#F7A8C4`, neutral `#1C1B1B`) — carrying
 the dark phase palette as primary.
 
@@ -205,11 +205,11 @@ against the live project `teddy-2-20649` on 2026-09-07:
 | `lunatrack-db` existence unverified | **Exists**, created 2026-08-12 |
 | Media bucket may not be Firebase-linked | **Is** Firebase-linked |
 | Firebase project id "NOT settled" | Settled: `teddy-2-20649`, consistent everywhere |
-| `(default)` at risk from a LunaTrack deploy | **Untouched** — holds an unrelated donations/NGO app's rules |
+| `(default)` at risk from a LunarFlow deploy | **Untouched** — holds an unrelated donations/NGO app's rules |
 | Purge job | **Confirmed still not deployed** — this one is accurate |
 
 Also worth recording: **this Firebase project is shared with a live donations/NGO
-app, and Auth is project-wide.** Creating a LunaTrack account fires that app's v1
+app, and Auth is project-wide.** Creating a LunarFlow account fires that app's v1
 `onUserCreated` trigger and leaves a stray user doc in its `(default)` database.
 
 ---
@@ -242,3 +242,35 @@ Unchanged by this work; the full list with rationale is in `README.md` →
 - **i18n:** every string added by this redesign is a hardcoded English literal.
   `AppSettings.language` remains dormant project-wide; localisation is its own
   initiative (v3 backlog).
+
+---
+
+## 7. LunarFlow rebrand (2026-09-14)
+
+The app moved from **LunaTrack** to **LunarFlow**, matching the marketing site,
+and onto the LunarFlow palette. What that means for this document:
+
+**The 42 mocks in `docs/design/stitch/` are now stale.** They hardcode the old
+system — `#3A2A30` x264, `#F7A8C4` x141, `#E97B93` x115 — and the old name.
+Read them for LAYOUT and COPY, which are unchanged, not for colour. Section 2.4
+above still applies: those mock defects were declined and remain declined.
+
+**Dated specs and plans under `docs/superpowers/` were deliberately NOT renamed.**
+A spec written on 2026-08-04 said "LunaTrack" because that was the name then;
+rewriting it would make the record lie about what was decided when. Only living
+documents (this file, `CLAUDE.md`, `README.md`, `PRIVACY_POLICY.md`,
+`docs/account-deletion.md`, `docs/HANDOFF.md`, the integration checklists) moved.
+
+**Identifiers did not move, and must not.** `com.lunatrack.app`, `lunatrack-db`,
+the `lunatrack-media` bucket, `lunatrack_premium`, the `lunatrack_enc.db`
+filename, the `.lunabak` magic string and `LunaWidgetProvider` all still say
+LunaTrack on purpose — each one is load-bearing for an existing install, an
+existing purchase, an existing backup file or an existing placed widget.
+`test/theme_contrast_test.dart` and `test/launcher_icon_test.dart` guard the new
+palette; nothing guards those identifiers except this paragraph.
+
+**What the theme change did NOT touch:** the six `PhaseColors` tokens. They
+encode cycle state on the ring and calendar, and their teal/periwinkle/amber hue
+spread is the only channel making six states distinguishable — measured, the
+palette's worst luminance pair is 1.00:1, so hue is doing all the work. They are
+data, not brand.

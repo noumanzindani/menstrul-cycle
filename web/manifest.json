@@ -1,11 +1,11 @@
 {
-    "name": "menstrul_track",
-    "short_name": "menstrul_track",
+    "name": "LunarFlow",
+    "short_name": "LunarFlow",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FDF2F2",
+    "theme_color": "#F489AF",
+    "description": "LunarFlow \u2014 In Sync With Your Cycle. A private period and cycle tracker.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

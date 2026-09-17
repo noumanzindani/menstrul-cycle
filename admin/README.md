@@ -1,6 +1,6 @@
-# LunaTrack operator panel
+# LunarFlow operator panel
 
-A small server-rendered web panel for the owner of LunaTrack: business metrics,
+A small server-rendered web panel for the owner of LunarFlow: business metrics,
 per-user support lookup, and full browse of a user's synced health records.
 
 Node + Express, Firebase Admin SDK, server-side only. Deployable to Cloud Run.
@@ -119,7 +119,7 @@ asserts the denial rather than assuming it.
 Nothing here hardcodes a project id, on purpose. `CLAUDE.md` records that
 `lib/services/firestore_ref.dart` names one project, the untracked root
 `firebase.json` names a **different, unrelated production project**
-(`ride-with-purpose`), and the owner has an open decision about moving LunaTrack
+(`ride-with-purpose`), and the owner has an open decision about moving LunarFlow
 to a dedicated project. It is also unverified whether the named `lunatrack`
 database has actually been created. **Settle that before deploying**, then set
 `LUNATRACK_PROJECT_ID` explicitly.
@@ -184,7 +184,7 @@ anything here.
 
 Nothing in this repo deploys anything, and nothing here has ever contacted a
 remote Firebase project. These are the commands **you** run, after deciding
-which project LunaTrack belongs in.
+which project LunarFlow belongs in.
 
 1. **Settle the project.** Resolve the project-id TODO above. Confirm the named
    `lunatrack` Firestore database exists in that project.

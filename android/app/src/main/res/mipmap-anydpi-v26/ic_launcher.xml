@@ -1,15 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Hand-maintained: `dart run flutter_launcher_icons` does NOT rewrite this file,
-  so edits here survive regeneration of the PNGs.
+  RESTORE THIS FILE AFTER EVERY `dart run flutter_launcher_icons`.
 
-  No <inset> wrapper, deliberately. An adaptive icon is a 108dp drawable of which
-  only ~72dp survives the launcher's mask and 66dp is guaranteed safe, and
-  `assets/icon/icon_foreground.png` already places the artwork at 66% of its
-  canvas. Adding an inset here would apply safe-zone padding a second time and
-  render the logo at ~45% - small and floating. Pad in the asset or here, never
-  both. A previous inset of 16% existed because the older source art sat at only
-  36% of its canvas.
+  The generator DOES rewrite it — it logs "Creating mipmap xml file Android" —
+  and what it writes back is a 16% inset element on both the foreground and the
+  monochrome layer. That inset is wrong for this artwork and has now regressed
+  twice. An earlier version of this comment claimed the generator left the file
+  alone; it does not, and believing that is how the inset came back.
+
+  Why no inset: an adaptive icon is a 108dp drawable of which only ~72dp
+  survives the launcher's mask and 66dp is guaranteed safe, and
+  `assets/icon/icon_foreground.png` ALREADY places the artwork at 66% of its
+  canvas. Insetting here applies the safe-zone padding a second time and renders
+  the logo at ~45% — small and floating in a pink field. Pad in the asset or
+  here, never both. The 16% the generator writes dates from older source art
+  that sat at only 36% of its canvas.
 -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
   <background android:drawable="@color/ic_launcher_background"/>

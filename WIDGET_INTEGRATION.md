@@ -21,7 +21,7 @@ tested (`test/home_widget_test.dart`); everything below is device-only.
 ## Android — verify on a phone
 
 1. `flutter run` on an Android device.
-2. Long-press the home screen → **Widgets** → **LunaTrack** → drag the widget out.
+2. Long-press the home screen → **Widgets** → **LunarFlow** → drag the widget out.
 3. It should show the countdown (e.g. "5 / days to your period"). Log/change a
    period in-app, return to the home screen — the widget updates when the app runs.
 4. Tap the widget → the app opens.
@@ -93,7 +93,7 @@ struct LunaWidget: Widget {
         StaticConfiguration(kind: kind, provider: LunaProvider()) { entry in
             LunaWidgetView(entry: entry)
         }
-        .configurationDisplayName("LunaTrack")
+        .configurationDisplayName("LunarFlow")
         .description("Days until your next period.")
         .supportedFamilies([.systemSmall])
     }

@@ -1,5 +1,5 @@
 name: menstrul_track
-description: "LunaTrack — a private, offline period & cycle tracker. Predictions, symptom logging, reminders, and a doctor-ready summary, all stored on your device."
+description: "LunarFlow — a private, offline period & cycle tracker. Predictions, symptom logging, reminders, and a doctor-ready summary, all stored on your device."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -139,6 +139,42 @@ flutter:
   #         chip is disabled. Owner decision per icon, never a default.
   assets:
     - assets/track/
+    # OFL licence texts ship alongside the fonts so the attribution travels
+    # with the binary, as SIL OFL 1.1 requires for a redistributed font.
+    - assets/fonts/OFL-Fraunces.txt
+    - assets/fonts/OFL-PublicSans.txt
+
+  # LunarFlow typography, matching the marketing site.
+  #
+  # These are BUNDLED rather than pulled through the `google_fonts` package on
+  # purpose: that package fetches over the network on first use, and a
+  # local-first tracker that makes a request just to draw a heading is not
+  # local-first. Bundling also means the app renders identically offline and on
+  # first launch. Cost is ~460 KB.
+  #
+  # Both files are VARIABLE fonts, so one file covers every weight. The weight
+  # entries below map `fontWeight` onto the `wght` axis. Fraunces' other axes
+  # (SOFT / WONK / opsz) are what stop it reading as a stock serif, and they are
+  # set via `fontVariations` in lib/theme/typography.dart, not here.
+  fonts:
+    - family: PublicSans
+      fonts:
+        - asset: assets/fonts/PublicSans.ttf
+          weight: 400
+        - asset: assets/fonts/PublicSans.ttf
+          weight: 500
+        - asset: assets/fonts/PublicSans.ttf
+          weight: 600
+        - asset: assets/fonts/PublicSans.ttf
+          weight: 700
+    - family: Fraunces
+      fonts:
+        - asset: assets/fonts/Fraunces.ttf
+          weight: 400
+        - asset: assets/fonts/Fraunces.ttf
+          weight: 600
+        - asset: assets/fonts/Fraunces.ttf
+          weight: 700
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

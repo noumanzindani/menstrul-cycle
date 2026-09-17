@@ -113,7 +113,7 @@ class PregnancyScreen extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       Text(
-        'While this is on, LunaTrack pauses period and fertility predictions '
+        'While this is on, LunarFlow pauses period and fertility predictions '
         'and shows how far along you are, with an estimated due date. You can '
         'turn it off at any time.',
         style: Theme.of(context).textTheme.bodyLarge,

@@ -116,7 +116,7 @@ class InsightsScreen extends StatelessWidget {
         breastfeeding: breastfeeding,
         breastfeedingSince: breastfeedingSince,
       );
-      await Printing.sharePdf(bytes: bytes, filename: 'lunatrack_summary.pdf');
+      await Printing.sharePdf(bytes: bytes, filename: 'lunarflow_summary.pdf');
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(content: Text('Could not export PDF: $e')),

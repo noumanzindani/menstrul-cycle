@@ -71,7 +71,7 @@ class _SetupLockScreenState extends State<SetupLockScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'A PIN keeps LunaTrack closed if someone else picks up '
+                        'A PIN keeps LunarFlow closed if someone else picks up '
                         'your phone.',
                         style: theme.textTheme.bodyMedium,
                       ),

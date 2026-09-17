@@ -11,7 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '../db/database.dart';
 import '../models/enums.dart';
 
-/// Passphrase-based authenticated encryption for a LunaTrack backup file.
+/// Passphrase-based authenticated encryption for a LunarFlow backup file.
 ///
 /// AES-256-GCM with a PBKDF2-HMAC-SHA256 key. GCM is authenticated, so a wrong
 /// passphrase (or any tampering) fails to decrypt instead of returning garbage.
@@ -122,7 +122,7 @@ class BackupService {
   }
 
   /// Decrypts [bytes], validates it, and REPLACES all local data in one
-  /// transaction. Throws on a wrong passphrase or a non-LunaTrack file, leaving
+  /// transaction. Throws on a wrong passphrase or a non-LunarFlow file, leaving
   /// the existing data untouched (the decrypt/parse happen before any write).
   static Future<void> importEncrypted(
     AppDatabase db,
@@ -132,7 +132,7 @@ class BackupService {
     final json = await BackupCrypto.decrypt(bytes, passphrase);
     final map = jsonDecode(json) as Map<String, dynamic>;
     if (map['app'] != _magic) {
-      throw const FormatException('This is not a LunaTrack backup file.');
+      throw const FormatException('This is not a LunarFlow backup file.');
     }
     final logs = [
       for (final j in (map['daily_logs'] as List))
@@ -174,7 +174,7 @@ class BackupService {
     final path = '${dir.path}/lunatrack-backup.$fileExtension';
     await File(path).writeAsBytes(bytes, flush: true);
     await SharePlus.instance.share(
-      ShareParams(files: [XFile(path)], subject: 'LunaTrack backup'),
+      ShareParams(files: [XFile(path)], subject: 'LunarFlow backup'),
     );
   }
 

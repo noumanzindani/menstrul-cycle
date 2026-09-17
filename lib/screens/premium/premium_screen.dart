@@ -65,7 +65,7 @@ class _Offer extends StatelessWidget {
                 const _RingMark(),
                 const SizedBox(height: 28),
                 Text(
-                  'LunaTrack Premium',
+                  'LunarFlow Premium',
                   textAlign: TextAlign.center,
                   style: text.headlineMedium
                       ?.copyWith(fontWeight: FontWeight.w500),
@@ -221,7 +221,7 @@ class _AlreadyPremium extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Ads are off. Thank you for supporting LunaTrack.',
+              'Ads are off. Thank you for supporting LunarFlow.',
               textAlign: TextAlign.center,
               style: text.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
             ),

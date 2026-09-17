@@ -1,13 +1,13 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
-/// The Cloud Storage bucket LunaTrack owns.
+/// The Cloud Storage bucket LunarFlow owns.
 ///
 /// This is the same argument as [kLunaDatabaseId] in `firestore_ref.dart`, and
 /// it matters more here, not less.
 ///
 /// The Firebase project is shared with unrelated apps. Firestore's `(default)`
-/// database carries one ruleset for the whole project, which is why LunaTrack
+/// database carries one ruleset for the whole project, which is why LunarFlow
 /// uses a NAMED database with its own rules. **Cloud Storage has no named
 /// databases — rulesets are per BUCKET**, and a project's default bucket ships
 /// with a console template that is commonly
@@ -16,10 +16,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 /// Storage rules `read` includes `list`, so a signed-in stranger could
 /// enumerate the whole bucket and download any object in it.
 ///
-/// The payload here is unencrypted photographs and video. So LunaTrack writes
+/// The payload here is unencrypted photographs and video. So LunarFlow writes
 /// to a DEDICATED bucket whose ruleset (`storage.rules`) it alone owns.
 ///
-/// Settled 2026-08-12: LunaTrack lives in the shared project `teddy-2-20649`,
+/// Settled 2026-08-12: LunarFlow lives in the shared project `teddy-2-20649`,
 /// alongside `com.pocketchange.app`. Sharing the PROJECT is the owner's
 /// decision; sharing the BUCKET is not survivable, and this constant is what
 /// keeps them apart.

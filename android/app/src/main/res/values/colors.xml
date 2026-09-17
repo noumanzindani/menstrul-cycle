@@ -1,4 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  LunarFlow brand colours for the platform layer.
+
+  These are hand-maintained duplicates of lib/theme/brand.dart. Nothing checks
+  that they agree — no test, no compiler — so change them together.
+  `ic_launcher_background` is additionally duplicated in
+  flutter_launcher_icons.yaml, and `dart run flutter_launcher_icons` REWRITES
+  that entry here from the yaml value ("Updating colors.xml with color for
+  adaptive icon background"). It leaves the other entries and these comments
+  alone, but the two pinks must still be changed together or the next
+  regeneration silently reverts this one.
+-->
 <resources>
-    <color name="ic_launcher_background">#F889B4</color>
+    <!-- Brand.pink — the adaptive launcher icon's ground. -->
+    <color name="ic_launcher_background">#F489AF</color>
+
+    <!-- Brand.bg. Overridden in values-night so the splash does not flash a
+         bright blush before a dark-themed app draws its first frame. -->
+    <color name="splash_background">#FDF2F2</color>
+
+    <!-- Brand.pink / Brand.onPink — the home-screen widget card. -->
+    <color name="widget_background">#F489AF</color>
+    <color name="widget_on_background">#4C2431</color>
 </resources>

@@ -1,6 +1,6 @@
-# LunaTrack marketing site
+# LunarFlow marketing site
 
-A static marketing site for the LunaTrack Android app. Astro, zero JavaScript on
+A static marketing site for the LunarFlow Android app. Astro, zero JavaScript on
 every page except the four calculators, deployed to Firebase Hosting.
 
 19 routes: 6 core pages, 4 calculators, 6 articles, 2 indexes, plus a 404.

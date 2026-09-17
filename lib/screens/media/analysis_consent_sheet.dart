@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 /// This sheet is the only place a user is told that a photo leaves both their
 /// device AND their own account, to a company that is not the app. Everything
 /// here is what the code does today: it names Google, says the photo is sent
-/// rather than "processed", says LunaTrack does not keep the answer, and does
+/// rather than "processed", says LunarFlow does not keep the answer, and does
 /// not promise anything about what Google does with it — because the app has no
 /// authority over that and cannot honestly speak for it.
 ///
@@ -45,15 +45,15 @@ class _AnalysisConsentSheet extends StatelessWidget {
             Text('Describe photos?', style: theme.textTheme.headlineSmall),
             const SizedBox(height: 16),
             Text(
-              'To describe a photo, LunaTrack sends it to Google, an automatic '
-              'image-recognition service outside LunaTrack. This happens only '
+              'To describe a photo, LunarFlow sends it to Google, an automatic '
+              'image-recognition service outside LunarFlow. This happens only '
               'when you tap Describe on a photo — never on its own, and never '
               'to your other photos.',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
             Text(
-              'LunaTrack does not keep the description. It is shown to you and '
+              'LunarFlow does not keep the description. It is shown to you and '
               'discarded when you close the photo.',
               style: theme.textTheme.bodyMedium,
             ),

@@ -48,7 +48,7 @@ class LockService {
   static Future<bool> authenticateBiometric() async {
     try {
       return await _auth.authenticate(
-        localizedReason: 'Unlock LunaTrack',
+        localizedReason: 'Unlock LunarFlow',
         biometricOnly: true,
         persistAcrossBackgrounding: true,
       );

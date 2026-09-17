@@ -1,6 +1,6 @@
-# Deleting your LunaTrack account
+# Deleting your LunarFlow account
 
-This page explains how to delete your LunaTrack account and the data stored with
+This page explains how to delete your LunarFlow account and the data stored with
 it, both from inside the app and without it.
 
 > ⚠️ Before publishing: host this page at a public URL, put that URL in the
@@ -41,7 +41,7 @@ erased too.
 ## Without the app
 
 Email **your-email@example.com** _(replace before publishing)_ from the address
-you signed up with, with the subject **"Delete my LunaTrack account"**. The
+you signed up with, with the subject **"Delete my LunarFlow account"**. The
 account is queued for deletion on the same 30-day terms as the in-app request,
 and we will confirm by reply to that address.
 
@@ -66,8 +66,8 @@ Everything stored under your account:
   us.
 - **A photo you sent for description.** If you turned on Settings → Describe
   photos and tapped Describe on a photo, that photo was sent to Google at that
-  moment. Deleting your LunaTrack account does not reach it — it is outside our
-  systems and outside our control. LunaTrack keeps no description and nothing
+  moment. Deleting your LunarFlow account does not reach it — it is outside our
+  systems and outside our control. LunarFlow keeps no description and nothing
   derived from it, so there is nothing on our side left to erase.
 
 ## Current status

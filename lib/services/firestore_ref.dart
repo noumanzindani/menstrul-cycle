@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 
-/// The named Firestore database LunaTrack owns.
+/// The named Firestore database LunarFlow owns.
 ///
 /// The Firebase project (`teddy-2-20649`) is shared with unrelated apps.
 /// Firestore's `(default)` database has exactly ONE ruleset for the whole
 /// project, so a permissive rule written for any of those apps would expose
-/// LunaTrack's menstrual logs. A NAMED database carries its own independent
+/// LunarFlow's menstrual logs. A NAMED database carries its own independent
 /// ruleset, which is the only isolation available without a new project.
 ///
 /// ## Why `-db`, and why this is not cosmetic

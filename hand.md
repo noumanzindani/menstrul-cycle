@@ -1,4 +1,4 @@
-# LunaTrack — HANDOFF / RESUME HERE
+# LunarFlow — HANDOFF / RESUME HERE
 
 > **Read this first after a fresh `git clone`.** It is the single source of "where
 > we are and what to do next." Everything ephemeral that does **not** survive a clone
@@ -14,7 +14,7 @@
 
 ## ⏱️ YOU ARE HERE
 
-LunaTrack is **code-complete and green** — `188/188` tests pass, `flutter analyze`
+LunarFlow is **code-complete and green** — `188/188` tests pass, `flutter analyze`
 is clean, and `flutter build apk --debug` assembles. Everything through **Phase 4**
 (below) is done. The working tree compiles; nothing is committed-then-broken.
 
@@ -218,7 +218,7 @@ lib/
 
 ### `now.md`
 ```
-## 05:52 — Shipped 6 LunaTrack v2 features (Sex/modes/ovulation/band/calendar-entry/PDF);
+## 05:52 — Shipped 6 LunarFlow v2 features (Sex/modes/ovulation/band/calendar-entry/PDF);
 found + fixed critical inline-entry bug (lazy ListView never built panel) via bottom-sheet
 redesign + regression test; 45 tests green; pushed GitHub w/ CLAUDE.md context.
 ## 05:54 — Audited 300 features w/ council (AI on-device only); Phase A shipped
@@ -228,10 +228,10 @@ import + home widget; l10n complete; 105/105 tests, device-verified.
 
 ### `recent.md`
 ```
-## 2026-07-04 — Built 6 LunaTrack features (Track/Conceive modes, Sex/Period-ended logging,
+## 2026-07-04 — Built 6 LunarFlow features (Track/Conceive modes, Sex/Period-ended logging,
 calendar, ovulation marker, fertility band, PDF export); 45/45 tests; device flows verified;
 calendar rendering regression fixed.
-## 2026-07-06 — LunaTrack code-complete; feature audit vs 25-category catalog planned.
+## 2026-07-06 — LunarFlow code-complete; feature audit vs 25-category catalog planned.
 ```
 
 ### `today-2026-07-07.md`

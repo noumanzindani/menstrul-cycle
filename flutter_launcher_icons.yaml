@@ -6,7 +6,7 @@ flutter_launcher_icons:
   ios: true
   remove_alpha_ios: true
   # Adaptive icon (Android 8+): pink background + white crescent/profile art.
-  adaptive_icon_background: "#F889B4"
+  adaptive_icon_background: "#F489AF"
   adaptive_icon_foreground: "assets/icon/icon_foreground.png"
   # Monochrome layer for Android 13 themed icons.
   adaptive_icon_monochrome: "assets/icon/icon_foreground.png"

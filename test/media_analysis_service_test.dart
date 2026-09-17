@@ -181,7 +181,7 @@ void main() {
 
     test("the model's answer reaches the caller unaltered", () async {
       // The service must not summarise, trim or reword what came back. Anything
-      // it added would be LunaTrack authoring a reading of a body photo.
+      // it added would be LunarFlow authoring a reading of a body photo.
       analyzer = _FakeAnalyzer(answer: 'Two green trees on a rocky shoreline.');
       final outcome = await run(buildService());
       expect(outcome.result?.prose, 'Two green trees on a rocky shoreline.');

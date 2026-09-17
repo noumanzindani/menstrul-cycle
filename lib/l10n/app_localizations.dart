@@ -97,7 +97,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'LunaTrack'**
+  /// **'LunarFlow'**
   String get appTitle;
 
   /// No description provided for @actionSave.
@@ -169,7 +169,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeTitle.
   ///
   /// In en, this message translates to:
-  /// **'LunaTrack'**
+  /// **'LunarFlow'**
   String get homeTitle;
 
   /// No description provided for @homeLogToday.
@@ -403,7 +403,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsClinicalNote.
   ///
   /// In en, this message translates to:
-  /// **'Optional, and only for your own insights and the report you can export. LunaTrack never diagnoses anything.'**
+  /// **'Optional, and only for your own insights and the report you can export. LunarFlow never diagnoses anything.'**
   String get settingsClinicalNote;
 
   /// No description provided for @settingsClinicalContraceptionTitle.
@@ -505,7 +505,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboardingContraceptionBody.
   ///
   /// In en, this message translates to:
-  /// **'This changes how your cycle reads, so LunaTrack pauses fertile-window estimates on methods that stop ovulation. You can skip this or change it later.'**
+  /// **'This changes how your cycle reads, so LunarFlow pauses fertile-window estimates on methods that stop ovulation. You can skip this or change it later.'**
   String get onboardingContraceptionBody;
 
   /// No description provided for @settingsSectionCycleDefaults.
@@ -823,7 +823,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupRestoreWrongPass.
   ///
   /// In en, this message translates to:
-  /// **'Wrong passphrase, or the file isn\'t a valid LunaTrack backup.'**
+  /// **'Wrong passphrase, or the file isn\'t a valid LunarFlow backup.'**
   String get backupRestoreWrongPass;
 
   /// No description provided for @settingsSectionAbout.
@@ -835,7 +835,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAboutBody.
   ///
   /// In en, this message translates to:
-  /// **'LunaTrack stores your data in an encrypted database on this device and syncs it to your account. The synced copy is not end-to-end encrypted. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.'**
+  /// **'LunarFlow stores your data in an encrypted database on this device and syncs it to your account. The synced copy is not end-to-end encrypted. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.'**
   String get settingsAboutBody;
 }
 

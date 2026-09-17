@@ -80,7 +80,7 @@ class MedicationsScreen extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Text(
-                        'LunaTrack only tracks what you tell it and reminds you '
+                        'LunarFlow only tracks what you tell it and reminds you '
                         '— it gives no dosing advice and checks nothing.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: scheme.onSurfaceVariant,

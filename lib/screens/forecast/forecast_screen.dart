@@ -267,7 +267,7 @@ class _EmptyForecast extends StatelessWidget {
                 style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text(
-              'Log your last period (or set it in onboarding) and LunaTrack '
+              'Log your last period (or set it in onboarding) and LunarFlow '
               'will map out your upcoming cycles here.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,

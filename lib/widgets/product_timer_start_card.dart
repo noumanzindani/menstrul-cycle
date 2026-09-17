@@ -19,7 +19,7 @@ const String kBestEffortNotice =
     'Reminders may arrive late, or not at all — phone battery settings can '
     'block them.';
 
-/// Points clinical authority away from LunaTrack and at the box the product
+/// Points clinical authority away from LunarFlow and at the box the product
 /// came in. Shown on every duration picker.
 const String kFollowInstructions =
     'Follow the instructions that came with your product.';

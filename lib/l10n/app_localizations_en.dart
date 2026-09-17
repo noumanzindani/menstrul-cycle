@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'LunaTrack';
+  String get appTitle => 'LunarFlow';
 
   @override
   String get actionSave => 'Save';
@@ -47,7 +47,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Estimates only — not a contraceptive method.';
 
   @override
-  String get homeTitle => 'LunaTrack';
+  String get homeTitle => 'LunarFlow';
 
   @override
   String get homeLogToday => 'Log today';
@@ -173,7 +173,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsClinicalNote =>
-      'Optional, and only for your own insights and the report you can export. LunaTrack never diagnoses anything.';
+      'Optional, and only for your own insights and the report you can export. LunarFlow never diagnoses anything.';
 
   @override
   String get settingsClinicalContraceptionTitle => 'Contraception';
@@ -239,7 +239,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingContraceptionBody =>
-      'This changes how your cycle reads, so LunaTrack pauses fertile-window estimates on methods that stop ovulation. You can skip this or change it later.';
+      'This changes how your cycle reads, so LunarFlow pauses fertile-window estimates on methods that stop ovulation. You can skip this or change it later.';
 
   @override
   String get settingsSectionCycleDefaults => 'Cycle defaults';
@@ -426,12 +426,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupRestoreWrongPass =>
-      'Wrong passphrase, or the file isn\'t a valid LunaTrack backup.';
+      'Wrong passphrase, or the file isn\'t a valid LunarFlow backup.';
 
   @override
   String get settingsSectionAbout => 'About';
 
   @override
   String get settingsAboutBody =>
-      'LunaTrack stores your data in an encrypted database on this device and syncs it to your account. The synced copy is not end-to-end encrypted. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.';
+      'LunarFlow stores your data in an encrypted database on this device and syncs it to your account. The synced copy is not end-to-end encrypted. Predictions are estimates and are not a contraceptive method or a substitute for medical advice.';
 }

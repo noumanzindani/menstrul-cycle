@@ -1,4 +1,4 @@
-/// What LunaTrack will accept into the media timeline, and why each limit
+/// What LunarFlow will accept into the media timeline, and why each limit
 /// exists. Pure: no I/O, no Flutter imports, no plugin calls — so the rules a
 /// user actually hits are the rules the test suite checks.
 ///
@@ -73,7 +73,7 @@ const int kMaxItemsPerPick = 10;
 
 /// Why a picked file was refused.
 enum MediaRefusal {
-  /// Not an image or video type LunaTrack accepts.
+  /// Not an image or video type LunarFlow accepts.
   unsupportedType,
 
   /// Zero bytes.
@@ -113,7 +113,7 @@ class MediaRejection {
 String messageFor(MediaRefusal reason) {
   switch (reason) {
     case MediaRefusal.unsupportedType:
-      return 'LunaTrack takes photos (JPEG, PNG, WebP, HEIC) and videos '
+      return 'LunarFlow takes photos (JPEG, PNG, WebP, HEIC) and videos '
           '(MP4, MOV).';
     case MediaRefusal.empty:
       return "That file is empty, so there's nothing to add.";
@@ -122,12 +122,12 @@ String messageFor(MediaRefusal reason) {
     case MediaRefusal.tooLong:
       return 'Videos need to be under a minute so they finish uploading.';
     case MediaRefusal.unreadable:
-      return "LunaTrack couldn't read how long that video is, so it wasn't "
+      return "LunarFlow couldn't read how long that video is, so it wasn't "
           'added.';
   }
 }
 
-/// The kind [contentType] denotes, or null if LunaTrack does not accept it.
+/// The kind [contentType] denotes, or null if LunarFlow does not accept it.
 ///
 /// Parameters after `;` are dropped and the type is lowercased, then matched
 /// EXACTLY against the allowlists — the same anchored comparison

@@ -79,7 +79,7 @@ class ProductTimerPlan {
   /// Fixed and deliberately uninformative. The notification is `secret`, but
   /// that is not guaranteed across Wear OS bridging, Phone Link mirroring or
   /// Notification History — so the title must be harmless wherever it surfaces.
-  static const String title = 'LunaTrack';
+  static const String title = 'LunarFlow';
 
   static List<ProductTimerNotification> plan({
     required ProductSession session,

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Menstrul Track</string>
+	<string>LunarFlow</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -78,10 +78,10 @@
 	     the Android guardrail test and these keys are a matched pair.
 	     The microphone one is for video only; still capture never records audio. -->
 	<key>NSCameraUsageDescription</key>
-	<string>LunaTrack uses the camera only when you choose to take a photo or record a video for your own timeline. Nothing is captured in the background.</string>
+	<string>LunarFlow uses the camera only when you choose to take a photo or record a video for your own timeline. Nothing is captured in the background.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>LunaTrack uses the microphone only while you are recording a video for your own timeline.</string>
+	<string>LunarFlow uses the microphone only while you are recording a video for your own timeline.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>LunaTrack can import your basal body temperature to chart it alongside your cycle. Your health data stays on this device.</string>
+	<string>LunarFlow can import your basal body temperature to chart it alongside your cycle. Your health data stays on this device.</string>
 </dict>
 </plist>

@@ -1,4 +1,4 @@
-/// Core domain enums for LunaTrack.
+/// Core domain enums for LunarFlow.
 ///
 /// These are stored in the database by their integer index via drift's
 /// `intEnum<T>()`. IMPORTANT: never reorder or remove existing values — the

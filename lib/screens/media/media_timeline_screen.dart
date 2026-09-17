@@ -373,7 +373,7 @@ class _StorageNotice extends StatelessWidget {
           Expanded(
             child: Text(
               'Photos are uploaded to your account and stored as plain files '
-              'on our servers — the people who run LunaTrack can open them.',
+              'on our servers — the people who run LunarFlow can open them.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 height: 1.3,
@@ -431,7 +431,7 @@ class _UploadFailureCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'LunaTrack only saves photos once the upload finishes, so '
+              'LunarFlow only saves photos once the upload finishes, so '
               'nothing was kept.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurfaceVariant,

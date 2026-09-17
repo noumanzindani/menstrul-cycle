@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "LunaTrack",
+  "appTitle": "LunarFlow",
 
   "actionSave": "Save",
   "actionCancel": "Cancel",
@@ -16,7 +16,7 @@
   "disclaimerFull": "Predictions are estimates and can be wrong. They are not a contraceptive method and do not replace medical advice.",
   "disclaimerCompact": "Estimates only — not a contraceptive method.",
 
-  "homeTitle": "LunaTrack",
+  "homeTitle": "LunarFlow",
   "homeLogToday": "Log today",
 
   "settingsTitle": "Settings",
@@ -74,7 +74,7 @@
   "settingsProfileMenarcheTitle": "Age at first period",
   "settingsProfileUnitYears": "years",
   "settingsSectionClinical": "Health context",
-  "settingsClinicalNote": "Optional, and only for your own insights and the report you can export. LunaTrack never diagnoses anything.",
+  "settingsClinicalNote": "Optional, and only for your own insights and the report you can export. LunarFlow never diagnoses anything.",
   "settingsClinicalContraceptionTitle": "Contraception",
   "settingsClinicalContraceptionNotAsked": "Not answered",
   "settingsClinicalContraceptionSince": "Since {date}",
@@ -97,7 +97,7 @@
   "settingsClinicalBreastfeedingSinceTitle": "Breastfeeding since",
   "settingsClinicalBreastfeedingSinceHelp": "When breastfeeding started",
   "onboardingContraceptionTitle": "Are you using contraception?",
-  "onboardingContraceptionBody": "This changes how your cycle reads, so LunaTrack pauses fertile-window estimates on methods that stop ovulation. You can skip this or change it later.",
+  "onboardingContraceptionBody": "This changes how your cycle reads, so LunarFlow pauses fertile-window estimates on methods that stop ovulation. You can skip this or change it later.",
 
   "settingsSectionCycleDefaults": "Cycle defaults",
   "settingsAvgCycleLength": "Average cycle length",
@@ -166,8 +166,8 @@
   "backupRestorePassphraseTitle": "Enter the backup's passphrase",
   "backupActionRestore": "Restore",
   "backupRestoreDone": "Your data was restored.",
-  "backupRestoreWrongPass": "Wrong passphrase, or the file isn't a valid LunaTrack backup.",
+  "backupRestoreWrongPass": "Wrong passphrase, or the file isn't a valid LunarFlow backup.",
 
   "settingsSectionAbout": "About",
-  "settingsAboutBody": "LunaTrack stores your data in an encrypted database on this device and syncs it to your account. The synced copy is not end-to-end encrypted. Predictions are estimates and are not a contraceptive method or a substitute for medical advice."
+  "settingsAboutBody": "LunarFlow stores your data in an encrypted database on this device and syncs it to your account. The synced copy is not end-to-end encrypted. Predictions are estimates and are not a contraceptive method or a substitute for medical advice."
 }

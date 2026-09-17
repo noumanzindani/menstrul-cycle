@@ -13,7 +13,7 @@ import '../../services/account_deletion_service.dart';
 ///
 /// All three actions are non-destructive. "Cancel deletion" withdraws the
 /// request and nothing is deleted; "Sign out" leaves the request standing and,
-/// per the local-first rule, never touches local data; "Continue to LunaTrack"
+/// per the local-first rule, never touches local data; "Continue to LunarFlow"
 /// dismisses the notice for this session only.
 ///
 /// That third action is not optional politeness. Without it this screen is a
@@ -167,7 +167,7 @@ class _DeletionPendingScreenState extends State<DeletionPendingScreen> {
                     Text(
                       'Until then cloud sync stays off, so nothing on this '
                       'device is being backed up. The logs already on this '
-                      'device are untouched, and you can keep using LunaTrack '
+                      'device are untouched, and you can keep using LunarFlow '
                       'while the request stands.',
                       style: text.bodyMedium
                           ?.copyWith(color: scheme.onSurfaceVariant),
@@ -205,7 +205,7 @@ class _DeletionPendingScreenState extends State<DeletionPendingScreen> {
                   TextButton(
                     key: const Key('gate.dismissDeletionNotice'),
                     onPressed: _busy ? null : widget.onDismiss,
-                    child: const Text('Continue to LunaTrack'),
+                    child: const Text('Continue to LunarFlow'),
                   ),
                   TextButton(
                     key: const Key('gate.signOut'),

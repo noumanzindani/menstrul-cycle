@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/enums.dart';
+import 'brand.dart';
+import 'typography.dart';
 
 /// Cycle-phase colors, exposed as a [ThemeExtension] so widgets read them via
 /// `Theme.of(context).extension<PhaseColors>()` and they adapt to light/dark
@@ -84,32 +86,81 @@ class PhaseColors extends ThemeExtension<PhaseColors> {
 class AppTheme {
   AppTheme._();
 
-  /// Baby pink: soft and gentle. M3 [ColorScheme.fromSeed] normalizes the seed's
-  /// tone, so this pastel still yields a pink primary with enough contrast for
-  /// buttons/text — while the light theme's surfaces are forced to pure white
-  /// below, giving the "white + baby-pink" look (white background, soft-pink
-  /// cards/accents).
-  static const Color seed = Color(0xFFF7A8C4);
+  /// The seed only supplies M3's *derived* neutrals — the surface ramp, the
+  /// outlines, the disabled tones. It does NOT supply the brand accent, and it
+  /// is worth knowing why before touching it.
+  ///
+  /// `ColorScheme.fromSeed` normalises the seed through HCT and reads its tone
+  /// from a fixed ramp, so the seed's own lightness is discarded. Measured:
+  /// seeding `#F7A8C4` and seeding the brand pink `#F489AF` produce light
+  /// primaries of `#8B4A63` and `#8B4A61` — two units of blue apart. Changing
+  /// this constant is therefore very nearly a no-op.
+  ///
+  /// Every colour the user actually reads as "LunarFlow" is an explicit
+  /// override in [_brandLight] / [_brandDark], taken from [Brand].
+  static const Color seed = Color(0xFFF489AF);
 
   static ThemeData light() => _build(Brightness.light, PhaseColors.light);
   static ThemeData dark() => _build(Brightness.dark, PhaseColors.dark);
 
+  /// Light: a blush page with cards that lift off it.
+  ///
+  /// Note this inverts the previous design (soft-pink cards on a pure-white
+  /// scaffold). `surfaceContainerLow` is the card fill and is deliberately
+  /// LIGHTER than `surface`; the rest of M3's container ramp is left alone
+  /// because this app leans on `surfaceContainerHighest` as a *recessed* tint
+  /// for text fields, banners and unselected chips.
+  static ColorScheme _brandLight(ColorScheme s) => s.copyWith(
+        surface: Brand.bg,
+        onSurface: Brand.ink,
+        onSurfaceVariant: Brand.inkMuted,
+        surfaceContainerLow: Brand.cream,
+        surfaceContainerLowest: Brand.white,
+
+        // `primary` is the one brand colour that clears both bars: 4.31:1 on
+        // the page (so it can be a 1dp outline) and 4.72:1 under white text.
+        // Brand.pink is 2.12:1 and would fail as either.
+        primary: Brand.deep,
+        onPrimary: Brand.white,
+
+        // …so the brand pink lands here instead, where it covers area rather
+        // than drawing hairlines. M3 puts primaryContainer on the FAB.
+        primaryContainer: Brand.pink,
+        onPrimaryContainer: Brand.onPink,
+
+        secondaryContainer: Brand.blushLight,
+        onSecondaryContainer: Brand.ink,
+        tertiaryContainer: Brand.blush,
+        onTertiaryContainer: Brand.ink,
+      );
+
+  /// Dark: M3's derived surfaces are already a warm near-black at the brand
+  /// hue (`#191113`), so only the accents are overridden.
+  ///
+  /// [Brand.onPink] stays the foreground on a pink fill in BOTH themes —
+  /// white on [Brand.pink] is 2.32:1 in the dark theme too.
+  static ColorScheme _brandDark(ColorScheme s) => s.copyWith(
+        primary: Brand.pink,
+        onPrimary: Brand.onPink,
+        secondaryContainer: s.primaryContainer,
+      );
+
   static ThemeData _build(Brightness brightness, PhaseColors phases) {
-    var scheme = ColorScheme.fromSeed(
+    final base = ColorScheme.fromSeed(
       seedColor: seed,
       brightness: brightness,
     );
-    if (brightness == Brightness.light) {
-      // Pure-white backgrounds. surfaceContainer* keep their generated soft-pink
-      // tint, so cards/sheets read baby pink against the white scaffold.
-      scheme = scheme.copyWith(
-        surface: Colors.white,
-        onSurface: const Color(0xFF3A2A30), // warm near-black for text on white
-      );
-    }
+    final scheme = brightness == Brightness.light
+        ? _brandLight(base)
+        : _brandDark(base);
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
+      // Public Sans as the default face, so a widget that builds a bare
+      // TextStyle instead of reading a textTheme role still lands on-brand.
+      fontFamily: 'PublicSans',
+      textTheme: buildTextTheme(scheme),
       scaffoldBackgroundColor: scheme.surface,
       appBarTheme: AppBarTheme(
         centerTitle: false,
@@ -122,20 +173,79 @@ class AppTheme {
         elevation: 0,
         color: scheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(Radii.card),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
+        // minimumSize is Size(double.infinity, 52) — full-width by design.
+        // Never put a bare FilledButton in a Row; see CLAUDE.md.
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(Radii.control),
           ),
         ),
       ),
       chipTheme: ChipThemeData(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(Radii.chip),
+        ),
+      ),
+      // The FAB carries Brand.pink (via primaryContainer), which is only
+      // 2.12:1 against the page — under the 3:1 WCAG bar for identifying a
+      // control. The app is flat (elevation 0, no shadow anywhere), so there
+      // is no drop shadow to supply that edge. The outline does it instead.
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        elevation: 0,
+        focusElevation: 0,
+        hoverElevation: 0,
+        highlightElevation: 0,
+        backgroundColor: scheme.primaryContainer,
+        foregroundColor: scheme.onPrimaryContainer,
+        extendedTextStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.control),
+          side: BorderSide(color: scheme.primary, width: 1.5),
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        elevation: 0,
+        backgroundColor: scheme.surface,
+        indicatorColor: scheme.secondaryContainer,
+        surfaceTintColor: Colors.transparent,
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(Radii.card),
+          ),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: scheme.surfaceContainerLow,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.card),
+        ),
+      ),
+      // Shapes only. `filled` is deliberately NOT set here: several screens
+      // pass their own fillColor, and forcing a global fill would change them.
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Radii.control),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Radii.control),
+          borderSide: BorderSide(color: scheme.outlineVariant),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Radii.control),
+          borderSide: BorderSide(color: scheme.primary, width: 2),
         ),
       ),
       extensions: [phases],

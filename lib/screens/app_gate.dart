@@ -459,7 +459,7 @@ class _SplashScreen extends StatelessWidget {
           children: [
             const Spacer(),
             Text(
-              'LunaTrack',
+              'LunarFlow',
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.5,

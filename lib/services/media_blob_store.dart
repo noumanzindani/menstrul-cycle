@@ -42,7 +42,7 @@ abstract class MediaBlobStore {
   Future<List<String>> listObjectPaths(String prefix);
 }
 
-/// The production implementation, against the dedicated LunaTrack bucket.
+/// The production implementation, against the dedicated LunarFlow bucket.
 class FirebaseMediaBlobStore implements MediaBlobStore {
   FirebaseMediaBlobStore({FirebaseStorage? storage})
       : _storage = storage ?? lunaStorage() {

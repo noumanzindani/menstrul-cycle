@@ -39,7 +39,7 @@ void main() {
     });
 
     test('only capped products carry an attributed cap note', () {
-      // The note is what keeps a duration from reading as LunaTrack's own
+      // The note is what keeps a duration from reading as LunarFlow's own
       // medical advice, so it must cite the source and never say "we".
       for (final t in ProductType.values) {
         if (t.hasWearLimit) {
@@ -179,7 +179,7 @@ void main() {
 
     test('the title is a fixed generic string that names nothing', () {
       for (final s in slots()) {
-        expect(s.title, 'LunaTrack');
+        expect(s.title, 'LunarFlow');
       }
     });
 

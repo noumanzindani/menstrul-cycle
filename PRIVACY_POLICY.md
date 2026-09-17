@@ -1,9 +1,9 @@
-# LunaTrack Privacy Policy
+# LunarFlow Privacy Policy
 
 _Last updated: 7 August 2026_
 
-LunaTrack ("the app", "we") is a menstrual and cycle tracking app. This policy
-explains what data the app handles and how. **Short version: LunaTrack uses an
+LunarFlow ("the app", "we") is a menstrual and cycle tracking app. This policy
+explains what data the app handles and how. **Short version: LunarFlow uses an
 account, and the health data you log is uploaded to our cloud database so it can
 sync between your devices. It is stored in a readable form and is not sold or
 shared with advertisers. If you turn on photo descriptions, a photo you tap
@@ -21,7 +21,7 @@ Describe on is sent to Google; that is off unless you turn it on.**
 
 ## Do you need an account?
 
-Yes. LunaTrack asks you to create an account with an **email address and
+Yes. LunarFlow asks you to create an account with an **email address and
 password** (Firebase Authentication) before you use the tracker.
 
 There is one exception. If the app cannot reach our cloud service at all when it
@@ -63,7 +63,7 @@ account id}`):
   lengths, theme, language, gender-neutral-language choice, **pregnancy start
   date**, which tracking categories you enabled, and your weight unit.
 - **Photos and videos you add** — the media timeline is a cloud feature. There
-  is no on-device-only option for it: a photo or video exists in LunaTrack only
+  is no on-device-only option for it: a photo or video exists in LunarFlow only
   once it has been uploaded to your account, which is what lets it appear on
   your other devices. Alongside the file itself we store when it was taken, how
   large it is, its dimensions or length, and a small thumbnail.
@@ -97,7 +97,7 @@ works differently than it does.
   deletion, and by signing out. Thumbnails are held inside the encrypted
   database.
 - Photos are stripped of location data by the Android photo picker before
-  LunaTrack ever receives them; the app never asks for the permission that would
+  LunarFlow ever receives them; the app never asks for the permission that would
   reveal it.
 - **They are covered by the same gap as everything else in the cloud**: see
   "Deleting your account" below. Until the purge job is deployed, requesting
@@ -105,14 +105,14 @@ works differently than it does.
 
 ### Describing a photo (off unless you turn it on)
 
-LunaTrack can describe what is in one of your photos. This feature is **off by
+LunarFlow can describe what is in one of your photos. This feature is **off by
 default**, and turning it on is a separate choice from cloud sync.
 
 - It is **off until you turn it on**, per account, on each device. You are asked
   once, the first time you tap **Describe** on a photo, and you can turn it off
   again at any time in Settings → Describe photos.
 - When you tap **Describe**, that one photo is **sent to Google**, an automatic
-  image-recognition service that is not part of LunaTrack and not part of your
+  image-recognition service that is not part of LunarFlow and not part of your
   account. It happens only for the photo you tapped, only when you tap, and
   never on its own or in the background.
 - You can then **ask follow-up questions** about that photo. Each question you
@@ -120,9 +120,9 @@ default**, and turning it on is a separate choice from cloud sync.
   because the service keeps nothing between messages. Nothing is sent while you
   are typing — only when you send a message.
 - **Google is a separate company with its own terms and its own handling of what
-  it receives.** LunaTrack cannot speak for what happens to a photo after it is
+  it receives.** LunarFlow cannot speak for what happens to a photo after it is
   sent, and does not claim to.
-- LunaTrack **does not store the description or the conversation**. Both are
+- LunarFlow **does not store the description or the conversation**. Both are
   shown to you and discarded when you close the photo — closing it and opening
   it again starts over, with nothing carried across. Nothing derived from your
   photo is written to the database, to the cloud, to the doctor PDF, or to the
@@ -130,8 +130,8 @@ default**, and turning it on is a separate choice from cloud sync.
 - A description is **not a medical opinion**. The feature describes what is
   visible in a picture. It cannot tell you what something is, how serious it is,
   or what to do about it, and it is instructed to refuse if asked.
-- **Once a photo has been sent, it has left LunaTrack.** Turning the feature off,
-  deleting the photo, or deleting your LunaTrack account does not reach a copy
+- **Once a photo has been sent, it has left LunarFlow.** Turning the feature off,
+  deleting the photo, or deleting your LunarFlow account does not reach a copy
   held by Google.
 - The number of **messages** is limited per day, and the number of questions
   about any one photo is limited too. These are cost limits, not privacy
@@ -145,11 +145,11 @@ default**, and turning it on is a separate choice from cloud sync.
 - **Your app-lock PIN**, whether app lock is on, and whether you have completed
   onboarding are per-device and stay on the device.
 - **Premium** is a Google Play purchase and is not synced by us; it is tied to
-  the Play account that bought it, not to your LunaTrack account.
+  the Play account that bought it, not to your LunarFlow account.
 
 ## Advertising
 
-The free version of LunaTrack shows ads via **Google AdMob**.
+The free version of LunarFlow shows ads via **Google AdMob**.
 
 - We request **non-personalized ads only**. We do **not** send your health data,
   cycle data, or any personal identifiers to the ad network. **Ad partners never
@@ -230,7 +230,7 @@ days.
 
 ## Children
 
-LunaTrack is intended for people who menstruate, which can include teenagers. We
+LunarFlow is intended for people who menstruate, which can include teenagers. We
 request **non-personalized** ads only, and no health data is ever sent to
 advertisers. We do collect an email address in order to run accounts, and health
 data you log is stored against that account, so please do not create an account
@@ -238,7 +238,7 @@ for someone else.
 
 ## Medical disclaimer
 
-LunaTrack provides estimates and general wellness information. It is **not a
+LunarFlow provides estimates and general wellness information. It is **not a
 contraceptive method**, and it does **not** provide medical diagnosis or advice.
 Always consult a qualified clinician for medical concerns.
 

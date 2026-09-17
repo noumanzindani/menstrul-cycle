@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Both text rows deliberately use the SAME colour (@color/widget_on_background).
+  Hierarchy is carried by size and weight (30sp bold vs 12sp), not by tone.
+
+  The previous caption colour #6B4A56 was 3.30:1 on the widget card and failed
+  WCAG AA. There is no fix by tone alone: on the brand pink the whole band
+  between 4.5:1 and the value colour's 5.64:1 contains one indistinguishable
+  shade. A "softer" caption colour here is a regression, not a refinement.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
@@ -15,7 +24,7 @@
         android:layout_height="wrap_content"
         android:textSize="30sp"
         android:textStyle="bold"
-        android:textColor="#3A2A30"
+        android:textColor="@color/widget_on_background"
         android:maxLines="1"
         tools:text="5" />
 
@@ -25,7 +34,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:textSize="12sp"
-        android:textColor="#6B4A56"
+        android:textColor="@color/widget_on_background"
         android:gravity="center"
         android:maxLines="2"
         tools:text="days to your period" />

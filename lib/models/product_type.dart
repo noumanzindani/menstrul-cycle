@@ -57,7 +57,7 @@ extension ProductTypeInfo on ProductType {
   bool get hasWearLimit =>
       this == ProductType.tampon || this == ProductType.cupOrDisc;
 
-  /// Why the cap exists, attributed to its source. LunaTrack states elapsed
+  /// Why the cap exists, attributed to its source. LunarFlow states elapsed
   /// time and the target the user chose; it never authors a wear time of its
   /// own. Null for products with no manufacturer limit.
   String? get capNote => switch (this) {

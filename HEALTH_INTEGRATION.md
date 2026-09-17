@@ -37,7 +37,7 @@ real device build.
 5. Confirm the values land on the right days (Insights BBT chart / that day's log)
    and that a day you'd typed a BBT into by hand is **not** overwritten.
 6. Confirm the permission screen (Android 14+: Settings → Security & privacy →
-   Permission manager → deep-link) shows LunaTrack's rationale.
+   Permission manager → deep-link) shows LunarFlow's rationale.
 
 ## iOS — verify on a device
 

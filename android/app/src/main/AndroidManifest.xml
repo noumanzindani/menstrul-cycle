@@ -61,7 +61,7 @@
          "your data can't leave your phone" promise. tools:replace guarantees
          this wins any library manifest merge that sets allowBackup="true". -->
     <application
-        android:label="LunaTrack"
+        android:label="LunarFlow"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"

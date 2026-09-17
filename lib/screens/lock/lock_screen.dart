@@ -79,7 +79,7 @@ class _LockScreenState extends State<LockScreen> {
                   Icon(Icons.lock_outline, size: 40, color: scheme.primary),
                   const SizedBox(height: 20),
                   Text(
-                    'LunaTrack',
+                    'LunarFlow',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,

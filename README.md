@@ -1,6 +1,6 @@
 # menstrul_track
 
-LunaTrack — a menstrual/period tracker built with Flutter. The on-device drift
+LunarFlow — a menstrual/period tracker built with Flutter. The on-device drift
 database is the source of truth; when signed in, daily logs and preference
 settings are mirrored to Firebase Firestore so they sync across devices.
 
@@ -25,7 +25,7 @@ A few resources if this is your first Flutter project:
 
 `android/app/google-services.json` is gitignored (`.gitignore` line 48) because
 it identifies the Firebase project. To build from a fresh clone, download it
-from the Firebase console for the project LunaTrack uses and place it at
+from the Firebase console for the project LunarFlow uses and place it at
 `android/app/`.
 
 **Firebase project: `teddy-2-20649`** — settled by the project owner on
@@ -33,7 +33,7 @@ from the Firebase console for the project LunaTrack uses and place it at
 decision below is defending against. The Android app is `com.lunatrack.app`,
 appId `1:454527030179:android:cefb1b772608f98a6cc016`.
 
-LunaTrack uses a **named** Firestore database, `lunatrack-db`, not `(default)` —
+LunarFlow uses a **named** Firestore database, `lunatrack-db`, not `(default)` —
 `kLunaDatabaseId` in `lib/services/firestore_ref.dart`. `(default)` carries a
 single ruleset for every app in a project, so a permissive rule written for an
 unrelated app would expose menstrual logs. A named database has its own

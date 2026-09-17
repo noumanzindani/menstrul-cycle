@@ -10,7 +10,7 @@
 /// not fail loudly — it quietly returns a 400 and the test passes for the wrong
 /// reason.
 ///
-/// ## The photo leaves the device, and leaves LunaTrack
+/// ## The photo leaves the device, and leaves LunarFlow
 ///
 /// Analysis sends the image bytes to Google's Generative Language API. That is
 /// a third party, outside both the device and the user's own Firebase project,
@@ -98,7 +98,7 @@ const int kMaxQuestionLength = 200;
 /// `test/media_analysis_test.dart` asserts the clauses below are present; if you
 /// edit this, re-run that test and re-test the refusal on a device.
 ///
-/// LunaTrack authoring a clinical reading of a photograph is the same class of
+/// LunarFlow authoring a clinical reading of a photograph is the same class of
 /// harm as a synthesized fertility percentage or a BMI label: it is the app
 /// putting a judgement on the user's body. The model is allowed to describe.
 /// It is not allowed to interpret.
@@ -126,7 +126,7 @@ const String kAnalysisSystemInstruction =
 /// which is the same shape as the non-contraception disclaimer that sits on
 /// every fertility surface.
 const String kAnalysisCaveat =
-    'This is an automatic description of the picture. LunaTrack does not '
+    'This is an automatic description of the picture. LunarFlow does not '
     'interpret it, and it is not a medical opinion.';
 
 /// Why an analysis was refused before any request was made.

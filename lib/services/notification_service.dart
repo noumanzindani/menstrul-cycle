@@ -4,6 +4,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../db/database.dart';
+import '../theme/brand.dart';
 import '../models/prediction.dart';
 import 'check_in_notifications.dart';
 import 'product_timer_plan.dart';
@@ -54,7 +55,12 @@ class NotificationService {
     } catch (_) {
       tz.setLocalLocation(tz.getLocation('UTC'));
     }
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    // NOT '@mipmap/ic_launcher'. Android draws the status-bar icon from the
+    // ALPHA CHANNEL alone, so a fully opaque, full-colour launcher bitmap
+    // renders as a solid white blob. `ic_stat_lunarflow` is the crescent as a
+    // white silhouette on transparency, at the five status-bar densities.
+    const android =
+        AndroidInitializationSettings('@drawable/ic_stat_lunarflow');
     final darwin = DarwinInitializationSettings(
       notificationCategories: [
         DarwinNotificationCategory(
@@ -104,6 +110,10 @@ class NotificationService {
       channelDescription: 'Period, fertile-window and daily-log reminders',
       importance: Importance.high,
       priority: Priority.high,
+      icon: '@drawable/ic_stat_lunarflow',
+      // Tints the small icon and the app-name line only. NOT `colorized`,
+      // which would flood the whole notification background.
+      color: Brand.pink,
       // Cycle state must NEVER land on the lock screen — roommates, partners,
       // parents, coercive control. `secret` keeps the notification out of the
       // lock screen entirely (Android's default `private` only hides it if the
@@ -131,6 +141,10 @@ class NotificationService {
       channelDescription: 'Reminders you set yourself',
       importance: Importance.high,
       priority: Priority.high,
+      icon: '@drawable/ic_stat_lunarflow',
+      // Tints the small icon and the app-name line only. NOT `colorized`,
+      // which would flood the whole notification background.
+      color: Brand.pink,
       // Same reasoning as _details: what a person takes is no more suitable for
       // a lock screen than when they are bleeding.
       visibility: NotificationVisibility.secret,
@@ -153,6 +167,10 @@ class NotificationService {
       channelDescription: 'Reminders you set yourself',
       importance: Importance.high,
       priority: Priority.high,
+      icon: '@drawable/ic_stat_lunarflow',
+      // Tints the small icon and the app-name line only. NOT `colorized`,
+      // which would flood the whole notification background.
+      color: Brand.pink,
       // Load-bearing twice: it keeps an intimate reminder off the lock screen,
       // and it means the action cannot be tapped before unlock — so the
       // keystore is always available when the background writer runs.
@@ -263,6 +281,10 @@ class NotificationService {
       channelDescription: 'Period, fertile-window and daily-log reminders',
       importance: Importance.high,
       priority: Priority.high,
+      icon: '@drawable/ic_stat_lunarflow',
+      // Tints the small icon and the app-name line only. NOT `colorized`,
+      // which would flood the whole notification background.
+      color: Brand.pink,
       visibility: NotificationVisibility.secret,
       actions: n.hasAction
           ? [
@@ -327,7 +349,7 @@ class NotificationService {
         hour: hour,
         minute: minute,
         title: title,
-        body: 'Reminder from LunaTrack',
+        body: 'Reminder from LunarFlow',
       );
 
   static Future<void> cancelCustom(int reminderId) =>
