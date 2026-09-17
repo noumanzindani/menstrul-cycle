@@ -103,10 +103,38 @@ class AppDatabase extends _$AppDatabase {
           if (from < 11) {
             await m.createTable(analysisSessions);
             await m.createTable(analysisMessages);
-            await m.addColumn(appSettings, appSettings.analysisConsentVersion);
+            // `createTable` is idempotent -- drift emits CREATE TABLE IF NOT
+            // EXISTS -- but `addColumn` is NOT, because SQLite has no
+            // ADD COLUMN IF NOT EXISTS. A database whose PHYSICAL schema
+            // already carries this column while its recorded user_version is
+            // still below 11 therefore threw "duplicate column name:
+            // analysis_consent_version" on EVERY open, leaving the app stuck
+            // on the splash spinner with no way out and no error shown.
+            //
+            // That state is reachable by installing a v11 build, then
+            // installing an older v10 build over it: drift stamps
+            // user_version back down without dropping the column it no longer
+            // knows about, so the next v11 install re-runs this branch against
+            // a column that is already there. Device-found 2026-09-18 on a
+            // real populated database; the guard below is what makes the step
+            // survive it.
+            if (!await _appSettingsHasColumn('analysis_consent_version')) {
+              await m.addColumn(
+                  appSettings, appSettings.analysisConsentVersion);
+            }
           }
         },
       );
+
+  /// True when `app_settings` already has a column named [column].
+  ///
+  /// Keeps `onUpgrade`'s ADD COLUMN steps idempotent. The table name is a
+  /// literal rather than interpolated because PRAGMA cannot take a bound
+  /// parameter for its target -- nothing user-supplied reaches this statement.
+  Future<bool> _appSettingsHasColumn(String column) async {
+    final rows = await customSelect('PRAGMA table_info("app_settings")').get();
+    return rows.any((row) => row.read<String>('name') == column);
+  }
 
   /// Wipes all LOCAL user data and resets settings to defaults.
   ///
