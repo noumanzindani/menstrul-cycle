@@ -667,7 +667,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPhotoDescriptionsSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Sends a photo to Google when you tap Describe'**
+  /// **'Sends a photo, and what you have tracked — cycle history, symptoms, height and weight, discharge, sexual activity, contraception, diagnoses and diary notes — to Google when you tap Describe'**
   String get settingsPhotoDescriptionsSubtitle;
 
   /// No description provided for @settingsDeleteTitle.

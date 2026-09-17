@@ -339,7 +339,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsPhotoDescriptionsSubtitle =>
-      'Sends a photo to Google when you tap Describe';
+      'Sends a photo, and what you have tracked — cycle history, symptoms, height and weight, discharge, sexual activity, contraception, diagnoses and diary notes — to Google when you tap Describe';
 
   @override
   String get settingsDeleteTitle => 'Delete all my data';

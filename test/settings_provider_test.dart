@@ -5,6 +5,7 @@ import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
+import 'package:menstrul_track/services/media_analysis.dart';
 
 void main() {
   late AppDatabase db;
@@ -82,6 +83,71 @@ void main() {
 
       expect(provider.weightUnit, 'lb');
       expect(provider.profileWeightKg, 61.2);
+    });
+  });
+
+  group('analysis consent', () {
+    test('is unset until the user opts in', () {
+      expect(provider.analysisConsentUid, isNull);
+      expect(provider.analysisConsentVersion, isNull);
+    });
+
+    test('setAnalysisConsent persists both the uid and the current version',
+        () async {
+      await provider.setAnalysisConsent('uid-1');
+
+      expect(provider.analysisConsentUid, 'uid-1');
+      expect(provider.analysisConsentVersion, kCurrentConsentVersion);
+    });
+
+    test('setAnalysisConsent can record an explicit version', () async {
+      // Exercised by nothing in production today, but the parameter exists
+      // precisely so a caller is never forced to claim consent to the
+      // CURRENT disclosure when recording an older one.
+      await provider.setAnalysisConsent('uid-1', version: 1);
+
+      expect(provider.analysisConsentUid, 'uid-1');
+      expect(provider.analysisConsentVersion, 1);
+    });
+
+    test('clearAnalysisConsent withdraws both the uid and the version',
+        () async {
+      await provider.setAnalysisConsent('uid-1');
+      await provider.clearAnalysisConsent();
+
+      expect(provider.analysisConsentUid, isNull);
+      expect(provider.analysisConsentVersion, isNull);
+    });
+
+    // isAnalysisConsentedFor is what the Settings "Photo descriptions" toggle
+    // reads, and it must mirror MediaAnalysisService.consented's own check
+    // exactly (uid match AND current-version match) — a consent toggle that
+    // disagrees with the real gate is a trust problem on a consent surface.
+    group('isAnalysisConsentedFor', () {
+      test('a v1 consenter reads as NOT consented', () async {
+        await provider.setAnalysisConsent('uid-1', version: 1);
+        expect(provider.isAnalysisConsentedFor('uid-1'), isFalse);
+      });
+
+      test('a v2 (current) consenter reads as consented', () async {
+        await provider.setAnalysisConsent('uid-1');
+        expect(provider.isAnalysisConsentedFor('uid-1'), isTrue);
+      });
+
+      test("another account's consent does not read as this account's",
+          () async {
+        await provider.setAnalysisConsent('uid-1');
+        expect(provider.isAnalysisConsentedFor('uid-2'), isFalse);
+      });
+
+      test('a null uid (signed out) never reads as consented', () async {
+        await provider.setAnalysisConsent('uid-1');
+        expect(provider.isAnalysisConsentedFor(null), isFalse);
+      });
+
+      test('never consented reads as not consented', () {
+        expect(provider.isAnalysisConsentedFor('uid-1'), isFalse);
+      });
     });
   });
 }

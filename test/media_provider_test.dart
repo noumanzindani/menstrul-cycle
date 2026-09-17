@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:menstrul_track/data/analysis_session_repository.dart';
 import 'package:menstrul_track/data/media_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/providers/media_provider.dart';
@@ -107,5 +108,25 @@ void main() {
   test('reload with no account is a no-op rather than a crash', () async {
     await provider.reload();
     expect(provider.items, isEmpty);
+  });
+
+  test(
+      'switching accounts also erases the old account\'s saved analysis '
+      'conversations', () async {
+    // Mirrors "switching accounts ERASES the old rows" above, but for the
+    // saved-conversation tables — setUid is the same sign-out/account-change
+    // path those rows must be dropped on, since MediaProvider is the only
+    // caller of MediaRepository.deleteExcept.
+    final sessions = AnalysisSessionRepository(db);
+    await seed('a' * 32, 'uid-A');
+    await provider.setUid('uid-A');
+    final s =
+        await sessions.create(uid: 'uid-A', mediaId: 'a' * 32, consentVersion: 2);
+    await sessions.append(sessionId: s.id, role: 'model', text: 'a description');
+
+    await provider.setUid('uid-B');
+
+    expect(await sessions.allFor('uid-A'), isEmpty);
+    expect(await db.select(db.analysisMessages).get(), isEmpty);
   });
 }

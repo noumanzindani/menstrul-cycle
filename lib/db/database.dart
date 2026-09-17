@@ -17,6 +17,8 @@ part 'database.g.dart';
     AppSettings,
     SyncTombstones,
     MediaItems,
+    AnalysisSessions,
+    AnalysisMessages,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -26,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -49,6 +51,9 @@ class AppDatabase extends _$AppDatabase {
         //   v7 → v8: the user profile adds AppSettings.dateOfBirth, heightCm,
         //            profileWeightKg and menarcheAge. All four read NULL for an
         //            existing user, which is correct — nobody has been asked.
+        //   v10 → v11: persisted photo-analysis conversations add the
+        //            AnalysisSessions and AnalysisMessages tables plus
+        //            AppSettings.analysisConsentVersion.
         // Branches are independent `if (from < n)` checks, not else-if, so a
         // user upgrading straight from v1 runs all of them.
         //
@@ -94,6 +99,11 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 10) {
             await m.addColumn(appSettings, appSettings.sexualHealthBaseline);
+          }
+          if (from < 11) {
+            await m.createTable(analysisSessions);
+            await m.createTable(analysisMessages);
+            await m.addColumn(appSettings, appSettings.analysisConsentVersion);
           }
         },
       );
@@ -170,6 +180,14 @@ class AppDatabase extends _$AppDatabase {
       // and Firestore's own unencrypted on-device cache
       // (`clearLunaFirestoreCache`).
       await delete(mediaItems).go();
+      // Saved conversations about photographs. Persisting transcripts was a
+      // deliberate reversal of the original in-memory design, and this is one
+      // of the four erasure paths that reversal owes — leaving them would make
+      // "everything on this device is erased" false in the most sensitive way.
+      // Messages first: they carry a foreign key (sessionId) to the row
+      // deleted next.
+      await delete(analysisMessages).go();
+      await delete(analysisSessions).go();
       await into(appSettings).insert(const AppSettingsCompanion(id: Value(0)));
     });
   }

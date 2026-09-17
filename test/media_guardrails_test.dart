@@ -1,6 +1,12 @@
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:menstrul_track/data/analysis_session_repository.dart';
+import 'package:menstrul_track/data/daily_log_repository.dart';
+import 'package:menstrul_track/db/database.dart';
+import 'package:menstrul_track/models/enums.dart';
+import 'package:menstrul_track/services/backup_service.dart';
 
 /// Structural guardrails for the media timeline.
 ///
@@ -295,6 +301,89 @@ void main() {
       // reshuffle silently re-targets it.
       final src = _code('lib/screens/app_shell.dart');
       expect(src.contains('Media'), isFalse);
+    });
+  });
+
+  group('saved photo-analysis conversations are erased everywhere they must be', () {
+    // Persisting analysis transcripts (schema v11) was a deliberate reversal
+    // of the original in-memory-only design, and the rationale in
+    // `media_analysis_service.dart` spelled out exactly what persistence
+    // would owe: a stored chat log about a body photo needs its own erasure
+    // path in `deleteAllData`, the backup file, and the doctor PDF, and it
+    // must stay out of the home-screen widget. This group is that bill.
+    test('deleteAllData clears saved conversations', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      final repo = AnalysisSessionRepository(db);
+      final s = await repo.create(uid: 'u1', mediaId: 'm1', consentVersion: 2);
+      await repo.append(sessionId: s.id, role: 'model', text: 'a description');
+
+      await db.deleteAllData();
+
+      expect(await db.select(db.analysisSessions).get(), isEmpty);
+      expect(await db.select(db.analysisMessages).get(), isEmpty);
+      await db.close();
+    });
+
+    test('the exported backup file carries no saved conversations', () async {
+      // A `.lunabak` file is a plaintext (behind a passphrase) export that
+      // physically leaves the device and gets handed to people, so this is
+      // asserted on the actual ARTEFACT — the real decrypted JSON payload a
+      // restore would read — rather than on the exporter's source text. The
+      // encryption step is only unwrapped to get at that payload; the point
+      // is to test the payload, not the cipher (see `BackupCrypto`'s own
+      // tests in `backup_test.dart` for the cipher itself).
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      final sessions = AnalysisSessionRepository(db);
+      const marker = 'a described photograph nobody else should ever read';
+      final s =
+          await sessions.create(uid: 'u1', mediaId: 'm1', consentVersion: 2);
+      await sessions.append(sessionId: s.id, role: 'model', text: marker);
+
+      // A real, recognisable daily log, so this guardrail actually exercises
+      // the export path instead of passing over an empty document — the
+      // house rule at the top of this file: a guardrail that examined
+      // nothing must fail loudly, not pass quietly. `daily_logs` stores the
+      // date as epoch millis (drift's default `DateTime` encoding), not an
+      // ISO string, so the sanity needle below is derived rather than typed
+      // as a date literal that would never match.
+      final logDate = DateTime(2026, 6, 1);
+      await DailyLogRepository(db).upsert(
+        date: logDate,
+        flow: FlowIntensity.medium,
+        symptomsJson: '{}',
+      );
+
+      const passphrase = 'a passphrase';
+      final bytes = await BackupService.exportEncrypted(db, passphrase);
+      final json = await BackupCrypto.decrypt(bytes, passphrase);
+
+      expect(json, contains('${logDate.millisecondsSinceEpoch}'),
+          reason: 'the seeded daily log must actually appear in the export, '
+              'or this test is asserting against an empty/vacuous payload');
+      expect(json.contains('analysisSessions'), isFalse);
+      expect(json.contains('analysisMessages'), isFalse);
+      expect(json.contains(marker), isFalse,
+          reason: 'the message BODY TEXT must not leak even if the table '
+              'keys somehow did not');
+      await db.close();
+    });
+
+    test('saved conversations never reach the doctor PDF or the widget', () {
+      // Mirrors the MediaItem/mediaItems pair above exactly: each table needs
+      // BOTH its class name and its table getter checked, in both files — a
+      // call like `db.select(db.analysisMessages)` spells neither
+      // 'AnalysisMessage' nor 'analysisSessions', so checking only one needle
+      // per table would let message text reach the PDF undetected.
+      for (final path in const [
+        'lib/services/pdf_report_service.dart',
+        'lib/services/home_widget_service.dart',
+      ]) {
+        final src = _read(path);
+        expect(src.contains('AnalysisSession'), isFalse, reason: path);
+        expect(src.contains('analysisSessions'), isFalse, reason: path);
+        expect(src.contains('AnalysisMessage'), isFalse, reason: path);
+        expect(src.contains('analysisMessages'), isFalse, reason: path);
+      }
     });
   });
 

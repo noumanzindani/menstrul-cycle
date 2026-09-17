@@ -5,13 +5,18 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../data/analysis_session_repository.dart';
 import '../../data/media_repository.dart';
 import '../../db/database.dart';
+import '../../providers/log_provider.dart';
 import '../../providers/media_provider.dart';
+import '../../providers/medication_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../models/prediction.dart';
 import '../../services/device_id.dart';
 import '../../services/firebase_availability.dart';
 import '../../services/firestore_ref.dart';
+import '../../services/health_context.dart';
 import '../../services/media_analysis.dart';
 import '../../services/media_analysis_service.dart';
 import '../../services/media_analyzer.dart';
@@ -25,6 +30,7 @@ import '../../services/media_thumbnailer.dart';
 import '../../services/media_upload_service.dart';
 import '../../services/sync_trigger.dart';
 import 'analysis_consent_sheet.dart';
+import 'analysis_sessions_screen.dart';
 import 'media_timeline_screen.dart';
 import 'media_viewer_screen.dart';
 
@@ -76,17 +82,177 @@ Route<void> mediaTimelineRoute(BuildContext context) {
   // listening to anything.
   final settings = context.read<SettingsProvider>();
   final canAnalyze = available && analysisAvailable;
+
+  // Saved conversations. Local-only (see AnalysisSessionRepository's own
+  // doc comment) — this repository never touches Firestore or Cloud Storage.
+  final sessionRepo = AnalysisSessionRepository(db);
+
+  // Persists one errorless exchange, resuming the existing session for this
+  // mediaId when there is one rather than starting a second conversation
+  // about the same photo. Handed to MediaAnalysisService as an opaque
+  // callback: that class must never import AnalysisSessionRepository or
+  // AppDatabase itself (test/media_guardrails_test.dart enforces it), so the
+  // find-or-create logic lives here, where the database already is.
+  //
+  // [isMemoHit] (see MediaAnalysisService._persistTurn's doc comment) is
+  // where the duplicate-turn defect lived: a memo hit re-serves an answer
+  // already shown once before, and `AnalysisSessionRepository.append` is a
+  // pure insert with no dedup, so persisting it again would insert an exact
+  // duplicate pair into a session that already holds it. The live transcript
+  // never repeats that exchange, so the saved one must not either — hence
+  // the early return below whenever a session already exists. The one case
+  // that must still persist a memo hit is when NO session exists yet (it was
+  // deleted independently of the in-memory memo, e.g. by `deleteForMedia`):
+  // skipping there would leave a later follow-up with no opening turn to
+  // attach to, which is a worse transcript than a duplicated one.
+  Future<void> persistAnalysisTurn({
+    required String mediaId,
+    required String question,
+    required String answer,
+    required bool isMemoHit,
+  }) async {
+    final uid = trigger.currentUid;
+    if (uid == null) return;
+    final existing =
+        await sessionRepo.forMedia(uid: uid, mediaId: mediaId);
+    if (isMemoHit && existing != null) return;
+    final session = existing ??
+        await sessionRepo.create(
+          uid: uid,
+          mediaId: mediaId,
+          consentVersion: kCurrentConsentVersion,
+        );
+    await sessionRepo.append(
+      sessionId: session.id,
+      role: 'user',
+      text: question,
+    );
+    await sessionRepo.append(
+      sessionId: session.id,
+      role: 'model',
+      text: answer,
+    );
+  }
+
   final analysisService = MediaAnalysisService(
     analyzer: canAnalyze ? GeminiMediaAnalyzer() : const UnavailableMediaAnalyzer(),
     trigger: trigger,
     consentUid: () => settings.analysisConsentUid,
+    consentVersion: () => settings.analysisConsentVersion,
     readUsage: () => (
       day: settings.analysisCountDay,
       count: settings.analysisCountToday,
     ),
     writeUsage: settings.recordAnalysisUsage,
+    persistTurn: persistAnalysisTurn,
     available: canAnalyze,
   );
+
+  // Opens one item full-screen. Factored out of `onOpen` below so the same
+  // viewer construction is reachable from a saved conversation's row in
+  // `AnalysisSessionsScreen`, not only from a grid tile — a row there has a
+  // `mediaId`, not a `MediaItem`, so its own onOpen resolves the item first
+  // (see below) and then calls this exact function, rather than duplicating
+  // the ~80 lines of `analyze`/`needsConsent`/`requestConsent` wiring.
+  void openViewer(BuildContext context, MediaItem item) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MediaViewerScreen(
+          item: item,
+          load: (item) => _loadFile(item, cache, blobs),
+          analyze: !canAnalyze
+              ? null
+              : (item, file, question) async {
+                  // Gathered from providers BEFORE the async gap, so no
+                  // BuildContext is used across an await — mirrors
+                  // insights_screen.dart:79-99's PDF export. The service
+                  // itself may not read these providers (or the database
+                  // behind them) at all; assembling the context is this
+                  // caller's job precisely so it stays that way.
+                  final logProvider = context.read<LogProvider>();
+                  final medicationProvider =
+                      context.read<MedicationProvider>();
+                  final prediction = context.read<PredictionResult?>();
+                  final appSettings = settings.settings;
+                  final healthContext = appSettings == null
+                      ? null
+                      : buildHealthContext(
+                          logs: logProvider.logs,
+                          cycles: logProvider.cycles,
+                          prediction: prediction,
+                          medications: medicationProvider.items,
+                          settings: appSettings,
+                          asOf: DateTime.now(),
+                        );
+                  return analysisService.analyze(
+                    mediaId: item.id,
+                    bytes: await file.readAsBytes(),
+                    mimeType: _guessContentType(item.storagePath),
+                    isImage: item.kind == 'image',
+                    question: question,
+                    healthContext: healthContext,
+                  );
+                },
+          needsConsent: () => !analysisService.consented,
+          endConversation: () => analysisService.endConversation(item.id),
+          // Display only, and computed from the SAME pure helper the
+          // service counts with — a second reading of "how many are left"
+          // is a second place for it to be wrong. Read lazily, so it is
+          // current every time the sheet rebuilds.
+          messagesLeft: !canAnalyze
+              ? null
+              : () {
+                  final used = analysisCountForDay(
+                    storedDay: settings.analysisCountDay,
+                    storedCount: settings.analysisCountToday,
+                    now: DateTime.now(),
+                  );
+                  final left = kMaxAnalysesPerDay - used;
+                  return left < 0 ? 0 : left;
+                },
+          // Looked up fresh on every Describe tap rather than once here: a
+          // conversation can be created (or, via `deleteForMedia`, removed)
+          // while this viewer is already open.
+          loadExistingTurns: !canAnalyze
+              ? null
+              : (item) async {
+                  final uid = trigger.currentUid;
+                  if (uid == null) return const <AnalysisTurn>[];
+                  final session =
+                      await sessionRepo.forMedia(uid: uid, mediaId: item.id);
+                  if (session == null) return const <AnalysisTurn>[];
+                  final messages = await sessionRepo.messagesFor(session.id);
+                  final turns = messages
+                      .map((m) => m.role == 'user'
+                          ? AnalysisTurn.user(m.messageText)
+                          : AnalysisTurn.model(m.messageText))
+                      .toList();
+                  // Seeds the SERVICE's in-memory history, not just the UI:
+                  // the sheet renders these turns from the return value below,
+                  // but the next follow-up goes through `analysisService`
+                  // (captured above), whose `_transcripts` map is the only
+                  // thing `analyze()` reads for context. Without this call a
+                  // resumed conversation would show old turns on screen while
+                  // the model itself remembers none of them. See
+                  // `MediaAnalysisService.seedConversation`'s doc comment.
+                  analysisService.seedConversation(item.id, turns);
+                  return turns;
+                },
+          requestConsent: (context) async {
+            final allowed = await showAnalysisConsentSheet(context);
+            if (allowed != true) return false;
+            final uid = trigger.currentUid;
+            if (uid == null) return false;
+            // Recorded against the UID that is signed in RIGHT NOW, read
+            // after the sheet rather than before it: the account can change
+            // while a modal is open, and consent belongs to whoever gave it.
+            await settings.setAnalysisConsent(uid);
+            return true;
+          },
+        ),
+      ),
+    );
+  }
 
   return MaterialPageRoute<void>(
     builder: (_) => ChangeNotifierProvider<MediaProvider>.value(
@@ -110,51 +276,37 @@ Route<void> mediaTimelineRoute(BuildContext context) {
         onAdd: !available
             ? null
             : (source) => _pickAndUpload(uploader, source),
-        onOpen: (context, item) => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => MediaViewerScreen(
-              item: item,
-              load: (item) => _loadFile(item, cache, blobs),
-              analyze: !canAnalyze
-                  ? null
-                  : (item, file, question) async => analysisService.analyze(
-                        mediaId: item.id,
-                        bytes: await file.readAsBytes(),
-                        mimeType: _guessContentType(item.storagePath),
-                        isImage: item.kind == 'image',
-                        question: question,
-                      ),
-              needsConsent: () => !analysisService.consented,
-              endConversation: () => analysisService.endConversation(item.id),
-              // Display only, and computed from the SAME pure helper the
-              // service counts with — a second reading of "how many are left"
-              // is a second place for it to be wrong. Read lazily, so it is
-              // current every time the sheet rebuilds.
-              messagesLeft: !canAnalyze
-                  ? null
-                  : () {
-                      final used = analysisCountForDay(
-                        storedDay: settings.analysisCountDay,
-                        storedCount: settings.analysisCountToday,
-                        now: DateTime.now(),
-                      );
-                      final left = kMaxAnalysesPerDay - used;
-                      return left < 0 ? 0 : left;
-                    },
-              requestConsent: (context) async {
-                final allowed = await showAnalysisConsentSheet(context);
-                if (allowed != true) return false;
-                final uid = trigger.currentUid;
-                if (uid == null) return false;
-                // Recorded against the UID that is signed in RIGHT NOW, read
-                // after the sheet rather than before it: the account can change
-                // while a modal is open, and consent belongs to whoever gave it.
-                await settings.setAnalysisConsent(uid);
-                return true;
-              },
-            ),
-          ),
-        ),
+        onOpen: openViewer,
+        // Local-only and independent of `available` (Firestore/cloud): the
+        // sessions list reads nothing but this device's own database. Gated
+        // on `canAnalyze` instead, matching the Describe action itself — a
+        // build with no analysis feature has nothing here to browse.
+        onOpenSessions: !canAnalyze
+            ? null
+            : (context) => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => AnalysisSessionsScreen(
+                      load: () async {
+                        final uid = trigger.currentUid;
+                        if (uid == null) return const <AnalysisSession>[];
+                        return sessionRepo.allFor(uid);
+                      },
+                      loadMessages: sessionRepo.messagesFor,
+                      loadMedia: repo.byId,
+                      // Reopens the PHOTO rather than the transcript
+                      // directly: `openViewer` already owns every consent,
+                      // cap and resume rule Describe needs, and tapping
+                      // Describe there immediately resumes this same session
+                      // via `loadExistingTurns` above — one code path for
+                      // "show me this conversation" instead of two.
+                      onOpen: (context, session) async {
+                        final media = await repo.byId(session.mediaId);
+                        if (media == null || !context.mounted) return;
+                        openViewer(context, media);
+                      },
+                    ),
+                  ),
+                ),
       ),
     ),
   );

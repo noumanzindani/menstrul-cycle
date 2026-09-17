@@ -136,7 +136,7 @@
   "settingsAppLockTitle": "App lock",
   "settingsAppLockSubtitle": "Require a PIN or biometrics to open",
   "settingsPhotoDescriptionsTitle": "Describe photos",
-  "settingsPhotoDescriptionsSubtitle": "Sends a photo to Google when you tap Describe",
+  "settingsPhotoDescriptionsSubtitle": "Sends a photo, and what you have tracked — cycle history, symptoms, height and weight, discharge, sexual activity, contraception, diagnoses and diary notes — to Google when you tap Describe",
   "settingsDeleteTitle": "Delete all my data",
   "settingsDeleteSubtitle": "Erase this device and turn cloud sync off here",
 

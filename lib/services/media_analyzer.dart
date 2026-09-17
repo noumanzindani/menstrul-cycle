@@ -47,13 +47,16 @@ abstract class MediaAnalyzer {
   /// Sends [bytes] with [question] and returns the model's answer.
   ///
   /// [history] is the conversation about this same photo so far, oldest first.
-  /// Empty for an opening description. Throws [AnalysisException] for anything
-  /// the user needs told about.
+  /// Empty for an opening description. [healthContext], when supplied, rides
+  /// the first user turn alongside the image — see `buildAnalysisRequest` in
+  /// `media_analysis.dart` for exactly where and why. Throws
+  /// [AnalysisException] for anything the user needs told about.
   Future<AnalysisResult> analyze({
     required Uint8List bytes,
     required String mimeType,
     required String question,
     List<AnalysisTurn> history = const [],
+    String? healthContext,
   });
 }
 
@@ -85,6 +88,7 @@ class GeminiMediaAnalyzer implements MediaAnalyzer {
     required String mimeType,
     required String question,
     List<AnalysisTurn> history = const [],
+    String? healthContext,
   }) async {
     if (_apiKey.isEmpty) {
       throw const AnalysisException(
@@ -102,6 +106,7 @@ class GeminiMediaAnalyzer implements MediaAnalyzer {
           mimeType: mimeType,
           question: question,
           history: history,
+          healthContext: healthContext,
         ),
       ),
     );
@@ -176,6 +181,7 @@ class UnavailableMediaAnalyzer implements MediaAnalyzer {
     required String mimeType,
     required String question,
     List<AnalysisTurn> history = const [],
+    String? healthContext,
   }) async =>
       throw StateError('Photo analysis is unavailable in this build.');
 }

@@ -2010,6 +2010,16 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _analysisConsentVersionMeta =
+      const VerificationMeta('analysisConsentVersion');
+  @override
+  late final GeneratedColumn<int> analysisConsentVersion = GeneratedColumn<int>(
+    'analysis_consent_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _dateOfBirthMeta = const VerificationMeta(
     'dateOfBirth',
   );
@@ -2144,6 +2154,7 @@ class $AppSettingsTable extends AppSettings
     analysisConsentUid,
     analysisCountDay,
     analysisCountToday,
+    analysisConsentVersion,
     dateOfBirth,
     heightCm,
     profileWeightKg,
@@ -2305,6 +2316,15 @@ class $AppSettingsTable extends AppSettings
         analysisCountToday.isAcceptableOrUnknown(
           data['analysis_count_today']!,
           _analysisCountTodayMeta,
+        ),
+      );
+    }
+    if (data.containsKey('analysis_consent_version')) {
+      context.handle(
+        _analysisConsentVersionMeta,
+        analysisConsentVersion.isAcceptableOrUnknown(
+          data['analysis_consent_version']!,
+          _analysisConsentVersionMeta,
         ),
       );
     }
@@ -2482,6 +2502,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.int,
         data['${effectivePrefix}analysis_count_today'],
       ),
+      analysisConsentVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}analysis_consent_version'],
+      ),
       dateOfBirth: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}date_of_birth'],
@@ -2554,6 +2578,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final String? analysisConsentUid;
   final String? analysisCountDay;
   final int? analysisCountToday;
+  final int? analysisConsentVersion;
   final DateTime? dateOfBirth;
   final double? heightCm;
   final double? profileWeightKg;
@@ -2584,6 +2609,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.analysisConsentUid,
     this.analysisCountDay,
     this.analysisCountToday,
+    this.analysisConsentVersion,
     this.dateOfBirth,
     this.heightCm,
     this.profileWeightKg,
@@ -2636,6 +2662,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     }
     if (!nullToAbsent || analysisCountToday != null) {
       map['analysis_count_today'] = Variable<int>(analysisCountToday);
+    }
+    if (!nullToAbsent || analysisConsentVersion != null) {
+      map['analysis_consent_version'] = Variable<int>(analysisConsentVersion);
     }
     if (!nullToAbsent || dateOfBirth != null) {
       map['date_of_birth'] = Variable<DateTime>(dateOfBirth);
@@ -2711,6 +2740,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       analysisCountToday: analysisCountToday == null && nullToAbsent
           ? const Value.absent()
           : Value(analysisCountToday),
+      analysisConsentVersion: analysisConsentVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(analysisConsentVersion),
       dateOfBirth: dateOfBirth == null && nullToAbsent
           ? const Value.absent()
           : Value(dateOfBirth),
@@ -2783,6 +2815,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       ),
       analysisCountDay: serializer.fromJson<String?>(json['analysisCountDay']),
       analysisCountToday: serializer.fromJson<int?>(json['analysisCountToday']),
+      analysisConsentVersion: serializer.fromJson<int?>(
+        json['analysisConsentVersion'],
+      ),
       dateOfBirth: serializer.fromJson<DateTime?>(json['dateOfBirth']),
       heightCm: serializer.fromJson<double?>(json['heightCm']),
       profileWeightKg: serializer.fromJson<double?>(json['profileWeightKg']),
@@ -2828,6 +2863,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'analysisConsentUid': serializer.toJson<String?>(analysisConsentUid),
       'analysisCountDay': serializer.toJson<String?>(analysisCountDay),
       'analysisCountToday': serializer.toJson<int?>(analysisCountToday),
+      'analysisConsentVersion': serializer.toJson<int?>(analysisConsentVersion),
       'dateOfBirth': serializer.toJson<DateTime?>(dateOfBirth),
       'heightCm': serializer.toJson<double?>(heightCm),
       'profileWeightKg': serializer.toJson<double?>(profileWeightKg),
@@ -2863,6 +2899,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<String?> analysisConsentUid = const Value.absent(),
     Value<String?> analysisCountDay = const Value.absent(),
     Value<int?> analysisCountToday = const Value.absent(),
+    Value<int?> analysisConsentVersion = const Value.absent(),
     Value<DateTime?> dateOfBirth = const Value.absent(),
     Value<double?> heightCm = const Value.absent(),
     Value<double?> profileWeightKg = const Value.absent(),
@@ -2905,6 +2942,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     analysisCountToday: analysisCountToday.present
         ? analysisCountToday.value
         : this.analysisCountToday,
+    analysisConsentVersion: analysisConsentVersion.present
+        ? analysisConsentVersion.value
+        : this.analysisConsentVersion,
     dateOfBirth: dateOfBirth.present ? dateOfBirth.value : this.dateOfBirth,
     heightCm: heightCm.present ? heightCm.value : this.heightCm,
     profileWeightKg: profileWeightKg.present
@@ -2979,6 +3019,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       analysisCountToday: data.analysisCountToday.present
           ? data.analysisCountToday.value
           : this.analysisCountToday,
+      analysisConsentVersion: data.analysisConsentVersion.present
+          ? data.analysisConsentVersion.value
+          : this.analysisConsentVersion,
       dateOfBirth: data.dateOfBirth.present
           ? data.dateOfBirth.value
           : this.dateOfBirth,
@@ -3032,6 +3075,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('analysisConsentUid: $analysisConsentUid, ')
           ..write('analysisCountDay: $analysisCountDay, ')
           ..write('analysisCountToday: $analysisCountToday, ')
+          ..write('analysisConsentVersion: $analysisConsentVersion, ')
           ..write('dateOfBirth: $dateOfBirth, ')
           ..write('heightCm: $heightCm, ')
           ..write('profileWeightKg: $profileWeightKg, ')
@@ -3067,6 +3111,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     analysisConsentUid,
     analysisCountDay,
     analysisCountToday,
+    analysisConsentVersion,
     dateOfBirth,
     heightCm,
     profileWeightKg,
@@ -3101,6 +3146,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.analysisConsentUid == this.analysisConsentUid &&
           other.analysisCountDay == this.analysisCountDay &&
           other.analysisCountToday == this.analysisCountToday &&
+          other.analysisConsentVersion == this.analysisConsentVersion &&
           other.dateOfBirth == this.dateOfBirth &&
           other.heightCm == this.heightCm &&
           other.profileWeightKg == this.profileWeightKg &&
@@ -3133,6 +3179,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<String?> analysisConsentUid;
   final Value<String?> analysisCountDay;
   final Value<int?> analysisCountToday;
+  final Value<int?> analysisConsentVersion;
   final Value<DateTime?> dateOfBirth;
   final Value<double?> heightCm;
   final Value<double?> profileWeightKg;
@@ -3163,6 +3210,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.analysisConsentUid = const Value.absent(),
     this.analysisCountDay = const Value.absent(),
     this.analysisCountToday = const Value.absent(),
+    this.analysisConsentVersion = const Value.absent(),
     this.dateOfBirth = const Value.absent(),
     this.heightCm = const Value.absent(),
     this.profileWeightKg = const Value.absent(),
@@ -3194,6 +3242,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.analysisConsentUid = const Value.absent(),
     this.analysisCountDay = const Value.absent(),
     this.analysisCountToday = const Value.absent(),
+    this.analysisConsentVersion = const Value.absent(),
     this.dateOfBirth = const Value.absent(),
     this.heightCm = const Value.absent(),
     this.profileWeightKg = const Value.absent(),
@@ -3225,6 +3274,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<String>? analysisConsentUid,
     Expression<String>? analysisCountDay,
     Expression<int>? analysisCountToday,
+    Expression<int>? analysisConsentVersion,
     Expression<DateTime>? dateOfBirth,
     Expression<double>? heightCm,
     Expression<double>? profileWeightKg,
@@ -3262,6 +3312,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (analysisCountDay != null) 'analysis_count_day': analysisCountDay,
       if (analysisCountToday != null)
         'analysis_count_today': analysisCountToday,
+      if (analysisConsentVersion != null)
+        'analysis_consent_version': analysisConsentVersion,
       if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
       if (heightCm != null) 'height_cm': heightCm,
       if (profileWeightKg != null) 'profile_weight_kg': profileWeightKg,
@@ -3298,6 +3350,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<String?>? analysisConsentUid,
     Value<String?>? analysisCountDay,
     Value<int?>? analysisCountToday,
+    Value<int?>? analysisConsentVersion,
     Value<DateTime?>? dateOfBirth,
     Value<double?>? heightCm,
     Value<double?>? profileWeightKg,
@@ -3330,6 +3383,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       analysisConsentUid: analysisConsentUid ?? this.analysisConsentUid,
       analysisCountDay: analysisCountDay ?? this.analysisCountDay,
       analysisCountToday: analysisCountToday ?? this.analysisCountToday,
+      analysisConsentVersion:
+          analysisConsentVersion ?? this.analysisConsentVersion,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       heightCm: heightCm ?? this.heightCm,
       profileWeightKg: profileWeightKg ?? this.profileWeightKg,
@@ -3410,6 +3465,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (analysisCountToday.present) {
       map['analysis_count_today'] = Variable<int>(analysisCountToday.value);
     }
+    if (analysisConsentVersion.present) {
+      map['analysis_consent_version'] = Variable<int>(
+        analysisConsentVersion.value,
+      );
+    }
     if (dateOfBirth.present) {
       map['date_of_birth'] = Variable<DateTime>(dateOfBirth.value);
     }
@@ -3469,6 +3529,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('analysisConsentUid: $analysisConsentUid, ')
           ..write('analysisCountDay: $analysisCountDay, ')
           ..write('analysisCountToday: $analysisCountToday, ')
+          ..write('analysisConsentVersion: $analysisConsentVersion, ')
           ..write('dateOfBirth: $dateOfBirth, ')
           ..write('heightCm: $heightCm, ')
           ..write('profileWeightKg: $profileWeightKg, ')
@@ -4534,6 +4595,785 @@ class MediaItemsCompanion extends UpdateCompanion<MediaItem> {
   }
 }
 
+class $AnalysisSessionsTable extends AnalysisSessions
+    with TableInfo<$AnalysisSessionsTable, AnalysisSession> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnalysisSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _uidMeta = const VerificationMeta('uid');
+  @override
+  late final GeneratedColumn<String> uid = GeneratedColumn<String>(
+    'uid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _mediaIdMeta = const VerificationMeta(
+    'mediaId',
+  );
+  @override
+  late final GeneratedColumn<String> mediaId = GeneratedColumn<String>(
+    'media_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _consentVersionMeta = const VerificationMeta(
+    'consentVersion',
+  );
+  @override
+  late final GeneratedColumn<int> consentVersion = GeneratedColumn<int>(
+    'consent_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    uid,
+    mediaId,
+    consentVersion,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'analysis_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AnalysisSession> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('uid')) {
+      context.handle(
+        _uidMeta,
+        uid.isAcceptableOrUnknown(data['uid']!, _uidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uidMeta);
+    }
+    if (data.containsKey('media_id')) {
+      context.handle(
+        _mediaIdMeta,
+        mediaId.isAcceptableOrUnknown(data['media_id']!, _mediaIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_mediaIdMeta);
+    }
+    if (data.containsKey('consent_version')) {
+      context.handle(
+        _consentVersionMeta,
+        consentVersion.isAcceptableOrUnknown(
+          data['consent_version']!,
+          _consentVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_consentVersionMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AnalysisSession map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnalysisSession(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      uid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uid'],
+      )!,
+      mediaId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}media_id'],
+      )!,
+      consentVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}consent_version'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AnalysisSessionsTable createAlias(String alias) {
+    return $AnalysisSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
+  final String id;
+
+  /// Scopes every read, exactly as `MediaItems.uid` does. Signing out does not
+  /// wipe the device, so without this filter one account's conversation about
+  /// their own body could render under another account.
+  final String uid;
+  final String mediaId;
+
+  /// Which consent disclosure this conversation was created under. Stamped so a
+  /// stored transcript records what the user was actually told when it started.
+  final int consentVersion;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const AnalysisSession({
+    required this.id,
+    required this.uid,
+    required this.mediaId,
+    required this.consentVersion,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['uid'] = Variable<String>(uid);
+    map['media_id'] = Variable<String>(mediaId);
+    map['consent_version'] = Variable<int>(consentVersion);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  AnalysisSessionsCompanion toCompanion(bool nullToAbsent) {
+    return AnalysisSessionsCompanion(
+      id: Value(id),
+      uid: Value(uid),
+      mediaId: Value(mediaId),
+      consentVersion: Value(consentVersion),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory AnalysisSession.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnalysisSession(
+      id: serializer.fromJson<String>(json['id']),
+      uid: serializer.fromJson<String>(json['uid']),
+      mediaId: serializer.fromJson<String>(json['mediaId']),
+      consentVersion: serializer.fromJson<int>(json['consentVersion']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'uid': serializer.toJson<String>(uid),
+      'mediaId': serializer.toJson<String>(mediaId),
+      'consentVersion': serializer.toJson<int>(consentVersion),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  AnalysisSession copyWith({
+    String? id,
+    String? uid,
+    String? mediaId,
+    int? consentVersion,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => AnalysisSession(
+    id: id ?? this.id,
+    uid: uid ?? this.uid,
+    mediaId: mediaId ?? this.mediaId,
+    consentVersion: consentVersion ?? this.consentVersion,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  AnalysisSession copyWithCompanion(AnalysisSessionsCompanion data) {
+    return AnalysisSession(
+      id: data.id.present ? data.id.value : this.id,
+      uid: data.uid.present ? data.uid.value : this.uid,
+      mediaId: data.mediaId.present ? data.mediaId.value : this.mediaId,
+      consentVersion: data.consentVersion.present
+          ? data.consentVersion.value
+          : this.consentVersion,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnalysisSession(')
+          ..write('id: $id, ')
+          ..write('uid: $uid, ')
+          ..write('mediaId: $mediaId, ')
+          ..write('consentVersion: $consentVersion, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, uid, mediaId, consentVersion, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnalysisSession &&
+          other.id == this.id &&
+          other.uid == this.uid &&
+          other.mediaId == this.mediaId &&
+          other.consentVersion == this.consentVersion &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class AnalysisSessionsCompanion extends UpdateCompanion<AnalysisSession> {
+  final Value<String> id;
+  final Value<String> uid;
+  final Value<String> mediaId;
+  final Value<int> consentVersion;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const AnalysisSessionsCompanion({
+    this.id = const Value.absent(),
+    this.uid = const Value.absent(),
+    this.mediaId = const Value.absent(),
+    this.consentVersion = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AnalysisSessionsCompanion.insert({
+    required String id,
+    required String uid,
+    required String mediaId,
+    required int consentVersion,
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       uid = Value(uid),
+       mediaId = Value(mediaId),
+       consentVersion = Value(consentVersion);
+  static Insertable<AnalysisSession> custom({
+    Expression<String>? id,
+    Expression<String>? uid,
+    Expression<String>? mediaId,
+    Expression<int>? consentVersion,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (uid != null) 'uid': uid,
+      if (mediaId != null) 'media_id': mediaId,
+      if (consentVersion != null) 'consent_version': consentVersion,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AnalysisSessionsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? uid,
+    Value<String>? mediaId,
+    Value<int>? consentVersion,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return AnalysisSessionsCompanion(
+      id: id ?? this.id,
+      uid: uid ?? this.uid,
+      mediaId: mediaId ?? this.mediaId,
+      consentVersion: consentVersion ?? this.consentVersion,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (uid.present) {
+      map['uid'] = Variable<String>(uid.value);
+    }
+    if (mediaId.present) {
+      map['media_id'] = Variable<String>(mediaId.value);
+    }
+    if (consentVersion.present) {
+      map['consent_version'] = Variable<int>(consentVersion.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnalysisSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('uid: $uid, ')
+          ..write('mediaId: $mediaId, ')
+          ..write('consentVersion: $consentVersion, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AnalysisMessagesTable extends AnalysisMessages
+    with TableInfo<$AnalysisMessagesTable, AnalysisMessage> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnalysisMessagesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _messageTextMeta = const VerificationMeta(
+    'messageText',
+  );
+  @override
+  late final GeneratedColumn<String> messageText = GeneratedColumn<String>(
+    'message_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sessionId,
+    role,
+    messageText,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'analysis_messages';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AnalysisMessage> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('message_text')) {
+      context.handle(
+        _messageTextMeta,
+        messageText.isAcceptableOrUnknown(
+          data['message_text']!,
+          _messageTextMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_messageTextMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AnalysisMessage map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnalysisMessage(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      )!,
+      messageText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}message_text'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AnalysisMessagesTable createAlias(String alias) {
+    return $AnalysisMessagesTable(attachedDatabase, alias);
+  }
+}
+
+class AnalysisMessage extends DataClass implements Insertable<AnalysisMessage> {
+  final String id;
+  final String sessionId;
+  final String role;
+  final String messageText;
+  final DateTime createdAt;
+  const AnalysisMessage({
+    required this.id,
+    required this.sessionId,
+    required this.role,
+    required this.messageText,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['session_id'] = Variable<String>(sessionId);
+    map['role'] = Variable<String>(role);
+    map['message_text'] = Variable<String>(messageText);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AnalysisMessagesCompanion toCompanion(bool nullToAbsent) {
+    return AnalysisMessagesCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      role: Value(role),
+      messageText: Value(messageText),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AnalysisMessage.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnalysisMessage(
+      id: serializer.fromJson<String>(json['id']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      role: serializer.fromJson<String>(json['role']),
+      messageText: serializer.fromJson<String>(json['messageText']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'role': serializer.toJson<String>(role),
+      'messageText': serializer.toJson<String>(messageText),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  AnalysisMessage copyWith({
+    String? id,
+    String? sessionId,
+    String? role,
+    String? messageText,
+    DateTime? createdAt,
+  }) => AnalysisMessage(
+    id: id ?? this.id,
+    sessionId: sessionId ?? this.sessionId,
+    role: role ?? this.role,
+    messageText: messageText ?? this.messageText,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  AnalysisMessage copyWithCompanion(AnalysisMessagesCompanion data) {
+    return AnalysisMessage(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      role: data.role.present ? data.role.value : this.role,
+      messageText: data.messageText.present
+          ? data.messageText.value
+          : this.messageText,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnalysisMessage(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('role: $role, ')
+          ..write('messageText: $messageText, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, sessionId, role, messageText, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnalysisMessage &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.role == this.role &&
+          other.messageText == this.messageText &&
+          other.createdAt == this.createdAt);
+}
+
+class AnalysisMessagesCompanion extends UpdateCompanion<AnalysisMessage> {
+  final Value<String> id;
+  final Value<String> sessionId;
+  final Value<String> role;
+  final Value<String> messageText;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const AnalysisMessagesCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.messageText = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AnalysisMessagesCompanion.insert({
+    required String id,
+    required String sessionId,
+    required String role,
+    required String messageText,
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       sessionId = Value(sessionId),
+       role = Value(role),
+       messageText = Value(messageText);
+  static Insertable<AnalysisMessage> custom({
+    Expression<String>? id,
+    Expression<String>? sessionId,
+    Expression<String>? role,
+    Expression<String>? messageText,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (role != null) 'role': role,
+      if (messageText != null) 'message_text': messageText,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AnalysisMessagesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? sessionId,
+    Value<String>? role,
+    Value<String>? messageText,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return AnalysisMessagesCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      role: role ?? this.role,
+      messageText: messageText ?? this.messageText,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (messageText.present) {
+      map['message_text'] = Variable<String>(messageText.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnalysisMessagesCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('role: $role, ')
+          ..write('messageText: $messageText, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4544,6 +5384,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $SyncTombstonesTable syncTombstones = $SyncTombstonesTable(this);
   late final $MediaItemsTable mediaItems = $MediaItemsTable(this);
+  late final $AnalysisSessionsTable analysisSessions = $AnalysisSessionsTable(
+    this,
+  );
+  late final $AnalysisMessagesTable analysisMessages = $AnalysisMessagesTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4556,6 +5402,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     appSettings,
     syncTombstones,
     mediaItems,
+    analysisSessions,
+    analysisMessages,
   ];
 }
 
@@ -5500,6 +6348,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<String?> analysisConsentUid,
       Value<String?> analysisCountDay,
       Value<int?> analysisCountToday,
+      Value<int?> analysisConsentVersion,
       Value<DateTime?> dateOfBirth,
       Value<double?> heightCm,
       Value<double?> profileWeightKg,
@@ -5532,6 +6381,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<String?> analysisConsentUid,
       Value<String?> analysisCountDay,
       Value<int?> analysisCountToday,
+      Value<int?> analysisConsentVersion,
       Value<DateTime?> dateOfBirth,
       Value<double?> heightCm,
       Value<double?> profileWeightKg,
@@ -5646,6 +6496,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<int> get analysisCountToday => $composableBuilder(
     column: $table.analysisCountToday,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get analysisConsentVersion => $composableBuilder(
+    column: $table.analysisConsentVersion,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5804,6 +6659,11 @@ class $$AppSettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get analysisConsentVersion => $composableBuilder(
+    column: $table.analysisConsentVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get dateOfBirth => $composableBuilder(
     column: $table.dateOfBirth,
     builder: (column) => ColumnOrderings(column),
@@ -5949,6 +6809,11 @@ class $$AppSettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get analysisConsentVersion => $composableBuilder(
+    column: $table.analysisConsentVersion,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get dateOfBirth => $composableBuilder(
     column: $table.dateOfBirth,
     builder: (column) => column,
@@ -6048,6 +6913,7 @@ class $$AppSettingsTableTableManager
                 Value<String?> analysisConsentUid = const Value.absent(),
                 Value<String?> analysisCountDay = const Value.absent(),
                 Value<int?> analysisCountToday = const Value.absent(),
+                Value<int?> analysisConsentVersion = const Value.absent(),
                 Value<DateTime?> dateOfBirth = const Value.absent(),
                 Value<double?> heightCm = const Value.absent(),
                 Value<double?> profileWeightKg = const Value.absent(),
@@ -6078,6 +6944,7 @@ class $$AppSettingsTableTableManager
                 analysisConsentUid: analysisConsentUid,
                 analysisCountDay: analysisCountDay,
                 analysisCountToday: analysisCountToday,
+                analysisConsentVersion: analysisConsentVersion,
                 dateOfBirth: dateOfBirth,
                 heightCm: heightCm,
                 profileWeightKg: profileWeightKg,
@@ -6110,6 +6977,7 @@ class $$AppSettingsTableTableManager
                 Value<String?> analysisConsentUid = const Value.absent(),
                 Value<String?> analysisCountDay = const Value.absent(),
                 Value<int?> analysisCountToday = const Value.absent(),
+                Value<int?> analysisConsentVersion = const Value.absent(),
                 Value<DateTime?> dateOfBirth = const Value.absent(),
                 Value<double?> heightCm = const Value.absent(),
                 Value<double?> profileWeightKg = const Value.absent(),
@@ -6140,6 +7008,7 @@ class $$AppSettingsTableTableManager
                 analysisConsentUid: analysisConsentUid,
                 analysisCountDay: analysisCountDay,
                 analysisCountToday: analysisCountToday,
+                analysisConsentVersion: analysisConsentVersion,
                 dateOfBirth: dateOfBirth,
                 heightCm: heightCm,
                 profileWeightKg: profileWeightKg,
@@ -6708,6 +7577,441 @@ typedef $$MediaItemsTableProcessedTableManager =
       MediaItem,
       PrefetchHooks Function()
     >;
+typedef $$AnalysisSessionsTableCreateCompanionBuilder =
+    AnalysisSessionsCompanion Function({
+      required String id,
+      required String uid,
+      required String mediaId,
+      required int consentVersion,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$AnalysisSessionsTableUpdateCompanionBuilder =
+    AnalysisSessionsCompanion Function({
+      Value<String> id,
+      Value<String> uid,
+      Value<String> mediaId,
+      Value<int> consentVersion,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$AnalysisSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $AnalysisSessionsTable> {
+  $$AnalysisSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uid => $composableBuilder(
+    column: $table.uid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mediaId => $composableBuilder(
+    column: $table.mediaId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get consentVersion => $composableBuilder(
+    column: $table.consentVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AnalysisSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AnalysisSessionsTable> {
+  $$AnalysisSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uid => $composableBuilder(
+    column: $table.uid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mediaId => $composableBuilder(
+    column: $table.mediaId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get consentVersion => $composableBuilder(
+    column: $table.consentVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AnalysisSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AnalysisSessionsTable> {
+  $$AnalysisSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get uid =>
+      $composableBuilder(column: $table.uid, builder: (column) => column);
+
+  GeneratedColumn<String> get mediaId =>
+      $composableBuilder(column: $table.mediaId, builder: (column) => column);
+
+  GeneratedColumn<int> get consentVersion => $composableBuilder(
+    column: $table.consentVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$AnalysisSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AnalysisSessionsTable,
+          AnalysisSession,
+          $$AnalysisSessionsTableFilterComposer,
+          $$AnalysisSessionsTableOrderingComposer,
+          $$AnalysisSessionsTableAnnotationComposer,
+          $$AnalysisSessionsTableCreateCompanionBuilder,
+          $$AnalysisSessionsTableUpdateCompanionBuilder,
+          (
+            AnalysisSession,
+            BaseReferences<
+              _$AppDatabase,
+              $AnalysisSessionsTable,
+              AnalysisSession
+            >,
+          ),
+          AnalysisSession,
+          PrefetchHooks Function()
+        > {
+  $$AnalysisSessionsTableTableManager(
+    _$AppDatabase db,
+    $AnalysisSessionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnalysisSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnalysisSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnalysisSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> uid = const Value.absent(),
+                Value<String> mediaId = const Value.absent(),
+                Value<int> consentVersion = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AnalysisSessionsCompanion(
+                id: id,
+                uid: uid,
+                mediaId: mediaId,
+                consentVersion: consentVersion,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String uid,
+                required String mediaId,
+                required int consentVersion,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AnalysisSessionsCompanion.insert(
+                id: id,
+                uid: uid,
+                mediaId: mediaId,
+                consentVersion: consentVersion,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AnalysisSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AnalysisSessionsTable,
+      AnalysisSession,
+      $$AnalysisSessionsTableFilterComposer,
+      $$AnalysisSessionsTableOrderingComposer,
+      $$AnalysisSessionsTableAnnotationComposer,
+      $$AnalysisSessionsTableCreateCompanionBuilder,
+      $$AnalysisSessionsTableUpdateCompanionBuilder,
+      (
+        AnalysisSession,
+        BaseReferences<_$AppDatabase, $AnalysisSessionsTable, AnalysisSession>,
+      ),
+      AnalysisSession,
+      PrefetchHooks Function()
+    >;
+typedef $$AnalysisMessagesTableCreateCompanionBuilder =
+    AnalysisMessagesCompanion Function({
+      required String id,
+      required String sessionId,
+      required String role,
+      required String messageText,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$AnalysisMessagesTableUpdateCompanionBuilder =
+    AnalysisMessagesCompanion Function({
+      Value<String> id,
+      Value<String> sessionId,
+      Value<String> role,
+      Value<String> messageText,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$AnalysisMessagesTableFilterComposer
+    extends Composer<_$AppDatabase, $AnalysisMessagesTable> {
+  $$AnalysisMessagesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get messageText => $composableBuilder(
+    column: $table.messageText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AnalysisMessagesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AnalysisMessagesTable> {
+  $$AnalysisMessagesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get messageText => $composableBuilder(
+    column: $table.messageText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AnalysisMessagesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AnalysisMessagesTable> {
+  $$AnalysisMessagesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get messageText => $composableBuilder(
+    column: $table.messageText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AnalysisMessagesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AnalysisMessagesTable,
+          AnalysisMessage,
+          $$AnalysisMessagesTableFilterComposer,
+          $$AnalysisMessagesTableOrderingComposer,
+          $$AnalysisMessagesTableAnnotationComposer,
+          $$AnalysisMessagesTableCreateCompanionBuilder,
+          $$AnalysisMessagesTableUpdateCompanionBuilder,
+          (
+            AnalysisMessage,
+            BaseReferences<
+              _$AppDatabase,
+              $AnalysisMessagesTable,
+              AnalysisMessage
+            >,
+          ),
+          AnalysisMessage,
+          PrefetchHooks Function()
+        > {
+  $$AnalysisMessagesTableTableManager(
+    _$AppDatabase db,
+    $AnalysisMessagesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnalysisMessagesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnalysisMessagesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnalysisMessagesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> sessionId = const Value.absent(),
+                Value<String> role = const Value.absent(),
+                Value<String> messageText = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AnalysisMessagesCompanion(
+                id: id,
+                sessionId: sessionId,
+                role: role,
+                messageText: messageText,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String sessionId,
+                required String role,
+                required String messageText,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AnalysisMessagesCompanion.insert(
+                id: id,
+                sessionId: sessionId,
+                role: role,
+                messageText: messageText,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AnalysisMessagesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AnalysisMessagesTable,
+      AnalysisMessage,
+      $$AnalysisMessagesTableFilterComposer,
+      $$AnalysisMessagesTableOrderingComposer,
+      $$AnalysisMessagesTableAnnotationComposer,
+      $$AnalysisMessagesTableCreateCompanionBuilder,
+      $$AnalysisMessagesTableUpdateCompanionBuilder,
+      (
+        AnalysisMessage,
+        BaseReferences<_$AppDatabase, $AnalysisMessagesTable, AnalysisMessage>,
+      ),
+      AnalysisMessage,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6726,4 +8030,8 @@ class $AppDatabaseManager {
       $$SyncTombstonesTableTableManager(_db, _db.syncTombstones);
   $$MediaItemsTableTableManager get mediaItems =>
       $$MediaItemsTableTableManager(_db, _db.mediaItems);
+  $$AnalysisSessionsTableTableManager get analysisSessions =>
+      $$AnalysisSessionsTableTableManager(_db, _db.analysisSessions);
+  $$AnalysisMessagesTableTableManager get analysisMessages =>
+      $$AnalysisMessagesTableTableManager(_db, _db.analysisMessages);
 }

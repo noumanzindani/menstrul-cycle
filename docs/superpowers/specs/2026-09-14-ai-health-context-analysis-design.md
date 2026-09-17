@@ -148,6 +148,18 @@ into something a model can reason about cyclically.
 
 Days outside any derived cycle are labelled `phase unknown` rather than guessed.
 
+**Narrowing found at final review (2026-09-14): the shipped behaviour is narrower than "day 19,
+luteal" implies.** `_phaseFor` (`lib/services/health_context.dart`) returns `menstrual` for a day
+inside a cycle's bleeding window, the live `PredictionResult.currentPhase` for `asOf` only, and
+`unknown` for every other day in the window — so most lines in a 90-day history read
+`(day 19, unknown)`, not `(day 19, luteal)`. This is a deliberate ruling, not a bug: asserting a
+retrospective follicular/ovulatory/luteal phase for a day that was never `asOf` would mean
+inferring past ovulation timing from a calendar-only model, which is exactly the kind of
+manufactured precision this app's fertility guardrails (see `CLAUDE.md`) refuse to produce
+elsewhere. **The ruling is: keep this narrower behaviour.** Restoring historical phase derivation
+for the health-context assembler is an open follow-up requiring its own review, not a defect to
+silently fix.
+
 ### D5 — A bounded 90-day window
 
 `kContextWindowDays = 90`, with cycle statistics computed over the last 12 cycles (the same

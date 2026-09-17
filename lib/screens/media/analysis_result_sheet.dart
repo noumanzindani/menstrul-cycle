@@ -21,6 +21,7 @@ Future<void> showAnalysisResultSheet(
   String? title,
   Uint8List? thumbnail,
   int Function()? messagesLeft,
+  List<AnalysisTurn> initialTurns = const [],
 }) async {
   await showModalBottomSheet<void>(
     context: context,
@@ -38,6 +39,7 @@ Future<void> showAnalysisResultSheet(
         title: title,
         thumbnail: thumbnail,
         messagesLeft: messagesLeft,
+        initialTurns: initialTurns,
       ),
     ),
   );
@@ -72,6 +74,7 @@ class AnalysisResultSheet extends StatefulWidget {
     this.title,
     this.thumbnail,
     this.messagesLeft,
+    this.initialTurns = const [],
   });
 
   final String initialText;
@@ -89,14 +92,28 @@ class AnalysisResultSheet extends StatefulWidget {
   /// updates it. Null hides the counter entirely.
   final int Function()? messagesLeft;
 
+  /// A stored transcript to hydrate the sheet with, oldest turn first.
+  ///
+  /// Empty (the default) reproduces today's behaviour exactly: a single
+  /// model bubble seeded from [initialText]. Non-empty replaces that seed —
+  /// this is what lets the sheet reopen a SAVED conversation instead of
+  /// always starting from one fresh answer, without changing the shape of
+  /// every existing call site.
+  final List<AnalysisTurn> initialTurns;
+
   @override
   State<AnalysisResultSheet> createState() => _AnalysisResultSheetState();
 }
 
 class _AnalysisResultSheetState extends State<AnalysisResultSheet> {
-  late final List<_Message> _messages = [
-    _Message(widget.initialText, fromUser: false),
-  ];
+  late final List<_Message> _messages = widget.initialTurns.isEmpty
+      ? [_Message(widget.initialText, fromUser: false)]
+      : widget.initialTurns
+          .map((turn) => _Message(
+                turn.text,
+                fromUser: turn.role == AnalysisRole.user,
+              ))
+          .toList();
   final _controller = TextEditingController();
   final _scroll = ScrollController();
   bool _busy = false;

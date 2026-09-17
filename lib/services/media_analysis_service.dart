@@ -43,29 +43,55 @@ typedef AnalysisUsage = ({String? day, int? count});
 ///
 /// Opening descriptions are held per media id for the life of this instance
 /// (which is the life of the timeline route). Re-opening the same photo does not
-/// re-bill, and nothing reaches disk — see the "nothing derived is stored" note
-/// in `media_analysis.dart`.
+/// re-bill. A memo hit is still forwarded to [_persistTurn] via [_remember] —
+/// see [_persistTurn]'s doc comment for why the caller must not simply
+/// re-persist it there.
 ///
-/// ## Conversations are in memory and end when the sheet does
+/// ## Conversations ARE persisted now, but not by this class
 ///
-/// [_transcripts] holds what the model has been told about each photo so far.
-/// It exists because `generateContent` keeps no session: without it, every
+/// [_transcripts] holds what the model has been told about each photo so far —
+/// the in-memory working copy [analyze] reads for `history` on every call,
+/// because `generateContent` keeps no session of its own: without it, every
 /// follow-up would be a cold start and "how many are there?" would have no
-/// referent. It is cleared by [endConversation] when the sheet closes, and it
-/// never touches disk.
+/// referent. It is cleared by [endConversation] when the sheet closes, so
+/// re-opening the same photo mid-session starts a fresh transcript rather than
+/// silently resuming — and it is seeded back from a STORED transcript by
+/// [seedConversation] when the caller resumes a saved conversation, for the
+/// same reason: restoring only what the user sees, without restoring what the
+/// model was told, gets a conversation that displays history but has none.
 ///
-/// That last part is not laziness. A saved chat log about a body photo would be
-/// a second, softer copy of the most sensitive content in the app, and it would
-/// then need its own erasure path in `deleteAllData`, the purge job, `.lunabak`
-/// exclusion and the doctor-PDF exclusion — the same argument that keeps single
-/// descriptions unsaved, only more so.
+/// The durable copy lives elsewhere. Conversations are now saved to the
+/// encrypted drift database (`AnalysisSessions` / `AnalysisMessages`, schema
+/// v11) — but this class still never imports a repository or the database to
+/// do it: [_persistTurn] is an injected closure, resolved in
+/// `lib/screens/media/media_route.dart`, and `test/media_guardrails_test.dart`
+/// structurally forbids this file from importing `MediaRepository`,
+/// `MediaBlobStore`, `AppDatabase` or `lunaFirestore`. Every early return above
+/// [_remember] — a gate, a daily-cap refusal, a thrown [AnalysisException] —
+/// skips persistence along with the transcript, so only errorless exchanges
+/// are ever saved (see [_remember]'s own doc comment).
+///
+/// The costs a saved chat log about a body photo would create were paid, not
+/// avoided: `deleteAllData()` clears both tables, sign-out and an account
+/// change wipe rows scoped to other uids, deleting a photo cascade-deletes its
+/// conversation and messages, and both tables are excluded from `.lunabak` and
+/// the doctor PDF — all structurally guarded in `test/media_guardrails_test.dart`.
+/// They are local-only and never reach Firestore, so unlike media itself they
+/// need no purge-job coverage.
 class MediaAnalysisService {
   MediaAnalysisService({
     required MediaAnalyzer analyzer,
     required SyncTrigger trigger,
     required String? Function() consentUid,
+    required int? Function() consentVersion,
     required AnalysisUsage Function() readUsage,
     required Future<void> Function(String day, int count) writeUsage,
+    required Future<void> Function({
+      required String mediaId,
+      required String question,
+      required String answer,
+      required bool isMemoHit,
+    }) persistTurn,
     DateTime Function() now = DateTime.now,
     // Nullable rather than defaulted: `analysisAvailable` reads a
     // `String.fromEnvironment` getter, which is not a constant expression and
@@ -74,16 +100,52 @@ class MediaAnalysisService {
   })  : _analyzer = analyzer,
         _trigger = trigger,
         _consentUid = consentUid,
+        _consentVersion = consentVersion,
         _readUsage = readUsage,
         _writeUsage = writeUsage,
+        _persistTurn = persistTurn,
         _now = now,
         _available = available ?? analysisAvailable;
 
   final MediaAnalyzer _analyzer;
   final SyncTrigger _trigger;
   final String? Function() _consentUid;
+
+  /// Which consent disclosure [_consentUid]'s account agreed to. Compared
+  /// against [kCurrentConsentVersion] everywhere [_consentUid] is compared
+  /// against the current uid — a stale version is exactly as unconsented as
+  /// no uid at all, because it means the account agreed to a narrower
+  /// disclosure than what this build actually sends.
+  final int? Function() _consentVersion;
   final AnalysisUsage Function() _readUsage;
   final Future<void> Function(String day, int count) _writeUsage;
+
+  /// Saves one errorless exchange (the user's question and the model's
+  /// reply) to whatever conversation store the CALLER wires up.
+  ///
+  /// Opaque and injected for the same reason [MediaAnalysisService] never
+  /// imports `AnalysisSessionRepository` itself: this class must not be able
+  /// to reach the database (`test/media_guardrails_test.dart` enforces it).
+  /// The production implementation, built in `media_route.dart`, resolves an
+  /// existing session for the mediaId or creates one, then appends both
+  /// turns — this class knows none of that; it just calls the function once
+  /// per successful turn.
+  ///
+  /// [isMemoHit] is true when [result] came from the in-memory memo rather
+  /// than a fresh network call — see [_memo]. It exists ONLY so the caller
+  /// can decide whether this exchange is already saved: a memo hit re-serves
+  /// an answer already shown once before, and if a session already holds
+  /// that opening exchange, persisting again would insert an exact
+  /// duplicate (`AnalysisSessionRepository.append` is a pure insert, not an
+  /// upsert). This class does not make that decision itself — it has no
+  /// concept of a "session" to check — it only tells the caller which case
+  /// this is and lets `persistAnalysisTurn` in `media_route.dart` decide.
+  final Future<void> Function({
+    required String mediaId,
+    required String question,
+    required String answer,
+    required bool isMemoHit,
+  }) _persistTurn;
   final DateTime Function() _now;
   final bool _available;
 
@@ -106,6 +168,39 @@ class MediaAnalysisService {
   /// re-opening the photo genuinely starts over rather than silently resuming.
   void endConversation(String mediaId) => _transcripts.remove(mediaId);
 
+  /// Seeds [mediaId]'s in-memory conversation from a STORED transcript, so
+  /// the next [analyze] call for it carries full prior context instead of
+  /// treating a follow-up as an opening question.
+  ///
+  /// [_transcripts] is the ONLY thing [analyze] reads for `history`, and it
+  /// starts empty every time this service is constructed (once per timeline
+  /// route). Without a seed, resuming a saved session shows the old turns on
+  /// screen but the model itself has no memory of them — the request goes out
+  /// with `history: []`, `generateContent` is stateless, and the answer comes
+  /// back as if the conversation just started. This is the caller's job, not
+  /// something [analyze] can infer on its own: this class has no way to load
+  /// a stored transcript itself (see the class doc's "why the gates are
+  /// duplicated" note on why it must stay ignorant of persistence), so the
+  /// caller — which DID just load one, e.g. from `AnalysisSessionRepository`
+  /// — hands it over as plain [AnalysisTurn]s, a type this class already
+  /// owns. No session, no repository, no database reaches this method or this
+  /// class; `test/media_guardrails_test.dart` enforces that structurally.
+  ///
+  /// Seeded turns count toward [kMaxChatTurns] via [turnsUsed], same as any
+  /// other turn: a conversation resumed nine turns deep IS nine turns deep,
+  /// and undercounting it would hand out more billed turns than the cap
+  /// intends.
+  ///
+  /// A no-op on an empty list, so callers can pass through whatever a loader
+  /// returned (often `[]`, meaning "no saved conversation") with no manual
+  /// guard. Also a no-op if [mediaId] already has an in-memory conversation —
+  /// seeding over live turns would silently discard them.
+  void seedConversation(String mediaId, List<AnalysisTurn> turns) {
+    if (turns.isEmpty) return;
+    if (_transcripts.containsKey(mediaId)) return;
+    _transcripts[mediaId] = List.of(turns);
+  }
+
   /// How many questions have been asked about [mediaId] so far.
   int turnsUsed(String mediaId) =>
       _transcripts[mediaId]?.where((t) => t.role == AnalysisRole.user).length ??
@@ -116,10 +211,11 @@ class MediaAnalysisService {
   /// Cheap and synchronous — deliberately NOT the full gate. It answers only
   /// "has this account opted in", which is what decides whether the button is
   /// shown versus whether a tap succeeds. The authoritative check is [analyze].
-  bool get consented {
-    final uid = _trigger.currentUid;
-    return uid != null && _consentUid() == uid;
-  }
+  bool get consented => isConsentedFor(
+        uid: _trigger.currentUid,
+        consentUid: _consentUid(),
+        consentVersion: _consentVersion(),
+      );
 
   /// How many analyses remain today.
   int get remainingToday {
@@ -137,12 +233,19 @@ class MediaAnalysisService {
   ///
   /// [mediaId] keys the memo only. [isImage] is passed rather than derived so
   /// this file does not need to know the `MediaItem` shape.
+  ///
+  /// [healthContext] is built by the CALLER and passed through untouched.
+  ///
+  /// It is assembled outside this class on purpose: a service that could read
+  /// the database could leak health data into a request by accident, which is
+  /// why `test/media_guardrails_test.dart` forbids the import.
   Future<AnalysisOutcome> analyze({
     required String mediaId,
     required Uint8List bytes,
     required String mimeType,
     required bool isImage,
     String? question,
+    String? healthContext,
   }) async {
     if (!_available) {
       return const AnalysisOutcome(blocked: AnalysisBlock.unavailable);
@@ -170,8 +273,13 @@ class MediaAnalysisService {
     // Consent is checked AFTER the sync gates so a user who has not turned sync
     // on is told that, rather than being sent to a toggle that would not help.
     // Compared against the CURRENT uid: a consent recorded by another account on
-    // this device is not this account's consent.
-    if (_consentUid() != uid) {
+    // this device is not this account's consent. Compared against
+    // kCurrentConsentVersion too (inside isConsentedFor): a stored version
+    // below current means the account agreed to an earlier, narrower
+    // disclosure (a photo, not the whole tracked health record) and must be
+    // asked again.
+    if (!isConsentedFor(
+        uid: uid, consentUid: _consentUid(), consentVersion: _consentVersion())) {
       return const AnalysisOutcome(blocked: AnalysisBlock.notConsented);
     }
     if (!isImage) {
@@ -198,7 +306,7 @@ class MediaAnalysisService {
         // Seeded so a follow-up after a memo hit still has a referent. Without
         // this, re-opening a photo and asking "and the other one?" would send
         // that phrase with no conversation attached.
-        _remember(mediaId, history, asked, memoized);
+        await _remember(mediaId, history, asked, memoized, isMemoHit: true);
         return AnalysisOutcome(result: memoized);
       }
     }
@@ -228,6 +336,7 @@ class MediaAnalysisService {
         mimeType: mimeType,
         question: asked,
         history: history,
+        healthContext: healthContext,
       );
     } on AnalysisException catch (e) {
       // The transcript is deliberately NOT extended on a failure. Appending a
@@ -242,20 +351,31 @@ class MediaAnalysisService {
     }
 
     if (history.isEmpty) _memo['$mediaId|$asked'] = result;
-    _remember(mediaId, history, asked, result);
+    await _remember(mediaId, history, asked, result, isMemoHit: false);
     return AnalysisOutcome(result: result);
   }
 
-  /// Appends one exchange to [mediaId]'s conversation.
+  /// Appends one exchange to [mediaId]'s conversation, and saves it through
+  /// [_persistTurn].
   ///
   /// A result with no prose (a classifier backend fills `labels` instead) is not
-  /// recorded: there is no model utterance to echo back on the next turn.
-  void _remember(
+  /// recorded: there is no model utterance to echo back on the next turn, and
+  /// nothing to save either.
+  ///
+  /// This is the ONLY path that calls [_persistTurn] — every early return
+  /// above it (a gate, a daily-cap refusal, a thrown [AnalysisException])
+  /// skips this method entirely, which is what keeps errors and refusals out
+  /// of the saved transcript. See "Only errorless turns are persisted".
+  ///
+  /// [isMemoHit] is forwarded to [_persistTurn] untouched — see that field's
+  /// doc comment for why this class does not act on it itself.
+  Future<void> _remember(
     String mediaId,
     List<AnalysisTurn> history,
     String asked,
-    AnalysisResult result,
-  ) {
+    AnalysisResult result, {
+    required bool isMemoHit,
+  }) async {
     final prose = result.prose;
     if (prose == null || prose.trim().isEmpty) return;
     _transcripts[mediaId] = <AnalysisTurn>[
@@ -263,5 +383,11 @@ class MediaAnalysisService {
       AnalysisTurn.user(asked),
       AnalysisTurn.model(prose),
     ];
+    await _persistTurn(
+      mediaId: mediaId,
+      question: asked,
+      answer: prose,
+      isMemoHit: isMemoHit,
+    );
   }
 }

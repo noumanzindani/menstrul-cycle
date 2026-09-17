@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:menstrul_track/data/analysis_session_repository.dart';
 import 'package:menstrul_track/data/media_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/services/media_limits.dart';
@@ -159,6 +160,62 @@ void main() {
       await repo.deleteExcept(null);
 
       expect(await db.select(db.mediaItems).get(), isEmpty);
+    });
+  });
+
+  group('cascade to saved analysis conversations', () {
+    // A conversation about a photo that no longer exists is an orphan
+    // holding AI-generated commentary about that photo — see
+    // `AnalysisSessionRepository.deleteForMedia`/`.deleteExcept`, which this
+    // repository must trigger rather than duplicate.
+    late AnalysisSessionRepository sessions;
+
+    setUp(() => sessions = AnalysisSessionRepository(db));
+
+    test('deleteById removes the session AND its messages, not just the row',
+        () async {
+      await seed('a' * 32);
+      final s =
+          await sessions.create(uid: 'uid-1', mediaId: 'a' * 32, consentVersion: 2);
+      await sessions.append(sessionId: s.id, role: 'model', text: 'a description');
+
+      await repo.deleteById('a' * 32);
+
+      expect(await sessions.forMedia(uid: 'uid-1', mediaId: 'a' * 32), isNull);
+      expect(await db.select(db.analysisMessages).get(), isEmpty);
+    });
+
+    test('deleteById leaves another photo\'s conversation untouched',
+        () async {
+      await seed('a' * 32);
+      await seed('b' * 32);
+      final keep =
+          await sessions.create(uid: 'uid-1', mediaId: 'b' * 32, consentVersion: 2);
+      await sessions.append(sessionId: keep.id, role: 'model', text: 'kept');
+
+      await repo.deleteById('a' * 32);
+
+      expect(await sessions.forMedia(uid: 'uid-1', mediaId: 'b' * 32),
+          isNotNull);
+      expect(await db.select(db.analysisMessages).get(), hasLength(1));
+    });
+
+    test('deleteExcept cascades to messages of the dropped account too',
+        () async {
+      await seed('a' * 32, uid: 'uid-A');
+      await seed('b' * 32, uid: 'uid-B');
+      final dropped = await sessions.create(
+          uid: 'uid-A', mediaId: 'a' * 32, consentVersion: 2);
+      await sessions.append(sessionId: dropped.id, role: 'model', text: 'gone');
+      final kept = await sessions.create(
+          uid: 'uid-B', mediaId: 'b' * 32, consentVersion: 2);
+      await sessions.append(sessionId: kept.id, role: 'model', text: 'stays');
+
+      await repo.deleteExcept('uid-B');
+
+      expect(await sessions.allFor('uid-A'), isEmpty);
+      expect(await db.select(db.analysisMessages).get(), hasLength(1));
+      expect(await sessions.allFor('uid-B'), hasLength(1));
     });
   });
 }

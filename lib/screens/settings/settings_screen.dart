@@ -24,6 +24,7 @@ import '../../services/sync_trigger.dart';
 import '../../widgets/ad_banner.dart';
 import '../../widgets/track_art.dart';
 import '../lock/setup_lock_screen.dart';
+import '../media/analysis_consent_sheet.dart';
 import '../medications/medications_screen.dart';
 import 'account_section.dart';
 import 'settings_group.dart';
@@ -1064,10 +1065,15 @@ class SettingsScreen extends StatelessWidget {
                   }
                 },
               ),
-              // Photo descriptions. Off unless the CURRENT account turned it on
-              // — `analysisConsentUid` holds a uid, not a bool, so another
-              // account's consent on this device reads as off here and cannot
-              // be withdrawn from the wrong account either.
+              // Photo descriptions. Off unless the CURRENT account turned it
+              // on for the CURRENT consent disclosure —
+              // `settings.isAnalysisConsentedFor` mirrors
+              // `MediaAnalysisService.consented` exactly (uid match AND
+              // current-version match), so this toggle can never show ON for
+              // an account the real gate would re-prompt. `analysisConsentUid`
+              // holds a uid, not a bool, so another account's consent on this
+              // device reads as off here and cannot be withdrawn from the
+              // wrong account either.
               //
               // Rendered only when a key was compiled in: with no backend the
               // switch would toggle a preference that does nothing, which is
@@ -1078,16 +1084,11 @@ class SettingsScreen extends StatelessWidget {
                   secondary: const Icon(Icons.auto_awesome_outlined),
                   title: Text(l10n.settingsPhotoDescriptionsTitle),
                   subtitle: Text(l10n.settingsPhotoDescriptionsSubtitle),
-                  value: uid != null && settings.analysisConsentUid == uid,
+                  value: settings.isAnalysisConsentedFor(uid),
                   onChanged: uid == null
                       ? null
-                      : (v) async {
-                          if (v) {
-                            await settings.setAnalysisConsent(uid);
-                          } else {
-                            await settings.clearAnalysisConsent();
-                          }
-                        },
+                      : (v) => handlePhotoDescriptionsToggle(
+                          context, settings, v),
                 ),
               ListTile(
                 leading: Icon(Icons.delete_outline, color: scheme.error),
@@ -1129,6 +1130,45 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// The "Describe photos" switch's `onChanged` — pulled out to a named,
+  /// `@visibleForTesting` method because the switch itself is gated on
+  /// `analysisAvailable` (a compile-time `String.fromEnvironment`, false
+  /// under plain `flutter test`), so no widget test can reach it through
+  /// `SettingsScreen`'s tree. This lets a test drive the SAME code the
+  /// switch calls by wiring a bare `onChanged` straight to it.
+  ///
+  /// Turning ON must show the same disclosure the Describe button shows —
+  /// see `media_route.dart`'s `requestConsent`, which this mirrors exactly.
+  /// Persisting straight off the switch flip (the bug this replaced) stamped
+  /// `kCurrentConsentVersion` consent without the user ever seeing what that
+  /// version now discloses: `isAnalysisConsentedFor` reads OFF for a v1
+  /// (photo-only) consenter precisely so this branch can catch and re-ask
+  /// them, and a new user who finds Settings before tapping Describe must
+  /// see it too. Declining leaves the switch OFF for free — nothing is
+  /// persisted, so `settings.isAnalysisConsentedFor(uid)` (read by the
+  /// switch's `value:`) keeps reading false.
+  ///
+  /// Turning OFF stays a direct, unconfirmed clear — no sheet, no gate.
+  @visibleForTesting
+  static Future<void> handlePhotoDescriptionsToggle(
+    BuildContext context,
+    SettingsProvider settings,
+    bool enable,
+  ) async {
+    if (!enable) {
+      await settings.clearAnalysisConsent();
+      return;
+    }
+    final allowed = await showAnalysisConsentSheet(context);
+    if (allowed != true || !context.mounted) return;
+    // Re-read AFTER the sheet closes rather than reuse a uid captured
+    // earlier: the signed-in account can change while the modal is open,
+    // and consent belongs to whoever gave it just now.
+    final consentingUid = context.read<AuthProvider?>()?.user?.uid;
+    if (consentingUid == null) return;
+    await settings.setAnalysisConsent(consentingUid);
   }
 }
 

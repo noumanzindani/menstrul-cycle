@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:drift/native.dart';
@@ -29,18 +30,63 @@ class _FakeAnalyzer implements MediaAnalyzer {
   /// state, and this is where it becomes observable.
   List<AnalysisTurn> lastHistory = const [];
 
+  /// The health context the service handed over on the most recent call —
+  /// observable proof the service forwards it verbatim rather than parsing,
+  /// logging or dropping it.
+  String? lastHealthContext;
+
   @override
   Future<AnalysisResult> analyze({
     required Uint8List bytes,
     required String mimeType,
     required String question,
     List<AnalysisTurn> history = const [],
+    String? healthContext,
   }) async {
     calls++;
     lastQuestion = question;
     lastHistory = history;
+    lastHealthContext = healthContext;
     if (throws != null) throw throws!;
     return AnalysisResult(prose: answer);
+  }
+}
+
+/// Stands in for the `persistAnalysisTurn` wiring built in `media_route.dart`
+/// against `AnalysisSessionRepository`: resolves an existing session for a
+/// mediaId (or creates one) and appends turns to it as PURE inserts — this
+/// deliberately mirrors `AnalysisSessionRepository.append`, which has no
+/// dedup of its own, so a caller-side mistake that re-persists an
+/// already-saved exchange shows up here as an observable duplicate rather
+/// than being silently absorbed. Lets tests observe persistence — including
+/// session resumption and the memo-hit skip — without a database.
+class _FakeSessionStore {
+  final Map<String, String> sessionIdByMedia = {};
+  int createCount = 0;
+  final List<({String sessionId, String role, String text})> messages = [];
+
+  Future<void> persistTurn({
+    required String mediaId,
+    required String question,
+    required String answer,
+    required bool isMemoHit,
+  }) async {
+    final existingId = sessionIdByMedia[mediaId];
+    // Mirrors persistAnalysisTurn's own early return: a memo hit re-serves an
+    // exchange already shown once before, and when a session already exists
+    // it already holds that opening exchange — appending it again would be a
+    // duplicate. See the doc comment on that function in media_route.dart.
+    if (isMemoHit && existingId != null) return;
+    final sessionId = existingId ?? _createSession(mediaId);
+    messages.add((sessionId: sessionId, role: 'user', text: question));
+    messages.add((sessionId: sessionId, role: 'model', text: answer));
+  }
+
+  String _createSession(String mediaId) {
+    createCount++;
+    final id = 'session-$createCount';
+    sessionIdByMedia[mediaId] = id;
+    return id;
   }
 }
 
@@ -49,12 +95,14 @@ void main() {
   late FakeFirebaseFirestore firestore;
   late SyncTrigger trigger;
   late _FakeAnalyzer analyzer;
+  late _FakeSessionStore sessionStore;
   ClaimRecord? claim;
 
   const uid = 'uid-1';
 
   // Mutable consent + usage, standing in for the AppSettings columns.
   String? consentUid;
+  int? consentVersion;
   String? usageDay;
   int? usageCount;
 
@@ -74,11 +122,13 @@ void main() {
         analyzer: analyzer,
         trigger: trigger,
         consentUid: () => consentUid,
+        consentVersion: () => consentVersion,
         readUsage: () => (day: usageDay, count: usageCount),
         writeUsage: (d, c) async {
           usageDay = d;
           usageCount = c;
         },
+        persistTurn: sessionStore.persistTurn,
         now: () => now ?? DateTime(2026, 8, 12, 10),
         available: true,
       );
@@ -89,6 +139,7 @@ void main() {
     bool isImage = true,
     int bytes = 1024,
     String? question,
+    String? healthContext,
   }) =>
       service.analyze(
         mediaId: id,
@@ -96,14 +147,17 @@ void main() {
         mimeType: 'image/jpeg',
         isImage: isImage,
         question: question,
+        healthContext: healthContext,
       );
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     firestore = FakeFirebaseFirestore();
     analyzer = _FakeAnalyzer();
+    sessionStore = _FakeSessionStore();
     claim = const ClaimRecord(uid: uid, declined: false);
     consentUid = uid;
+    consentVersion = kCurrentConsentVersion;
     usageDay = null;
     usageCount = null;
     trigger = await buildTrigger(uid);
@@ -144,6 +198,21 @@ void main() {
       expect(analyzer.calls, 0);
     });
 
+    test('a v1 consenter is not consented — the request now carries the '
+        'whole health record, not just a photo', () async {
+      consentVersion = 1;
+      final outcome = await run(buildService());
+      expect(outcome.blocked, AnalysisBlock.notConsented);
+      expect(analyzer.calls, 0);
+    });
+
+    test('a null version (never consented) reports notConsented', () async {
+      consentVersion = null;
+      final outcome = await run(buildService());
+      expect(outcome.blocked, AnalysisBlock.notConsented);
+      expect(analyzer.calls, 0);
+    });
+
     test('videos are never sent', () async {
       final outcome = await run(buildService(), isImage: false);
       expect(outcome.blocked, AnalysisBlock.notAnImage);
@@ -161,8 +230,10 @@ void main() {
         analyzer: analyzer,
         trigger: trigger,
         consentUid: () => consentUid,
+        consentVersion: () => consentVersion,
         readUsage: () => (day: usageDay, count: usageCount),
         writeUsage: (d, c) async {},
+        persistTurn: sessionStore.persistTurn,
         available: false,
       );
       final outcome = await run(service);
@@ -340,6 +411,76 @@ void main() {
     });
   });
 
+  group('resuming a saved conversation', () {
+    // A resumed session is read from storage into a FRESH service instance —
+    // one is built once per timeline route, so `_transcripts` starts empty
+    // regardless of what a previous route instance ever held. Without
+    // `seedConversation`, a follow-up asked after resuming would be sent with
+    // `history: []`, and the model would answer as though the conversation
+    // the user can see on screen never happened.
+    test('a follow-up after resuming carries the full prior history',
+        () async {
+      final service = buildService();
+      service.seedConversation('media-1', const [
+        AnalysisTurn.user('what colour is it'),
+        AnalysisTurn.model('It is pink.'),
+        AnalysisTurn.user('how many are there'),
+        AnalysisTurn.model('Three.'),
+      ]);
+
+      await run(service, question: 'and the shape?');
+
+      expect(analyzer.lastHistory.length, 4);
+      expect(analyzer.lastHistory[0].role, AnalysisRole.user);
+      expect(analyzer.lastHistory[0].text, 'what colour is it');
+      expect(analyzer.lastHistory[1].text, 'It is pink.');
+      expect(analyzer.lastHistory[2].text, 'how many are there');
+      expect(analyzer.lastHistory[3].text, 'Three.');
+      expect(analyzer.lastQuestion, 'and the shape?');
+    });
+
+    test('seeded turns count toward the turn cap', () async {
+      // A conversation resumed already nine turns deep IS nine turns deep —
+      // undercounting it would hand out more billed turns than the cap
+      // intends, which is exactly what an unseeded `_transcripts` map did.
+      final service = buildService();
+      final seeded = <AnalysisTurn>[];
+      for (var i = 0; i < kMaxChatTurns; i++) {
+        seeded.add(AnalysisTurn.user('question $i'));
+        seeded.add(AnalysisTurn.model('answer $i'));
+      }
+      service.seedConversation('media-1', seeded);
+
+      expect(service.turnsUsed('media-1'), kMaxChatTurns);
+
+      final outcome = await run(service, question: 'one too many');
+      expect(outcome.blocked, AnalysisBlock.turnCap);
+      // Blocked before any network call — the cap check happens before the
+      // analyzer is ever reached.
+      expect(analyzer.calls, 0);
+    });
+
+    test('seeding with no turns is a no-op', () async {
+      final service = buildService();
+      service.seedConversation('media-1', const []);
+      await run(service);
+      expect(analyzer.lastHistory, isEmpty);
+    });
+
+    test('does not overwrite an already-live conversation', () async {
+      final service = buildService();
+      await run(service, question: 'first');
+      service.seedConversation('media-1', const [
+        AnalysisTurn.user('stale question'),
+        AnalysisTurn.model('stale answer'),
+      ]);
+      await run(service, question: 'second');
+      expect(analyzer.lastHistory.length, 2);
+      expect(analyzer.lastHistory[0].text, 'first');
+      expect(analyzer.lastHistory[1].text, 'a description');
+    });
+  });
+
   group('failures', () {
     test('an AnalysisException surfaces its own copy', () async {
       analyzer = _FakeAnalyzer(throws: const AnalysisException('no answer'));
@@ -369,6 +510,142 @@ void main() {
     test('false when signed out', () async {
       trigger = await buildTrigger(null);
       expect(buildService().consented, isFalse);
+    });
+
+    test('a v1 consenter is treated as not consented', () {
+      consentVersion = 1;
+      expect(buildService().consented, isFalse);
+    });
+
+    test('a v2 (current) consenter is consented', () {
+      consentVersion = kCurrentConsentVersion;
+      expect(buildService().consented, isTrue);
+    });
+
+    test('a null version (never consented) is not consented', () {
+      consentVersion = null;
+      expect(buildService().consented, isFalse);
+    });
+
+    test(
+        "a stored uid belonging to a different account is not consented "
+        'regardless of version', () {
+      consentUid = 'someone-else';
+      consentVersion = kCurrentConsentVersion;
+      expect(buildService().consented, isFalse);
+    });
+  });
+
+  group('health context', () {
+    test('forwards the context verbatim to the analyzer', () async {
+      final service = buildService();
+      await run(
+        service,
+        healthContext: '<<<TRACKED_DATA\nAge: 30\nEND_TRACKED_DATA>>>',
+      );
+      expect(analyzer.lastHealthContext, contains('Age: 30'));
+    });
+
+    test('a null health context still works and forwards null', () async {
+      final outcome = await run(buildService());
+      expect(outcome.blocked, isNull);
+      expect(outcome.error, isNull);
+      expect(analyzer.lastHealthContext, isNull);
+    });
+
+    test('the service still cannot reach the database', () {
+      final src = File('lib/services/media_analysis_service.dart').readAsStringSync();
+      for (final banned in const [
+        'media_repository', 'media_blob_store', 'db/database', 'firestore_ref',
+      ]) {
+        expect(src.contains(banned), isFalse, reason: 'must not import $banned');
+      }
+    });
+  });
+
+  group('persistence', () {
+    test('a successful turn persists both the user turn and the model reply',
+        () async {
+      final service = buildService();
+      await run(service, question: 'what is this');
+
+      expect(sessionStore.messages.length, 2);
+      expect(sessionStore.messages[0].role, 'user');
+      expect(sessionStore.messages[0].text, 'what is this');
+      expect(sessionStore.messages[1].role, 'model');
+      expect(sessionStore.messages[1].text, 'a description');
+    });
+
+    test('an error is not persisted', () async {
+      analyzer = _FakeAnalyzer(throws: const AnalysisException('boom'));
+      final service = buildService();
+      await run(service, question: 'what is this');
+      expect(sessionStore.messages, isEmpty);
+    });
+
+    test('a request blocked before the network is not persisted', () async {
+      consentUid = null;
+      final service = buildService();
+      await run(service, question: 'what is this');
+      expect(sessionStore.messages, isEmpty);
+    });
+
+    test(
+        're-opening a photo that already has a session resumes it rather '
+        'than creating a second', () async {
+      final service = buildService();
+      await run(service, question: 'first');
+      service.endConversation('media-1'); // the sheet closed
+      await run(service, question: 'second');
+
+      expect(sessionStore.createCount, 1);
+      expect(sessionStore.messages.length, 4);
+      expect(
+        sessionStore.messages.every((m) => m.sessionId == 'session-1'),
+        isTrue,
+      );
+    });
+
+    test(
+        'a memo hit does not duplicate the exchange when a session already '
+        'exists', () async {
+      // This is the regression this group exists to guard: re-opening a
+      // photo and re-asking its exact opening question serves the answer
+      // from the in-memory memo rather than the network, but the SAME
+      // exchange was already saved the first time. Persisting it again would
+      // insert an exact duplicate pair — the live transcript never repeats
+      // it, so the saved one must not either.
+      final service = buildService();
+      await run(service, question: 'what is this');
+      expect(sessionStore.messages.length, 2); // the original save
+
+      service.endConversation('media-1'); // the sheet closed
+      await run(service, question: 'what is this'); // a memo hit
+
+      expect(sessionStore.createCount, 1);
+      expect(sessionStore.messages.length, 2);
+    });
+
+    test('a memo hit is still persisted when no session exists yet',
+        () async {
+      // The one case a blanket skip would break: the session was deleted
+      // independently of the in-memory memo (e.g. `deleteForMedia` ran, or
+      // this is a fresh MediaAnalysisService instance whose memo somehow
+      // still has the entry). Skipping here would leave a later follow-up
+      // with no opening turn to attach to — worse than a duplicate.
+      final service = buildService();
+      await run(service, question: 'what is this');
+      expect(sessionStore.messages.length, 2);
+
+      // Simulate the session having been deleted out from under the memo.
+      sessionStore.sessionIdByMedia.remove('media-1');
+
+      service.endConversation('media-1');
+      await run(service, question: 'what is this'); // a memo hit, no session
+
+      expect(sessionStore.createCount, 2);
+      expect(sessionStore.messages.length, 4);
+      expect(sessionStore.messages.last.sessionId, 'session-2');
     });
   });
 }

@@ -9,6 +9,8 @@ import '../common/tracking_categories.dart';
 import '../data/settings_repository.dart';
 import '../db/database.dart';
 import '../models/enums.dart';
+import '../services/media_analysis.dart'
+    show isConsentedFor, kCurrentConsentVersion;
 
 /// Exposes the app-settings row and helpers to update common fields.
 class SettingsProvider extends ChangeNotifier {
@@ -43,6 +45,14 @@ class SettingsProvider extends ChangeNotifier {
   /// bool here: "someone consented" and "this account consented" are different
   /// questions, and only the second one may open the feature.
   String? get analysisConsentUid => _settings?.analysisConsentUid;
+
+  /// Which consent disclosure [analysisConsentUid]'s account agreed to.
+  ///
+  /// Compared against `kCurrentConsentVersion` by the caller, alongside the
+  /// uid check above — a stored version below current means the account
+  /// agreed to an earlier, narrower disclosure (a photo, not the whole
+  /// tracked health record) and must be asked again. Null means never asked.
+  int? get analysisConsentVersion => _settings?.analysisConsentVersion;
 
   /// Daily-cap bookkeeping for photo descriptions. See `media_analysis.dart`.
   String? get analysisCountDay => _settings?.analysisCountDay;
@@ -115,18 +125,51 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Records that [uid] opted in to sending photos out for description.
+  /// Records that [uid] opted in to sending photos — and, as of
+  /// [kCurrentConsentVersion], the whole tracked health record — out for
+  /// description.
+  ///
+  /// [version] defaults to the CURRENT disclosure, which is what every real
+  /// caller records: the consent sheet shows today's copy, so an "Allow" tap
+  /// agrees to today's version. The parameter exists so this is not hardcoded
+  /// as an unstatable claim — a caller reconstructing an older consent (for
+  /// instance from synced data written by a build with a different
+  /// disclosure) is never forced to say the user agreed to the current one.
   ///
   /// A real user edit, so it goes through [update] and stamps
-  /// `settingsUpdatedAt` like any other preference. The column itself is not
-  /// pushed (see `SyncService._pushSettings`) — the stamp is about local
-  /// ordering, not about shipping the consent to another device.
-  Future<void> setAnalysisConsent(String uid) =>
-      update(AppSettingsCompanion(analysisConsentUid: Value(uid)));
+  /// `settingsUpdatedAt` like any other preference. Neither column is pushed
+  /// (see `SyncService._pushSettings`) — the stamp is about local ordering,
+  /// not about shipping the consent to another device.
+  Future<void> setAnalysisConsent(
+    String uid, {
+    int version = kCurrentConsentVersion,
+  }) =>
+      update(AppSettingsCompanion(
+        analysisConsentUid: Value(uid),
+        analysisConsentVersion: Value(version),
+      ));
 
-  /// Withdraws the opt-in. Absence of a uid is the off state.
-  Future<void> clearAnalysisConsent() =>
-      update(const AppSettingsCompanion(analysisConsentUid: Value(null)));
+  /// Withdraws the opt-in. Absence of a uid is the off state; the version is
+  /// cleared alongside it so a later re-consent never reads a stale number.
+  Future<void> clearAnalysisConsent() => update(const AppSettingsCompanion(
+        analysisConsentUid: Value(null),
+        analysisConsentVersion: Value(null),
+      ));
+
+  /// Whether [uid] is currently consented to photo descriptions.
+  ///
+  /// Mirrors `MediaAnalysisService.consented`'s own check EXACTLY — uid match
+  /// AND current-version match — so the Settings "Photo descriptions" toggle
+  /// can never show a different answer than the real gate. Before this
+  /// existed, the toggle compared only the uid, so a v1 consenter (someone
+  /// who agreed to the old, photo-only disclosure) saw the switch ON even
+  /// though the gate now re-prompts them — a consent surface silently
+  /// disagreeing with the consent it enforces.
+  bool isAnalysisConsentedFor(String? uid) => isConsentedFor(
+        uid: uid,
+        consentUid: analysisConsentUid,
+        consentVersion: analysisConsentVersion,
+      );
 
   /// Advances the daily-cap counter.
   ///

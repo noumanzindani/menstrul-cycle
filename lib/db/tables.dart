@@ -147,6 +147,67 @@ class MediaItems extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// One saved conversation about one photo.
+///
+/// The original design kept transcripts in memory precisely so they would need
+/// no erasure path (media_analysis_service.dart:49-61). Persisting them means
+/// owning all four: deleteAllData, the sign-out wipe, the .lunabak exclusion and
+/// the doctor-PDF exclusion. See D9 in the spec.
+///
+/// Local-only. NOT synced to Firestore, for the same reason
+/// `analysisConsentUid` is not: it is a per-device record of something the user
+/// agreed to on this device.
+class AnalysisSessions extends Table {
+  TextColumn get id => text()();
+  /// Scopes every read, exactly as `MediaItems.uid` does. Signing out does not
+  /// wipe the device, so without this filter one account's conversation about
+  /// their own body could render under another account.
+  TextColumn get uid => text()();
+  TextColumn get mediaId => text()();
+  /// Which consent disclosure this conversation was created under. Stamped so a
+  /// stored transcript records what the user was actually told when it started.
+  IntColumn get consentVersion => integer()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// One turn in a saved conversation. Text only — the image is attached at
+/// request-build time, never stored per-turn.
+///
+/// Errors and refusals are rendered in the sheet but never stored: a replayed
+/// transcript must reach the model identically to a live one.
+class AnalysisMessages extends Table {
+  TextColumn get id => text()();
+  TextColumn get sessionId => text()();
+  TextColumn get role => text()(); // 'user' | 'model'
+  // Named `messageText`, not `text`, and NOT `.named('text')` either.
+  //
+  // A getter called `text` in a class that extends `Table` collides with the
+  // inherited `Table.text()` DSL method: Dart cannot resolve `text()` inside
+  // its own initializer once `text` is redeclared as a getter (it becomes a
+  // recursive, non-callable reference), and it breaks every OTHER `text()()`
+  // column in this class too. `.named('text')` looked like a fix — it keeps
+  // the Dart getter as `messageText` while forcing the underlying SQL column
+  // name back to `text` — but it only moves the collision: drift's schema
+  // SNAPSHOT generator (`drift_dev schema generate`, used by
+  // `test/generated_migrations/schema_v11.dart` for the SchemaVerifier this
+  // migration test depends on) names its historical table's Dart field after
+  // the raw SQL column name, not the getter, so a column literally named
+  // `text` still produces `late final GeneratedColumn<String> text = ...`
+  // inside a class that `extends Table` — the identical
+  // conflicting_field_and_method error, one file removed. No column actually
+  // named `text` survives this repo's migration-test tooling, so both the
+  // getter AND the underlying SQL column are `message_text` here.
+  TextColumn get messageText => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Single-row app settings (always id = 0). Kept in the DB (not SharedPreferences)
 /// so that, once encryption is enabled, even preferences stay inside the
 /// encrypted store.
@@ -203,6 +264,15 @@ class AppSettings extends Table {
   // no midnight timer and no cleanup pass. NULL on both = never used.
   TextColumn get analysisCountDay => text().nullable()();
   IntColumn get analysisCountToday => integer().nullable()();
+  // Which consent disclosure the stored [analysisConsentUid] agreed to.
+  //
+  // A uid alone made consent one bit: "this user agreed". What they agreed to
+  // was a sheet that says LunarFlow sends A PHOTO. Sending the tracked health
+  // record is a materially different disclosure, so a stored version below
+  // `kCurrentConsentVersion` reads as NOT consented and the sheet is shown
+  // again. Widening an existing consent without re-asking is, in substance, no
+  // consent at all.
+  IntColumn get analysisConsentVersion => integer().nullable()();
   // Date of birth, collected in onboarding and editable in Settings. A full
   // date, not a year and not an age: an age is stale the day after it is
   // entered, and a year is a birthday-accurate age only half the time.

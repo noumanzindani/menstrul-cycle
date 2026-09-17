@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../db/database.dart';
 import '../services/media_limits.dart';
 import '../services/media_thumbnailer.dart';
+import 'analysis_session_repository.dart';
 
 /// All reads/writes for the media timeline's LOCAL replica.
 ///
@@ -18,8 +19,14 @@ import '../services/media_thumbnailer.dart';
 /// what lets every widget test drive the timeline from an in-memory database
 /// with no Firebase app.
 class MediaRepository {
-  MediaRepository(this._db);
+  MediaRepository(this._db) : _sessions = AnalysisSessionRepository(_db);
   final AppDatabase _db;
+
+  /// The saved-conversations store, held only so deletion here can cascade to
+  /// it. A conversation about a photo that no longer exists (or belongs to an
+  /// account this device no longer shows) is an orphan holding AI-generated
+  /// commentary about that photo.
+  final AnalysisSessionRepository _sessions;
 
   /// One account's items, newest capture first.
   ///
@@ -111,8 +118,14 @@ class MediaRepository {
   /// failure then leaves a row still pointing at bytes that exist, which the
   /// user can retry, rather than bytes with nothing pointing at them, which
   /// nothing enumerates and nothing ever erases.
+  ///
+  /// Also cascades to any saved analysis conversation about this photo (and
+  /// every message in it) — see the class doc on [_sessions].
   Future<void> deleteById(String id) async {
-    await (_db.delete(_db.mediaItems)..where((t) => t.id.equals(id))).go();
+    await _db.transaction(() async {
+      await (_db.delete(_db.mediaItems)..where((t) => t.id.equals(id))).go();
+      await _sessions.deleteForMedia(id);
+    });
   }
 
   /// Drops every row that does not belong to [uid]; pass null to drop them all.
@@ -120,9 +133,17 @@ class MediaRepository {
   /// Runs on an account change and on sign-out. The uid filter on every read
   /// already makes another account's rows invisible — this is what stops their
   /// thumbnails from sitting on disk regardless.
+  ///
+  /// Also cascades to every saved analysis conversation (and message) that
+  /// does not belong to [uid], via `AnalysisSessionRepository.deleteExcept` —
+  /// `MediaProvider.setUid` is this method's only caller, so that single
+  /// sign-out/account-change path is what both tables ride.
   Future<void> deleteExcept(String? uid) async {
-    final q = _db.delete(_db.mediaItems);
-    if (uid != null) q.where((t) => t.uid.equals(uid).not());
-    await q.go();
+    await _db.transaction(() async {
+      final q = _db.delete(_db.mediaItems);
+      if (uid != null) q.where((t) => t.uid.equals(uid).not());
+      await q.go();
+      await _sessions.deleteExcept(uid);
+    });
   }
 }

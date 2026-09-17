@@ -46,6 +46,7 @@ class MediaViewerScreen extends StatefulWidget {
     this.requestConsent,
     this.endConversation,
     this.messagesLeft,
+    this.loadExistingTurns,
   });
 
   final MediaItem item;
@@ -81,6 +82,14 @@ class MediaViewerScreen extends StatefulWidget {
   /// the counter — a display of a budget nobody supplied would be a guess, and
   /// this one costs real money to be wrong about.
   final int Function()? messagesLeft;
+
+  /// The saved conversation about this photo, if one exists, oldest turn
+  /// first. Checked on every Describe tap, before any network call: when this
+  /// returns a non-empty list, Describe reopens that conversation instead of
+  /// asking the model a brand new opening question and silently starting a
+  /// second one about the same picture. Null or an empty list behaves exactly
+  /// as before — a fresh description is requested.
+  final Future<List<AnalysisTurn>> Function(MediaItem item)? loadExistingTurns;
 
   @override
   State<MediaViewerScreen> createState() => _MediaViewerScreenState();
@@ -155,16 +164,44 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
     final file = _file;
     if (analyze == null || file == null || _analyzing) return;
 
-    // Consent first, and it is a hard gate: nothing is read from disk and no
-    // request is built until it passes.
-    if (widget.needsConsent?.call() ?? false) {
-      final request = widget.requestConsent;
-      if (request == null) return;
-      final granted = await request(context);
-      if (!granted || !mounted) return;
+    setState(() => _analyzing = true);
+
+    // Checked BEFORE the consent gate AND before any network call. This is a
+    // READ of a conversation already stored on this device — see
+    // [MediaViewerScreen.loadExistingTurns]'s doc comment — and reading it
+    // sends nothing anywhere. Consent governs SENDING, so a resumed,
+    // read-only reopen must not be blocked by a revoked or missing consent;
+    // conflating "may I read what I already have" with "may I send more" is
+    // exactly the bug this ordering avoids. A follow-up typed into the
+    // reopened sheet is a SEND, and remains fully gated: it goes through
+    // [analyze] below, and `MediaAnalysisService.analyze` enforces its own
+    // consent check regardless of anything decided here.
+    final existing = await _loadExisting();
+    if (!mounted) return;
+    if (existing.isNotEmpty) {
+      setState(() => _analyzing = false);
+      await _openSheet(analyze, file, initialTurns: existing);
+      return;
     }
 
-    setState(() => _analyzing = true);
+    // Consent next, and it is a hard gate for every path below: nothing is
+    // read from disk and no request is built until it passes. Reached only
+    // once no resumable conversation was found — from here on every path may
+    // reach the network.
+    if (widget.needsConsent?.call() ?? false) {
+      final request = widget.requestConsent;
+      if (request == null) {
+        setState(() => _analyzing = false);
+        return;
+      }
+      final granted = await request(context);
+      if (!mounted) return;
+      if (!granted) {
+        setState(() => _analyzing = false);
+        return;
+      }
+    }
+
     final outcome = await analyze(widget.item, file, null);
     if (!mounted) return;
     setState(() => _analyzing = false);
@@ -185,9 +222,39 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
       return;
     }
 
-    await showAnalysisResultSheet(
+    await _openSheet(analyze, file, initialText: prose);
+  }
+
+  /// Reads the stored conversation for this photo, if [MediaViewerScreen.
+  /// loadExistingTurns] was given one. A lookup failure reads the same as "no
+  /// saved conversation" — Describe simply falls through to asking the model
+  /// fresh, rather than getting stuck on a database error the user cannot act
+  /// on.
+  Future<List<AnalysisTurn>> _loadExisting() async {
+    final load = widget.loadExistingTurns;
+    if (load == null) return const [];
+    try {
+      return await load(widget.item);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Opens the conversation sheet, either freshly seeded from [initialText]
+  /// (a new description just came back) or hydrated from [initialTurns] (an
+  /// existing session is being resumed). Exactly one of the two is meaningful
+  /// per call; [showAnalysisResultSheet] itself ignores [initialText]
+  /// whenever [initialTurns] is non-empty.
+  Future<void> _openSheet(
+    Future<AnalysisOutcome> Function(MediaItem, File, String?) analyze,
+    File file, {
+    String? initialText,
+    List<AnalysisTurn> initialTurns = const [],
+  }) {
+    return showAnalysisResultSheet(
       context,
-      initialText: prose,
+      initialText: initialText ?? '',
+      initialTurns: initialTurns,
       // The sheet sits over the photo but does not show it: at 80% height the
       // top-left thumbnail is the only thing that says which picture the
       // answer is about.
