@@ -1032,6 +1032,26 @@ class $RemindersTable extends Reminders
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
+  @override
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1042,6 +1062,8 @@ class $RemindersTable extends Reminders
     recurrence,
     title,
     payload,
+    syncId,
+    updatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1098,6 +1120,18 @@ class $RemindersTable extends Reminders
         payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
       );
     }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -1141,6 +1175,14 @@ class $RemindersTable extends Reminders
         DriftSqlType.string,
         data['${effectivePrefix}payload'],
       ),
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
     );
   }
 
@@ -1162,6 +1204,20 @@ class Reminder extends DataClass implements Insertable<Reminder> {
   final String? recurrence;
   final String? title;
   final String? payload;
+
+  /// A stable identifier this row keeps on every device.
+  ///
+  /// [id] is `autoIncrement`, i.e. a LOCAL rowid: device A's row 3 and device
+  /// B's row 3 are different reminders, so syncing on it would merge unrelated rows
+  /// into each other. Nullable because the v11 -> v12 migration is additive and
+  /// backfills nothing; the sync push assigns one to any row still missing it,
+  /// which is where generating a uuid is natural.
+  final String? syncId;
+
+  /// Last local edit, for `decideMerge`'s last-write-wins. Null on a row
+  /// written before v12 and never touched since -- which loses to any remote
+  /// copy, the safe direction for a row this device cannot date.
+  final DateTime? updatedAt;
   const Reminder({
     required this.id,
     required this.type,
@@ -1171,6 +1227,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     this.recurrence,
     this.title,
     this.payload,
+    this.syncId,
+    this.updatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1191,6 +1249,12 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     if (!nullToAbsent || payload != null) {
       map['payload'] = Variable<String>(payload);
     }
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
     return map;
   }
 
@@ -1210,6 +1274,12 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       payload: payload == null && nullToAbsent
           ? const Value.absent()
           : Value(payload),
+      syncId: syncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncId),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
     );
   }
 
@@ -1229,6 +1299,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       recurrence: serializer.fromJson<String?>(json['recurrence']),
       title: serializer.fromJson<String?>(json['title']),
       payload: serializer.fromJson<String?>(json['payload']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
     );
   }
   @override
@@ -1245,6 +1317,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
       'recurrence': serializer.toJson<String?>(recurrence),
       'title': serializer.toJson<String?>(title),
       'payload': serializer.toJson<String?>(payload),
+      'syncId': serializer.toJson<String?>(syncId),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
     };
   }
 
@@ -1257,6 +1331,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     Value<String?> recurrence = const Value.absent(),
     Value<String?> title = const Value.absent(),
     Value<String?> payload = const Value.absent(),
+    Value<String?> syncId = const Value.absent(),
+    Value<DateTime?> updatedAt = const Value.absent(),
   }) => Reminder(
     id: id ?? this.id,
     type: type ?? this.type,
@@ -1266,6 +1342,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
     recurrence: recurrence.present ? recurrence.value : this.recurrence,
     title: title.present ? title.value : this.title,
     payload: payload.present ? payload.value : this.payload,
+    syncId: syncId.present ? syncId.value : this.syncId,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
   );
   Reminder copyWithCompanion(RemindersCompanion data) {
     return Reminder(
@@ -1279,6 +1357,8 @@ class Reminder extends DataClass implements Insertable<Reminder> {
           : this.recurrence,
       title: data.title.present ? data.title.value : this.title,
       payload: data.payload.present ? data.payload.value : this.payload,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
 
@@ -1292,14 +1372,26 @@ class Reminder extends DataClass implements Insertable<Reminder> {
           ..write('enabled: $enabled, ')
           ..write('recurrence: $recurrence, ')
           ..write('title: $title, ')
-          ..write('payload: $payload')
+          ..write('payload: $payload, ')
+          ..write('syncId: $syncId, ')
+          ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, type, hour, minute, enabled, recurrence, title, payload);
+  int get hashCode => Object.hash(
+    id,
+    type,
+    hour,
+    minute,
+    enabled,
+    recurrence,
+    title,
+    payload,
+    syncId,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1311,7 +1403,9 @@ class Reminder extends DataClass implements Insertable<Reminder> {
           other.enabled == this.enabled &&
           other.recurrence == this.recurrence &&
           other.title == this.title &&
-          other.payload == this.payload);
+          other.payload == this.payload &&
+          other.syncId == this.syncId &&
+          other.updatedAt == this.updatedAt);
 }
 
 class RemindersCompanion extends UpdateCompanion<Reminder> {
@@ -1323,6 +1417,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
   final Value<String?> recurrence;
   final Value<String?> title;
   final Value<String?> payload;
+  final Value<String?> syncId;
+  final Value<DateTime?> updatedAt;
   const RemindersCompanion({
     this.id = const Value.absent(),
     this.type = const Value.absent(),
@@ -1332,6 +1428,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     this.recurrence = const Value.absent(),
     this.title = const Value.absent(),
     this.payload = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
   });
   RemindersCompanion.insert({
     this.id = const Value.absent(),
@@ -1342,6 +1440,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     this.recurrence = const Value.absent(),
     this.title = const Value.absent(),
     this.payload = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
   }) : type = Value(type),
        hour = Value(hour),
        minute = Value(minute);
@@ -1354,6 +1454,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     Expression<String>? recurrence,
     Expression<String>? title,
     Expression<String>? payload,
+    Expression<String>? syncId,
+    Expression<DateTime>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1364,6 +1466,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
       if (recurrence != null) 'recurrence': recurrence,
       if (title != null) 'title': title,
       if (payload != null) 'payload': payload,
+      if (syncId != null) 'sync_id': syncId,
+      if (updatedAt != null) 'updated_at': updatedAt,
     });
   }
 
@@ -1376,6 +1480,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     Value<String?>? recurrence,
     Value<String?>? title,
     Value<String?>? payload,
+    Value<String?>? syncId,
+    Value<DateTime?>? updatedAt,
   }) {
     return RemindersCompanion(
       id: id ?? this.id,
@@ -1386,6 +1492,8 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
       recurrence: recurrence ?? this.recurrence,
       title: title ?? this.title,
       payload: payload ?? this.payload,
+      syncId: syncId ?? this.syncId,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -1418,6 +1526,12 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
     }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
     return map;
   }
 
@@ -1431,7 +1545,9 @@ class RemindersCompanion extends UpdateCompanion<Reminder> {
           ..write('enabled: $enabled, ')
           ..write('recurrence: $recurrence, ')
           ..write('title: $title, ')
-          ..write('payload: $payload')
+          ..write('payload: $payload, ')
+          ..write('syncId: $syncId, ')
+          ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
@@ -1500,8 +1616,36 @@ class $MedicationsTable extends Medications
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _syncIdMeta = const VerificationMeta('syncId');
   @override
-  List<GeneratedColumn> get $columns => [id, name, type, schedule, enabled];
+  late final GeneratedColumn<String> syncId = GeneratedColumn<String>(
+    'sync_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    type,
+    schedule,
+    enabled,
+    syncId,
+    updatedAt,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1543,6 +1687,18 @@ class $MedicationsTable extends Medications
         enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta),
       );
     }
+    if (data.containsKey('sync_id')) {
+      context.handle(
+        _syncIdMeta,
+        syncId.isAcceptableOrUnknown(data['sync_id']!, _syncIdMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -1572,6 +1728,14 @@ class $MedicationsTable extends Medications
         DriftSqlType.bool,
         data['${effectivePrefix}enabled'],
       )!,
+      syncId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_id'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
     );
   }
 
@@ -1587,12 +1751,28 @@ class Medication extends DataClass implements Insertable<Medication> {
   final String? type;
   final String? schedule;
   final bool enabled;
+
+  /// A stable identifier this row keeps on every device.
+  ///
+  /// [id] is `autoIncrement`, i.e. a LOCAL rowid: device A's row 3 and device
+  /// B's row 3 are different medications, so syncing on it would merge unrelated rows
+  /// into each other. Nullable because the v11 -> v12 migration is additive and
+  /// backfills nothing; the sync push assigns one to any row still missing it,
+  /// which is where generating a uuid is natural.
+  final String? syncId;
+
+  /// Last local edit, for `decideMerge`'s last-write-wins. Null on a row
+  /// written before v12 and never touched since -- which loses to any remote
+  /// copy, the safe direction for a row this device cannot date.
+  final DateTime? updatedAt;
   const Medication({
     required this.id,
     required this.name,
     this.type,
     this.schedule,
     required this.enabled,
+    this.syncId,
+    this.updatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1606,6 +1786,12 @@ class Medication extends DataClass implements Insertable<Medication> {
       map['schedule'] = Variable<String>(schedule);
     }
     map['enabled'] = Variable<bool>(enabled);
+    if (!nullToAbsent || syncId != null) {
+      map['sync_id'] = Variable<String>(syncId);
+    }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
     return map;
   }
 
@@ -1618,6 +1804,12 @@ class Medication extends DataClass implements Insertable<Medication> {
           ? const Value.absent()
           : Value(schedule),
       enabled: Value(enabled),
+      syncId: syncId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncId),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
     );
   }
 
@@ -1632,6 +1824,8 @@ class Medication extends DataClass implements Insertable<Medication> {
       type: serializer.fromJson<String?>(json['type']),
       schedule: serializer.fromJson<String?>(json['schedule']),
       enabled: serializer.fromJson<bool>(json['enabled']),
+      syncId: serializer.fromJson<String?>(json['syncId']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
     );
   }
   @override
@@ -1643,6 +1837,8 @@ class Medication extends DataClass implements Insertable<Medication> {
       'type': serializer.toJson<String?>(type),
       'schedule': serializer.toJson<String?>(schedule),
       'enabled': serializer.toJson<bool>(enabled),
+      'syncId': serializer.toJson<String?>(syncId),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
     };
   }
 
@@ -1652,12 +1848,16 @@ class Medication extends DataClass implements Insertable<Medication> {
     Value<String?> type = const Value.absent(),
     Value<String?> schedule = const Value.absent(),
     bool? enabled,
+    Value<String?> syncId = const Value.absent(),
+    Value<DateTime?> updatedAt = const Value.absent(),
   }) => Medication(
     id: id ?? this.id,
     name: name ?? this.name,
     type: type.present ? type.value : this.type,
     schedule: schedule.present ? schedule.value : this.schedule,
     enabled: enabled ?? this.enabled,
+    syncId: syncId.present ? syncId.value : this.syncId,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
   );
   Medication copyWithCompanion(MedicationsCompanion data) {
     return Medication(
@@ -1666,6 +1866,8 @@ class Medication extends DataClass implements Insertable<Medication> {
       type: data.type.present ? data.type.value : this.type,
       schedule: data.schedule.present ? data.schedule.value : this.schedule,
       enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      syncId: data.syncId.present ? data.syncId.value : this.syncId,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
 
@@ -1676,13 +1878,16 @@ class Medication extends DataClass implements Insertable<Medication> {
           ..write('name: $name, ')
           ..write('type: $type, ')
           ..write('schedule: $schedule, ')
-          ..write('enabled: $enabled')
+          ..write('enabled: $enabled, ')
+          ..write('syncId: $syncId, ')
+          ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, type, schedule, enabled);
+  int get hashCode =>
+      Object.hash(id, name, type, schedule, enabled, syncId, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1691,7 +1896,9 @@ class Medication extends DataClass implements Insertable<Medication> {
           other.name == this.name &&
           other.type == this.type &&
           other.schedule == this.schedule &&
-          other.enabled == this.enabled);
+          other.enabled == this.enabled &&
+          other.syncId == this.syncId &&
+          other.updatedAt == this.updatedAt);
 }
 
 class MedicationsCompanion extends UpdateCompanion<Medication> {
@@ -1700,12 +1907,16 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
   final Value<String?> type;
   final Value<String?> schedule;
   final Value<bool> enabled;
+  final Value<String?> syncId;
+  final Value<DateTime?> updatedAt;
   const MedicationsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.type = const Value.absent(),
     this.schedule = const Value.absent(),
     this.enabled = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
   });
   MedicationsCompanion.insert({
     this.id = const Value.absent(),
@@ -1713,6 +1924,8 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
     this.type = const Value.absent(),
     this.schedule = const Value.absent(),
     this.enabled = const Value.absent(),
+    this.syncId = const Value.absent(),
+    this.updatedAt = const Value.absent(),
   }) : name = Value(name);
   static Insertable<Medication> custom({
     Expression<int>? id,
@@ -1720,6 +1933,8 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
     Expression<String>? type,
     Expression<String>? schedule,
     Expression<bool>? enabled,
+    Expression<String>? syncId,
+    Expression<DateTime>? updatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1727,6 +1942,8 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
       if (type != null) 'type': type,
       if (schedule != null) 'schedule': schedule,
       if (enabled != null) 'enabled': enabled,
+      if (syncId != null) 'sync_id': syncId,
+      if (updatedAt != null) 'updated_at': updatedAt,
     });
   }
 
@@ -1736,6 +1953,8 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
     Value<String?>? type,
     Value<String?>? schedule,
     Value<bool>? enabled,
+    Value<String?>? syncId,
+    Value<DateTime?>? updatedAt,
   }) {
     return MedicationsCompanion(
       id: id ?? this.id,
@@ -1743,6 +1962,8 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
       type: type ?? this.type,
       schedule: schedule ?? this.schedule,
       enabled: enabled ?? this.enabled,
+      syncId: syncId ?? this.syncId,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -1764,6 +1985,12 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
     if (enabled.present) {
       map['enabled'] = Variable<bool>(enabled.value);
     }
+    if (syncId.present) {
+      map['sync_id'] = Variable<String>(syncId.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
     return map;
   }
 
@@ -1774,7 +2001,9 @@ class MedicationsCompanion extends UpdateCompanion<Medication> {
           ..write('name: $name, ')
           ..write('type: $type, ')
           ..write('schedule: $schedule, ')
-          ..write('enabled: $enabled')
+          ..write('enabled: $enabled, ')
+          ..write('syncId: $syncId, ')
+          ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
@@ -5895,6 +6124,8 @@ typedef $$RemindersTableCreateCompanionBuilder =
       Value<String?> recurrence,
       Value<String?> title,
       Value<String?> payload,
+      Value<String?> syncId,
+      Value<DateTime?> updatedAt,
     });
 typedef $$RemindersTableUpdateCompanionBuilder =
     RemindersCompanion Function({
@@ -5906,6 +6137,8 @@ typedef $$RemindersTableUpdateCompanionBuilder =
       Value<String?> recurrence,
       Value<String?> title,
       Value<String?> payload,
+      Value<String?> syncId,
+      Value<DateTime?> updatedAt,
     });
 
 class $$RemindersTableFilterComposer
@@ -5955,6 +6188,16 @@ class $$RemindersTableFilterComposer
 
   ColumnFilters<String> get payload => $composableBuilder(
     column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6007,6 +6250,16 @@ class $$RemindersTableOrderingComposer
     column: $table.payload,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$RemindersTableAnnotationComposer
@@ -6043,6 +6296,12 @@ class $$RemindersTableAnnotationComposer
 
   GeneratedColumn<String> get payload =>
       $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
 class $$RemindersTableTableManager
@@ -6081,6 +6340,8 @@ class $$RemindersTableTableManager
                 Value<String?> recurrence = const Value.absent(),
                 Value<String?> title = const Value.absent(),
                 Value<String?> payload = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
               }) => RemindersCompanion(
                 id: id,
                 type: type,
@@ -6090,6 +6351,8 @@ class $$RemindersTableTableManager
                 recurrence: recurrence,
                 title: title,
                 payload: payload,
+                syncId: syncId,
+                updatedAt: updatedAt,
               ),
           createCompanionCallback:
               ({
@@ -6101,6 +6364,8 @@ class $$RemindersTableTableManager
                 Value<String?> recurrence = const Value.absent(),
                 Value<String?> title = const Value.absent(),
                 Value<String?> payload = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
               }) => RemindersCompanion.insert(
                 id: id,
                 type: type,
@@ -6110,6 +6375,8 @@ class $$RemindersTableTableManager
                 recurrence: recurrence,
                 title: title,
                 payload: payload,
+                syncId: syncId,
+                updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -6140,6 +6407,8 @@ typedef $$MedicationsTableCreateCompanionBuilder =
       Value<String?> type,
       Value<String?> schedule,
       Value<bool> enabled,
+      Value<String?> syncId,
+      Value<DateTime?> updatedAt,
     });
 typedef $$MedicationsTableUpdateCompanionBuilder =
     MedicationsCompanion Function({
@@ -6148,6 +6417,8 @@ typedef $$MedicationsTableUpdateCompanionBuilder =
       Value<String?> type,
       Value<String?> schedule,
       Value<bool> enabled,
+      Value<String?> syncId,
+      Value<DateTime?> updatedAt,
     });
 
 class $$MedicationsTableFilterComposer
@@ -6181,6 +6452,16 @@ class $$MedicationsTableFilterComposer
 
   ColumnFilters<bool> get enabled => $composableBuilder(
     column: $table.enabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6218,6 +6499,16 @@ class $$MedicationsTableOrderingComposer
     column: $table.enabled,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncId => $composableBuilder(
+    column: $table.syncId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$MedicationsTableAnnotationComposer
@@ -6243,6 +6534,12 @@ class $$MedicationsTableAnnotationComposer
 
   GeneratedColumn<bool> get enabled =>
       $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<String> get syncId =>
+      $composableBuilder(column: $table.syncId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
 class $$MedicationsTableTableManager
@@ -6281,12 +6578,16 @@ class $$MedicationsTableTableManager
                 Value<String?> type = const Value.absent(),
                 Value<String?> schedule = const Value.absent(),
                 Value<bool> enabled = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
               }) => MedicationsCompanion(
                 id: id,
                 name: name,
                 type: type,
                 schedule: schedule,
                 enabled: enabled,
+                syncId: syncId,
+                updatedAt: updatedAt,
               ),
           createCompanionCallback:
               ({
@@ -6295,12 +6596,16 @@ class $$MedicationsTableTableManager
                 Value<String?> type = const Value.absent(),
                 Value<String?> schedule = const Value.absent(),
                 Value<bool> enabled = const Value.absent(),
+                Value<String?> syncId = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
               }) => MedicationsCompanion.insert(
                 id: id,
                 name: name,
                 type: type,
                 schedule: schedule,
                 enabled: enabled,
+                syncId: syncId,
+                updatedAt: updatedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

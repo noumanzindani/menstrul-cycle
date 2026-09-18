@@ -112,7 +112,14 @@ const int kMaxQuestionLength = 200;
 /// version below this reads as not consented, so everyone who agreed to the
 /// photo-only sheet is asked again rather than having their consent silently
 /// widened to cover a materially different disclosure.
-const int kCurrentConsentVersion = 2;
+/// Bumped to 3 on 2026-09-18: saved conversations now sync to Firestore.
+///
+/// Version 2's sheet said the conversation stayed "on this device". Uploading
+/// it to a plaintext store the operator can read, under an unchanged "Allow",
+/// would be in substance no consent to that disclosure at all — the same
+/// reasoning that produced version 2 when the tracked health record was added.
+/// Everyone who agreed under 2 is asked again.
+const int kCurrentConsentVersion = 3;
 
 /// Whether [uid] is consented, given the STORED [consentUid] / [consentVersion].
 ///

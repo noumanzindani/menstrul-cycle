@@ -158,6 +158,11 @@ class AccountDeletionService {
     'deletions',
     'devices',
     'media',
+    // v12: every remaining table became syncable (2026-09-18).
+    'reminders',
+    'medications',
+    'analysisSessions',
+    'analysisMessages',
   ];
 
   /// The Cloud Storage prefix holding this account's uploaded media bytes.

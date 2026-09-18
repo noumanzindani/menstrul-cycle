@@ -15,6 +15,14 @@ import 'sync_merge.dart';
 /// Drift remains the single source of truth: the UI never waits on this, and
 /// the app is fully usable offline. Sync is a mirror bolted alongside the
 /// existing read/write path, never in front of it.
+/// See [SyncService._readExtraCursors].
+typedef _ExtraCursors = ({
+  Timestamp? reminders,
+  Timestamp? medications,
+  Timestamp? sessions,
+  Timestamp? messages,
+});
+
 class SyncService {
   SyncService({
     required AppDatabase db,
@@ -51,6 +59,22 @@ class SyncService {
   /// observable, positive fact another device's pull can act on.
   CollectionReference<Map<String, dynamic>> get _remoteDeletions =>
       _firestore.collection('users/$uid/deletions');
+
+  // The v12 collections. Each is keyed by a STABLE id -- `Reminders.syncId` /
+  // `Medications.syncId` for the two that gained one, and the existing TEXT
+  // primary key for the analysis tables -- never by the local autoIncrement
+  // rowid, which means nothing on another device.
+  CollectionReference<Map<String, dynamic>> get _remoteReminders =>
+      _firestore.collection('users/$uid/reminders');
+
+  CollectionReference<Map<String, dynamic>> get _remoteMedications =>
+      _firestore.collection('users/$uid/medications');
+
+  CollectionReference<Map<String, dynamic>> get _remoteSessions =>
+      _firestore.collection('users/$uid/analysisSessions');
+
+  CollectionReference<Map<String, dynamic>> get _remoteMessages =>
+      _firestore.collection('users/$uid/analysisMessages');
 
   /// This device's own pull cursors — see [_readPullCursors].
   ///
@@ -169,6 +193,24 @@ class SyncService {
       // before that pull would push stale pre-pull state back out, quietly
       // reverting the very row the pull just merged.
       await _pushSettings(await _settings.get(), since);
+      // The v12 collections. Pulled before pushed, same order as the pair
+      // above and for the same reason: a push built on pre-pull state would
+      // quietly revert the row the pull just merged.
+      final extras = await _readExtraCursors(fullSweep: since == null);
+      final nextExtras = (
+        reminders: await _pullExtra(
+            _remoteReminders, extras.reminders, _applyRemoteReminder),
+        medications: await _pullExtra(
+            _remoteMedications, extras.medications, _applyRemoteMedication),
+        sessions: await _pullExtra(
+            _remoteSessions, extras.sessions, _applyRemoteSession),
+        messages: await _pullExtra(
+            _remoteMessages, extras.messages, _applyRemoteMessage),
+      );
+      await _pushReminders(since);
+      await _pushMedications(since);
+      await _pushAnalysis(since);
+      await _writeExtraCursors(nextExtras, extras);
       // `updateSyncState`, NOT `update`: advancing the high-water mark is not a
       // user edit, and stamping `settingsUpdatedAt` here would make every sync
       // look like a settings change and push forever.
@@ -228,6 +270,52 @@ class SyncService {
       logs: _asOrNull<Timestamp>(data['logsCursor']),
       deletions: _asOrNull<Timestamp>(data['deletionsCursor']),
     );
+  }
+
+  /// Pull cursors for the v12 collections.
+  ///
+  /// A SECOND record rather than four more fields on the existing one: the
+  /// logs/deletions cursor logic carries a lot of hard-won reasoning about
+  /// ties and offline writes, and widening its shape would edit every one of
+  /// those call sites for no benefit. These four are read and written together
+  /// and never interleave with that pair.
+  Future<_ExtraCursors> _readExtraCursors({required bool fullSweep}) async {
+    const none = (
+      reminders: null,
+      medications: null,
+      sessions: null,
+      messages: null,
+    );
+    if (fullSweep) return none;
+    final data = (await _deviceDoc.get()).data();
+    if (data == null) return none;
+    return (
+      reminders: _asOrNull<Timestamp>(data['remindersCursor']),
+      medications: _asOrNull<Timestamp>(data['medicationsCursor']),
+      sessions: _asOrNull<Timestamp>(data['sessionsCursor']),
+      messages: _asOrNull<Timestamp>(data['messagesCursor']),
+    );
+  }
+
+  Future<void> _writeExtraCursors(
+    _ExtraCursors next,
+    _ExtraCursors previous,
+  ) async {
+    final update = <String, dynamic>{};
+    if (_advances(next.reminders, previous.reminders)) {
+      update['remindersCursor'] = next.reminders;
+    }
+    if (_advances(next.medications, previous.medications)) {
+      update['medicationsCursor'] = next.medications;
+    }
+    if (_advances(next.sessions, previous.sessions)) {
+      update['sessionsCursor'] = next.sessions;
+    }
+    if (_advances(next.messages, previous.messages)) {
+      update['messagesCursor'] = next.messages;
+    }
+    if (update.isEmpty) return;
+    await _deviceDoc.set(update, SetOptions(merge: true));
   }
 
   Future<void> _writePullCursors({
@@ -675,6 +763,161 @@ class SyncService {
   /// user in an app with no profile and no route back to the questions.
   static bool _looksOnboarded(Map<String, dynamic> data) =>
       data['dateOfBirth'] is int;
+
+  // -------------------------------------------------------------------------
+  // v12 collections. Same shape as `_pushLogs`/`_pullLogs`: push what changed
+  // since `since`, pull what the server stamped after the cursor, and let
+  // `decideMerge` decide any overlap. Ties are pushed, never skipped, for the
+  // reason spelled out at length on `_pushLogs`.
+  // -------------------------------------------------------------------------
+
+  /// Pushes reminders, assigning a [newSyncId] to any row that predates v12.
+  ///
+  /// Product-change rows are excluded by [reminderIsSyncable] -- a live tampon
+  /// timer must never reach another device. That filter is applied here, at the
+  /// only place rows leave for Firestore, rather than at the call site.
+  Future<void> _pushReminders(DateTime? since) async {
+    for (final row in await _db.select(_db.reminders).get()) {
+      if (!reminderIsSyncable(row)) continue;
+      if (since != null &&
+          row.updatedAt != null &&
+          row.updatedAt!.isBefore(since)) {
+        continue;
+      }
+      final id = row.syncId ?? newSyncId();
+      if (row.syncId == null) {
+        // Backfill locally too, or every run mints a new id and the collection
+        // grows a duplicate document per sync.
+        await (_db.update(_db.reminders)..where((r) => r.id.equals(row.id)))
+            .write(RemindersCompanion(syncId: Value(id)));
+      }
+      final map = reminderToMap(row, deviceId: deviceId);
+      map['syncedAt'] = FieldValue.serverTimestamp();
+      await _remoteReminders.doc(id).set(map);
+    }
+  }
+
+  Future<void> _pushMedications(DateTime? since) async {
+    for (final row in await _db.select(_db.medications).get()) {
+      if (since != null &&
+          row.updatedAt != null &&
+          row.updatedAt!.isBefore(since)) {
+        continue;
+      }
+      final id = row.syncId ?? newSyncId();
+      if (row.syncId == null) {
+        await (_db.update(_db.medications)..where((m) => m.id.equals(row.id)))
+            .write(MedicationsCompanion(syncId: Value(id)));
+      }
+      final map = medicationToMap(row, deviceId: deviceId);
+      map['syncedAt'] = FieldValue.serverTimestamp();
+      await _remoteMedications.doc(id).set(map);
+    }
+  }
+
+  /// Pushes saved photo-description conversations.
+  ///
+  /// Local-only until 2026-09-18, when the owner asked for every table to be
+  /// backed up. The cost is stated plainly in the consent sheet: this is AI
+  /// prose about a body photo, and Firestore is plaintext and readable by
+  /// whoever operates the service.
+  Future<void> _pushAnalysis(DateTime? since) async {
+    for (final row in await _db.select(_db.analysisSessions).get()) {
+      if (since != null && row.updatedAt.isBefore(since)) continue;
+      final map = analysisSessionToMap(row);
+      map['syncedAt'] = FieldValue.serverTimestamp();
+      await _remoteSessions.doc(row.id).set(map);
+    }
+    for (final row in await _db.select(_db.analysisMessages).get()) {
+      // Messages are append-only and never edited, so `createdAt` IS the
+      // changed-at time.
+      if (since != null && row.createdAt.isBefore(since)) continue;
+      final map = analysisMessageToMap(row);
+      map['syncedAt'] = FieldValue.serverTimestamp();
+      await _remoteMessages.doc(row.id).set(map);
+    }
+  }
+
+  /// Applies a remote reminder, unless the local copy is newer.
+  ///
+  /// A local row with a null `updatedAt` predates v12 and cannot be dated, so
+  /// `decideMerge` returns `takeRemote` and the server copy wins — the safe
+  /// direction, since an undated local row is by definition one this device has
+  /// not touched since the migration.
+  Future<void> _applyRemoteReminder(String id, Map<String, dynamic> data) async {
+    final local = await (_db.select(_db.reminders)
+          ..where((r) => r.syncId.equals(id)))
+        .getSingleOrNull();
+    if (local != null &&
+        decideMerge(local: local.updatedAt, remote: updatedAtFromMap(data)) !=
+            MergeDecision.takeRemote) {
+      return;
+    }
+    final companion = reminderFromMap(id, data);
+    if (local == null) {
+      await _db.into(_db.reminders).insert(companion);
+    } else {
+      await (_db.update(_db.reminders)..where((r) => r.id.equals(local.id)))
+          .write(companion);
+    }
+  }
+
+  Future<void> _applyRemoteMedication(
+      String id, Map<String, dynamic> data) async {
+    final local = await (_db.select(_db.medications)
+          ..where((m) => m.syncId.equals(id)))
+        .getSingleOrNull();
+    if (local != null &&
+        decideMerge(local: local.updatedAt, remote: updatedAtFromMap(data)) !=
+            MergeDecision.takeRemote) {
+      return;
+    }
+    final companion = medicationFromMap(id, data);
+    if (local == null) {
+      await _db.into(_db.medications).insert(companion);
+    } else {
+      await (_db.update(_db.medications)..where((m) => m.id.equals(local.id)))
+          .write(companion);
+    }
+  }
+
+  /// Both analysis tables key on a TEXT primary key that is already stable
+  /// across devices, so these are plain idempotent upserts. Messages are
+  /// append-only and never edited, which is why neither needs a merge decision.
+  Future<void> _applyRemoteSession(String id, Map<String, dynamic> data) =>
+      _db.into(_db.analysisSessions).insertOnConflictUpdate(
+            analysisSessionFromMap(id, data),
+          );
+
+  Future<void> _applyRemoteMessage(String id, Map<String, dynamic> data) =>
+      _db.into(_db.analysisMessages).insertOnConflictUpdate(
+            analysisMessageFromMap(id, data),
+          );
+
+  /// Pulls one of the v12 collections, applying [apply] to each document whose
+  /// remote copy is newer than the local one.
+  ///
+  /// Returns the cursor to resume from, exactly as [_pullLogs] does.
+  Future<Timestamp?> _pullExtra(
+    CollectionReference<Map<String, dynamic>> collection,
+    Timestamp? cursor,
+    Future<void> Function(String id, Map<String, dynamic> data) apply,
+  ) async {
+    var query = collection.orderBy('syncedAt');
+    if (cursor != null) {
+      query = query.where('syncedAt', isGreaterThanOrEqualTo: cursor);
+    }
+    Timestamp? newest = cursor;
+    for (final doc in (await query.get()).docs) {
+      final data = doc.data();
+      await apply(doc.id, data);
+      final stamped = _asOrNull<Timestamp>(data['syncedAt']);
+      if (stamped != null && (newest == null || stamped.compareTo(newest) > 0)) {
+        newest = stamped;
+      }
+    }
+    return newest;
+  }
 
   /// Preference fields only.
   ///

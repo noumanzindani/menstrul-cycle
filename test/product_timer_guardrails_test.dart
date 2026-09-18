@@ -58,23 +58,43 @@ const _timerSources = [
 
 void main() {
   group('sync exclusion', () {
-    test('no sync code names the product session', () {
-      // Firestore holds a PLAINTEXT, operator-readable copy, and firestore.rules
-      // is not deployed. A minute-resolution log of intimate acts — which is
-      // also a de-facto sleep and presence sensor — must not go near it.
+    test('sync names the product session ONLY to exclude it', () {
+      // Firestore holds a PLAINTEXT, operator-readable copy. A
+      // minute-resolution log of intimate acts — which is also a de-facto
+      // sleep and presence sensor — must not go near it.
+      //
+      // This test used to assert that sync code never mentioned the session at
+      // all, which was the right proxy while `Reminders` was not synced: the
+      // exclusion came for free. v12 (2026-09-18) made that table syncable, so
+      // the exclusion is now something the code must DO, and the proxy would
+      // have passed for a build that shipped the timer to Firestore. The
+      // property below is the one that actually matters.
+      final mapper = _code('lib/services/sync_mapper.dart');
+      expect(mapper.contains('ReminderType.productChange'), isTrue,
+          reason: 'reminderIsSyncable no longer excludes the session type');
+      expect(mapper.contains("'payload'"), isFalse,
+          reason: 'the session state itself must never be put on the wire, '
+              'even for a row that reached the mapper by mistake');
+
+      final service = _code('lib/services/sync_service.dart');
+      expect(service.contains('reminderIsSyncable'), isTrue,
+          reason: 'the reminder push stopped applying the exclusion');
+
+      // `productSession` / `productType` still have no business in either
+      // file: the exclusion is expressed through the reminder TYPE alone.
       for (final path in [
         'lib/services/sync_mapper.dart',
         'lib/services/sync_service.dart',
       ]) {
-        final src = _code(path).toLowerCase();
-        for (final token in ['productchange', 'productsession', 'producttype']) {
-          expect(src.contains(token), isFalse,
+        final lower = _code(path).toLowerCase();
+        for (final token in ['productsession', 'producttype']) {
+          expect(lower.contains(token), isFalse,
               reason: '$path must not reference $token');
         }
       }
     });
 
-    test('the session lives on Reminders, which sync already excludes', () {
+    test('the session lives on Reminders, whose exclusion is now explicit', () {
       final repo = _read('lib/data/product_session_repository.dart');
       expect(repo.contains('ReminderRepository'), isTrue);
       // If this ever becomes its own table, the sync exclusion above stops

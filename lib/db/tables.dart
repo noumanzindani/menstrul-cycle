@@ -67,6 +67,20 @@ class Reminders extends Table {
   TextColumn get recurrence => text().nullable()(); // e.g. 'daily'
   TextColumn get title => text().nullable()();
   TextColumn get payload => text().nullable()();
+
+  /// A stable identifier this row keeps on every device.
+  ///
+  /// [id] is `autoIncrement`, i.e. a LOCAL rowid: device A's row 3 and device
+  /// B's row 3 are different reminders, so syncing on it would merge unrelated rows
+  /// into each other. Nullable because the v11 -> v12 migration is additive and
+  /// backfills nothing; the sync push assigns one to any row still missing it,
+  /// which is where generating a uuid is natural.
+  TextColumn get syncId => text().nullable()();
+
+  /// Last local edit, for `decideMerge`'s last-write-wins. Null on a row
+  /// written before v12 and never touched since -- which loses to any remote
+  /// copy, the safe direction for a row this device cannot date.
+  DateTimeColumn get updatedAt => dateTime().nullable()();
 }
 
 /// Medication/contraception schedule (schema ships now, UI is a later phase).
@@ -76,6 +90,20 @@ class Medications extends Table {
   TextColumn get type => text().nullable()(); // pill / patch / ring / injection
   TextColumn get schedule => text().nullable()();
   BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+
+  /// A stable identifier this row keeps on every device.
+  ///
+  /// [id] is `autoIncrement`, i.e. a LOCAL rowid: device A's row 3 and device
+  /// B's row 3 are different medications, so syncing on it would merge unrelated rows
+  /// into each other. Nullable because the v11 -> v12 migration is additive and
+  /// backfills nothing; the sync push assigns one to any row still missing it,
+  /// which is where generating a uuid is natural.
+  TextColumn get syncId => text().nullable()();
+
+  /// Last local edit, for `decideMerge`'s last-write-wins. Null on a row
+  /// written before v12 and never touched since -- which loses to any remote
+  /// copy, the safe direction for a row this device cannot date.
+  DateTimeColumn get updatedAt => dateTime().nullable()();
 }
 
 /// One uploaded photo or video in the standalone media timeline.

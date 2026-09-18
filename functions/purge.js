@@ -88,7 +88,21 @@ const REQUESTS_COLLECTION = 'deletionRequests';
  * DART list before sweeping, so a subcollection added there and forgotten here
  * fails the suite instead of surviving an erasure request.
  */
-const SUBCOLLECTIONS = ['dailyLogs', 'settings', 'deletions', 'devices', 'media'];
+const SUBCOLLECTIONS = [
+  'dailyLogs',
+  'settings',
+  'deletions',
+  'devices',
+  'media',
+  // v12: reminders, medications and saved photo-description
+  // conversations became syncable (2026-09-18). A subcollection missing
+  // here survives an account purge, which is the failure this list's
+  // cross-check against the Dart constant exists to catch.
+  'reminders',
+  'medications',
+  'analysisSessions',
+  'analysisMessages',
+];
 
 /**
  * The Cloud Storage prefix holding one account's uploaded photos and videos.

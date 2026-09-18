@@ -84,6 +84,30 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // v12 (2026-09-18): the owner asked for every table to be backed up,
+      // reversing two local-only rulings. There is no `match /{document=**}`
+      // catch-all in this file, so each new subcollection is denied to
+      // everyone until it is named here — which is why they are enumerated
+      // rather than globbed.
+      match /reminders/{reminderId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /medications/{medicationId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Saved photo-description conversations. The TEXT is model-generated
+      // prose about a body photo, held here in plaintext exactly as the
+      // consent sheet now states. `isOwner` is the whole boundary, and in a
+      // SHARED project `request.auth != null` would be no boundary at all —
+      // every other app's users hold a valid token against this database.
+      match /analysisSessions/{sessionId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /analysisMessages/{messageId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // Metadata for uploaded photos and videos. The BYTES live in Cloud
       // Storage under `storage.rules`; this is the index.
       match /media/{mediaId} {

@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -123,16 +123,45 @@ class AppDatabase extends _$AppDatabase {
                   appSettings, appSettings.analysisConsentVersion);
             }
           }
+          if (from < 12) {
+            // Reminders and Medications become syncable. Both keyed on
+            // `autoIncrement` until now, which is a LOCAL rowid and therefore
+            // no identity at all across devices -- hence `syncId`. Neither
+            // carried a timestamp, so there was nothing for `decideMerge` to
+            // compare -- hence `updatedAt`. Both nullable, both backfilled
+            // lazily by the push, so this branch reads no existing row.
+            for (final step in [
+              ('reminders', 'sync_id', () => m.addColumn(reminders, reminders.syncId)),
+              ('reminders', 'updated_at',
+                  () => m.addColumn(reminders, reminders.updatedAt)),
+              ('medications', 'sync_id',
+                  () => m.addColumn(medications, medications.syncId)),
+              ('medications', 'updated_at',
+                  () => m.addColumn(medications, medications.updatedAt)),
+            ]) {
+              if (!await _tableHasColumn(step.$1, step.$2)) await step.$3();
+            }
+          }
         },
       );
 
   /// True when `app_settings` already has a column named [column].
+  Future<bool> _appSettingsHasColumn(String column) =>
+      _tableHasColumn('app_settings', column);
+
+  /// True when [table] already has a column named [column].
   ///
-  /// Keeps `onUpgrade`'s ADD COLUMN steps idempotent. The table name is a
-  /// literal rather than interpolated because PRAGMA cannot take a bound
-  /// parameter for its target -- nothing user-supplied reaches this statement.
-  Future<bool> _appSettingsHasColumn(String column) async {
-    final rows = await customSelect('PRAGMA table_info("app_settings")').get();
+  /// Keeps `onUpgrade`'s ADD COLUMN steps idempotent: `createTable` is, because
+  /// drift emits CREATE TABLE IF NOT EXISTS, but `addColumn` is not, because
+  /// SQLite has no ADD COLUMN IF NOT EXISTS.
+  ///
+  /// [table] is INTERPOLATED, because PRAGMA cannot take a bound parameter for
+  /// its target. Every caller passes a literal, and the assert keeps it that
+  /// way: an identifier reaching here from anywhere else would be a SQL
+  /// injection, so the shape is checked rather than trusted.
+  Future<bool> _tableHasColumn(String table, String column) async {
+    assert(RegExp(r'^[a-z_]+$').hasMatch(table), 'unsafe table name: $table');
+    final rows = await customSelect('PRAGMA table_info("$table")').get();
     return rows.any((row) => row.read<String>('name') == column);
   }
 

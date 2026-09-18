@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:drift/drift.dart';
 
@@ -87,3 +88,125 @@ DateTime? updatedAtFromMap(Map<String, dynamic> map) {
   if (millis == null) return null;
   return DateTime.fromMillisecondsSinceEpoch(millis);
 }
+
+// ---------------------------------------------------------------------------
+// v12: reminders, medications and saved photo-description conversations.
+//
+// Added when the owner asked for every table to be backed up (2026-09-18),
+// reversing two earlier local-only rulings. See `CLAUDE.md`.
+// ---------------------------------------------------------------------------
+
+final Random _syncIdRnd = Random.secure();
+
+/// A fresh opaque sync id: 128 random bits as 32 lowercase hex characters.
+///
+/// Mirrors `newMediaId()`. `Reminders.id` and `Medications.id` are
+/// `autoIncrement` — a LOCAL rowid, so device A's row 3 and device B's row 3
+/// are different rows and syncing on it would merge unrelated records.
+String newSyncId() => List<int>.generate(16, (_) => _syncIdRnd.nextInt(256))
+    .map((b) => b.toRadixString(16).padLeft(2, '0'))
+    .join();
+
+/// The reminder type whose rows must NEVER leave the device.
+///
+/// The in-progress product-change session rides a dormant `Reminders` row's
+/// `payload`. `CLAUDE.md`'s change-timer guardrails state that session state
+/// "never touches the day-tags blob, Firestore, the doctor PDF, or the
+/// home-screen widget", and it is already filtered out of `.lunabak` so a
+/// restore cannot resurrect a 71-hour timer. Restoring a tampon timer onto a
+/// second device would show a stale elapsed count for a device that was never
+/// involved — in the one feature this app places nearest a real emergency.
+bool reminderIsSyncable(Reminder row) =>
+    row.type != ReminderType.productChange;
+
+Map<String, dynamic> reminderToMap(Reminder row, {required String deviceId}) =>
+    {
+      'type': row.type.index,
+      'hour': row.hour,
+      'minute': row.minute,
+      'enabled': row.enabled,
+      'recurrence': row.recurrence,
+      'title': row.title,
+      // `payload` is deliberately NOT sent. The only type that uses it is
+      // excluded by `reminderIsSyncable`, so a payload reaching this map at all
+      // would mean that guard had been bypassed.
+      'updatedAt': (row.updatedAt ?? DateTime.now()).millisecondsSinceEpoch,
+      'deviceId': deviceId,
+    };
+
+RemindersCompanion reminderFromMap(String syncId, Map<String, dynamic> map) =>
+    RemindersCompanion(
+      syncId: Value(syncId),
+      type: Value(ReminderType
+          .values[(map['type'] as num?)?.toInt().clamp(0, ReminderType.values.length - 1) ?? 0]),
+      hour: Value((map['hour'] as num?)?.toInt() ?? 0),
+      minute: Value((map['minute'] as num?)?.toInt() ?? 0),
+      enabled: Value(map['enabled'] as bool? ?? true),
+      recurrence: Value(map['recurrence'] as String?),
+      title: Value(map['title'] as String?),
+      updatedAt: Value(updatedAtFromMap(map)),
+    );
+
+Map<String, dynamic> medicationToMap(Medication row,
+        {required String deviceId}) =>
+    {
+      'name': row.name,
+      'type': row.type,
+      'schedule': row.schedule,
+      'enabled': row.enabled,
+      'updatedAt': (row.updatedAt ?? DateTime.now()).millisecondsSinceEpoch,
+      'deviceId': deviceId,
+    };
+
+MedicationsCompanion medicationFromMap(
+        String syncId, Map<String, dynamic> map) =>
+    MedicationsCompanion(
+      syncId: Value(syncId),
+      name: Value(map['name'] as String? ?? ''),
+      type: Value(map['type'] as String?),
+      schedule: Value(map['schedule'] as String?),
+      enabled: Value(map['enabled'] as bool? ?? true),
+      updatedAt: Value(updatedAtFromMap(map)),
+    );
+
+Map<String, dynamic> analysisSessionToMap(AnalysisSession row) => {
+      'uid': row.uid,
+      'mediaId': row.mediaId,
+      // Stamped so a stored transcript still records what its user was actually
+      // told when it started, on whatever device later reads it.
+      'consentVersion': row.consentVersion,
+      'createdAt': row.createdAt.millisecondsSinceEpoch,
+      'updatedAt': row.updatedAt.millisecondsSinceEpoch,
+    };
+
+AnalysisSessionsCompanion analysisSessionFromMap(
+        String id, Map<String, dynamic> map) =>
+    AnalysisSessionsCompanion(
+      id: Value(id),
+      uid: Value(map['uid'] as String? ?? ''),
+      mediaId: Value(map['mediaId'] as String? ?? ''),
+      consentVersion: Value((map['consentVersion'] as num?)?.toInt() ?? 0),
+      createdAt: Value(createdAtFromMap(map) ?? DateTime.now()),
+      updatedAt: Value(updatedAtFromMap(map) ?? DateTime.now()),
+    );
+
+Map<String, dynamic> analysisMessageToMap(AnalysisMessage row) => {
+      'sessionId': row.sessionId,
+      'role': row.role,
+      'messageText': row.messageText,
+      'createdAt': row.createdAt.millisecondsSinceEpoch,
+      // Messages are append-only and never edited, so `createdAt` doubles as
+      // the merge field. Sent under both names so the shared
+      // `updatedAtFromMap` reader works without a special case.
+      'updatedAt': row.createdAt.millisecondsSinceEpoch,
+    };
+
+AnalysisMessagesCompanion analysisMessageFromMap(
+        String id, Map<String, dynamic> map) =>
+    AnalysisMessagesCompanion(
+      id: Value(id),
+      sessionId: Value(map['sessionId'] as String? ?? ''),
+      role: Value(map['role'] as String? ?? 'user'),
+      messageText: Value(map['messageText'] as String? ?? ''),
+      createdAt: Value(createdAtFromMap(map) ?? DateTime.now()),
+    );

@@ -1678,4 +1678,99 @@ void main() {
     // Tearing sync down is all that happens on sign-out.
     expect(await logs.getAll(), hasLength(1));
   });
+
+  group('v12: the collections that became syncable', () {
+    test('a live product-change session is NOT pushed, while an ordinary '
+        'reminder is', () async {
+      // The strongest statement of the change-timer guardrail: not that the
+      // source avoids a word, but that the row does not reach Firestore. A
+      // minute-resolution record of an intimate act, in a plaintext store the
+      // operator can read, on a device that was never involved.
+      await db.into(db.reminders).insert(RemindersCompanion.insert(
+            type: ReminderType.logNudge,
+            hour: 9,
+            minute: 30,
+            title: const Value('Log your day'),
+          ));
+      await db.into(db.reminders).insert(RemindersCompanion.insert(
+            type: ReminderType.productChange,
+            hour: 0,
+            minute: 0,
+            payload: const Value('{"startedAt":123456}'),
+          ));
+
+      await sync.syncNow();
+
+      final docs = (await firestore.collection('users/uid-1/reminders').get())
+          .docs
+          .map((d) => d.data())
+          .toList();
+      expect(docs, hasLength(1),
+          reason: 'the product-change session was uploaded');
+      expect(docs.single['title'], 'Log your day');
+      expect(docs.single.containsKey('payload'), isFalse,
+          reason: 'payload carries the session state and must never be sent');
+    });
+
+    test('a reminder pushed once keeps its id instead of duplicating',
+        () async {
+      // `syncId` is backfilled locally on the first push. Without that write
+      // every run mints a fresh id and the collection grows one duplicate
+      // document per sync, forever.
+      await db.into(db.reminders).insert(RemindersCompanion.insert(
+            type: ReminderType.pill,
+            hour: 8,
+            minute: 0,
+          ));
+
+      await sync.syncNow();
+      final first = (await firestore.collection('users/uid-1/reminders').get())
+          .docs
+          .single
+          .id;
+      final stored = (await db.select(db.reminders).getSingle()).syncId;
+      expect(stored, first, reason: 'the local row was not backfilled');
+
+      await sync.syncNow();
+      final ids = (await firestore.collection('users/uid-1/reminders').get())
+          .docs
+          .map((d) => d.id)
+          .toList();
+      expect(ids, [first], reason: 'a second sync duplicated the reminder');
+    });
+
+    test('a saved conversation reaches Firestore', () async {
+      // Local-only until 2026-09-18, when the owner asked for every table to
+      // be backed up. The consent sheet was rewritten and its version bumped
+      // in the same change, because version 2 promised the opposite.
+      await db.into(db.analysisSessions).insert(
+            AnalysisSessionsCompanion.insert(
+              id: 'session-1',
+              uid: 'uid-1',
+              mediaId: 'media-1',
+              consentVersion: 3,
+            ),
+          );
+      await db.into(db.analysisMessages).insert(
+            AnalysisMessagesCompanion.insert(
+              id: 'msg-1',
+              sessionId: 'session-1',
+              role: 'model',
+              messageText: 'a description',
+            ),
+          );
+
+      await sync.syncNow();
+
+      final sessions =
+          (await firestore.collection('users/uid-1/analysisSessions').get())
+              .docs;
+      final messages =
+          (await firestore.collection('users/uid-1/analysisMessages').get())
+              .docs;
+      expect(sessions.single.data()['consentVersion'], 3,
+          reason: 'a transcript must still record what its user was told');
+      expect(messages.single.data()['messageText'], 'a description');
+    });
+  });
 }

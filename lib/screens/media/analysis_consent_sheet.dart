@@ -94,9 +94,10 @@ class _AnalysisConsentSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'LunarFlow keeps the conversation about a photo on '
-                      'this device, tied to that photo, so you can reopen '
-                      'it. Deleting the photo deletes the conversation with '
+                      'LunarFlow saves the conversation to your account, so '
+                      'it is backed up and reaches your other devices. It is '
+                      'stored as plain text that the people who run LunarFlow '
+                      'can read. Deleting the photo deletes the conversation with '
                       'it.',
                       style: theme.textTheme.bodyMedium,
                     ),
