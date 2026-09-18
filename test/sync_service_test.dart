@@ -1,7 +1,8 @@
 // `show Value` avoids drift's Column/Table names colliding with flutter_test.
 import 'package:drift/drift.dart' show LazyDatabase, Value;
 import 'package:drift/native.dart';
-import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
+import 'package:cloud_firestore/cloud_firestore.dart'
+    show CollectionReference, FirebaseException, Timestamp;
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/data/daily_log_repository.dart';
@@ -10,6 +11,31 @@ import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/services/account_deletion_service.dart';
 import 'package:menstrul_track/services/sync_service.dart';
+
+/// A Firestore that denies one collection outright, the way an undeployed
+/// `firestore.rules` path does.
+///
+/// `FakeFirebaseFirestore` has NO rules engine — every path it serves is
+/// permitted — which is precisely why the suite did not notice that the four
+/// v12 collections were denied on the real backend for a whole day. This
+/// double restores the one behaviour the fake cannot express.
+class _DenyingFirestore extends FakeFirebaseFirestore {
+  _DenyingFirestore(this.deniedPath);
+
+  final String deniedPath;
+
+  @override
+  CollectionReference<Map<String, dynamic>> collection(String path) {
+    if (path == deniedPath) {
+      throw FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'permission-denied',
+        message: 'Missing or insufficient permissions.',
+      );
+    }
+    return super.collection(path);
+  }
+}
 
 void main() {
   late AppDatabase db;
@@ -1771,6 +1797,79 @@ void main() {
       expect(sessions.single.data()['consentVersion'], 3,
           reason: 'a transcript must still record what its user was told');
       expect(messages.single.data()['messageText'], 'a description');
+    });
+  });
+
+  group('a denied v12 collection cannot strand the pre-v12 backup', () {
+    // DEVICE-FOUND 2026-09-19, OnePlus Nord N200, against the live project.
+    // `firestore.rules` gained four v12 paths that were never deployed, and
+    // with no `match /{document=**}` catch-all an unlisted path is denied to
+    // everyone. `_pullExtra` threw PERMISSION_DENIED, `syncNow` has no catch,
+    // and `SyncTrigger._syncNow`'s `catch (_) {}` swallowed it -- so the run
+    // aborted BEFORE `_writePullCursors`, silently, on every single sync.
+    //
+    // The comment that catch was written under says "the next trigger retries
+    // the same window because lastSyncedAt did not advance". True and correct
+    // for a dropped connection. A permission error never heals on retry, so
+    // the same mechanism turned one missing rule into a permanent stall of the
+    // four collections that were working perfectly.
+    late _DenyingFirestore denying;
+    late SyncService denied;
+
+    setUp(() {
+      denying = _DenyingFirestore('users/uid-1/reminders');
+      denied = SyncService(
+        db: db,
+        firestore: denying,
+        uid: 'uid-1',
+        deviceId: 'device-1',
+      );
+    });
+
+    test('the logs cursor still advances when the reminders pull is denied',
+        () async {
+      await SettingsRepository(db).updateSyncState(
+        AppSettingsCompanion(lastSyncedAt: Value(DateTime(2026, 9, 18))),
+      );
+      final seeded = Timestamp.fromDate(DateTime(2026, 9, 18));
+      await denying.doc('users/uid-1/devices/device-1').set({
+        'logsCursor': seeded,
+      });
+      // A peer's day, newer than the cursor, which this run pulls and applies.
+      final peerStamp = Timestamp.fromDate(DateTime(2026, 9, 19, 8));
+      await denying.doc('users/uid-1/dailyLogs/2026-09-19').set({
+        'date': DateTime(2026, 9, 19).millisecondsSinceEpoch,
+        'symptoms': '{"cramps":true}',
+        'updatedAt': DateTime(2026, 9, 19, 8).millisecondsSinceEpoch,
+        'deviceId': 'device-2',
+        'syncedAt': peerStamp,
+      });
+
+      await expectLater(denied.syncNow(), throwsA(isA<FirebaseException>()));
+
+      final after =
+          (await denying.doc('users/uid-1/devices/device-1').get()).data()!;
+      expect(after['logsCursor'], peerStamp,
+          reason: 'the denied reminders pull stranded the LOGS cursor, so '
+              'every later sync re-fetches this same window forever');
+    });
+
+    test('lastSyncedAt does NOT advance, so no push is ever skipped', () async {
+      // The deliberate other half. `lastSyncedAt` is `since`, which gates the
+      // PUSH side: `_pushReminders` skips a row once
+      // `row.updatedAt.isBefore(since)`. Advancing it past a push that then
+      // failed would drop those rows permanently. Over-pushing is correct;
+      // under-pushing is data loss -- so this one must stay stalled.
+      final before = DateTime(2026, 9, 18);
+      await SettingsRepository(db).updateSyncState(
+        AppSettingsCompanion(lastSyncedAt: Value(before)),
+      );
+
+      await expectLater(denied.syncNow(), throwsA(isA<FirebaseException>()));
+
+      expect((await db.getSettings()).lastSyncedAt, before,
+          reason: 'lastSyncedAt advanced past pushes that never ran, so those '
+              'rows will be skipped by isBefore(since) forever');
     });
   });
 }

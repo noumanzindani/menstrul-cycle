@@ -22,9 +22,14 @@ and stored locally, and the app is fully usable offline.
 - **Drift remains the single source of truth.** The UI never reads from or writes to
   Firestore; `SyncService` mirrors drift ⇄ Firestore alongside the existing read/write
   path, never in front of it.
-- **Reminders, the medications table and `PeriodEntries` are deliberately NOT synced.**
-  (Per-day `med_` intake marks DO travel — they ride the day-tags blob inside the daily
-  log.)
+- **Everything syncs except `PeriodEntries` and one row.** As of v12, `Reminders`,
+  `Medications`, `AnalysisSessions` and `AnalysisMessages` all back up to Firestore
+  (owner decision, 2026-09-18, reversing the earlier local-only rulings). `PeriodEntries`
+  is a dead table nothing reads. The single deliberate exclusion is the **product-change
+  timer row** — `reminderIsSyncable` (`sync_mapper.dart`) drops
+  `ReminderType.productChange`, and `reminderToMap` never sends `payload` at all, so a
+  live tampon timer can never travel to another device. (Per-day `med_` intake marks
+  ride the day-tags blob inside the daily log, as they always have.)
 - **Platform:** Android-first (Play one-time $25). iOS deferred (the $99/yr Apple fee is
   the only real running cost).
 - **Monetization:** AdMob (non-personalized ads, **banned from the logging and insights
@@ -110,7 +115,7 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   Numeric metrics (`pain`, `water`, `sleep`, `energy`, `stress`, `sleep_quality`, `weight`)
   ride the same blob as real JSON numbers, so they never satisfy the `== true` symptom check
   and need no key prefix. **`0` means "unset" for every numeric metric**, weight included.
-- **Schema & migrations.** `schemaVersion` is **11**. `onUpgrade` uses independent additive
+- **Schema & migrations.** `schemaVersion` is **12**. `onUpgrade` uses independent additive
   `if (from < n)` branches (not else-if), one nullable column each, so a user on any old
   version runs every intervening branch and existing rows need no backfill: v1→v2 added
   `AppSettings.pregnancyStartDate`; v2→v3 added `AppSettings.trackingCategories`; v3→v4
@@ -130,17 +135,29 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   four, because that question set will grow and a column per question means a migration per
   question; **v10→v11 added the `AnalysisSessions` and `AnalysisMessages` tables plus
   `AppSettings.analysisConsentVersion`**, all three together (saved photo-description
-  conversations, and the versioned consent that gates them — see D10 below).
+  conversations, and the versioned consent that gates them — see D10 below);
+  **v11→v12 added `syncId` and `updatedAt` to `Reminders` and `Medications`**, which is
+  what made those two tables syncable at all: both key on `autoIncrement`, a LOCAL rowid,
+  so device A's reminder 3 and device B's reminder 3 are different reminders and syncing
+  on it would merge unrelated rows; and neither carried a timestamp, so `decideMerge` had
+  nothing to compare. Both columns are nullable and backfilled LAZILY by the push (which
+  is why `_pushReminders` skips a row only when `updatedAt != null && isBefore(since)` —
+  a null must never be filtered out, or every pre-v12 row would be unsyncable forever).
   v4→v5, v5→v6 and v10→v11 are the only branches that
-  create a table rather than adding a column; all are still purely additive. Note the two `SettingsRepository` entry
+  create a table rather than adding a column; all are still purely additive.
+  **v11→v12 is also the first branch to guard its own ADD COLUMN steps** with
+  `_tableHasColumn`, for the reason the v10→v11 comment records at length: `createTable`
+  is idempotent (drift emits IF NOT EXISTS) but `addColumn` is not, and a v12-then-v10
+  install sequence re-runs the branch against columns that already exist. Note the two `SettingsRepository` entry
   points that write those columns: **`update()` stamps `settingsUpdatedAt`** (a user
   edit, so it pushes on the next sync), **`updateSyncState()` deliberately does not** —
   it is sync bookkeeping, and stamping it would make every sync look like a settings
   change and push forever. A committed JSON snapshot per version lives in
-  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v11.json` /
-  `schema_v11.dart`); `test/db_migration_v11_test.dart` uses drift's `SchemaVerifier` to run
-  the REAL `onUpgrade` against a v10 DB seeded with non-default rows. The suite runs one
-  such test per hop, `db_migration_v3_test.dart` through `db_migration_v11_test.dart`.
+  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v12.json` /
+  `schema_v12.dart`); `test/db_migration_v12_test.dart` uses drift's `SchemaVerifier` to run
+  the REAL `onUpgrade` against a v11 DB seeded with non-default rows — including a live
+  product-change session, the one row that must survive untouched. The suite runs one
+  such test per hop, `db_migration_v3_test.dart` through `db_migration_v12_test.dart`.
   In-memory `AppDatabase.forTesting` runs `onCreate` at the current schema and NEVER
   exercises `onUpgrade`, so every new migration needs a snapshot dumped BEFORE the version
   bump (only derivable while that version is current) and its own SchemaVerifier test.
@@ -296,8 +313,9 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
     agreed" — to a sheet that named only a photo. Sending diagnoses, BMI,
     sexual activity and masturbation history under an unchanged "Allow" would
     be, in substance, no consent to that new disclosure at all.
-    `AppSettings.analysisConsentVersion` (v11) plus `kCurrentConsentVersion = 2`
-    (`media_analysis.dart`) mean `MediaAnalysisService.consented` requires the
+    `AppSettings.analysisConsentVersion` (v11) plus `kCurrentConsentVersion = 3`
+    (`media_analysis.dart`, bumped from 2 on 2026-09-18 when transcripts began to
+    sync) mean `MediaAnalysisService.consented` requires the
     stored uid AND the stored version to match; anyone who agreed under
     version 1 is asked again. Each saved session also stamps its own
     `consentVersion`, so a stored transcript records what its user was
@@ -371,9 +389,13 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
     itself — the caller loads the transcript and hands over plain
     `AnalysisTurn`s, a type the service already owns.
 
-  Saved conversations are **local-only**, like `analysisConsentUid` already
-  was: not synced to Firestore, so they need no `firestore.rules` or
-  `functions/purge.js` coverage. `deleteAllData()`, the sign-out/account-switch
+  Saved conversations **were** local-only; the owner reversed that on 2026-09-18 and
+  they now sync (`users/{uid}/analysisSessions` + `analysisMessages`), so they DO need
+  `firestore.rules` and `functions/purge.js` coverage and have it. That reversal is why
+  `kCurrentConsentVersion` is **3**: version 2's sheet promised the conversation stayed
+  on the device, so uploading under an unchanged "Allow" would have been no consent to
+  the new disclosure — the same reasoning that created version 2.
+  `analysisConsentUid`/`analysisConsentVersion` themselves are still NOT synced. `deleteAllData()`, the sign-out/account-switch
   wipe (`MediaProvider` → `MediaRepository.deleteExcept` →
   `AnalysisSessionRepository.deleteExcept`), cascade-on-photo-delete
   (`MediaRepository.deleteById` / `deleteExcept`), and exclusion from
@@ -432,9 +454,28 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   therefore ignoring deployed rules — it is EMPTY and abandoned; do not write to it.
   The owner's option to move LunarFlow to a dedicated project is still open, so keep
   reading the id from config rather than hardcoding it in Dart.
-- **`firestore.rules` is the entire privacy boundary, and it IS deployed** — to
-  `cloud.firestore/lunatrack-db`, byte-identical to this file (verified 2026-09-14
-  against the Rules API; see `docs/HANDOFF.md` for the command). The API
+- **`firestore.rules` is the entire privacy boundary, and deploying it is a SEPARATE
+  ACT from committing it.** This bullet claimed the live ruleset was "byte-identical to
+  this file (verified 2026-09-14)". **It was not.** On 2026-09-19 the deployed ruleset
+  for `lunatrack-db` was still the one released **2026-08-12**, missing all four v12
+  paths, and because there is no `match /{document=**}` catch-all those paths were denied
+  to everyone. `_pullExtra` threw PERMISSION_DENIED on a real device, `syncNow` aborted
+  before committing its cursors, and `SyncTrigger._syncNow`'s `catch (_) {}` swallowed it
+  — so every sync silently half-completed. **The stale claim here is why nobody looked.**
+  A "verified on <date>" note decays into a false assertion the moment the file changes
+  again; treat this line as a description of the PROCESS, never as current state, and
+  re-read the live ruleset when it matters:
+
+  ```bash
+  TOKEN=$(gcloud auth print-access-token)
+  curl -s -H "Authorization: Bearer $TOKEN" -H "x-goog-user-project: teddy-2-20649" \
+    https://firebaserules.googleapis.com/v1/projects/teddy-2-20649/releases
+  # find the `lunatrack-db` release -> GET its rulesets/<id> and diff the source
+  ```
+
+  Note `firebase deploy --only firestore:rules` logs "released rules firestore.rules to
+  **cloud.firestore**" even when the target is the NAMED database — that string is not
+  confirmation the named database was updated. Check the release list. The API
   key ships inside the APK, so every in-app consent gate (`ClaimPreference`, `AppGate`'s
   ordering, `SyncTrigger`) governs only this app's behaviour and has zero authority over a
   raw REST call. Rules therefore key on **identity** (`request.auth.uid` vs the uid in the
@@ -1055,7 +1096,7 @@ only checked that the ad hid, not that the entry form actually rendered.
 
 Two suites, and `flutter test` does not cover the second:
 
-- `flutter test` — **1141** passing, 3 skipped, **2 failing**. (Keep this number current; a
+- `flutter test` — **1322** passing, 3 skipped, **2 failing**. (Keep this number current; a
   stale one makes a real regression look like a miscount.) The two failures are
   PRE-EXISTING and not in this lane: `firebase_unavailable_test.dart` taps
   `Icons.settings_outlined`, which `409973a` replaced with an illustrated nav mark.

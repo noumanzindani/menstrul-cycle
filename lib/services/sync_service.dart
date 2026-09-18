@@ -193,6 +193,30 @@ class SyncService {
       // before that pull would push stale pre-pull state back out, quietly
       // reverting the very row the pull just merged.
       await _pushSettings(await _settings.get(), since);
+      // Committed HERE, before the v12 collections below, and not at the end of
+      // the run.
+      //
+      // Everything above this line is the backup that predates v12, and it has
+      // just completed. Everything below is newer. Leaving this commit at the
+      // bottom made the two share a fate: on 2026-09-19, on a real device, a
+      // single missing `firestore.rules` path made `_pullExtra` throw
+      // PERMISSION_DENIED, which aborted the run before this line and so
+      // stranded the cursors for the four collections that had worked
+      // perfectly. Every subsequent sync re-fetched the same window and
+      // re-pushed the same rows, forever, because a permission error -- unlike
+      // the network failure `SyncTrigger._syncNow`'s `catch (_) {}` was written
+      // for -- never heals on retry. Nothing surfaced to the user.
+      //
+      // A cursor that advanced past a document this run failed to apply would
+      // never fetch it again, so this still commits only after the pulls it
+      // describes (`_pullLogs` / `_pullDeletions`) have both applied
+      // successfully. It simply no longer waits on work it has nothing to do
+      // with.
+      await _writePullCursors(
+        logs: logsCursor,
+        deletions: deletionsCursor,
+        previous: cursors,
+      );
       // The v12 collections. Pulled before pushed, same order as the pair
       // above and for the same reason: a push built on pre-pull state would
       // quietly revert the row the pull just merged.
@@ -214,16 +238,17 @@ class SyncService {
       // `updateSyncState`, NOT `update`: advancing the high-water mark is not a
       // user edit, and stamping `settingsUpdatedAt` here would make every sync
       // look like a settings change and push forever.
+      //
+      // This one stays LAST, and deliberately did NOT move up with the pull
+      // cursors above. It is `since`, which gates the PUSH side of every
+      // collection -- including `_pushReminders` / `_pushMedications`, which
+      // skip a row once `row.updatedAt.isBefore(since)`. Advancing it before
+      // those pushes have succeeded would let a failed push permanently skip
+      // the rows it was supposed to send: silent, unrecoverable data loss, and
+      // strictly worse than the stalled-cursor bug this reordering fixes.
+      // Over-pushing is correct; under-pushing is data loss.
       await _settings.updateSyncState(
         AppSettingsCompanion(lastSyncedAt: Value(startedAt)),
-      );
-      // Committed LAST, and only on full success, for the same reason
-      // `lastSyncedAt` is: a cursor that advanced past a document this run
-      // failed to apply would never fetch it again.
-      await _writePullCursors(
-        logs: logsCursor,
-        deletions: deletionsCursor,
-        previous: cursors,
       );
     } finally {
       _running = false;
