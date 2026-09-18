@@ -90,21 +90,29 @@ class _DiaryScreenState extends State<DiaryScreen> {
             ),
           ),
           Expanded(
-            child: entries.isEmpty
-                ? _EmptyState(searching: _query.trim().isNotEmpty)
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    itemCount: entries.length,
-                    itemBuilder: (context, i) {
-                      final e = entries[i];
-                      return _DiaryCard(
-                        date: df.format(e.date),
-                        note: e.note,
-                        cycleDay: _cycleDay(provider, e.date),
-                        onTap: () => showDayEntrySheet(context, date: e.date),
-                      );
-                    },
-                  ),
+            // "Nothing written yet" and "not read yet" are different answers,
+            // and `provider.logs` is empty in both. Without this branch the
+            // diary spends the read window telling a user with a full diary
+            // that notes they add "appear here" -- a confident claim it has
+            // not earned, and the reason an empty diary reads as a broken one.
+            child: provider.loading
+                ? const Center(child: CircularProgressIndicator())
+                : entries.isEmpty
+                    ? _EmptyState(searching: _query.trim().isNotEmpty)
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        itemCount: entries.length,
+                        itemBuilder: (context, i) {
+                          final e = entries[i];
+                          return _DiaryCard(
+                            date: df.format(e.date),
+                            note: e.note,
+                            cycleDay: _cycleDay(provider, e.date),
+                            onTap: () =>
+                                showDayEntrySheet(context, date: e.date),
+                          );
+                        },
+                      ),
           ),
         ],
       ),

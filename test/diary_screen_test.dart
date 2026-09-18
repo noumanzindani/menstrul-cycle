@@ -69,6 +69,29 @@ void main() {
     expect(find.textContaining('Notes you add'), findsOneWidget);
   });
 
+  testWidgets('while the logs are still being read, does not claim the diary '
+      'is empty', (tester) async {
+    // A fresh LogProvider has `loading == true` and an empty `logs` list --
+    // empty because nothing has been READ yet, not because nothing was
+    // WRITTEN. The two are different answers and only one of them is honest
+    // here: this user has a note, it just has not arrived.
+    await seed(DateTime(2026, 5, 1), 'a real note');
+    await tester.pumpWidget(
+      ChangeNotifierProvider<LogProvider>.value(
+        value: logs, // load() deliberately NOT awaited
+        child: const MaterialApp(home: DiaryScreen()),
+      ),
+    );
+    // pump, never pumpAndSettle: a progress indicator animates forever.
+    await tester.pump();
+
+    expect(logs.loading, isTrue, reason: 'the fixture stopped being a loading '
+        'provider, so this test no longer covers what it claims to');
+    expect(find.textContaining('Notes you add'), findsNothing,
+        reason: 'the diary told a user with a note that they had none');
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
   testWidgets('GUARDRAIL: never renders an ad banner', (tester) async {
     await seed(DateTime(2026, 5, 1), 'a note');
     await pump(tester);
