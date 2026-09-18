@@ -76,6 +76,14 @@ class SyncTrigger extends ChangeNotifier {
   /// started for. Coalescing joins the existing run ONLY when that service is
   /// still the current one — see [syncNow].
   Future<void>? _inFlight;
+
+  /// The most recent [setUser] call, retained so [restoreSettingsForFirstRun]
+  /// can wait for `_service` to exist.
+  ///
+  /// `setUser` builds the service ACROSS an await (the device id comes from
+  /// secure storage), so a caller arriving on the first frame finds `_service`
+  /// still null through no fault of its own.
+  Future<void>? _setUserInFlight;
   SyncService? _inFlightService;
 
   /// EVERY run not yet complete, including ones started for a service that has
@@ -203,6 +211,24 @@ class SyncTrigger extends ChangeNotifier {
   /// place, at the same moment, as everything else here.
   String? get currentUid => _uid;
 
+  /// Restores a previous signup baseline onto a device that has not onboarded.
+  ///
+  /// Returns false when there is no sync service yet (no Firebase app, offline,
+  /// local-only) -- the caller then runs the wizard, which is the correct and
+  /// safe fallback. See `SyncService.restoreSettingsForFirstRun` for why this
+  /// path has to exist at all.
+  Future<bool> restoreSettingsForFirstRun() async {
+    // Waiting here is the difference between restoring the baseline and
+    // silently re-asking every signup question: the gate runs this on the
+    // first frame, which is typically BEFORE `setUser` has finished building
+    // the service, and an unwaited null reads as "this account has nothing
+    // stored".
+    await _setUserInFlight;
+    final service = _service;
+    if (service == null) return false;
+    return service.restoreSettingsForFirstRun();
+  }
+
   /// The generation counter guarding account changes. See [_epoch].
   ///
   /// A media upload spans several `await`s — a thumbnail encode, two uploads, a
@@ -244,7 +270,13 @@ class SyncTrigger extends ChangeNotifier {
 
   /// Called when the signed-in user changes. A null uid tears sync down without
   /// touching local data — signing out must never wipe the device.
-  Future<void> setUser(String? uid) async {
+  Future<void> setUser(String? uid) {
+    final run = _setUser(uid);
+    _setUserInFlight = run;
+    return run;
+  }
+
+  Future<void> _setUser(String? uid) async {
     if (uid == _uid) return;
     // Captured before anything is mutated; re-checked after every `await`
     // below. See [_epoch] — without it an older invocation's continuation

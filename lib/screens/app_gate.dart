@@ -43,6 +43,7 @@ class AppGate extends StatefulWidget {
   final Future<DeletionRequest?> Function(String uid) pendingDeletion;
   final Future<void> Function(String uid) cancelDeletion;
 
+
   static Future<DeletionRequest?> _livePendingDeletion(String uid) =>
       AccountDeletionService(firestore: lunaFirestore(), uid: uid)
           .pendingRequest();
@@ -68,6 +69,15 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   /// reason: a bare bool would latch across a sign-out and sign-in.
   String? _deletionCheckedFor;
   DeletionRequest? _pendingDeletion;
+
+  /// The uid a baseline restore has been attempted for, keyed per-uid for the
+  /// same reason [_deletionCheckedFor] is: a bare bool would latch across an
+  /// account switch and deny the second account its own restore.
+  String? _restoreCheckedFor;
+
+  /// True while that read is in flight. NOT the same as "this user has not
+  /// onboarded" -- see the guard in [build].
+  bool _restoring = false;
 
   /// Whether this gate has ever rendered the app for an UNLOCKED session.
   ///
@@ -130,6 +140,12 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   /// request", i.e. show the app: this notice must never be able to lock
   /// someone out of their own tracker.
   static const _deletionCheckTimeout = Duration(seconds: 10);
+
+  /// Shorter than [_deletionCheckTimeout]: this one sits in front of the first
+  /// frame a new user ever sees, and the fallback (run the wizard) is correct
+  /// rather than merely acceptable. Waiting longer to maybe save some typing is
+  /// a worse trade than a brief splash.
+  static const _restoreTimeout = Duration(seconds: 6);
 
   @override
   void initState() {
@@ -254,6 +270,68 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   /// from ANOTHER device and still has local data here, and that overlap is
   /// harmless: `SyncService.syncNow` refuses to run for an account with a
   /// marker on record, so answering the claim prompt pushes nothing.
+  /// Pulls a signup baseline this account already has, before the wizard is
+  /// ever rendered.
+  ///
+  /// `onboardingComplete` is deliberately device-local, so a reinstall re-asks
+  /// all eleven pages. Answering them stamps `settingsUpdatedAt` with NOW,
+  /// which beats the cloud copy under last-writer-wins, and the next push
+  /// blind-`set()`s the fresh answers over the stored ones -- the recovery
+  /// attempt destroying the backup. Reading FIRST is what breaks that chain.
+  ///
+  /// Fails toward the wizard: no service, no document, an error or a timeout
+  /// all mean "ask the questions". Re-asking is recoverable; skipping the
+  /// wizard for an account that never answered is not.
+  void _maybeRestoreBaseline(
+    BuildContext context,
+    String? uid, {
+    required bool onboarded,
+  }) {
+    if (uid == null || onboarded || _restoreCheckedFor == uid) return;
+    _restoreCheckedFor = uid;
+    // Read the trigger NOW, synchronously: `context` must not be touched
+    // across the await inside the callback below.
+    final trigger = _readTrigger(context);
+    if (trigger == null) return; // no sync available: run the wizard
+    // Captured synchronously for the same reason [trigger] is: the callback
+    // below awaits, and `context` must not be read across that gap.
+    final settings = context.read<SettingsProvider>();
+    // A plain assignment, NOT setState: this runs from `build`, where setState
+    // is illegal, and none is needed -- the guard that reads `_restoring` is
+    // further down this same build pass and sees it. Clearing it later does go
+    // through setState, because by then the frame is over.
+    _restoring = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      var restored = false;
+      try {
+        restored =
+            await trigger.restoreSettingsForFirstRun().timeout(_restoreTimeout);
+      } catch (_) {
+        restored = false;
+      }
+      if (!mounted || _restoreCheckedFor != uid) return;
+      if (restored) {
+        // `markOnboardedFromRestore`, never `setOnboardingComplete`: the
+        // latter stamps `settingsUpdatedAt` and would push the just-pulled row
+        // straight back out, re-arming the overwrite this path prevents.
+        await settings.markOnboardedFromRestore();
+        if (!mounted) return;
+      }
+      setState(() => _restoring = false);
+    });
+  }
+
+  /// The tree's [SyncTrigger], or null when there is not one -- a harness that
+  /// builds this gate without planting the provider, exactly as
+  /// [_maybePromptClaim] tolerates.
+  SyncTrigger? _readTrigger(BuildContext context) {
+    try {
+      return context.read<SyncTrigger>();
+    } catch (_) {
+      return null;
+    }
+  }
+
   void _maybeCheckDeletion(String? uid) {
     if (uid == null || _deletionCheckedFor == uid) return;
     _deletionCheckedFor = uid;
@@ -379,6 +457,8 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       _appEverRendered = true;
       _maybePromptClaim(context, auth.user?.uid);
       _maybeCheckDeletion(auth.user?.uid);
+      _maybeRestoreBaseline(context, auth.user?.uid,
+          onboarded: settings.onboardingComplete);
     }
 
     // A pending deletion outranks onboarding, and that ordering IS the fix:
@@ -412,6 +492,12 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     // (no account, Firebase down) walks this exactly like anyone else — the
     // banner below covers it too, so onboarding is never a moment where the
     // reduced-functionality state goes unmentioned.
+    // A restore in flight is "we do not know yet", not "this user has never
+    // onboarded". Rendering the wizard here would start someone on page one
+    // while the answers they already gave are on their way down, then yank
+    // them into the app mid-question.
+    if (_restoring && !settings.onboardingComplete) return const _SplashScreen();
+
     final content =
         settings.onboardingComplete ? const AppShell() : const OnboardingScreen();
     if (_localOnly) {

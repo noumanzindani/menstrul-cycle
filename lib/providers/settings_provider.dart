@@ -189,6 +189,23 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Marks signup answered because a baseline was RESTORED from the cloud, not
+  /// because the user just answered the wizard.
+  ///
+  /// Deliberately `updateSyncState`, NOT [update], for the same reason
+  /// [recordAnalysisUsage] is: stamping `settingsUpdatedAt` would make the
+  /// just-pulled row look locally edited, and the next `_pushSettings` would
+  /// push it straight back out. Harmless in content -- it would be the same
+  /// values -- but it re-arms the last-writer-wins overwrite that
+  /// `SyncService.restoreSettingsForFirstRun` exists to prevent.
+  Future<void> markOnboardedFromRestore() async {
+    await _repo.updateSyncState(
+      const AppSettingsCompanion(onboardingComplete: Value(true)),
+    );
+    _settings = await _repo.get();
+    notifyListeners();
+  }
+
   Future<void> setThemeMode(ThemeMode mode) => update(
         AppSettingsCompanion(
           themeMode: Value(switch (mode) {

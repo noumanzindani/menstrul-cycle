@@ -639,6 +639,43 @@ class SyncService {
     }
   }
 
+  /// Pulls ONLY the settings document, for a device that has not onboarded.
+  ///
+  /// Returns true when this account already answered signup -- on another
+  /// device, or before a reinstall -- so the caller can skip the wizard.
+  ///
+  /// Exists because `onboardingComplete` is deliberately device-local (see
+  /// [_pushSettings]). Without this, a reinstalled device re-asks every signup
+  /// question, stamps `settingsUpdatedAt` with NOW, and the next
+  /// [_pushSettings] blind-`set()`s those fresh answers over the ones already
+  /// in the cloud: the recovery attempt destroying the backup it was meant to
+  /// restore. Last-writer-wins is right for a preference edited on two phones
+  /// and wrong for a first-run wizard, because a freshly reinstalled device
+  /// always holds the newest timestamp while holding the least information.
+  ///
+  /// Settings only. Logs are deliberately NOT pulled here: they merge per-day
+  /// and [syncNow] handles them, and a full sweep in front of the first frame
+  /// is a long wait for data the wizard does not need.
+  Future<bool> restoreSettingsForFirstRun() async {
+    final data = (await _remoteSettings.get()).data();
+    if (data == null || !_looksOnboarded(data)) return false;
+    // `_pullSettings` stamps the local row with the REMOTE `settingsUpdatedAt`,
+    // never with now, so after this the two sides tie and `_pushSettings`
+    // correctly declines to push the row straight back out.
+    await _pullSettings();
+    return true;
+  }
+
+  /// Whether [data] was written by an account that finished signup.
+  ///
+  /// `dateOfBirth` is the sentinel: it has its own wizard page, it is REQUIRED,
+  /// and nothing outside signup and the profile editor writes it. A document
+  /// holding only preferences -- theme, language -- belongs to an account that
+  /// never finished, and skipping the wizard on that evidence would strand the
+  /// user in an app with no profile and no route back to the questions.
+  static bool _looksOnboarded(Map<String, dynamic> data) =>
+      data['dateOfBirth'] is int;
+
   /// Preference fields only.
   ///
   /// The profile fields (date of birth, height, profile weight, menarche age)
