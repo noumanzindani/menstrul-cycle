@@ -121,7 +121,7 @@ Future<void> answerVisiblePage(WidgetTester tester) async {
     await tapInGroup(tester, 'libido-today', 'High libido');
   } else if (on(soloQuestion)) {
     await tapText(tester, 'Never');
-    await tapInGroup(tester, 'solo-ways', 'Prefer not to say');
+    await tapInGroup(tester, 'solo-ways', 'Hands');
     await tapInGroup(tester, 'solo-time', 'Prefer not to answer');
     await tapInGroup(tester, 'solo-today', 'Not today');
   }

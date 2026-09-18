@@ -492,14 +492,25 @@ const List<TrackOption> kSexualHistoryOptions = [
 /// them from. `slfw_` does not match the `slf_` prefix, which is what keeps
 /// that true.
 ///
-/// Both carry a decline option. A required question about this is the strongest
-/// case in the app for an answer that means "I am not telling you", and it is
-/// stored as a real key so declining stays distinguishable from never-asked.
+/// [kSatisfactionTimeOptions] still carries a decline option; this list no
+/// longer does. "Prefer not to say" was removed from the ways question on
+/// 2026-09-18 at the owner's request, which leaves [kSoloWayOther] -- and the
+/// free-text box it reveals, stored in [SexualBaseline.soloWayOther] -- as the
+/// open-ended answer.
+///
+/// [kSoloWayPrivate] is deliberately still DECODABLE. A baseline written by an
+/// older build keeps the answer it stored rather than silently losing it; only
+/// the picker stopped offering it.
 const List<TrackOption> kIntimacyWaysOptions = [
   TrackOption('slfw_hands', 'Hands'),
   TrackOption('slfw_toy', 'Toy or vibrator'),
   TrackOption('slfw_water', 'Water'),
-  TrackOption('slfw_other', 'Other'),
+  TrackOption(kSoloWayOther, 'Other'),
+];
+
+/// Accepted on decode, never offered in the picker. See [kIntimacyWaysOptions].
+const List<TrackOption> _kDecodableIntimacyWays = [
+  ...kIntimacyWaysOptions,
   TrackOption(kSoloWayPrivate, 'Prefer not to say'),
 ];
 
@@ -512,8 +523,27 @@ const List<TrackOption> kSatisfactionTimeOptions = [
   TrackOption(kSatPrivate, 'Prefer not to answer'),
 ];
 
+/// Reveals the free-text box on the signup ways question.
+const String kSoloWayOther = 'slfw_other';
+
+/// Retired from the picker on 2026-09-18, still decodable.
 const String kSoloWayPrivate = 'slfw_private';
 const String kSatPrivate = 'sat_private';
+
+/// Cap on [SexualBaseline.soloWayOther]. A baseline row syncs to Firestore, so
+/// the one field a user can type freely into needs a bound.
+const int kSoloWayOtherMaxLength = 120;
+
+/// Trims [raw] and caps it at [kSoloWayOtherMaxLength]; whitespace-only and
+/// non-strings read as "not answered".
+String? normalizeSoloWayOther(Object? raw) {
+  if (raw is! String) return null;
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+  return trimmed.length <= kSoloWayOtherMaxLength
+      ? trimmed
+      : trimmed.substring(0, kSoloWayOtherMaxLength);
+}
 
 /// The signup answers to the questions a first-run wizard can meaningfully ask:
 /// what is TYPICALLY true, rather than what happened today.
@@ -529,6 +559,7 @@ class SexualBaseline {
     this.libido,
     this.history = const {},
     this.soloWays = const {},
+    this.soloWayOther,
     this.satisfactionTime,
   });
 
@@ -547,6 +578,15 @@ class SexualBaseline {
   /// common case, which is why this is a set and [satisfactionTime] is not.
   final Set<String> soloWays;
 
+  /// The user's own words, when [soloWays] contains [kSoloWayOther]. Null
+  /// otherwise -- [encodeSexualBaseline] enforces that pairing, so text left
+  /// behind by a de-selected "Other" cannot survive in the column.
+  ///
+  /// The only free text in this baseline. It does NOT reach
+  /// `lib/services/health_context.dart`, which is what keeps it out of the
+  /// Gemini payload; it DOES ride the Firestore sync like the rest of the row.
+  final String? soloWayOther;
+
   /// A `sat_` key from [kSatisfactionTimeOptions], or null when unanswered.
   final String? satisfactionTime;
 
@@ -556,6 +596,7 @@ class SexualBaseline {
       libido == null &&
       history.isEmpty &&
       soloWays.isEmpty &&
+      soloWayOther == null &&
       satisfactionTime == null;
 }
 
@@ -578,13 +619,22 @@ String? encodeSexualBaseline({
   String? libido,
   Set<String> history = const {},
   Set<String> soloWays = const {},
+  String? soloWayOther,
   String? satisfactionTime,
 }) {
+  // The text belongs to the "Other" chip, so it is dropped whenever that chip
+  // is not selected. Enforced here rather than at the call site: this is the
+  // only door into the column, and an invariant checked at the door cannot be
+  // skipped by the next caller.
+  final other = soloWays.contains(kSoloWayOther)
+      ? normalizeSoloWayOther(soloWayOther)
+      : null;
   if (sexFrequency == null &&
       soloFrequency == null &&
       libido == null &&
       history.isEmpty &&
       soloWays.isEmpty &&
+      other == null &&
       satisfactionTime == null) {
     return null;
   }
@@ -594,6 +644,7 @@ String? encodeSexualBaseline({
     'libido': ?libido,
     if (history.isNotEmpty) 'history': history.toList(),
     if (soloWays.isNotEmpty) 'soloWays': soloWays.toList(),
+    'soloWayOther': ?other,
     'satisfactionTime': ?satisfactionTime,
   });
 }
@@ -623,8 +674,9 @@ SexualBaseline decodeSexualBaseline(String? json) {
           ? const {}
           : {
               for (final e in rawWays)
-                if (_validKey(kIntimacyWaysOptions, e) != null) e as String,
+                if (_validKey(_kDecodableIntimacyWays, e) != null) e as String,
             },
+      soloWayOther: normalizeSoloWayOther(decoded['soloWayOther']),
       satisfactionTime:
           _validKey(kSatisfactionTimeOptions, decoded['satisfactionTime']),
     );

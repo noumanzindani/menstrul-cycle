@@ -331,7 +331,7 @@ void main() {
       await walkTo(tester, soloQuestion);
       await tester.tap(find.text('Rarely').first);
       await tester.pumpAndSettle();
-      await tapInGroup(tester, 'solo-ways', 'Prefer not to say');
+      await tapInGroup(tester, 'solo-ways', 'Hands');
       await tapInGroup(tester, 'solo-time', 'Prefer not to answer');
       await tapInGroup(tester, 'solo-today', 'Not today');
       await tapContinue(tester);
@@ -367,7 +367,7 @@ void main() {
 
       await tester.tap(find.text('Never').first);
       await tester.pumpAndSettle();
-      await tapInGroup(tester, 'solo-ways', 'Prefer not to say');
+      await tapInGroup(tester, 'solo-ways', 'Hands');
       await tapInGroup(tester, 'solo-time', 'Prefer not to answer');
       await tapInGroup(tester, 'solo-today', 'Masturbation');
       await tapContinue(tester);
@@ -425,7 +425,7 @@ void main() {
       await walkTo(tester, soloQuestion);
       await tester.tap(find.text('Never').first);
       await tester.pumpAndSettle();
-      await tapInGroup(tester, 'solo-ways', 'Prefer not to say');
+      await tapInGroup(tester, 'solo-ways', 'Hands');
       await tapInGroup(tester, 'solo-time', 'Prefer not to answer');
       await tapInGroup(tester, 'solo-today', 'Masturbation');
       await tapContinue(tester);

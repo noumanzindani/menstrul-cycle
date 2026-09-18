@@ -124,12 +124,71 @@ void main() {
   });
 
   group('the solo-baseline questions added at signup', () {
-    test('ways is a multi-select with a decline option', () {
+    test('ways is a multi-select whose decline option was retired', () {
       expect(kIntimacyWaysOptions, isNotEmpty);
       for (final o in kIntimacyWaysOptions) {
         expect(o.key, startsWith('slfw_'));
       }
-      expect(kIntimacyWaysOptions.map((o) => o.key), contains(kSoloWayPrivate));
+      // Removed from the picker on 2026-09-18 at the owner's request; "Other"
+      // plus its free-text box is now the open-ended answer.
+      expect(kIntimacyWaysOptions.map((o) => o.key),
+          isNot(contains(kSoloWayPrivate)));
+      expect(kIntimacyWaysOptions.map((o) => o.key), contains(kSoloWayOther));
+    });
+
+    test('a baseline stored before the retirement keeps its answer', () {
+      // Retiring an option from the PICKER must not delete it from rows that
+      // already hold it. Decode validates every key against the options list,
+      // so dropping the key there would have silently rewritten stored history.
+      final b = decodeSexualBaseline('{"soloWays":["$kSoloWayPrivate"]}');
+      expect(b.soloWays, {kSoloWayPrivate});
+    });
+
+    group('the free-text answer behind "Other"', () {
+      test('round-trips, trimmed', () {
+        final b = decodeSexualBaseline(encodeSexualBaseline(
+          soloWays: {kSoloWayOther},
+          soloWayOther: '  Something else  ',
+        ));
+        expect(b.soloWays, {kSoloWayOther});
+        expect(b.soloWayOther, 'Something else');
+      });
+
+      test('is dropped when "Other" is not among the ways', () {
+        // The text belongs to the chip. Without this, de-selecting "Other"
+        // would leave the most sensitive string in the row orphaned in storage
+        // and syncing to Firestore with nothing on screen to explain it.
+        final b = decodeSexualBaseline(encodeSexualBaseline(
+          soloWays: {'slfw_hands'},
+          soloWayOther: 'orphaned text',
+        ));
+        expect(b.soloWayOther, isNull);
+      });
+
+      test('whitespace alone is not an answer', () {
+        final b = decodeSexualBaseline(encodeSexualBaseline(
+          soloWays: {kSoloWayOther},
+          soloWayOther: '   ',
+        ));
+        expect(b.soloWayOther, isNull);
+        expect(b.soloWays, {kSoloWayOther});
+      });
+
+      test('is capped, because the row syncs', () {
+        final b = decodeSexualBaseline(encodeSexualBaseline(
+          soloWays: {kSoloWayOther},
+          soloWayOther: 'x' * (kSoloWayOtherMaxLength + 50),
+        ));
+        expect(b.soloWayOther, hasLength(kSoloWayOtherMaxLength));
+      });
+
+      test('garbage in the column reads as unanswered, not as a crash', () {
+        expect(
+            decodeSexualBaseline('{"soloWays":["slfw_other"],'
+                    '"soloWayOther":42}')
+                .soloWayOther,
+            isNull);
+      });
     });
 
     test('time-to-satisfaction is a single-select with a decline option', () {

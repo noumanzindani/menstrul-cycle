@@ -18,6 +18,13 @@ import 'package:menstrul_track/services/sync_trigger.dart';
 ///    can finish, and the app cannot be opened at all. The escape options are
 ///    load-bearing, not cosmetic, and [_completesUsingOnlyEscapeAnswers] is the
 ///    test that proves it.
+///
+///    **One exception, 2026-09-18:** the solo-ways question lost its "prefer
+///    not to say" option at the owner's request. It does not deadlock — hands,
+///    toy, water and a free-text "Other" all still finish the wizard — but it
+///    is now the only REQUIRED question here that cannot be honestly DECLINED,
+///    and its sibling on the same page still can be. Written down so the
+///    asymmetry stays a decision rather than becoming an accident.
 /// 2. **Continue is the only exit.** The refusal lives on the Continue path, so
 ///    a `PageView` a user can swipe makes every check advisory.
 class _FakeSignedInAuthService implements AuthService {
@@ -164,7 +171,7 @@ Future<void> _answerVisiblePage(WidgetTester tester) async {
   }
   if (find.text(_soloQuestion).hitTestable().evaluate().isNotEmpty) {
     await _tapText(tester, 'Never');
-    await _tapInGroup(tester, 'solo-ways', 'Prefer not to say');
+    await _tapInGroup(tester, 'solo-ways', 'Hands');
     await _tapInGroup(tester, 'solo-time', 'Prefer not to answer');
     await _tapInGroup(tester, 'solo-today', 'Not today');
     return;
@@ -268,12 +275,40 @@ void main() {
       expect(find.text(_soloQuestion), findsOneWidget,
           reason: 'ways and time-to-satisfaction were not enforced');
     });
+
+    testWidgets('"Other" is only answered once the box has words in it',
+        (tester) async {
+      await _pumpOnboarding(tester);
+      await _walkTo(tester, _soloQuestion);
+
+      await _tapText(tester, 'Never');
+      await _tapInGroup(tester, 'solo-ways', 'Other');
+      await _tapInGroup(tester, 'solo-time', 'Prefer not to answer');
+      await _tapInGroup(tester, 'solo-today', 'Not today');
+
+      await _tapContinue(tester);
+      expect(find.text(_soloQuestion), findsOneWidget,
+          reason: 'an empty "Other" box counted as an answer, which stores '
+              'that there is another way and nothing about what it is');
+
+      await tester.enterText(
+          find.byKey(const Key('solo-ways-other-field')), 'Something else');
+      await tester.pumpAndSettle();
+      await _tapContinue(tester);
+      expect(find.text(_soloQuestion), findsNothing,
+          reason: 'a filled "Other" box was still refused');
+    });
   });
 
-  testWidgets('the wizard completes using only the escape answers, and '
-      'stores them', (tester) async {
+  testWidgets('the wizard completes using every escape answer that still '
+      'exists, and stores them', (tester) async {
     // THE test this file exists for. Every required set must have an answer a
     // user in the "none of this applies to me" case can honestly give.
+    //
+    // Solo-ways is answered with 'Hands' rather than a decline, because since
+    // 2026-09-18 it has no decline to give — see the exception in the file
+    // header. That one line is the difference between this test proving the
+    // rule and merely proving the wizard finishes.
     final db = await _pumpOnboarding(tester);
     await _walkTo(tester, _modeQuestion);
 
@@ -287,7 +322,7 @@ void main() {
     final b = decodeSexualBaseline(settings.sexualHealthBaseline);
     expect(b.sexFrequency, 'freq_never');
     expect(b.soloFrequency, 'freq_never');
-    expect(b.soloWays, {kSoloWayPrivate});
+    expect(b.soloWays, {'slfw_hands'});
     expect(b.satisfactionTime, kSatPrivate);
     expect(b.history, {kShxNone});
   });

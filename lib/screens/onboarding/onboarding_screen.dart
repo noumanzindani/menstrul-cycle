@@ -60,6 +60,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _controller = PageController();
   final _height = TextEditingController();
   final _weight = TextEditingController();
+  // Revealed by the "Other" chip on the solo-ways question. Lives here rather
+  // than in the page widget so it survives the PageView scrolling the page out
+  // of the tree, which is the same reason _height and _weight do.
+  final _soloWayOther = TextEditingController();
   int _page = 0;
 
   DateTime? _lastPeriod;
@@ -108,6 +112,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _controller.dispose();
     _height.dispose();
     _weight.dispose();
+    _soloWayOther.dispose();
     super.dispose();
   }
 
@@ -150,11 +155,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ? 'Answer every question to continue. "None of these" is an answer.'
             : null;
       case 9:
-        return _soloFrequency == null ||
-                _todayIntimacy.isEmpty ||
-                _soloWays.isEmpty ||
-                _satisfactionTime == null
-            ? 'Answer every question to continue.'
+        if (_soloFrequency == null ||
+            _todayIntimacy.isEmpty ||
+            _soloWays.isEmpty ||
+            _satisfactionTime == null) {
+          return 'Answer every question to continue.';
+        }
+        // "Other" with an empty box records that there IS another way and
+        // nothing about what it is -- the one answer on this page that carries
+        // no information, and the reason the chip asks a follow-up at all.
+        return _soloWays.contains(kSoloWayOther) &&
+                _soloWayOther.text.trim().isEmpty
+            ? 'Tell us what "Other" means for you, or pick another option.'
             : null;
       default:
         return null;
@@ -229,6 +241,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       libido: _baselineLibido,
       history: _sexualHistory,
       soloWays: _soloWays,
+      soloWayOther: _soloWayOther.text,
       satisfactionTime: _satisfactionTime,
     );
 
@@ -293,6 +306,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         target
           ..remove(noneKey)
           ..add(key);
+      }
+      _pageError = null;
+    });
+  }
+
+  /// Toggles a solo-ways chip. Plain multi-select: the question lost its
+  /// decline option on 2026-09-18, so there is no longer an escape key for the
+  /// others to be exclusive with.
+  ///
+  /// Clearing the box when "Other" is de-selected keeps the UI honest about
+  /// what will be stored -- [encodeSexualBaseline] would drop the orphaned text
+  /// anyway, and a field still showing words that are about to be discarded is
+  /// the kind of thing a user only discovers afterwards.
+  void _toggleSoloWay(String key, bool on) {
+    setState(() {
+      if (on) {
+        _soloWays.add(key);
+      } else {
+        _soloWays.remove(key);
+        if (key == kSoloWayOther) _soloWayOther.clear();
       }
       _pageError = null;
     });
@@ -466,8 +499,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     onToday: (key, on) =>
                         _toggleExclusive(_todayIntimacy, key, on, kSoloNone),
                     ways: _soloWays,
-                    onWays: (key, on) => _toggleExclusive(
-                        _soloWays, key, on, kSoloWayPrivate),
+                    onWays: _toggleSoloWay,
+                    otherWay: _soloWayOther,
                     satisfactionTime: _satisfactionTime,
                     onSatisfactionTime: (v) => setState(() {
                       _satisfactionTime = v;
@@ -1073,6 +1106,13 @@ class _SexualHealthBaselinePage extends StatelessWidget {
           isSelected: today.contains,
           onToggle: onToday,
         ),
+        const SizedBox(height: 24),
+        // Without this the chips below look like more answers to the question
+        // above them, so a REQUIRED question reads as optional and the wizard
+        // refuses to advance over something the user cannot see they missed.
+        Text('Your libido today',
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 12),
         _todayChips(
           key: const Key('libido-today'),
@@ -1088,10 +1128,13 @@ class _SexualHealthBaselinePage extends StatelessWidget {
 /// Step 9 — the solo baseline: how often, in what ways, and how long it takes.
 ///
 /// The ways and time questions were added on 2026-09-14 at the owner's
-/// request, reversing the exclusion recorded on [kIntimacyWaysOptions]. Both
-/// carry a "prefer not to say" option, which is the only thing that keeps a
-/// REQUIRED question at this level of intimacy answerable by someone who does
-/// not want to answer it.
+/// request, reversing the exclusion recorded on [kIntimacyWaysOptions].
+///
+/// The time question still carries a "prefer not to answer" option. The ways
+/// question does NOT, as of 2026-09-18: the owner removed it and asked for a
+/// free-text box behind "Other" instead. Both questions remain REQUIRED, so
+/// this page no longer offers any way to decline the ways question -- recorded
+/// here because it was a deliberate reversal, not an oversight.
 class _IntimacyBaselinePage extends StatelessWidget {
   const _IntimacyBaselinePage({
     required this.frequency,
@@ -1100,6 +1143,7 @@ class _IntimacyBaselinePage extends StatelessWidget {
     required this.onToday,
     required this.ways,
     required this.onWays,
+    required this.otherWay,
     required this.satisfactionTime,
     required this.onSatisfactionTime,
   });
@@ -1110,6 +1154,11 @@ class _IntimacyBaselinePage extends StatelessWidget {
   final void Function(String, bool) onToday;
   final Set<String> ways;
   final void Function(String, bool) onWays;
+
+  /// Backs the box revealed by [kSoloWayOther]. Owned by the wizard state, not
+  /// by this page -- see the declaration of `_soloWayOther`.
+  final TextEditingController otherWay;
+
   final String? satisfactionTime;
   final ValueChanged<String?> onSatisfactionTime;
 
@@ -1131,6 +1180,20 @@ class _IntimacyBaselinePage extends StatelessWidget {
           isSelected: ways.contains,
           onToggle: onWays,
         ),
+        if (ways.contains(kSoloWayOther)) ...[
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('solo-ways-other-field'),
+            controller: otherWay,
+            maxLength: kSoloWayOtherMaxLength,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              labelText: 'What else?',
+              hintText: 'In your own words',
+              border: _kOnboardingFieldBorder,
+            ),
+          ),
+        ],
         const SizedBox(height: 24),
         Text('How long until you feel satisfied?',
             style: theme.textTheme.titleSmall

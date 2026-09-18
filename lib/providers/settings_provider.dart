@@ -329,6 +329,7 @@ class SettingsProvider extends ChangeNotifier {
     String? libido,
     Set<String> history = const {},
     Set<String> soloWays = const {},
+    String? soloWayOther,
     String? satisfactionTime,
   }) =>
       update(AppSettingsCompanion(
@@ -338,6 +339,7 @@ class SettingsProvider extends ChangeNotifier {
           libido: libido,
           history: history,
           soloWays: soloWays,
+          soloWayOther: soloWayOther,
           satisfactionTime: satisfactionTime,
         )),
       ));
