@@ -11,6 +11,7 @@ import '../models/enums.dart';
 import '../models/insights.dart';
 import '../models/prediction.dart';
 import 'bmi_service.dart';
+import 'cycle_patterns_service.dart';
 import 'insights_narrator.dart';
 import 'weight_trend_service.dart';
 
@@ -61,6 +62,9 @@ class PdfReportService {
 
     // Most recent cycles first, capped for a tidy one-pager.
     final recent = cycles.reversed.take(12).toList();
+    // Dated against the report, never the clock, so output stays deterministic.
+    final pain =
+        CyclePatternsService.painSummary(cycles, logs, asOf: generatedOn);
 
     // The profile header a clinician reads first. Every line is omitted when
     // its field was never answered, and the whole block disappears when none of
@@ -217,6 +221,28 @@ class PdfReportService {
                     fontSize: 14, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 6),
             for (final n in narratives) pw.Bullet(text: n.text),
+          ],
+          if (pain != null) ...[
+            pw.SizedBox(height: 16),
+            pw.Text('Period pain (self-reported, 0-10)',
+                style: pw.TextStyle(
+                    fontSize: 14, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 6),
+            pw.TableHelper.fromTextArray(
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+              headers: const ['Period start', 'Worst pain logged'],
+              data: [
+                for (final p in pain.periods)
+                  [df.format(p.start), '${p.worst}/10'],
+              ],
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              'Average worst: ${pain.averageWorst.toStringAsFixed(1)}/10. '
+              'Days at ${CyclePatternsService.severePain}/10 or more in the '
+              '90 days before this report: ${pain.severeDays}.',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
           ],
           pw.SizedBox(height: 16),
           pw.Text('Recent cycles',

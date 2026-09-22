@@ -1,11 +1,11 @@
 import 'dart:math';
 
 import '../common/catalog.dart';
-import '../common/date_utils.dart';
 import '../db/database.dart';
 import '../models/cycle.dart';
 import '../models/enums.dart';
 import '../models/insights.dart';
+import 'cycle_phase_history.dart';
 
 /// Turns the user's OWN cycle/symptom data into plain-language "Your patterns"
 /// observations. Pure and deterministic — no LLM, no network, no dependencies.
@@ -22,7 +22,6 @@ class InsightsNarrator {
   static const int _minCyclesForRegularity = 3;
   static const int _minCyclesForTrend = 5;
   static const int _recentWindow = 3;
-  static const int _lutealDays = 14;
   static const int _minSymptomOccurrences = 3;
   static const double _clusterFraction = 0.6;
   static const int _maxSymptomNarratives = 2;
@@ -119,9 +118,9 @@ class InsightsNarrator {
       List<Cycle> cycles, List<DailyLog> logs) {
     final tally = <String, Map<CyclePhase, int>>{};
     for (final l in logs) {
-      final phase = _phaseOf(dateOnly(l.date), cycles);
+      final phase = phaseOfDate(l.date, cycles);
       if (phase == null) continue;
-      for (final key in decodeSymptoms(l.symptoms)) {
+      for (final key in decodeSymptomLikeTags(l.symptoms)) {
         (tally[key] ??= {})[phase] = ((tally[key]![phase]) ?? 0) + 1;
       }
     }
@@ -141,30 +140,10 @@ class InsightsNarrator {
       for (final c in candidates.take(_maxSymptomNarratives))
         CycleNarrative(
           'symptom_phase',
-          'You most often log ${symptomLabel(c.key).toLowerCase()} '
+          'You most often log ${dayTagLabel(c.key).toLowerCase()} '
               'around your ${_phaseLabel(c.phase)}.',
         ),
     ];
-  }
-
-  /// The cycle phase a [date] fell in, using the complete cycle that contains
-  /// it. Returns null for dates in the open (current) cycle — its luteal span
-  /// isn't defined yet without a next start.
-  static CyclePhase? _phaseOf(DateTime date, List<Cycle> cycles) {
-    for (final c in cycles) {
-      if (c.lengthDays == null) continue;
-      final start = dateOnly(c.start);
-      final next = start.add(Duration(days: c.lengthDays!));
-      if (date.isBefore(start) || !date.isBefore(next)) continue;
-      if (!date.isAfter(dateOnly(c.end))) return CyclePhase.menstrual;
-      final idx = daysBetween(start, date);
-      final ov = c.lengthDays! - _lutealDays;
-      if (ov < 0) return CyclePhase.follicular;
-      if ((idx - ov).abs() <= 1) return CyclePhase.ovulatory;
-      if (idx > ov + 1) return CyclePhase.luteal;
-      return CyclePhase.follicular;
-    }
-    return null;
   }
 
   static String _phaseLabel(CyclePhase p) => switch (p) {

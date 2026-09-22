@@ -156,6 +156,25 @@ void main() {
       expect(t.toLowerCase(), contains('luteal'));
     });
 
+    test('reads digestion, skin and urine tags too', () {
+      for (final (key, label) in [
+        ('dig_gas', 'gas'),
+        ('skin_oily', 'oily skin'),
+        ('urn_frequent', 'frequent urination'),
+      ]) {
+        final ns = InsightsNarrator.narrate(
+          cycles: oneCycle(),
+          logs: [
+            for (final day in [20, 22, 24])
+              log(DateTime(2026, 1, day), symptoms: '{"$key":true}'),
+          ],
+        );
+        final t = keyOf(ns, 'symptom_phase').toLowerCase();
+        expect(t, contains(label), reason: key);
+        expect(t, contains('luteal'), reason: key);
+      }
+    });
+
     test('needs at least 3 logged occurrences', () {
       final ns = InsightsNarrator.narrate(
         cycles: oneCycle(),

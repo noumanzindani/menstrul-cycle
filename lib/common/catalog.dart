@@ -901,6 +901,46 @@ String symptomLabel(String key) {
   return key;
 }
 
+/// Reserved groups that behave like symptoms for PATTERN purposes (a body
+/// change a person might see follow their cycle), yet stay out of
+/// [decodeSymptoms] and therefore out of the symptom chips and the doctor PDF.
+const List<String> kSymptomLikePrefixes = [
+  kDigestionKeyPrefix,
+  kSkinKeyPrefix,
+  kUrineKeyPrefix,
+];
+
+/// Plain symptoms plus the [kSymptomLikePrefixes] groups, for Insights pattern
+/// cards only.
+Set<String> decodeSymptomLikeTags(String? json) => {
+      ...decodeSymptoms(json),
+      for (final p in kSymptomLikePrefixes) ...decodeGroup(json, p),
+    };
+
+/// Urine labels read fine under their "Urine" heading in the day editor but
+/// not in a sentence ("you most often log frequent"), so pattern copy gets a
+/// standalone name.
+const Map<String, String> _kStandaloneTagLabels = {
+  'urn_frequent': 'Frequent urination',
+  'urn_urgency': 'Urinary urgency',
+  'urn_burning': 'Burning or pain when urinating',
+  'urn_dark': 'Dark urine',
+  'urn_cloudy': 'Cloudy urine',
+  'urn_blood': 'Blood in urine',
+  'urn_leaking': 'Leaking urine',
+};
+
+/// A readable, standalone name for any key [decodeSymptomLikeTags] returns,
+/// or a habit key. Falls back to [symptomLabel].
+String dayTagLabel(String key) {
+  final standalone = _kStandaloneTagLabels[key];
+  if (standalone != null) return standalone;
+  for (final o in [...kDigestionOptions, ...kSkinOptions, ...kHabitOptions]) {
+    if (o.key == key) return o.label;
+  }
+  return symptomLabel(key);
+}
+
 extension FlowIntensityUi on FlowIntensity {
   String get label => switch (this) {
         FlowIntensity.none => 'None',

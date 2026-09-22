@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../common/catalog.dart';
 import '../../db/database.dart';
 import '../../models/cycle.dart';
+import '../../models/enums.dart';
 import '../../models/flow_analysis.dart';
 import '../../models/insights.dart';
 import '../../models/medication_adherence.dart';
@@ -20,6 +21,7 @@ import '../../providers/settings_provider.dart';
 import '../../services/bbt_service.dart';
 import '../../services/bmi_service.dart';
 import '../../services/cycle_overview_service.dart';
+import '../../services/cycle_patterns_service.dart';
 import '../../services/flow_analysis_service.dart';
 import '../../services/insights_narrator.dart';
 import '../../services/insights_service.dart';
@@ -30,6 +32,7 @@ import '../../services/weight_trend_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/disclaimer_banner.dart';
 import 'cycle_overview_screen.dart';
+import 'pattern_cards.dart';
 
 /// Years since the user's first period: the age they have reached today minus
 /// the age they gave for menarche.
@@ -187,6 +190,22 @@ class InsightsScreen extends StatelessWidget {
       weightKg: settings?.profileWeightKg,
     );
     final stats = insights.stats;
+    // Descriptive pattern cards. Each returns null/empty below its own data
+    // threshold, so a thin log simply shows fewer cards.
+    final allLogs = logProvider.logs;
+    final coverage = CyclePatternsService.coverage(cycles, allLogs);
+    final phaseProfile = CyclePatternsService.phaseProfile(cycles, allLogs);
+    final warnings = CyclePatternsService.earlyWarnings(cycles, allLogs);
+    final periodShape = CyclePatternsService.periodShape(cycles, allLogs);
+    final pain =
+        CyclePatternsService.painSummary(cycles, allLogs, asOf: DateTime.now());
+    final lifestyle = CyclePatternsService.lifestyleLinks(allLogs);
+    // Fertility signs belong to Conceive mode only: in Track mode a list of
+    // "your fertile days" is exactly the kind of thing that gets read as the
+    // days that are NOT fertile.
+    final fertilitySigns = settings?.mode == TrackingMode.conceive
+        ? CyclePatternsService.fertilitySigns(cycles, allLogs)
+        : null;
     // The full app theme carries the phase tokens; a bare `ThemeData` (as used
     // by several widget-test harnesses) does not, so every read is optional and
     // falls back to the colour scheme.
@@ -212,6 +231,17 @@ class InsightsScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
                 children: _staggered([
                   _StatGrid(stats: stats),
+                  if (coverage != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
+                      child: Text(
+                        coverage.text,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   if (stats.regularity != CycleRegularity.unknown)
                     _RegularityCard(
@@ -257,6 +287,104 @@ class InsightsScreen extends StatelessWidget {
                         children: [
                           for (final n in narratives)
                             _NarrativeRow(narrative: n),
+                        ],
+                      ),
+                    ),
+                  if (phaseProfile != null)
+                    _SectionCard(
+                      title: 'Phase by phase',
+                      dotColor: phases?.luteal,
+                      subtitle: 'Your average energy, stress and sleep (out of '
+                          '5 unless shown), and your most-logged mood and '
+                          'libido, in each part of past cycles. A dash means '
+                          'not enough entries yet.',
+                      child: PhaseProfileTable(profile: phaseProfile),
+                    ),
+                  if (warnings.isNotEmpty)
+                    _SectionCard(
+                      title: 'Before your period',
+                      dotColor: phases?.predicted,
+                      subtitle: 'What you have tended to log in the week '
+                          'before a period — a heads-up, not a forecast.',
+                      child: Column(
+                        children: [
+                          for (final w in warnings)
+                            PatternLine(w.text,
+                                icon: Icons.notifications_none_outlined),
+                        ],
+                      ),
+                    ),
+                  if (periodShape != null)
+                    _SectionCard(
+                      title: 'Your period, day by day',
+                      dotColor: phases?.menstrual,
+                      subtitle: 'The flow you most often logged on each day.',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          PatternLine(periodShape.text,
+                              icon: Icons.water_drop_outlined),
+                          FlowByDayRow(flows: periodShape.typicalByDay),
+                        ],
+                      ),
+                    ),
+                  if (pain != null)
+                    _SectionCard(
+                      title: 'Pain over time',
+                      dotColor: phases?.menstrual,
+                      subtitle: 'The worst pain you logged during each recent '
+                          'period, out of 10. Worth bringing to a doctor if '
+                          'pain stops you doing everyday things.',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final p in pain.periods)
+                            PatternLine(
+                              '${DateFormat.MMMd().format(p.start)}: '
+                              'worst ${p.worst}/10',
+                              icon: Icons.bolt_outlined,
+                            ),
+                          PatternLine(
+                            'On average your worst period pain has been '
+                            '${pain.averageWorst.toStringAsFixed(1)}/10. '
+                            '${pain.severeDays} '
+                            '${pain.severeDays == 1 ? 'day' : 'days'} at '
+                            '${CyclePatternsService.severePain}/10 or more in '
+                            'the last 90 days.',
+                            icon: Icons.summarize_outlined,
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (fertilitySigns != null)
+                    _SectionCard(
+                      title: 'Fertility signs',
+                      dotColor: phases?.fertile,
+                      subtitle: 'When these signs showed up in past cycles. '
+                          'A record of what you logged, not a prediction — and '
+                          'never a method of contraception.',
+                      child: Column(
+                        children: [
+                          if (fertilitySigns.opkText != null)
+                            PatternLine(fertilitySigns.opkText!,
+                                icon: Icons.science_outlined),
+                          if (fertilitySigns.mucusText != null)
+                            PatternLine(fertilitySigns.mucusText!,
+                                icon: Icons.opacity_outlined),
+                        ],
+                      ),
+                    ),
+                  if (lifestyle.isNotEmpty)
+                    _SectionCard(
+                      title: 'Logged together',
+                      dotColor: phases?.follicular,
+                      subtitle: 'Things you logged on the same days — not '
+                          'necessarily cause and effect.',
+                      child: Column(
+                        children: [
+                          for (final l in lifestyle)
+                            PatternLine(l.text,
+                                icon: Icons.compare_arrows_outlined),
                         ],
                       ),
                     ),

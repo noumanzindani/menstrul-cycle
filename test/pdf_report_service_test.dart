@@ -269,4 +269,39 @@ void main() {
       expect(withDailyReadings, greaterThan(profileOnly));
     });
   });
+
+  /// Period pain is exactly what a clinician asks about, so the report carries
+  /// the worst logged pain per recent period. Size probe, as above.
+  group('period pain', () {
+    final cycles = [
+      Cycle(start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 5), lengthDays: 28),
+      Cycle(start: DateTime(2026, 1, 29), end: DateTime(2026, 2, 2), lengthDays: null),
+    ];
+
+    Future<int> size(List<DailyLog> logs) async => (await PdfReportService.build(
+          insights: InsightsService.analyze(cycles),
+          cycles: cycles,
+          logs: logs,
+          generatedOn: DateTime(2026, 2, 10),
+        ))
+            .length;
+
+    test('adds a section once two periods have pain logged', () async {
+      final plain = [_log(DateTime(2026, 1, 2)), _log(DateTime(2026, 1, 30))];
+      final withPain = [
+        _log(DateTime(2026, 1, 2), symptoms: '{"pain":6}'),
+        _log(DateTime(2026, 1, 30), symptoms: '{"pain":8}'),
+      ];
+      expect(await size(withPain), greaterThan(await size(plain)));
+    });
+
+    test('one period with pain is not enough for the section', () async {
+      final plain = [_log(DateTime(2026, 1, 2)), _log(DateTime(2026, 1, 30))];
+      final one = [
+        _log(DateTime(2026, 1, 2), symptoms: '{"pain":6}'),
+        _log(DateTime(2026, 1, 30)),
+      ];
+      expect(await size(one), await size(plain));
+    });
+  });
 }
