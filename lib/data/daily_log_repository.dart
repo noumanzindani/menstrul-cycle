@@ -116,6 +116,34 @@ class DailyLogRepository {
     return true;
   }
 
+  /// Writes the note for [date] without disturbing the rest of the row — the
+  /// Diary's "Write a note" path. Same single-column shape as [setFlowIfEmpty],
+  /// and for the same reason: [upsert] REPLACES the whole day, so a note saved
+  /// through it would have to round-trip every other field or erase it.
+  ///
+  /// A blank note clears an existing one (keeping the day's other data) and,
+  /// on a day with no log, writes nothing — an empty row is not a diary entry.
+  Future<void> setNotes({
+    required DateTime date,
+    required String notes,
+  }) async {
+    final d = dateOnly(date);
+    final text = notes.trim().isEmpty ? null : notes.trim();
+    final existing = await getForDate(d);
+    if (existing == null) {
+      if (text == null) return;
+      await _db.into(_db.dailyLogs).insert(
+            DailyLogsCompanion.insert(date: d, notes: Value(text)),
+          );
+      return;
+    }
+    await (_db.update(_db.dailyLogs)..where((t) => t.id.equals(existing.id)))
+        .write(DailyLogsCompanion(
+      notes: Value(text),
+      updatedAt: Value(DateTime.now()),
+    ));
+  }
+
   /// Deletes the log for [date] and records a tombstone in the SAME
   /// transaction. Without the tombstone a hard-deleted row is indistinguishable
   /// from one that never existed, and the next sync pull would resurrect it.

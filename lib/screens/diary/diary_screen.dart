@@ -8,6 +8,7 @@ import '../../models/cycle.dart';
 import '../../providers/log_provider.dart';
 import '../../services/diary_service.dart';
 import '../../widgets/day_entry_sheet.dart';
+import '../../widgets/note_sheet.dart';
 
 /// Reads back the notes the user has written, newest first, with search.
 ///
@@ -49,6 +50,23 @@ class _DiaryScreenState extends State<DiaryScreen> {
     return day >= 1 && day <= 60 ? day : null;
   }
 
+  /// Picks a day (today by default), then opens the notes-only sheet for it.
+  /// Future days are not offered: a diary looks back, and a note dated
+  /// tomorrow would also create a log for a day that has not happened.
+  Future<void> _writeNote() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = await showDatePicker(
+      context: context,
+      initialDate: today,
+      firstDate: DateTime(2000),
+      lastDate: today,
+      helpText: 'Note for which day?',
+    );
+    if (date == null || !mounted) return;
+    await showNoteSheet(context, date: date);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LogProvider>();
@@ -58,6 +76,12 @@ class _DiaryScreenState extends State<DiaryScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Diary')),
+      floatingActionButton: FloatingActionButton.extended(
+        key: const Key('diary-write-note'),
+        onPressed: _writeNote,
+        icon: const Icon(Icons.edit_outlined),
+        label: const Text('Write a note'),
+      ),
       body: Column(
         children: [
           Padding(
@@ -103,7 +127,7 @@ class _DiaryScreenState extends State<DiaryScreen> {
                     ? _EmptyState(searching: _query.trim().isNotEmpty)
                     : EntranceGroup(
                         child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
                           itemCount: entries.length,
                           itemBuilder: (context, i) {
                             final e = entries[i];
@@ -237,7 +261,8 @@ class _EmptyState extends StatelessWidget {
               searching
                   ? 'No notes match that search.'
                   : 'Notes you add to a day appear here, newest '
-                      'first — so you can look back over them.',
+                      'first — so you can look back over them. Tap '
+                      '"Write a note" to start.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: scheme.onSurfaceVariant, height: 1.45),

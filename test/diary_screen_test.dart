@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/common/catalog.dart';
 import 'package:menstrul_track/data/daily_log_repository.dart';
 import 'package:menstrul_track/db/database.dart';
+import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/providers/log_provider.dart';
 import 'package:menstrul_track/screens/diary/diary_screen.dart';
 import 'package:menstrul_track/widgets/ad_banner.dart';
@@ -107,5 +108,97 @@ void main() {
 
     // The sheet hosts the day's form with its own Save button.
     expect(find.text('Save'), findsOneWidget);
+  });
+
+  group('Write a note', () {
+    Future<void> openPickerAndConfirm(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('diary-write-note')));
+      await tester.pumpAndSettle();
+      // Material date picker: the default selection is today, so OK takes it.
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('is offered on an empty diary', (tester) async {
+      await pump(tester);
+      expect(find.byKey(const Key('diary-write-note')), findsOneWidget);
+    });
+
+    testWidgets('is offered on a diary with notes too', (tester) async {
+      await seed(DateTime(2026, 5, 1), 'a note');
+      await pump(tester);
+      expect(find.byKey(const Key('diary-write-note')), findsOneWidget);
+    });
+
+    testWidgets('asks for a date, then saves a note for it', (tester) async {
+      await pump(tester);
+      await tester.tap(find.byKey(const Key('diary-write-note')));
+      await tester.pumpAndSettle();
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byKey(const Key('note-sheet.text')), 'wrote this today');
+      await tester.tap(find.byKey(const Key('note-sheet.save')));
+      await tester.pumpAndSettle();
+
+      final today = DateTime.now();
+      final log = logs.logForDate(today);
+      expect(log?.notes, 'wrote this today');
+      expect(find.text('wrote this today'), findsOneWidget,
+          reason: 'the new note should appear in the diary list');
+    });
+
+    testWidgets('prefills the note already written for that day',
+        (tester) async {
+      await seed(DateTime.now(), 'already here');
+      await pump(tester);
+      await openPickerAndConfirm(tester);
+
+      final field =
+          tester.widget<TextField>(find.byKey(const Key('note-sheet.text')));
+      expect(field.controller?.text, 'already here');
+    });
+
+    testWidgets('does not offer future dates', (tester) async {
+      await pump(tester);
+      await tester.tap(find.byKey(const Key('diary-write-note')));
+      await tester.pumpAndSettle();
+      final picker =
+          tester.widget<DatePickerDialog>(find.byType(DatePickerDialog));
+      final now = DateTime.now();
+      expect(picker.lastDate.isAfter(DateTime(now.year, now.month, now.day)),
+          isFalse);
+    });
+
+    testWidgets('cancelling the picker opens nothing', (tester) async {
+      await pump(tester);
+      await tester.tap(find.byKey(const Key('diary-write-note')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('note-sheet.text')), findsNothing);
+    });
+
+    testWidgets('keeps the rest of the day intact', (tester) async {
+      await DailyLogRepository(db).upsert(
+        date: DateTime.now(),
+        flow: FlowIntensity.heavy,
+        symptomsJson: encodeDayTags(flags: {'cramps'}),
+      );
+      await pump(tester);
+      await openPickerAndConfirm(tester);
+      await tester.enterText(
+          find.byKey(const Key('note-sheet.text')), 'heavy day');
+      await tester.tap(find.byKey(const Key('note-sheet.save')));
+      await tester.pumpAndSettle();
+
+      final log = logs.logForDate(DateTime.now())!;
+      expect(log.flow, FlowIntensity.heavy);
+      expect(log.symptoms, contains('cramps'));
+      expect(log.notes, 'heavy day');
+    });
   });
 }

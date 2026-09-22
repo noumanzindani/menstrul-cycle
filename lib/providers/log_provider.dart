@@ -54,6 +54,12 @@ class LogProvider extends ChangeNotifier {
     await load();
   }
 
+  /// Saves only the note for [date]; see [DailyLogRepository.setNotes].
+  Future<void> saveNote({required DateTime date, required String notes}) async {
+    await _repo.setNotes(date: date, notes: notes);
+    await load();
+  }
+
   Future<void> clearDay(DateTime date) async {
     await _repo.deleteForDate(date);
     await load();
