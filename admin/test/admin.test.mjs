@@ -27,7 +27,8 @@ import { fileURLToPath } from 'node:url';
 import { AUDIT_COLLECTION, createAuditLog } from '../src/audit.js';
 import { ConfigError, readConfig } from '../src/env.js';
 import { MUTATING_METHODS, ReadOnlyViolation, readOnly } from '../src/readonly.js';
-import { decodeDayTags } from '../src/records.js';
+import { decodeDayTags, decodeSexualBaseline } from '../src/records.js';
+import { AccountDeletionService } from '../src/paths.js';
 import { sweepAuthRoster } from '../src/stats.js';
 
 import {
@@ -880,6 +881,187 @@ describe('day decoding matches sync_mapper.dart', () => {
     assert.doesNotMatch(rendered, /\bsafe\b/i);
     assert.doesNotMatch(rendered, /\d+\s?%/);
     assert.doesNotMatch(rendered, /luteal|follicular|ovulatory|cycle day/i);
+  });
+});
+
+// =========================================================================
+// 7b. The signup sexual-health baseline
+// =========================================================================
+
+describe('sexual-health baseline decoding matches catalog.dart', () => {
+  const encoded = JSON.stringify({
+    sexFrequency: 'freq_never',
+    soloFrequency: 'freq_rarely',
+    libido: 'lbd_medium',
+    history: ['shx_none'],
+    soloWays: ['slfw_toy', 'slfw_other'],
+    soloWayOther: 'in the shower',
+    satisfactionTime: 'sat_under5',
+  });
+
+  test('every key resolves to the label the app shows the user', () => {
+    const decoded = decodeSexualBaseline(encoded);
+    assert.equal(decoded.malformed, false);
+    assert.equal(decoded.sexFrequency.label, 'Never');
+    assert.equal(decoded.soloFrequency.label, 'Rarely');
+    assert.equal(decoded.libido.label, 'Medium libido');
+    assert.equal(decoded.satisfactionTime.label, 'Under 5 minutes');
+    assert.deepEqual(
+      decoded.soloWays.map((w) => w.label),
+      ['Toy or vibrator', 'Other'],
+    );
+    assert.deepEqual(
+      decoded.history.map((h) => h.label),
+      ['None of these'],
+    );
+    assert.equal(decoded.soloWayOther, 'in the shower');
+  });
+
+  test('a retired-but-decodable key is a real answer, not corruption', () => {
+    // `slfw_private` ("Prefer not to say") left the picker on 2026-09-18 and
+    // older baselines still carry it. Reporting a deliberate refusal to answer
+    // as an unknown key would misread the user.
+    const decoded = decodeSexualBaseline(JSON.stringify({ soloWays: ['slfw_private'] }));
+    assert.equal(decoded.soloWays[0].known, true);
+    assert.equal(decoded.soloWays[0].label, 'Prefer not to say');
+  });
+
+  test('an unknown key is carried through flagged, never silently dropped', () => {
+    const decoded = decodeSexualBaseline(JSON.stringify({ soloWays: ['slfw_future'] }));
+    assert.equal(decoded.soloWays[0].known, false);
+    assert.equal(decoded.soloWays[0].key, 'slfw_future');
+  });
+
+  test('null is "never asked", which is not the same as answering nothing', () => {
+    assert.equal(decodeSexualBaseline(null), null);
+    assert.equal(decodeSexualBaseline(undefined), null);
+    const empty = decodeSexualBaseline(JSON.stringify({}));
+    assert.equal(empty.malformed, false);
+    assert.equal(empty.libido, null);
+    assert.deepEqual(empty.soloWays, []);
+  });
+
+  test('an undecodable column reports malformed instead of throwing', () => {
+    // A support lookup for a real person must not 500 because a preference
+    // blob is corrupt.
+    for (const bad of ['{not json', '[]', 'null-ish', 42]) {
+      const decoded = decodeSexualBaseline(bad);
+      assert.equal(decoded.malformed, true, `${bad} should decode as malformed`);
+    }
+  });
+
+  test('the records page renders the baseline, behind the reason gate', async () => {
+    const app = await boot();
+    await seedAccount(app.auth, { uid: 'alice', email: 'alice@example.com' });
+    await app.raw.doc('users/alice/settings/current').set({
+      updatedAt: Date.now(),
+      sexualHealthBaseline: encoded,
+      // Same document, and it must NOT come along for the ride.
+      pregnancyStartDate: '2026-01-01',
+      themeMode: 'dark',
+    });
+
+    const response = await app.post('/users/alice/records', { reason: 'ticket 412' });
+    assert.equal(response.status, 200);
+    for (const expected of [
+      'Signup baseline',
+      'Toy or vibrator',
+      'in the shower',
+      'Under 5 minutes',
+      'Medium libido',
+    ]) {
+      assert.match(response.body, new RegExp(expected), `baseline is missing ${expected}`);
+    }
+    // The projection is the point: the rest of the settings document is not
+    // merely unrendered, it is never fetched.
+    assert.doesNotMatch(response.body, /2026-01-01/);
+    assert.ok(
+      app.log.some((entry) =>
+        /db\.collection\(users\/alice\/settings\)\.select\(sexualHealthBaseline\)/.test(entry),
+      ),
+      `baseline must be read through a projection; trace was:\n${app.log.join('\n')}`,
+    );
+  });
+
+  test('the metadata page does NOT disclose the baseline', async () => {
+    // Metadata is audited but demands no reason. The baseline belongs on the
+    // reason-gated door only; if it ever leaks onto this page, the friction
+    // that justifies holding it at all is gone.
+    const app = await boot();
+    await seedAccount(app.auth, { uid: 'alice', email: 'alice@example.com' });
+    await app.raw.doc('users/alice/settings/current').set({
+      updatedAt: Date.now(),
+      sexualHealthBaseline: encoded,
+    });
+
+    const response = await app.get('/users/alice');
+    assert.equal(response.status, 200);
+    assert.doesNotMatch(response.body, /Toy or vibrator/);
+    assert.doesNotMatch(response.body, /in the shower/);
+    assert.doesNotMatch(response.body, /Signup baseline/);
+  });
+
+  test('a FAILED audit write blocks the baseline read too', async () => {
+    const broken = {
+      record: async () => {
+        throw new Error('audit unavailable');
+      },
+    };
+    const app = await boot({ audit: broken });
+    await seedAccount(app.auth, { uid: 'alice', email: 'alice@example.com' });
+    await app.raw.doc('users/alice/settings/current').set({
+      updatedAt: Date.now(),
+      sexualHealthBaseline: encoded,
+    });
+    app.log.length = 0;
+
+    const response = await app.post('/users/alice/records', { reason: 'ticket 412' });
+    assert.equal(response.status, 503);
+    assert.doesNotMatch(response.body, /in the shower/);
+    assert.equal(
+      app.log.some((entry) => /sexualHealthBaseline/.test(entry)),
+      false,
+      'the baseline must not be read when the audit write fails',
+    );
+  });
+});
+
+// =========================================================================
+// 7c. Transcriptions that go stale silently
+// =========================================================================
+
+describe('transcriptions from the Dart source', () => {
+  test('the database id default is the NAMED database the app writes to', () => {
+    // `kLunaDatabaseId` is 'lunatrack-db'. A handle for a database that does
+    // not exist does not throw: every count() returns 0 and the panel reports
+    // that the product has no users. This default was 'lunatrack' until
+    // 2026-09-19.
+    const config = readConfig({
+      LUNATRACK_PROJECT_ID: 'demo-lunatrack',
+      ADMIN_EMAILS: OWNER,
+      IAP_AUDIENCE: AUDIENCE,
+    });
+    assert.equal(config.databaseId, 'lunatrack-db');
+  });
+
+  test('every synced subcollection is listed, including the v12 four', () => {
+    // If the app adds a subcollection and this list does not, the account view
+    // silently stops reporting it — it does not error, it just counts less.
+    for (const name of [
+      'dailyLogs',
+      'settings',
+      'deletions',
+      'devices',
+      'reminders',
+      'medications',
+      'analysisSessions',
+      'analysisMessages',
+    ]) {
+      assert.ok(
+        AccountDeletionService.subcollections.includes(name),
+        `${name} is synced by the app but missing from AccountDeletionService.subcollections`,
+      );
+    }
   });
 });
 

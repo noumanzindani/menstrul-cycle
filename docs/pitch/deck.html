@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LunarFlow — Investor Overview</title>
+<style>
+/* ── Fonts: the real site faces, loaded from the built Astro bundle ───────── */
+@font-face{font-family:'Fraunces';src:url('../../site/dist/_astro/fraunces-latin-wonk-normal.sgo-ioRB.woff2') format('woff2-variations');font-weight:100 900;font-display:block;}
+@font-face{font-family:'Public Sans';src:url('../../site/dist/_astro/public-sans-latin-400-normal.8Rpg0ruU.woff2') format('woff2');font-weight:400;font-display:block;}
+@font-face{font-family:'Public Sans';src:url('../../site/dist/_astro/public-sans-latin-500-normal.NlrCPXnF.woff2') format('woff2');font-weight:500;font-display:block;}
+@font-face{font-family:'Public Sans';src:url('../../site/dist/_astro/public-sans-latin-600-normal.Fru-LXNs.woff2') format('woff2');font-weight:600;font-display:block;}
+@font-face{font-family:'Public Sans';src:url('../../site/dist/_astro/public-sans-latin-700-normal.BqJmxWdE.woff2') format('woff2');font-weight:700;font-display:block;}
+
+/* ── LunarFlow brand tokens ───────────────────────────────────────────────
+   Primary pink #F489AF · deep rose #CB6A8A · soft blush #F7A9B5 ·
+   light blush #FBC2CC · background #FDF2F2 · cream #FFF7F7 · white #FFFFFF.
+   `ink` and `ink-muted` are deepened shades of the same rose hue, not a new
+   colour: body copy at #CB6A8A would sit near 3:1 on the blush background,
+   which fails readability on a phone. Headings keep #CB6A8A as specified. */
+:root{
+  --brand:#F489AF; --rose:#CB6A8A; --blush:#F7A9B5; --blush-lt:#FBC2CC;
+  --paper:#FDF2F2; --cream:#FFF7F7; --surface:#FFFFFF;
+  --ink:#5C3543; --ink-muted:#7E5464; --outline:#F6DDE3; --outline-2:#F0CFD9;
+  /* Cycle phases, expressed as one rose ramp: deepest = menstrual. */
+  --menstrual:#CB6A8A; --follicular:#F489AF; --ovulatory:#F7A9B5; --luteal:#FBC2CC;
+}
+@page{size:13.333in 7.5in;margin:0;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{font-family:'Public Sans',-apple-system,'Segoe UI',sans-serif;color:var(--ink);background:var(--paper);font-size:15px;line-height:1.5;}
+
+/* ── Slide shell ─────────────────────────────────────────────────────────── */
+.slide{width:13.333in;height:7.5in;padding:.72in .86in .62in;
+  background:var(--paper);position:relative;overflow:hidden;
+  page-break-after:always;display:flex;flex-direction:column;}
+.slide:last-child{page-break-after:auto;}
+
+/* Brand motif, every page: a soft blush bloom plus a small sparkle cluster in
+   the top-right dead zone. Low contrast on purpose — decoration that competes
+   with a table is decoration that gets cut. */
+.slide::before{content:"";position:absolute;top:-2.6in;right:-2.2in;
+  width:6.4in;height:6.4in;border-radius:50%;
+  background:radial-gradient(circle,rgba(247,169,181,.30) 0%,rgba(251,194,204,.13) 45%,rgba(253,242,242,0) 72%);
+  pointer-events:none;}
+.slide::after{content:"";position:absolute;top:.46in;right:.72in;
+  width:1.5in;height:1.1in;pointer-events:none;opacity:.5;
+  background-repeat:no-repeat;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 0C52 30 70 48 100 50 70 52 52 70 50 100 48 70 30 52 0 50 30 48 48 30 50 0Z' fill='%23F489AF'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 0C52 30 70 48 100 50 70 52 52 70 50 100 48 70 30 52 0 50 30 48 48 30 50 0Z' fill='%23F7A9B5'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 0C52 30 70 48 100 50 70 52 52 70 50 100 48 70 30 52 0 50 30 48 48 30 50 0Z' fill='%23FBC2CC'/%3E%3C/svg%3E");
+  background-size:17px 17px,10px 10px,7px 7px;
+  background-position:right 8px top 2px,right 34px top 30px,right 54px top 8px;}
+.slide>*{position:relative;z-index:1;}
+
+/* ── Footer rail, carrying the mark on every page ────────────────────────── */
+.rail{position:absolute;left:.86in;right:.86in;bottom:.34in;display:flex;
+  justify-content:space-between;align-items:center;font-size:10.5px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--ink-muted);z-index:2;}
+.rail .mark{font-weight:600;color:var(--rose);padding-left:29px;line-height:21px;
+  background:url('assets/lunarflow-mark.png') left center/21px 21px no-repeat;}
+.rail .num{font-variant-numeric:tabular-nums;color:var(--ink-muted);font-weight:600;}
+
+/* ── Type ────────────────────────────────────────────────────────────────── */
+.display{font-family:'Fraunces',Georgia,serif;font-variation-settings:'WONK' 1,'SOFT' 0;
+  font-weight:600;line-height:1.02;letter-spacing:-.022em;color:var(--rose);}
+h1.display{font-size:74px;}
+h2.display{font-size:46px;margin-bottom:.24in;}
+h3.display{font-size:27px;}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--rose);margin-bottom:.16in;}
+.lede{font-size:19.5px;line-height:1.46;color:var(--ink);max-width:9.4in;}
+.body{font-size:14.5px;line-height:1.58;color:var(--ink-muted);max-width:9.2in;}
+.body strong,.lede strong{color:var(--rose);font-weight:600;}
+em{font-style:italic;}
+
+/* Rule under a heading. Blush by default; deep rose marks the problem slides,
+   primary pink marks the answer slides. */
+.rule{height:3px;width:1.5in;background:var(--outline-2);margin:.1in 0 .26in;border-radius:2px;}
+.rule.danger{background:var(--rose);}
+.rule.grow{background:var(--brand);}
+
+/* ── Cycle band — real day counts, 5 / 8 / 3 / 12 of 28 ──────────────────── */
+.band{display:flex;height:18px;border-radius:9px;overflow:hidden;width:100%;}
+.band i{display:block;}
+.band .m{width:17.857%;background:var(--menstrual);}
+.band .f{width:28.571%;background:var(--follicular);}
+.band .o{width:10.714%;background:var(--ovulatory);}
+.band .l{width:42.857%;background:var(--luteal);}
+.bandkey{display:flex;width:100%;margin-top:8px;font-size:10px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-muted);}
+.bandkey span{display:block;}
+.bandkey .m{width:17.857%;}.bandkey .f{width:28.571%;}
+.bandkey .o{width:10.714%;}.bandkey .l{width:42.857%;}
+
+/* Soft-edged prediction band — the gradient falloff IS the uncertainty. */
+.softband{height:34px;border-radius:17px;width:100%;
+  background:linear-gradient(90deg,rgba(244,137,175,0) 0%,rgba(244,137,175,.28) 18%,
+    rgba(244,137,175,.85) 42%,rgba(244,137,175,.85) 58%,rgba(244,137,175,.28) 82%,rgba(244,137,175,0) 100%);}
+
+/* ── Stat cards ──────────────────────────────────────────────────────────── */
+.stats{display:flex;gap:.34in;margin-top:.1in;}
+.stat{flex:1;background:var(--surface);border:1px solid var(--outline);border-radius:14px;
+  padding:.26in .28in;box-shadow:0 1px 3px rgba(203,106,138,.05);}
+.stat .n{font-family:'Fraunces',Georgia,serif;font-variation-settings:'WONK' 1;font-weight:600;
+  font-size:50px;line-height:1;color:var(--brand);letter-spacing:-.03em;}
+.stat .n.bad{color:var(--rose);}
+.stat .l{font-size:12.5px;line-height:1.4;color:var(--ink-muted);margin-top:.11in;}
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:10.9px;line-height:1.4;}
+thead th{text-align:left;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink-muted);font-weight:600;padding:0 .1in .07in 0;border-bottom:1.5px solid var(--outline-2);}
+tbody td{padding:.068in .1in .068in 0;border-bottom:1px solid var(--outline);vertical-align:top;color:var(--ink-muted);}
+tbody td:first-child{color:var(--rose);font-weight:600;width:1.55in;}
+tbody tr.flag td{background:var(--cream);}
+tbody tr.flag td:first-child{color:var(--rose);}
+code{font-family:ui-monospace,Menlo,monospace;font-size:.92em;color:var(--rose);
+  background:rgba(244,137,175,.12);padding:.05em .3em;border-radius:3px;}
+
+/* ── Panels ──────────────────────────────────────────────────────────────── */
+.cols{display:flex;gap:.46in;flex:1;}
+.col{flex:1;}
+.panel{background:var(--surface);border:1px solid var(--outline);border-radius:14px;
+  padding:.28in .3in;height:100%;box-shadow:0 1px 3px rgba(203,106,138,.05);}
+.panel.tint{background:linear-gradient(160deg,var(--cream) 0%,#FDEAEF 100%);border-color:var(--outline-2);}
+.panel h4{font-size:12.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--rose);
+  font-weight:600;margin-bottom:.15in;}
+
+/* ── Lists ───────────────────────────────────────────────────────────────── */
+ul{list-style:none;}
+ul[style*="--m:0"] li{margin-bottom:.075in;}
+li{position:relative;padding-left:.22in;margin-bottom:.11in;font-size:13.5px;line-height:1.5;color:var(--ink-muted);}
+li::before{content:"";position:absolute;left:0;top:.55em;width:6px;height:6px;border-radius:50%;background:var(--blush-lt);}
+li strong{color:var(--rose);font-weight:600;}
+li.ok::before{background:var(--brand);}
+li.no::before{background:var(--rose);}
+ol.num{list-style:none;counter-reset:r;}
+ol.num li{counter-increment:r;padding-left:.34in;margin-bottom:.15in;}
+ol.num[style] li{font-size:15px;line-height:1.55;margin-bottom:.26in;}
+ol.num li::before{content:counter(r);background:none;width:auto;height:auto;top:0;
+  font-family:'Fraunces',Georgia,serif;font-weight:600;font-size:15px;color:var(--brand);}
+
+.spacer{flex:1;}
+.note{font-size:11px;line-height:1.45;color:var(--ink-muted);border-left:2px solid var(--blush-lt);padding-left:.16in;}
+.srcline{font-size:10px;color:var(--ink-muted);margin-top:.14in;}
+
+/* ── Cover ───────────────────────────────────────────────────────────────── */
+.cover{justify-content:center;
+  background:linear-gradient(155deg,var(--surface) 0%,var(--cream) 42%,var(--paper) 100%);}
+.cover::before{top:-3in;right:-2.4in;width:8.4in;height:8.4in;
+  background:radial-gradient(circle,rgba(244,137,175,.26) 0%,rgba(247,169,181,.12) 48%,rgba(253,242,242,0) 74%);}
+.cover::after{top:1.0in;right:1.5in;width:3in;height:2.4in;opacity:.85;
+  background-size:26px 26px,15px 15px,10px 10px;
+  background-position:right 10px top 4px,right 74px top 62px,right 128px top 20px;}
+/* Crescent, the brand's own symbol, sitting behind the sparkles. */
+.moon{position:absolute;top:.66in;right:1.05in;width:3.2in;height:3.2in;z-index:0;
+  border-radius:50%;background:transparent;
+  /* Crescent via an offset INSET shadow: the unshadowed sliver is the moon.
+     An SVG two-arc crescent silently degrades to a disc when the inner radius
+     is shorter than its chord, which is exactly what happened here. */
+  box-shadow:inset -74px -18px 0 0 rgba(244,137,175,.38);}
+/* Flowing curve along the foot of the cover — the logo's wave motif. */
+.wave{position:absolute;left:0;right:0;bottom:0;height:2.1in;z-index:0;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 200' preserveAspectRatio='none'%3E%3Cpath d='M0 150 C220 84 420 196 640 130 C830 74 1010 128 1200 96 L1200 200 L0 200Z' fill='%23FBC2CC' fill-opacity='.34'/%3E%3Cpath d='M0 178 C240 120 430 208 660 160 C860 118 1030 160 1200 134 L1200 200 L0 200Z' fill='%23F7A9B5' fill-opacity='.30'/%3E%3C/svg%3E") bottom/100% 100% no-repeat;}
+.cover-logo{width:1.28in;height:1.28in;border-radius:.3in;display:block;
+  box-shadow:0 6px 20px rgba(203,106,138,.20);}
+.tagline{font-family:'Fraunces',Georgia,serif;font-variation-settings:'WONK' 1;
+  font-size:23px;color:var(--brand);font-weight:500;letter-spacing:.005em;font-style:italic;}
+/* Botanical sprig — cover and closing page only. */
+.sprig{position:absolute;right:1.15in;bottom:.26in;width:1.5in;height:2.25in;opacity:.5;z-index:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 70 150'%3E%3Cpath d='M35 148C31 118 39 92 34 64 31 44 37 22 36 4' stroke='%23F7A9B5' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3Cellipse cx='20' cy='120' rx='14' ry='5.6' fill='%23FBC2CC' transform='rotate(-26 20 120)'/%3E%3Cellipse cx='50' cy='108' rx='13' ry='5.2' fill='%23F7A9B5' transform='rotate(24 50 108)'/%3E%3Cellipse cx='19' cy='94' rx='13' ry='5.2' fill='%23F7A9B5' transform='rotate(-28 19 94)'/%3E%3Cellipse cx='49' cy='80' rx='12' ry='4.8' fill='%23FBC2CC' transform='rotate(26 49 80)'/%3E%3Cellipse cx='20' cy='66' rx='11.5' ry='4.6' fill='%23FBC2CC' transform='rotate(-30 20 66)'/%3E%3Cellipse cx='48' cy='50' rx='10' ry='4.2' fill='%23F7A9B5' transform='rotate(28 48 50)'/%3E%3Cellipse cx='23' cy='36' rx='9' ry='3.8' fill='%23FBC2CC' transform='rotate(-32 23 36)'/%3E%3Cellipse cx='46' cy='22' rx='7.5' ry='3.2' fill='%23F7A9B5' transform='rotate(30 46 22)'/%3E%3C/svg%3E") bottom center/contain no-repeat;}
+.blank{background:repeating-linear-gradient(90deg,var(--outline-2) 0 8px,transparent 8px 14px);
+  height:2px;display:inline-block;width:1.5in;vertical-align:middle;}
+</style>
+</head>
+<body>
+
+<!-- 1 ───────────────────────────────────────────────────────────────────── -->
+<section class="slide cover">
+  <div class="moon"></div>
+  <div class="wave"></div>
+  <div class="sprig"></div>
+  <img class="cover-logo" src="assets/lunarflow-mark.png" alt="LunarFlow">
+  <div class="eyebrow" style="margin-top:.32in;">Investor overview · September 2026</div>
+  <h1 class="display">LunarFlow</h1>
+  <p class="tagline" style="margin-top:.12in;">In Sync With Your Cycle.</p>
+  <p class="lede" style="margin-top:.24in;max-width:7.8in;">
+    A menstrual tracker that <strong>asks more, claims less,</strong> and can actually
+    explain what it sees — built, tested, and encrypted on the device before
+    a single slide was written.
+  </p>
+  <div style="margin-top:.42in;max-width:7in;">
+    <div class="band"><i class="m"></i><i class="f"></i><i class="o"></i><i class="l"></i></div>
+    <div class="bandkey"><span class="m">Menstrual 5</span><span class="f">Follicular 8</span><span class="o">Ovul. 3</span><span class="l">Luteal 12</span></div>
+    <p class="srcline">Drawn to scale: real day counts for a 28-day cycle, not equal thirds.</p>
+  </div>
+  <div class="rail"><span class="mark">LunarFlow</span><span class="num">01</span></div>
+</section>
+
+<!-- 2 ───────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">The thesis</div>
+  <h2 class="display">Ask deeply.<br>Predict honestly.<br>Explain personally.</h2>
+  <div class="rule"></div>
+  <p class="lede">
+    The category leader is worth <strong>$1B</strong> and has <strong>77 million</strong>
+    monthly users. It also settled with the FTC for sharing health data it promised to
+    keep, and in September 2025 paid into a <strong>$56M</strong> class-action settlement
+    alongside Google. Meanwhile the published literature finds that period apps get
+    ovulation exactly right <strong>8% of the time</strong> — and that not one of them
+    tells you so.
+  </p>
+  <p class="lede" style="margin-top:.24in;">
+    The demand is proven. The trust and the accuracy are not.
+    LunarFlow is built on the three commitments the incumbents broke.
+  </p>
+  <div class="spacer"></div>
+  <p class="note">Every figure in this deck is sourced on the final slide. Numbers we do not
+    have are shown as blanks, not estimates.</p>
+  <div class="rail"><span class="mark">LunarFlow</span><span class="num">02</span></div>
+</section>
+
+<!-- 3 ───────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">Market</div>
+  <h2 class="display">A $2.5B market compounding at 20% a year</h2>
+  <div class="rule"></div>
+  <div class="stats">
+    <div class="stat"><div class="n">$2.49B</div><div class="l">Menstrual health apps market, 2026</div></div>
+    <div class="stat"><div class="n">$13.1B</div><div class="l">Projected 2035</div></div>
+    <div class="stat"><div class="n">20.3%</div><div class="l">CAGR to 2035</div></div>
+    <div class="stat"><div class="n">72.9%</div><div class="l">Of 2024 category revenue came from <strong>Android</strong></div></div>
+  </div>
+  <div class="spacer"></div>
+  <p class="lede" style="max-width:8.8in;">
+    That last number is the one that matters operationally. LunarFlow is
+    <strong>Android-first by construction</strong> — a $25 one-time Play fee against
+    Apple's $99/year — which means the cheap platform and the majority-revenue
+    platform are the same platform.
+  </p>
+  <p class="srcline">Forecasts vary by house: SNS Insider puts 2032 at $7.52B, Towards Healthcare puts 2035 at $13.11B. Both agree on the growth shape.</p>
+  <div class="rail"><span class="mark">Market</span><span class="num">03</span></div>
+</section>
+
+<!-- 4 ───────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">Demand is not the question</div>
+  <h2 class="display">One competitor already proved the ceiling</h2>
+  <div class="rule"></div>
+  <div class="stats">
+    <div class="stat"><div class="n">$1B</div><div class="l">Flo valuation, 2024 — first purely digital consumer women's health app to reach unicorn status</div></div>
+    <div class="stat"><div class="n">77M</div><div class="l">Monthly active users</div></div>
+    <div class="stat"><div class="n">300M+</div><div class="l">Registered users; 48M installs in 2025 alone</div></div>
+  </div>
+  <div class="spacer"></div>
+  <p class="lede" style="max-width:9in;">
+    Flo raised <strong>$200M from General Atlantic</strong> on those numbers. Nobody
+    needs convincing that people will install a cycle tracker and hand it intimate data.
+  </p>
+  <p class="body" style="margin-top:.2in;">
+    <strong>A note on rigour:</strong> reported 2025 revenue disagrees by source —
+    Latka says $157.6M ARR, Business of Apps says $275M. We cite both rather than
+    picking the flattering one.
+  </p>
+  <div class="rail"><span class="mark">Market</span><span class="num">04</span></div>
+</section>
+
+<!-- 5 ───────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">Crack one</div>
+  <h2 class="display">The category spent its trust</h2>
+  <div class="rule danger"></div>
+  <div class="cols">
+    <div class="col">
+      <div class="panel">
+        <h4>2021 · Federal Trade Commission</h4>
+        <p class="body" style="font-size:13.5px;">Flo promised health data would stay private and be used only to run the app.
+        The FTC alleged it disclosed that data — from millions of users — to
+        <strong>Facebook Analytics, Google Analytics, Fabric, AppsFlyer and Flurry.</strong>
+        The settlement forced an independent privacy review and consent before sharing.</p>
+      </div>
+    </div>
+    <div class="col">
+      <div class="panel">
+        <h4>September 2025 · Class action</h4>
+        <p class="body" style="font-size:13.5px;">Google agreed to pay <strong>$48M</strong> and Flo <strong>$8M</strong> —
+        <strong>$56M combined</strong> — to resolve claims over period-tracking data
+        shared with Google and Meta.</p>
+        <p class="body" style="font-size:13.5px;margin-top:.16in;">Four years after the FTC order, the same category, the same failure mode.</p>
+      </div>
+    </div>
+  </div>
+  <p class="lede" style="margin-top:.28in;">
+    The biggest brand in the category has taught 300 million people that a period app
+    cannot be trusted with a period. <strong>That is an acquisition asset for whoever
+    arrives second and can prove otherwise.</strong>
+  </p>
+  <div class="rail"><span class="mark">The cracks</span><span class="num">05</span></div>
+</section>
+
+<!-- 6 ───────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">Crack two</div>
+  <h2 class="display">And the predictions are mostly wrong</h2>
+  <div class="rule danger"></div>
+  <div class="stats">
+    <div class="stat"><div class="n bad">8%</div><div class="l">Of ovulation predictions exactly correct, across 10 popular apps</div></div>
+    <div class="stat"><div class="n bad">67%</div><div class="l">Ran <strong>2–9 days early</strong> for women whose cycle length is non-standard</div></div>
+    <div class="stat"><div class="n bad">22%</div><div class="l">Of period-tracking apps contain inaccurate information or tools</div></div>
+    <div class="stat"><div class="n bad">0</div><div class="l">Apps that warned the prediction may be wrong and is only a guide</div></div>
+  </div>
+  <div class="spacer"></div>
+  <p class="lede" style="max-width:9.2in;">
+    The last column is the opening. Being wrong is forgivable — cycles are noisy and
+    every app is running a calendar estimate. <strong>Being wrong silently is
+    not.</strong> An entire category has chosen confident-and-wrong over honest-and-useful,
+    and the research says users pay for it in anxiety.
+  </p>
+  <div class="rail"><span class="mark">The cracks</span><span class="num">06</span></div>
+</section>
+
+<!-- 7 ───────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">Crack three</div>
+  <h2 class="display">"A false sense of personalization"</h2>
+  <div class="rule danger"></div>
+  <p class="lede" style="max-width:9.2in;">
+    A qualitative study of women's real experiences catalogues the harms in the users'
+    own terms: <strong>inaccurate predictions, alarmist notifications, a false sense of
+    personalization, and unethical marketing.</strong>
+  </p>
+  <div style="margin-top:.34in;padding:.3in .34in;background:var(--surface);border:1px solid var(--outline);border-left:3px solid var(--menstrual);border-radius:10px;max-width:9.2in;">
+    <p style="font-family:'Fraunces',Georgia,serif;font-variation-settings:'WONK' 1;font-size:25px;line-height:1.28;color:var(--rose);font-weight:600;letter-spacing:-.015em;">
+      When the app's prediction is wrong, users doubt their own body rather than the app.
+    </p>
+  </div>
+  <div class="spacer"></div>
+  <p class="lede" style="max-width:9.2in;">
+    That is the sentence the product is built against. An app that speaks about a body
+    it knows nothing about is not personalized — it is <em>guessing in a confident
+    voice.</em> The fix is not a better guess. It is knowing more, and admitting the rest.
+  </p>
+  <div class="rail"><span class="mark">The cracks</span><span class="num">07</span></div>
+</section>
+
+<!-- 8 ───────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">The wedge</div>
+  <h2 class="display">Three counter-moves, all already shipped</h2>
+  <div class="rule grow"></div>
+  <div class="cols">
+    <div class="col"><div class="panel">
+      <h4>01 · Ask deeply</h4>
+      <p class="body" style="font-size:13.5px;">An <strong>11-page intake</strong> — the deepest cold start in the category —
+      plus daily logging across flow, symptoms, mood, pain, temperature, ovulation tests,
+      discharge, sleep, energy, stress and medication adherence.</p>
+      <p class="body" style="font-size:13.5px;margin-top:.14in;">Day one is not a blank calendar.</p>
+    </div></div>
+    <div class="col"><div class="panel">
+      <h4>02 · Predict honestly</h4>
+      <p class="body" style="font-size:13.5px;"><strong>No fertility percentage, ever.</strong> Predictions gate on confidence and
+      <em>disappear</em> below it rather than degrading. A persistent disclaimer sits on
+      every fertility surface — the exact thing the literature found nobody does.</p>
+    </div></div>
+    <div class="col"><div class="panel">
+      <h4>03 · Explain personally</h4>
+      <p class="body" style="font-size:13.5px;">The user's <strong>full 90-day record travels with their question</strong> to a
+      language model — under strict rules about what may and may not be sent, each one
+      pinned by a test.</p>
+    </div></div>
+  </div>
+  <div style="margin-top:.3in;max-width:9.6in;">
+    <div class="softband"></div>
+    <p class="srcline">How LunarFlow draws a prediction: a soft-edged band, never a hard date. The falloff is the uncertainty — the one visual no competitor offers.</p>
+  </div>
+  <div class="rail"><span class="mark">The wedge</span><span class="num">08</span></div>
+</section>
+
+<!-- 9 ───────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">The intake</div>
+  <h2 class="display">Eleven pages, every answer required</h2>
+  <div class="rule"></div>
+  <div class="cols">
+    <div class="col" style="flex:1.15;">
+      <ul style="columns:2;column-gap:.34in;">
+        <li><strong>1.</strong> Welcome</li>
+        <li><strong>2.</strong> Your data, on your terms</li>
+        <li><strong>3.</strong> When did your last period start?</li>
+        <li><strong>4.</strong> How long is your cycle, usually?</li>
+        <li><strong>5.</strong> When were you born?</li>
+        <li><strong>6.</strong> Height, weight, age at first period</li>
+        <li><strong>7.</strong> Contraception method</li>
+        <li><strong>8.</strong> Sex frequency — typical, and today</li>
+        <li><strong>9.</strong> Sexual history, libido</li>
+        <li><strong>10.</strong> Solo intimacy, satisfaction</li>
+        <li><strong>11.</strong> What are you using LunarFlow for?</li>
+      </ul>
+    </div>
+    <div class="col"><div class="panel tint">
+      <h4>"Required" does not mean trapped</h4>
+      <p class="body" style="font-size:13.5px;">Every question that might not apply carries a <strong>first-class escape
+      answer</strong> — <em>None · None of these · Not today · Prefer not to say</em> —
+      and each is stored as a <strong>real key</strong>, not as an empty field.</p>
+      <p class="body" style="font-size:13.5px;margin-top:.15in;">That distinction is load-bearing. <strong>An absent answer and a negative
+      answer are different clinical facts.</strong> "I have never had pain during sex"
+      is information. "I was never asked" is not. The app never confuses the two —
+      and the AI context builder omits the second rather than inventing it.</p>
+    </div></div>
+  </div>
+  <div class="spacer"></div>
+  <p class="note">Required intake landed 2026-09-14. Before that a skip stored NULL; the wizard
+    now refuses to advance and says why.</p>
+  <div class="rail"><span class="mark">The intake</span><span class="num">09</span></div>
+</section>
+
+<!-- 10 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">The intake · why each field earns its place (1 of 2)</div>
+  <h2 class="display" style="font-size:34px;">Nothing is asked "in case it's useful"</h2>
+  <div class="rule"></div>
+  <table>
+    <thead><tr><th>What we ask</th><th>Why it is required</th><th>What breaks without it</th><th style="width:1.55in;">Escape answer</th></tr></thead>
+    <tbody>
+      <tr><td>Email + password</td>
+        <td>Account identity — cross-device restore, and a real identity to erase on request.</td>
+        <td>No restore after a lost phone; nothing concrete to honour a deletion request against.</td>
+        <td>A local-only hatch, for users who want no account at all.</td></tr>
+      <tr><td>Last period start</td>
+        <td>The anchor date every prediction is computed from.</td>
+        <td>No forecast at all on day one — an empty calendar until a cycle accrues.</td>
+        <td>None. The one question the product cannot work without.</td></tr>
+      <tr><td>Usual cycle length</td>
+        <td>The interval the first forecast extrapolates on, until real observed cycles replace it.</td>
+        <td>Month one has no basis for a prediction.</td>
+        <td>Pre-set to 28 — a real default, not a blank.</td></tr>
+      <tr><td>Date of birth</td>
+        <td>Age contextualises every number in the clinician summary, and bounds what counts as a plausible cycle.</td>
+        <td>The doctor report loses the first line any clinician reads.</td>
+        <td>Range is 8–100; an implausible date is <strong>refused, never clamped</strong>.</td></tr>
+      <tr><td>Height + weight</td>
+        <td>The only clinical readout computable from profile facts alone — and body composition is a documented correlate of cycle irregularity.</td>
+        <td>That readout drops out of both the doctor summary and the AI's context.</td>
+        <td>A wrong value is <strong>refused with a reason</strong>, not quietly accepted.</td></tr>
+      <tr><td>Age at first period</td>
+        <td>A standing gynaecological fact the app can never derive from tracked data.</td>
+        <td>The summary permanently loses a field every gynaecologist asks about.</td>
+        <td>"I'm not sure" — stored as unanswered, never guessed.</td></tr>
+      <tr><td>Contraception method</td>
+        <td><strong>The highest-value question in the wizard.</strong> Ovulation-suppressing methods are held in a named set, and picking one <em>caps prediction confidence to low</em> — suppressing the fertile window app-wide.</td>
+        <td>The app would show a fertile window to somebody who does not ovulate — <strong>asserting something false about their body.</strong></td>
+        <td>"None" is a genuine answer, not a skip.</td></tr>
+    </tbody>
+  </table>
+  <p class="srcline">Copper IUD and sterilisation are deliberately outside the suppressing set: ovulation continues, and blanking the window would delete a real signal.</p>
+  <div class="rail"><span class="mark">The intake</span><span class="num">10</span></div>
+</section>
+
+<!-- 11 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">The intake · why each field earns its place (2 of 2)</div>
+  <h2 class="display" style="font-size:34px;">The intimate questions, and their defence</h2>
+  <div class="rule"></div>
+  <table>
+    <thead><tr><th>What we ask</th><th>Why it is required</th><th>What breaks without it</th><th style="width:1.55in;">Escape answer</th></tr></thead>
+    <tbody>
+      <tr><td>Sex frequency — typical <em>and</em> today</td>
+        <td>Two facts at two time scales. The baseline is the denominator; today's answer is an event that becomes a real log entry.</td>
+        <td>Any correlation between activity and symptoms has no baseline to be measured against.</td>
+        <td>"Never" and "Not today" are both real answers.</td></tr>
+      <tr><td>Sexual history — pain, bleeding after sex, dryness</td>
+        <td><strong>Gynaecological red flags clinicians actively screen for.</strong> They reuse the daily-chip keys, so baseline and daily log can never drift into meaning different things.</td>
+        <td>The pattern detectors and the doctor summary lose their screening inputs.</td>
+        <td>"None of these" — an explicit key meaning <em>asked and answered no</em>.</td></tr>
+      <tr><td>Libido — baseline and today</td>
+        <td>A hormonal-cycle correlate. The baseline is what gives the daily chip a reference point.</td>
+        <td>A daily libido chip with no baseline is uninterpretable — high relative to what?</td>
+        <td>A three-point scale that is always answerable.</td></tr>
+      <tr><td>Masturbation frequency</td>
+        <td>Completes the sexual-activity picture the cycle correlations draw on, without requiring a partner to be involved.</td>
+        <td>Activity data becomes partner-only, under-counting a large share of users.</td>
+        <td>"Never" is a real answer.</td></tr>
+      <tr><td>Goal — track, conceive, perimenopause</td>
+        <td>Changes what the app <em>shows</em>, not just how it looks: conceive promotes fertility above period; perimenopause caps confidence, self-suppressing every fertility estimate.</td>
+        <td>Perimenopausal users would receive fertility estimates the app has no business making.</td>
+        <td>Defaults to "Track my cycle".</td></tr>
+    </tbody>
+  </table>
+  <p class="srcline">Two further questions are asked at signup and are <em>not</em> on this table, because they cannot be defended on these terms. They are the subject of the next slide.</p>
+  <div class="spacer"></div>
+  <div class="cols" style="flex:0;">
+    <div class="col"><div class="panel" style="padding:.22in .26in;">
+      <h4>Why ask any of this</h4>
+      <p class="body" style="font-size:12px;">Three of the five are <strong>screening questions</strong> a clinician asks in a
+      first appointment — pain during sex, bleeding after sex, dryness. An app that never
+      asks them is not being discreet; it is discarding the signals most likely to matter.</p>
+    </div></div>
+    <div class="col"><div class="panel" style="padding:.22in .26in;">
+      <h4>Why ask it at signup</h4>
+      <p class="body" style="font-size:12px;">A daily chip records <em>today</em>. It can never establish what is
+      <em>typical</em> — and without that, one day's answer has nothing to be unusual
+      against. The baseline is the question a first run can answer and a daily log cannot.</p>
+    </div></div>
+    <div class="col"><div class="panel tint" style="padding:.22in .26in;">
+      <h4>Why it is answerable anyway</h4>
+      <p class="body" style="font-size:12px;">Every escape answer is a <strong>stored key, not an empty field.</strong>
+      "None of these" means <em>asked and answered no</em> — information a clinician can
+      use. A skip would have meant nothing at all.</p>
+    </div></div>
+  </div>
+  <div class="rail"><span class="mark">The intake</span><span class="num">11</span></div>
+</section>
+
+<!-- 12 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">The intake · the exception</div>
+  <h2 class="display">Two questions we cannot justify</h2>
+  <div class="rule danger"></div>
+  <p class="lede" style="max-width:9.4in;">
+    The wizard asks two more required questions — <strong>preferred methods of solo
+    intimacy, and time to satisfaction.</strong> Neither is defensible on clinical
+    grounds, and we know that because <em>our own source code says so, in a comment
+    written before either was added:</em>
+  </p>
+  <div style="margin:.26in 0;padding:.28in .32in;background:var(--surface);border:1px solid var(--outline);border-left:3px solid var(--rose);border-radius:10px;max-width:9.4in;">
+    <p style="font-family:'Fraunces',Georgia,serif;font-variation-settings:'WONK' 1;font-size:21px;line-height:1.34;color:var(--rose);font-weight:600;letter-spacing:-.012em;">
+      "Preferred methods and time to orgasm are deliberately absent: they carry no
+      gynaecological signal while being among the most sensitive things this app
+      could store."
+    </p>
+  </div>
+  <div class="cols" style="flex:0;">
+    <div class="col"><div class="panel" style="padding:.22in .26in;">
+      <h4>What happened</h4>
+      <p class="body" style="font-size:11.8px;">The judgement was recorded as <strong>correct on both counts</strong>, then overridden
+      by the owner on 2026-09-14 — and the reversal was <strong>documented in the file</strong>
+      so that no future reader mistakes it for an oversight and quietly undoes it.</p>
+    </div></div>
+    <div class="col"><div class="panel" style="padding:.22in .26in;">
+      <h4>What they cost</h4>
+      <p class="body" style="font-size:11.8px;">Nothing consumes them — <strong>no prediction, report, detector or insight.</strong>
+      They sit at the deepest point of the funnel, on the most sensitive page, producing
+      no product value. Both carry "Prefer not to say", stored as a real key.</p>
+    </div></div>
+    <div class="col"><div class="panel tint" style="padding:.22in .26in;">
+      <h4>What we do about it</h4>
+      <p class="body" style="font-size:11.8px;">They are <strong>first on the roadmap to cut</strong>, and cutting them is a
+      one-file change. Under GDPR's data-minimisation test this is the weakest ground
+      the intake stands on, and we would rather you heard it here.</p>
+    </div></div>
+  </div>
+  <div class="rail"><span class="mark">The intake</span><span class="num">12</span></div>
+</section>
+
+<!-- 13 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">Restraint</div>
+  <h2 class="display">What the depth is deliberately <em>not</em> used for</h2>
+  <div class="rule"></div>
+  <p class="lede" style="max-width:9.4in;margin-bottom:.24in;">
+    Collecting more is only defensible if you also claim less. Every one of these is a
+    shipped constraint, not an intention:
+  </p>
+  <ul>
+    <li class="no"><strong>No fertility percentage, ever.</strong> A precise figure — "3.2% chance today" — was proposed and rejected. It reads to a user as a <em>safe day</em>, and it collides with Apple's medical-claims rule and Play's health-misinformation policy. The app ships a qualitative band instead, or nothing.</li>
+    <li class="no"><strong>Predictions vanish rather than degrade.</strong> Below a confidence threshold the ovulation marker, the fertility band and even the legend entry are all suppressed. An estimate the app does not trust is not shown in a weaker font — it is not shown.</li>
+    <li class="no"><strong>Perimenopause caps confidence to low</strong> — one lever that suppresses every fertility surface at once — and pairs it with copy that says the quiet part: <em>"You can still become pregnant — cycle timing is not a reliable guide."</em> A hidden window must never read as a safe one.</li>
+    <li class="no"><strong>A disclaimer sits on every fertility surface, permanently.</strong> Not on first run, not dismissible. The research finding was that <em>none</em> of the popular apps do this.</li>
+    <li class="no"><strong>Sexual-activity data is namespace-excluded from the doctor report by default.</strong> The report is a file the user hands to another human; sensitive keys are held out of it structurally, not by remembering to filter.</li>
+    <li class="no"><strong>Automated test-strip reading was vetoed.</strong> Interpreting an ovulation strip is a medical-device function. Users may photograph and log one; the app will not tell them what it means.</li>
+  </ul>
+  <div class="rail"><span class="mark">Restraint</span><span class="num">13</span></div>
+</section>
+
+<!-- 14 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">The AI layer</div>
+  <h2 class="display">What reaches the model — and what never does</h2>
+  <div class="rule"></div>
+  <p class="lede" style="max-width:9.4in;margin-bottom:.2in;">
+    The context builder is a <strong>pure function</strong>: rows in, text out. It cannot
+    reach the database or the network, and each rule below is pinned by a test that
+    fails if the rule is broken.
+  </p>
+  <div class="cols">
+    <div class="col"><div class="panel">
+      <h4>Rules on what is sent</h4>
+      <ul style="margin:0;">
+        <li><strong>90 days.</strong> About three cycles — the minimum for a before-and-after-period comparison to contain more than one instance.</li>
+        <li><strong>Unanswered fields are omitted entirely</strong> — never sent as <code>null</code> or <code>"unknown"</code>, because an absent answer and a negative answer are different clinical facts.</li>
+        <li><strong>Unknown option keys are dropped, never printed raw.</strong> A renamed catalogue entry cannot leak a database slug into a prompt.</li>
+        <li><strong>Zero means unset</strong> for every numeric metric, and a zero is never serialised as a measurement.</li>
+      </ul>
+    </div></div>
+    <div class="col"><div class="panel">
+      <h4>Rules on what is said back</h4>
+      <ul style="margin:0;">
+        <li><strong>The model is instructed it is not a clinician:</strong> never diagnose, never name a condition, never estimate severity, never advise treatment — and to refuse and redirect if asked.</li>
+        <li><strong>A caveat renders under every answer, without exception</strong> — because <em>"a caveat that appears only sometimes teaches the user that its absence means the answer is trustworthy."</em></li>
+        <li><strong>Opt-in, off by default,</strong> behind an explicit consent sheet, versioned so the consent can be re-asked when the terms change.</li>
+        <li><strong>Capped</strong> at 20 messages per day per user — which also caps the marginal cost.</li>
+      </ul>
+    </div></div>
+  </div>
+  <p class="srcline" style="margin-top:.16in;">Refusal behaviour is re-verified by hand against escalating adversarial prompts: a unit test proves only that the instruction's clauses exist, not that the model still obeys them under pressure.</p>
+  <div class="rail"><span class="mark">The AI layer</span><span class="num">14</span></div>
+</section>
+
+<!-- 15 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">The moat</div>
+  <h2 class="display">Why intake depth <em>is</em> the AI product</h2>
+  <div class="rule grow"></div>
+  <div class="cols">
+    <div class="col"><div class="panel">
+      <h4>What a typical tracker can tell a model</h4>
+      <p style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.7;color:var(--ink-muted);">
+        Age: —<br>Cycle: ~28 days<br>Last period: 2026-09-02
+      </p>
+      <p class="body" style="margin-top:.2in;font-size:13px;">Any model given this can only produce generic health writing. That is what
+      "a false sense of personalization" looks like from the inside.</p>
+    </div></div>
+    <div class="col"><div class="panel tint">
+      <h4>What LunarFlow can</h4>
+      <p style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.6;color:var(--rose);">
+        Age · height · weight · body-composition readout<br>
+        Age at first period<br>
+        Contraception method + start date<br>
+        Clinician-given diagnoses · breastfeeding status<br>
+        <span style="color:var(--ink-muted);">— and 90 days of —</span><br>
+        flow · symptoms · mood · pain 0–10 · temperature ·
+        ovulation tests · cervical mucus · sleep · energy ·
+        stress · hydration · medication adherence
+      </p>
+    </div></div>
+  </div>
+  <p class="lede" style="margin-top:.28in;max-width:9.4in;">
+    <strong>Same model. Same price. The second one stops guessing.</strong> The intake
+    solves the cold start, the daily log compounds it, and none of it is portable to a
+    competitor — a user would have to re-answer eleven pages and re-live ninety days to
+    rebuild it somewhere else.
+  </p>
+  <div class="rail"><span class="mark">The moat</span><span class="num">15</span></div>
+</section>
+
+<!-- 16 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">Status</div>
+  <h2 class="display">This is built, not designed</h2>
+  <div class="rule grow"></div>
+  <div class="stats" style="margin-bottom:.26in;">
+    <div class="stat"><div class="n">143</div><div class="l">Dart source files</div></div>
+    <div class="stat"><div class="n">150</div><div class="l">Test files</div></div>
+    <div class="stat"><div class="n">55</div><div class="l">Service modules</div></div>
+    <div class="stat"><div class="n">v10</div><div class="l">Database schema, migrated in place</div></div>
+  </div>
+  <div class="cols">
+    <div class="col">
+      <h3 class="display" style="font-size:18px;margin-bottom:.14in;">Shipped and working</h3>
+      <ul style="columns:2;column-gap:.3in;font-size:12px;line-height:1.38;--m:0;">
+        <li class="ok">Daily logging + calendar</li>
+        <li class="ok">Predictions + multi-month forecast</li>
+        <li class="ok">Insights + plain-language narration</li>
+        <li class="ok">Doctor-facing PDF report</li>
+        <li class="ok">Reminders, incl. custom</li>
+        <li class="ok">Medications + adherence</li>
+        <li class="ok">Pregnancy mode (loss-safe)</li>
+        <li class="ok">Perimenopause mode</li>
+        <li class="ok">Symptothermal temperature + tests</li>
+        <li class="ok">Health Connect import</li>
+        <li class="ok">Home-screen widget</li>
+        <li class="ok">App lock + biometrics</li>
+        <li class="ok">Diary, media, AI descriptions</li>
+        <li class="ok">Accounts + cross-device sync</li>
+        <li class="ok">Backup, restore, account deletion</li>
+        <li class="ok">Ads + one-time Premium purchase</li>
+      </ul>
+    </div>
+    <div class="col" style="flex:.78;"><div class="panel" style="padding:.24in .26in;">
+      <h4>Device-verified, not assumed</h4>
+      <p class="body" style="font-size:13px;">The on-device database is <strong>encrypted at rest</strong> with a 256-bit key held
+      in the OS keystore — confirmed on physical hardware, because the cipher only compiles
+      in a device build and <em>a green test suite proves nothing here</em>.</p>
+      <p class="body" style="font-size:13px;margin-top:.14in;">Evidence: the database file begins <code>3a40 3cd2…</code>, not the plaintext
+      <code>SQLite format 3</code> magic — with the older unencrypted file retained as a
+      positive control proving the check can tell the difference.</p>
+    </div></div>
+  </div>
+  <div class="rail"><span class="mark">Status</span><span class="num">16</span></div>
+</section>
+
+<!-- 17 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">Architecture &amp; unit economics</div>
+  <h2 class="display">The privacy decision is also the cost decision</h2>
+  <div class="rule"></div>
+  <div class="cols">
+    <div class="col"><div class="panel">
+      <h4>Local-first by construction</h4>
+      <ul style="margin:0;font-size:13px;">
+        <li>The on-device database is the <strong>single source of truth.</strong> The interface never reads from the cloud.</li>
+        <li>Sync runs <strong>alongside</strong> the read/write path, never in front of it — so the app is fully usable offline, permanently.</li>
+        <li>Every prediction, insight and report is <strong>computed on the phone.</strong> There is no inference server to run, scale, or pay for.</li>
+      </ul>
+    </div></div>
+    <div class="col"><div class="panel">
+      <h4>What a user actually costs</h4>
+      <ul style="margin:0;font-size:13px;">
+        <li>No analytics stack, no recommendation service, no model hosting.</li>
+        <li>Marginal cost ≈ cloud reads/writes <strong>+ AI calls capped at 20 messages per user per day.</strong></li>
+        <li>Fixed cost is a <strong>$25 one-time</strong> Play registration. Apple's $99/year is deferred until iOS is worth it.</li>
+        <li>Revenue: non-personalized ads — <strong>banned from the logging and insights screens</strong> — plus a one-time purchase that removes them.</li>
+      </ul>
+    </div></div>
+  </div>
+  <p class="lede" style="margin-top:.28in;max-width:9.4in;">
+    Ads are barred from the two screens where a user is most vulnerable and most engaged.
+    That costs inventory. <strong>It is the price of the sentence on slide five being
+    true about us.</strong>
+  </p>
+  <div class="rail"><span class="mark">Economics</span><span class="num">17</span></div>
+</section>
+
+<!-- 18 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">Risks — stated before you find them</div>
+  <h2 class="display" style="font-size:40px;">What is wrong with this today</h2>
+  <div class="rule danger"></div>
+  <ol class="num" style="font-size:15px;">
+    <li><strong>The intake is a funnel risk.</strong> Eleven required pages including sexual history is the deepest cold start in the category, and two of those questions are documented <em>in our own source</em> as carrying no gynaecological signal. Mitigation: they are the first candidates to cut, and cutting them is a single-file change.</li>
+    <li><strong>Cloud sync is not end-to-end encrypted.</strong> Logs and settings are stored in plaintext under the user's account; the operator can read them. The privacy policy says so plainly. For a trust-led brand this belongs on the roadmap, not in the footnotes.</li>
+    <li><strong>The AI key currently ships inside the app.</strong> It is recoverable from the installed binary with one command. A server-side proxy is a documented <em>release blocker</em>, not an accepted state — but it is not built yet.</li>
+    <li><strong>Nothing has launched.</strong> Ads still run on the vendor's test identifiers; the store listing needs a 12-tester, 14-day closed test before a new personal account can publish. Revenue today is zero and the deck does not pretend otherwise.</li>
+    <li><strong>This is special-category data.</strong> Sex life and health data carry the highest bar under GDPR — explicit consent plus data minimisation. Both principles point at the same place as risk 1: trim the intake to what is clinically defensible.</li>
+  </ol>
+  <p class="note" style="margin-top:.06in;">A deck that omits this list is not lower-risk. It is the same risk, discovered later, by you.</p>
+  <div class="rail"><span class="mark">Risks</span><span class="num">18</span></div>
+</section>
+
+<!-- 19 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">Roadmap</div>
+  <h2 class="display">Ordered by what unblocks revenue</h2>
+  <div class="rule"></div>
+  <div class="cols">
+    <div class="col"><div class="panel">
+      <h4>Next · to launch</h4>
+      <ul style="margin:0;font-size:13px;">
+        <li>Trim or soften the two unjustified intake questions</li>
+        <li>Server-side proxy for the AI key</li>
+        <li>Real ad and in-app-purchase identifiers</li>
+        <li>Closed test, store listing, data-safety forms</li>
+      </ul>
+    </div></div>
+    <div class="col"><div class="panel">
+      <h4>Then · to defend the position</h4>
+      <ul style="margin:0;font-size:13px;">
+        <li>End-to-end encryption for sync</li>
+        <li>Translations — the infrastructure is built and deliberately English-only, because machine-translating a phrase like <em>"not a contraceptive method"</em> is a safety risk, not a chore</li>
+        <li>iOS, once the $99/year is earned</li>
+      </ul>
+    </div></div>
+    <div class="col"><div class="panel">
+      <h4>Later · to extend the moat</h4>
+      <ul style="margin:0;font-size:13px;">
+        <li>Deeper symptothermal confidence integration</li>
+        <li>Wearables beyond temperature</li>
+        <li>Longitudinal pattern nudges across years, not cycles</li>
+      </ul>
+    </div></div>
+  </div>
+  <div class="spacer"></div>
+  <p class="lede" style="max-width:9.4in;">
+    Note the order. <strong>The first thing on the list is removing data we already
+    collect</strong> — which is the whole argument of this deck, applied to ourselves.
+  </p>
+  <div class="rail"><span class="mark">Roadmap</span><span class="num">19</span></div>
+</section>
+
+<!-- 20 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">The ask</div>
+  <h2 class="display">What we are raising, and what it buys</h2>
+  <div class="rule"></div>
+  <div class="cols">
+    <div class="col"><div class="panel">
+      <h4>Terms — to be completed</h4>
+      <ul style="margin:0;font-size:13.5px;">
+        <li>Raising <span class="blank"></span></li>
+        <li>At <span class="blank"></span> <span style="font-size:11.5px;">pre-money</span></li>
+        <li>Instrument <span class="blank"></span></li>
+        <li>Runway <span class="blank"></span> <span style="font-size:11.5px;">months</span></li>
+      </ul>
+    </div></div>
+    <div class="col"><div class="panel">
+      <h4>Traction — to be completed</h4>
+      <ul style="margin:0;font-size:13.5px;">
+        <li>Installs <span class="blank"></span></li>
+        <li>D30 retention <span class="blank"></span></li>
+        <li>Intake completion rate <span class="blank"></span></li>
+        <li>Premium conversion <span class="blank"></span></li>
+      </ul>
+    </div></div>
+    <div class="col"><div class="panel tint">
+      <h4>What it funds</h4>
+      <ul style="margin:0;font-size:13.5px;">
+        <li>Launch: proxy, store compliance, closed test</li>
+        <li>End-to-end encryption for sync</li>
+        <li>Human translation of safety-critical copy</li>
+        <li>iOS</li>
+      </ul>
+    </div></div>
+  </div>
+  <div class="spacer"></div>
+  <p class="note">These blanks are deliberate. Every other number in this deck is sourced and
+    checkable; inventing these four would undo that.</p>
+  <div class="rail"><span class="mark">The ask</span><span class="num">20</span></div>
+</section>
+
+<!-- 21 ──────────────────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow">Sources</div>
+  <h2 class="display" style="font-size:34px;">Every figure, checkable</h2>
+  <div class="rule"></div>
+  <div class="cols">
+    <div class="col">
+      <h3 class="display" style="font-size:16px;margin-bottom:.1in;">Market</h3>
+      <ul style="font-size:11px;">
+        <li>Towards Healthcare — <em>Menstrual Health Apps Market Sizing</em> ($2.49B 2026 → $13.11B 2035, 20.28% CAGR; Android 72.9% of 2024 revenue). towardshealthcare.com/insights/menstrual-health-apps-market-sizing</li>
+        <li>SNS Insider via GlobeNewswire, 6 Nov 2025 — $7.52B by 2032.</li>
+        <li>FemTech World — <em>Menstrual health apps market tipped to reach US$13bn</em>.</li>
+      </ul>
+      <h3 class="display" style="font-size:16px;margin:.18in 0 .1in;">Competitor scale</h3>
+      <ul style="font-size:11px;">
+        <li>General Atlantic press release — <em>Flo Health Secures More than $200M</em> ($1B valuation, first purely digital consumer women's health app to reach unicorn status).</li>
+        <li>Business of Apps — <em>Flo Revenue and Usage Statistics (2026)</em> (77M MAU; 300M+ registered; 48M installs in 2025; $275M revenue).</li>
+        <li>Latka — Flo Health ($157.6M ARR). Cited alongside the above because the two disagree.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3 class="display" style="font-size:16px;margin-bottom:.1in;">Trust failures</h3>
+      <ul style="font-size:11px;">
+        <li>Federal Trade Commission, Jan 2021 — <em>Developer of Popular Women's Fertility-Tracking App Settles FTC Allegations</em> (disclosure to Facebook Analytics, Google Analytics, Fabric, AppsFlyer, Flurry). ftc.gov</li>
+        <li>Global Policy Watch, Oct 2025 — <em>Flo Health, Google Settle Class Action Privacy Lawsuit for $56 Million</em> (Google $48M, Flo $8M).</li>
+      </ul>
+      <h3 class="display" style="font-size:16px;margin:.18in 0 .1in;">Accuracy &amp; harm</h3>
+      <ul style="font-size:11px;">
+        <li>Worsfold, Marriott, Johnson &amp; Harper — <em>Period tracker applications: what menstrual cycle information are they giving women?</em>, Women's Health (2021) — 8% of ovulation predictions exactly correct; 67% ran 2–9 days early on non-standard cycles.</li>
+        <li><em>The need for transparency in the promotion of popular period tracker applications</em> — app-store content analysis (2025): 22% contained inaccurate information; none caveated their own unreliability.</li>
+        <li><em>The benefits and harms of using a period tracking app: a qualitative study of women's experiences</em>, ScienceDirect (2026) — "inaccurate predictions, alarmist notifications, a false sense of personalization, and unethical marketing"; users doubting their body before the app.</li>
+      </ul>
+    </div>
+  </div>
+  <p class="srcline">Product claims (file counts, schema version, encryption verification, shipped features, intake structure) are drawn from the LunarFlow repository as of 14 September 2026 and are reproducible from source.</p>
+  <div class="rail"><span class="mark">LunarFlow</span><span class="num">21</span></div>
+</section>
+
+</body>
+</html>

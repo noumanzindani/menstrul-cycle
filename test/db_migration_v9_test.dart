@@ -66,7 +66,7 @@ void main() {
     await oldDb.close();
 
     final db = AppDatabase.forTesting(schema.newConnection());
-    await verifier.migrateAndValidate(db, 12);
+    await verifier.migrateAndValidate(db, 13);
 
     final settings = await db.getSettings();
     expect(settings.defaultCycleLength, 33);

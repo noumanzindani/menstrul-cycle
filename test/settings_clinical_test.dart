@@ -113,6 +113,55 @@ void main() {
         matching: find.text(value),
       );
 
+  /// Cycle regularity lives in the "Cycle defaults" group beside the two
+  /// length steppers, not in the clinical group above — but it is the same
+  /// three-state rule, and it is the ONLY way a user who upgraded can answer a
+  /// question the wizard never asked her. The v13 migration backfills nothing
+  /// on purpose, so without this row an upgraded install is stuck at "nobody
+  /// asked" forever.
+  group('cycle regularity', () {
+    const rowTitle = 'How much your cycle varies';
+
+    /// Same lazy-ListView trap the clinical group documents above: this row
+    /// sits further down again, so nothing is BUILT until it is scrolled to.
+    Future<void> reveal(WidgetTester tester) async {
+      await tester.dragUntilVisible(find.text(rowTitle),
+          find.byType(Scrollable).first, const Offset(0, -120));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('reads as unanswered until it is answered', (tester) async {
+      await pump(tester);
+      await reveal(tester);
+      expect(rowValue(rowTitle, 'Not answered'), findsOneWidget);
+    });
+
+    testWidgets('an answer is stored and shown back', (tester) async {
+      await pump(tester);
+      await reveal(tester);
+      await tapRow(tester, rowTitle);
+      await tester.tap(find.text('It varies a lot').last);
+      await tester.pumpAndSettle();
+
+      expect((await db.getSettings()).cycleRegularity, kRegularityIrregular);
+      expect(rowValue(rowTitle, 'It varies a lot'), findsOneWidget);
+    });
+
+    testWidgets('it can be put back to unanswered', (tester) async {
+      await settings.setCycleRegularity(kRegularityVeryRegular);
+      await pump(tester);
+      await reveal(tester);
+
+      await tapRow(tester, rowTitle);
+      await tester.tap(find.text('Not answered').last);
+      await tester.pumpAndSettle();
+
+      expect((await db.getSettings()).cycleRegularity, isNull,
+          reason: 'a user who realises she guessed must be able to withdraw '
+              'the guess, not only replace it with another');
+    });
+  });
+
   testWidgets('every clinical row reads as unanswered until it is answered',
       (tester) async {
     await pump(tester);

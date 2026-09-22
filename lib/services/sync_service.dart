@@ -995,7 +995,7 @@ class SyncService {
       // fertile window. So each generation raises this, and each generation's
       // columns are gated on their own minimum. Bump it again whenever the
       // field set grows.
-      'profileFields': 3,
+      'profileFields': 4,
       'dateOfBirth': row.dateOfBirth?.millisecondsSinceEpoch,
       'heightCm': row.heightCm,
       'profileWeightKg': row.profileWeightKg,
@@ -1014,6 +1014,10 @@ class SyncService {
       // column stores, for the same reason `knownDiagnoses` does: the column
       // owns the shape, and re-encoding here would create a second format.
       'sexualHealthBaseline': row.sexualHealthBaseline,
+      // The regularity answer (marker 4). A plain option key, so unlike the two
+      // above it needs no shape agreement -- `cycleVariabilityPriorFor` drops
+      // a key it does not recognise rather than trusting it.
+      'cycleRegularity': row.cycleRegularity,
       'updatedAt': changed.millisecondsSinceEpoch,
       // `syncedAt` is written here for consistency with `dailyLogs` and
       // `deletions` (every remote document carries it), even though the
@@ -1063,6 +1067,11 @@ class SyncService {
     // generation gates on its OWN minimum; a v9 writer knew nothing of this.
     final knowsSexualBaseline =
         (_asOrNull<int>(data['profileFields']) ?? 0) >= 3;
+    // And absent, `1`, `2` or `3` on anything written before schema v13. A
+    // device on the previous build writes `3` TRUTHFULLY and still knows
+    // nothing of this column, so only its own minimum will do.
+    final knowsCycleRegularity =
+        (_asOrNull<int>(data['profileFields']) ?? 0) >= 4;
     final dobMillis = _asOrNull<int>(data['dateOfBirth']);
     // `num`, not `double`: Firestore number typing is not stable across
     // writers, so a whole-number height (170) can arrive as an `int`, for
@@ -1078,6 +1087,7 @@ class SyncService {
     final breastfeeding = _asOrNull<bool>(data['breastfeeding']);
     final breastfeedingMillis = _asOrNull<int>(data['breastfeedingSince']);
     final sexualBaseline = _asOrNull<String>(data['sexualHealthBaseline']);
+    final cycleRegularity = _asOrNull<String>(data['cycleRegularity']);
 
     await _settings.updateSyncState(
       AppSettingsCompanion(
@@ -1158,6 +1168,9 @@ class SyncService {
             : const Value.absent(),
         sexualHealthBaseline: knowsSexualBaseline
             ? Value(sexualBaseline)
+            : const Value.absent(),
+        cycleRegularity: knowsCycleRegularity
+            ? Value(cycleRegularity)
             : const Value.absent(),
         settingsUpdatedAt: Value(remoteUpdated),
       ),

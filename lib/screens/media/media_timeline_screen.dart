@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/entrance.dart';
+
 import '../../services/media_picker_config.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -260,31 +262,37 @@ class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
                     onRefresh: _refresh,
-                    child: CustomScrollView(
-                      key: const Key('media-grid'),
-                      // So the empty state can be pulled down too — a screen
-                      // that cannot be refreshed is exactly the one a user
-                      // pulls on when nothing has arrived yet.
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      slivers: [
-                        if (_failed > 0)
-                          SliverToBoxAdapter(
-                            child: _UploadFailureCard(
-                              count: _failed,
-                              onRetry: widget.canAdd && !_busy ? _add : null,
+                    // Scoped to the grid. `_StorageNotice` above is a standing
+                    // disclosure about how these files are held, not content
+                    // arriving, and must not fade in after the photographs it
+                    // qualifies.
+                    child: EntranceGroup(
+                      child: CustomScrollView(
+                        key: const Key('media-grid'),
+                        // So the empty state can be pulled down too — a screen
+                        // that cannot be refreshed is exactly the one a user
+                        // pulls on when nothing has arrived yet.
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          if (_failed > 0)
+                            SliverToBoxAdapter(
+                              child: _UploadFailureCard(
+                                count: _failed,
+                                onRetry: widget.canAdd && !_busy ? _add : null,
+                              ),
                             ),
-                          ),
-                        if (items.isEmpty)
-                          SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: _EmptyState(
-                              canAdd: widget.canAdd,
-                              onAdd: _busy ? null : _add,
-                            ),
-                          )
-                        else
-                          ..._monthSlivers(context, items),
-                      ],
+                          if (items.isEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _EmptyState(
+                                canAdd: widget.canAdd,
+                                onAdd: _busy ? null : _add,
+                              ),
+                            )
+                          else
+                            ..._monthSlivers(context, items),
+                        ],
+                      ),
                     ),
                   ),
           ),
@@ -329,6 +337,12 @@ class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
           ),
         ),
       );
+      // Copied BEFORE `start` is advanced at the end of the loop: the builder
+      // below is a closure, and a closure over the loop variable itself reads
+      // whatever value it finished on. This running offset is what makes the
+      // stagger continue across month groups instead of restarting at each
+      // heading.
+      final base = start;
       slivers.add(
         SliverPadding(
           // Edge to edge, 2dp gutters: the photographs are the content, and
@@ -344,10 +358,13 @@ class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
             delegate: SliverChildBuilderDelegate(
               (context, i) {
                 final item = group[i];
-                return MediaTile(
-                  key: Key('media-tile-${item.id}'),
-                  item: item,
-                  onTap: () => widget.onOpen?.call(context, item),
+                return EntranceItem(
+                  index: base + i,
+                  child: MediaTile(
+                    key: Key('media-tile-${item.id}'),
+                    item: item,
+                    onTap: () => widget.onOpen?.call(context, item),
+                  ),
                 );
               },
               childCount: group.length,

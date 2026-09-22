@@ -235,6 +235,45 @@ const MUTANTS = [
     to: "      if (typeof value === 'number') {",
     expect: ['reserved tag prefixes are grouped and 0-valued metrics are dropped'],
   },
+
+  // --- the sexual-health baseline ----------------------------------------
+  {
+    name: 'the baseline projection dropped (whole settings document fetched)',
+    file: 'src/records.js',
+    from: "      .select(BASELINE_FIELD)\n",
+    to: '',
+    expect: ['the records page renders the baseline, behind the reason gate'],
+  },
+  {
+    name: 'unknown baseline keys reported as known (silently mislabelled)',
+    file: 'src/records.js',
+    from: '  known: Object.prototype.hasOwnProperty.call(table, key),',
+    to: '  known: true,',
+    expect: ['an unknown key is carried through flagged, never silently dropped'],
+  },
+  {
+    name: 'a non-object baseline payload accepted instead of reported malformed',
+    file: 'src/records.js',
+    from: "  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {",
+    to: '  if (!parsed) {',
+    expect: ['an undecodable column reports malformed instead of throwing'],
+  },
+
+  // --- transcriptions that go stale silently -----------------------------
+  {
+    name: 'the database id default reverted to the wrong database',
+    file: 'src/paths.js',
+    from: "export const LUNA_DATABASE_ID = 'lunatrack-db';",
+    to: "export const LUNA_DATABASE_ID = 'lunatrack';",
+    expect: ['the database id default is the NAMED database the app writes to'],
+  },
+  {
+    name: 'a v12 subcollection dropped from the sweep list',
+    file: 'src/paths.js',
+    from: "    'analysisMessages',\n",
+    to: '',
+    expect: ['every synced subcollection is listed, including the v12 four'],
+  },
 ];
 
 // --- the sandboxed tree ----------------------------------------------------

@@ -68,6 +68,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   DateTime? _lastPeriod;
   int _cycleLength = 28;
+  // Seeded to the column default so accepting the page unchanged writes the
+  // same number the database would have held anyway -- the wizard now states
+  // it rather than inheriting it silently.
+  int _periodLength = 5;
+  // Null and STAYS null when skipped, like the profile answers. Silence is not
+  // a claim of regularity -- see `cycleVariabilityPriorFor`.
+  String? _cycleRegularity;
   bool _genderNeutral = false;
   TrackingMode _mode = TrackingMode.track;
 
@@ -183,16 +190,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return error == null;
   }
 
+  /// The wizard's motion contract, identical to [MonthRing] and [FlowDrop]:
+  /// when the platform asks for reduced motion the page does not TRAVEL, it is
+  /// already there. Jump to the end state, never to the start.
+  bool get _reducedMotion => MediaQuery.disableAnimationsOf(context);
+
   void _next() {
     // An unanswered or unusable question is REFUSED: the wizard stays put
     // showing the reason rather than advancing and storing a null.
     if (!_pageAnswered(_page)) return;
     setState(() => _pageError = null);
     if (_page < _pageCount - 1) {
-      _controller.nextPage(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      );
+      if (_reducedMotion) {
+        _controller.jumpToPage(_page + 1);
+      } else {
+        _controller.nextPage(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
     } else {
       _finish();
     }
@@ -211,15 +227,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     // landing in the app with the answers the owner made mandatory missing.
     for (var page = 0; page < _pageCount; page++) {
       if (_pageAnswered(page)) continue;
-      await _controller.animateToPage(
-        page,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      );
+      // Read before awaiting, never after: this is the only await inside the
+      // loop and it is followed immediately by the return.
+      if (_reducedMotion) {
+        _controller.jumpToPage(page);
+      } else {
+        await _controller.animateToPage(
+          page,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
       return;
     }
 
     await settings.setCycleLength(_cycleLength);
+    await settings.setPeriodLength(_periodLength);
+    await settings.setCycleRegularity(_cycleRegularity);
     await settings.setGenderNeutralLanguage(_genderNeutral);
     await settings.setMode(_mode);
 
@@ -429,6 +453,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   _CycleLengthPage(
                     cycleLength: _cycleLength,
                     onChanged: (v) => setState(() => _cycleLength = v),
+                    periodLength: _periodLength,
+                    onPeriodChanged: (v) => setState(() => _periodLength = v),
+                    regularity: _cycleRegularity,
+                    onRegularityChanged: (v) =>
+                        setState(() => _cycleRegularity = v),
                   ),
                   _BirthDatePage(
                     dateOfBirth: _dateOfBirth,
@@ -553,7 +582,11 @@ class _StepProgress extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return TweenAnimationBuilder<double>(
       tween: Tween(end: (step + 1) / count),
-      duration: const Duration(milliseconds: 250),
+      // Reduced motion LANDS the bar on the new value rather than travelling
+      // to it -- the end state, same contract as the wizard's page changes.
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 250),
       curve: Curves.easeOut,
       builder: (context, value, _) => LinearProgressIndicator(
         value: value,
@@ -669,26 +702,89 @@ class _LastPeriodPage extends StatelessWidget {
   }
 }
 
-/// Step 4 — cycle length. The value is the hero of the screen.
+/// Step 4 — both length inputs the predictor runs on. The values are the
+/// heroes of the screen.
+///
+/// Period length used to be asked NOWHERE. Its column carries a default of 5
+/// and only the Settings screen ever wrote it, so a first-run user predicted
+/// with a five-day bleed whatever her own was — and that number is not
+/// decorative: it becomes `fallbackPeriodLength` in `PredictionService`, which
+/// sets `avgPeriod`, which decides whether `_phaseFor` calls today menstrual,
+/// which `buildHealthContext` then states to the model as fact.
+///
+/// Neither stepper is REQUIRED. Both open on a seeded value a user can simply
+/// accept, which is what keeps this page advancing on a bare Continue the way
+/// it always has.
 class _CycleLengthPage extends StatelessWidget {
-  const _CycleLengthPage({required this.cycleLength, required this.onChanged});
+  const _CycleLengthPage({
+    required this.cycleLength,
+    required this.onChanged,
+    required this.periodLength,
+    required this.onPeriodChanged,
+    required this.regularity,
+    required this.onRegularityChanged,
+  });
 
   final int cycleLength;
   final ValueChanged<int> onChanged;
+  final int periodLength;
+  final ValueChanged<int> onPeriodChanged;
+  final String? regularity;
+  final ValueChanged<String?> onRegularityChanged;
 
   @override
   Widget build(BuildContext context) {
     return _QuestionPage(
-      question: 'How long is your cycle, usually?',
+      question: 'About your cycle',
       child: Center(
         child: SingleChildScrollView(
-          child: _HeroStepper(
-            value: cycleLength,
-            min: 21,
-            max: 35,
-            unit: 'days',
-            caption: 'days from the first day of one period to the next',
-            onChanged: onChanged,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _HeroStepper(
+                key: const Key('cycle-length-stepper'),
+                value: cycleLength,
+                min: kCycleLengthMin,
+                max: kCycleLengthMax,
+                unit: 'days',
+                tooltipUnit: 'cycle days',
+                caption: 'days from the first day of one period to the next',
+                onChanged: onChanged,
+              ),
+              const SizedBox(height: 28),
+              _HeroStepper(
+                key: const Key('period-length-stepper'),
+                value: periodLength,
+                min: kPeriodLengthMin,
+                max: kPeriodLengthMax,
+                unit: 'days',
+                tooltipUnit: 'period days',
+                caption: 'days your bleeding usually lasts',
+                onChanged: onPeriodChanged,
+              ),
+              const SizedBox(height: 28),
+              // The only one of the three with no caption of its own, so it
+              // carries a label. It is also the only one that is not a number:
+              // variability is what the app cannot compute until two complete
+              // cycles exist, and asking is the only way to have it on day one.
+              Text(
+                'How much does it vary?',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              _todayChips(
+                key: const Key('cycle-regularity'),
+                options: kCycleRegularityOptions,
+                isSelected: (k) => regularity == k,
+                // Tapping the selected chip again clears it, so a mis-tap is
+                // recoverable without a separate Skip control -- the same
+                // affordance `_ContraceptionPage` gives its cards.
+                onToggle: (k, on) => onRegularityChanged(on ? k : null),
+              ),
+            ],
           ),
         ),
       ),
@@ -1306,6 +1402,7 @@ class _ModePage extends StatelessWidget {
 /// a skippable profile question must not do.
 class _HeroStepper extends StatelessWidget {
   const _HeroStepper({
+    super.key,
     required this.value,
     required this.min,
     required this.max,
@@ -1313,6 +1410,7 @@ class _HeroStepper extends StatelessWidget {
     required this.caption,
     required this.onChanged,
     this.unsetValue = 0,
+    this.tooltipUnit,
   });
 
   final int? value;
@@ -1321,6 +1419,13 @@ class _HeroStepper extends StatelessWidget {
   final String unit;
   final String caption;
   final ValueChanged<int> onChanged;
+
+  /// The noun the +/- tooltips count, when [unit] would be ambiguous.
+  ///
+  /// Defaults to [unit], which is right for a page holding ONE stepper. The
+  /// cycle page holds two that both count days, and a screen reader meeting
+  /// "More days" twice on one page cannot tell the caller which number moves.
+  final String? tooltipUnit;
 
   /// Where an unanswered stepper starts on its first increment. Unused when
   /// [value] is never null (the cycle-length step).
@@ -1331,6 +1436,7 @@ class _HeroStepper extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final current = value;
+    final noun = tooltipUnit ?? unit;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1338,7 +1444,7 @@ class _HeroStepper extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton.outlined(
-              tooltip: 'Fewer $unit',
+              tooltip: 'Fewer $noun',
               iconSize: 22,
               onPressed: current != null && current > min
                   ? () => onChanged(current - 1)
@@ -1357,7 +1463,7 @@ class _HeroStepper extends StatelessWidget {
               ),
             ),
             IconButton.outlined(
-              tooltip: 'More $unit',
+              tooltip: 'More $noun',
               iconSize: 22,
               onPressed: current == null
                   ? () => onChanged(unsetValue)

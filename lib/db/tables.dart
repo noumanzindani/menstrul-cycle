@@ -236,6 +236,20 @@ class AnalysisMessages extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// The theme a user gets before they choose one.
+///
+/// Referenced by BOTH the `themeMode` column default and every place that
+/// seeds the settings row, and that duplication is the point: a `CREATE TABLE`
+/// default is frozen into a database when it is created, so a phone that
+/// installed at schema v12 still carries `DEFAULT 'system'` forever. Seeding
+/// from this constant instead of leaning on the column default is what makes
+/// the answer the same on a three-year-old install and a fresh one.
+const String kDefaultThemeMode = 'light';
+
+/// What `CREATE TABLE` has frozen into this column since v1. See [AppSettings]
+/// `themeMode`: this is a schema-compatibility constant, NOT a theme choice.
+const String kFrozenThemeModeDefault = 'system';
+
 /// Single-row app settings (always id = 0). Kept in the DB (not SharedPreferences)
 /// so that, once encryption is enabled, even preferences stay inside the
 /// encrypted store.
@@ -245,7 +259,27 @@ class AppSettings extends Table {
       intEnum<TrackingMode>().withDefault(Constant(TrackingMode.track.index))();
   IntColumn get defaultCycleLength => integer().withDefault(const Constant(28))();
   IntColumn get defaultPeriodLength => integer().withDefault(const Constant(5))();
-  TextColumn get themeMode => text().withDefault(const Constant('system'))();
+  // Defaults to LIGHT (see [kDefaultThemeMode]), not 'system'. The app is a
+  // light-theme app unless the user says otherwise; following the OS was never
+  // a deliberate product choice here, just the value the column happened to be
+  // created with. This moves FRESH INSTALLS only -- an existing row already
+  // holds a value, so no stored preference (including a deliberate 'system')
+  // is touched and no migration is owed. `SettingsProvider.themeMode` carries
+  // the matching pre-load fallback, which has to move with this one or the
+  // default is only half true.
+  /// The column default is the HISTORICAL value and must never change again.
+  ///
+  /// It is not the app's default theme -- [kDefaultThemeMode] is, and every
+  /// site that seeds this row passes it explicitly, so this clause is never
+  /// what decides a user's theme. It exists only to match what old databases
+  /// physically contain: SQLite bakes a column default into the table at
+  /// CREATE time and offers no way to alter it, so a database made at v12
+  /// carries `DEFAULT 'system'` forever. Moving the declared default made
+  /// `SchemaVerifier` report a divergence on every upgraded database, which
+  /// broke `migrateAndValidate` for every migration test the moment the schema
+  /// version was next bumped.
+  TextColumn get themeMode =>
+      text().withDefault(const Constant(kFrozenThemeModeDefault))();
   TextColumn get language => text().withDefault(const Constant('en'))();
   BoolColumn get genderNeutralLanguage =>
       boolean().withDefault(const Constant(false))();
@@ -370,6 +404,18 @@ class AppSettings extends Table {
   // happened on the 3rd", and a value that tries to be both ends up
   // disagreeing with itself.
   TextColumn get sexualHealthBaseline => text().nullable()();
+
+  /// How much the user says her cycle varies, from `kCycleRegularityOptions`.
+  ///
+  /// Nullable, and null means NOBODY ASKED -- not "regular". The whole value of
+  /// this column is in the first two or three months, before two complete
+  /// cycles exist for `_stdDev` to work on, and treating silence as a claim of
+  /// regularity would invent exactly the precision this is meant to stop.
+  ///
+  /// Only ever SUBTRACTS certainty downstream: it widens the +/- window
+  /// (`cycleVariabilityPriorFor`) and the widest answer suppresses the fertile
+  /// band (`cycleRegularityIsIrregular`), but no answer here raises confidence.
+  TextColumn get cycleRegularity => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

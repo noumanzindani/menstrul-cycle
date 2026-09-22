@@ -20,6 +20,22 @@ class RingDay {
   final int day; // 1-based day of the month
   final RingDayRole role;
   final bool isToday;
+
+  // Value equality exists for ONE reason: [MonthRing] settles its colours
+  // between two snapshots and must be able to ask "did this actually change?".
+  // Without it every rebuild -- and the home screen rebuilds on every log save
+  // -- compares unequal by identity and would re-run the settle on saves that
+  // changed nothing about this month.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RingDay &&
+          other.day == day &&
+          other.role == role &&
+          other.isToday == isToday;
+
+  @override
+  int get hashCode => Object.hash(day, role, isToday);
 }
 
 /// Everything the [MonthRing] widget needs to paint the current month: one
@@ -62,6 +78,42 @@ class MonthRingData {
       days.any((d) => d.role == RingDayRole.predictedPeriod);
 
   bool get hasPms => days.any((d) => d.role == RingDayRole.pms);
+
+  /// Element-wise, because [days] is a plain list and two equal rings built by
+  /// separate passes are never the same instance.
+  ///
+  /// Hand-rolled rather than `listEquals`: this file is deliberately free of
+  /// any Flutter import (see the class doc above), and `listEquals` lives in
+  /// `package:flutter/foundation.dart`.
+  static bool _sameDays(List<RingDay> a, List<RingDay> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MonthRingData &&
+          other.year == year &&
+          other.month == month &&
+          other.todayDay == todayDay &&
+          other.cycleDay == cycleDay &&
+          other.phase == phase &&
+          _sameDays(other.days, days);
+
+  @override
+  int get hashCode => Object.hash(
+        year,
+        month,
+        todayDay,
+        cycleDay,
+        phase,
+        Object.hashAll(days),
+      );
 
   /// An all-normal ring for [today]'s month. A safe, cheap default (e.g. for
   /// tests / harnesses) that paints the frame without any prediction data.

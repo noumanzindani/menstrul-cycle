@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../widgets/entrance.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -99,19 +101,24 @@ class _DiaryScreenState extends State<DiaryScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : entries.isEmpty
                     ? _EmptyState(searching: _query.trim().isNotEmpty)
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                        itemCount: entries.length,
-                        itemBuilder: (context, i) {
-                          final e = entries[i];
-                          return _DiaryCard(
-                            date: df.format(e.date),
-                            note: e.note,
-                            cycleDay: _cycleDay(provider, e.date),
-                            onTap: () =>
-                                showDayEntrySheet(context, date: e.date),
-                          );
-                        },
+                    : EntranceGroup(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                          itemCount: entries.length,
+                          itemBuilder: (context, i) {
+                            final e = entries[i];
+                            return EntranceItem(
+                              index: i,
+                              child: _DiaryCard(
+                                date: df.format(e.date),
+                                note: e.note,
+                                cycleDay: _cycleDay(provider, e.date),
+                                onTap: () =>
+                                    showDayEntrySheet(context, date: e.date),
+                              ),
+                            );
+                          },
+                        ),
                       ),
           ),
         ],

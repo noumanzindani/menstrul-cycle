@@ -21,7 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 ///   unconditionally, and a tap on an already-selected chip is a DESELECT. A
 ///   test that pre-answers part of a page must finish that page by hand.
 const periodQuestion = 'When did your last period start?';
-const cycleQuestion = 'How long is your cycle, usually?';
+const cycleQuestion = 'About your cycle';
 const dobQuestion = 'When were you born?';
 const bodyQuestion = 'A few more details about you';
 const contraceptionQuestion = 'Are you using contraception?';

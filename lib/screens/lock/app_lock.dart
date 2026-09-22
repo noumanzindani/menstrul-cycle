@@ -129,8 +129,29 @@ class AppLock extends StatefulWidget {
   State<AppLock> createState() => _AppLockState();
 }
 
-class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
+class _AppLockState extends State<AppLock>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   bool _locked = false;
+
+  /// The lock LIFTS with a fade and DROPS instantly. That asymmetry is a
+  /// security property, not a style choice: a fade-IN on the way down would
+  /// leave the app readable for the length of the animation at exactly the
+  /// moment the phone is being backgrounded or handed over. Only this
+  /// direction is ever animated.
+  static const _revealDuration = Duration(milliseconds: 260);
+  static const _revealCurveSpec = Curves.easeOut;
+
+  late final AnimationController _reveal;
+  late final CurvedAnimation _revealCurve;
+
+  /// 1 -> 0 as the veil lifts. Read ONLY while [_revealing].
+  late final Animation<double> _lockFade;
+
+  /// True only between a successful unlock and the end of the fade. The lock
+  /// layer's opacity is driven by an explicit flag rather than by the
+  /// controller's resting value, because "is the lock opaque?" must never
+  /// depend on where an animation that is not running happens to have stopped.
+  bool _revealing = false;
 
   /// Latched the first time app lock is known to be enabled, so the lock is
   /// applied once on cold start and never re-applied behind the user's back
@@ -141,11 +162,39 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _reveal = AnimationController(vsync: this, duration: _revealDuration);
+    _revealCurve = CurvedAnimation(parent: _reveal, curve: _revealCurveSpec);
+    _lockFade = ReverseAnimation(_revealCurve);
+    _reveal.addStatusListener((status) {
+      // Unmount the veil once it is fully transparent -- it brings its own
+      // Overlay and ScaffoldMessenger and must not outlive its purpose.
+      if (status == AnimationStatus.completed && mounted && _revealing) {
+        setState(() => _revealing = false);
+      }
+    });
+  }
+
+  /// Runs on a SUCCESSFUL unlock only.
+  void _onUnlocked() {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      setState(() {
+        _locked = false;
+        _revealing = false;
+      });
+      return;
+    }
+    setState(() {
+      _locked = false;
+      _revealing = true;
+    });
+    _reveal.forward(from: 0);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _revealCurve.dispose();
+    _reveal.dispose();
     super.dispose();
   }
 
@@ -175,7 +224,14 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
     // first, it would stay open and sit visually on top of the lock.
     // `ExcludeFocus` below keeps focus out while the lock is up.
     FocusManager.instance.primaryFocus?.unfocus();
-    setState(() => _locked = true);
+    // A reveal still in flight is ABANDONED, not reversed. The lock is going
+    // up now, and `_revealing` going false restores the veil to full opacity
+    // on this same frame.
+    _reveal.stop();
+    setState(() {
+      _locked = true;
+      _revealing = false;
+    });
     // Publish to `_LockRouteGuard` HERE, not only from `build` below.
     //
     // This runs from `didChangeAppLifecycleState(paused)`, and
@@ -244,8 +300,25 @@ class _AppLockState extends State<AppLock> with WidgetsBindingObserver {
               child: Offstage(offstage: locked, child: widget.child),
             ),
           ),
-          if (locked)
-            _LockLayer(onUnlocked: () => setState(() => _locked = false)),
+          // Mounted while the lock is UP and for the length of the lift. The
+          // wrapper structure is IDENTICAL in both states on purpose: inserting
+          // or removing an ancestor here would rebuild `_LockLayer`'s element,
+          // discarding its State -- and its Overlay and ScaffoldMessenger with
+          // it -- so the user would watch a freshly built lock screen fade out.
+          if (locked || _revealing)
+            IgnorePointer(
+              // The veil absorbs taps while the lock is up. Once it is merely
+              // fading out the unlock has already happened, so taps belong to
+              // the app underneath rather than to something on its way off.
+              ignoring: !locked,
+              child: FadeTransition(
+                // Constant 1 whenever the lock is up, whatever the controller
+                // is resting at. Only a running lift is allowed to make the
+                // lock any less than opaque.
+                opacity: _revealing ? _lockFade : kAlwaysCompleteAnimation,
+                child: _LockLayer(onUnlocked: _onUnlocked),
+              ),
+            ),
         ],
       ),
     );

@@ -77,10 +77,23 @@ void main() {
   // refresh -- and a fourth will appear eventually. One that forgets the gate
   // shows a fertile window the rest of the app suppresses, on the same data,
   // and nothing else in the suite would notice.
-  test('GUARDRAIL: every predictFromLogs caller passes the contraception gate',
+  /// Every argument that changes WHAT is predicted. A suppression is only as
+  /// good as its least-wired caller, and a missed one is silent: the
+  /// notification and the home widget would keep showing a fertile window the
+  /// app itself had stopped showing. Add to this whenever the signature grows.
+  const requiredArguments = [
+    'contraceptionSuppressesOvulation:',
+    'cycleVariabilityPrior:',
+    'cyclesReportedIrregular:',
+  ];
+
+  test('GUARDRAIL: every predictFromLogs caller passes every prediction gate',
       () {
     final callers = <String>[];
     final missing = <String>[];
+    // path -> the arguments it left out, so a failure names the gap rather
+    // than only the file.
+    final gaps = <String, List<String>>{};
     for (final f in Directory('lib').listSync(recursive: true)) {
       if (f is! File || !f.path.endsWith('.dart')) continue;
       final src = f.readAsStringSync();
@@ -94,8 +107,13 @@ void main() {
         // fixed line window would silently pass a call that grew longer.
         final end = src.indexOf(');', at);
         final args = end < 0 ? src.substring(at) : src.substring(at, end);
-        if (!args.contains('contraceptionSuppressesOvulation:')) {
+        final absent = [
+          for (final a in requiredArguments)
+            if (!args.contains(a)) a,
+        ];
+        if (absent.isNotEmpty) {
           missing.add(f.path);
+          gaps[f.path] = absent;
         }
       }
     }
@@ -103,7 +121,61 @@ void main() {
     expect(callers, hasLength(greaterThanOrEqualTo(3)),
         reason: 'the scan found almost nothing — it has stopped matching');
     expect(missing, isEmpty,
-        reason: 'these recompute predictions without the contraception gate');
+        reason: 'these recompute predictions from different inputs than the '
+            'rest of the app: $gaps');
+  });
+
+  group('a signup regularity answer, before any cycle has completed', () {
+    // One logged period is all the wizard leaves behind, so `_stdDev` has
+    // nothing: without a prior every user got the `max(1, 0)` floor. The
+    // window below is exactly what `_NextPeriodCard` prints as "± N days"
+    // (home_screen.dart:646-648 takes `nextPeriodWindowEnd - nextPeriodStart`).
+    final justOnePeriod = [
+      for (var d = 0; d < 5; d++)
+        log(DateTime(2026, 9, 1).add(Duration(days: d)),
+            flow: FlowIntensity.medium),
+    ];
+
+    int windowFor({double? prior, bool irregular = false}) {
+      final r = PredictionService.predictFromLogs(
+        logs: justOnePeriod,
+        mode: TrackingMode.track,
+        cycleLength: 28,
+        periodLength: 5,
+        cycleVariabilityPrior: prior,
+        cyclesReportedIrregular: irregular,
+        asOf: DateTime(2026, 9, 10),
+      );
+      return r.nextPeriodWindowEnd!.difference(r.nextPeriodStart!).inDays;
+    }
+
+    test('unanswered keeps the floor it has always had', () {
+      expect(windowFor(), 1);
+    });
+
+    test('each answer widens the window Home prints', () {
+      expect(windowFor(prior: cycleVariabilityPriorFor(kRegularityVeryRegular)),
+          1);
+      expect(windowFor(prior: cycleVariabilityPriorFor(kRegularityRoughly)), 2);
+      expect(windowFor(prior: cycleVariabilityPriorFor(kRegularityIrregular)),
+          5);
+    });
+
+    test('the irregular answer also removes the fertile window', () {
+      final r = PredictionService.predictFromLogs(
+        logs: justOnePeriod,
+        mode: TrackingMode.track,
+        cycleLength: 28,
+        periodLength: 5,
+        cycleVariabilityPrior: cycleVariabilityPriorFor(kRegularityIrregular),
+        cyclesReportedIrregular: true,
+        asOf: DateTime(2026, 9, 10),
+      );
+      // `fertilityBand` is gated to medium+, so a capped confidence is what
+      // suppresses the band app-wide rather than a second switch.
+      expect(r.fertilityConfidence.index,
+          lessThanOrEqualTo(PredictionConfidence.low.index));
+    });
   });
 
   group('hormonal contraception suppresses the fertile window', () {

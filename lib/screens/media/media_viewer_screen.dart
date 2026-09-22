@@ -47,6 +47,7 @@ class MediaViewerScreen extends StatefulWidget {
     this.endConversation,
     this.messagesLeft,
     this.loadExistingTurns,
+    this.earnDescribe,
   });
 
   final MediaItem item;
@@ -82,6 +83,17 @@ class MediaViewerScreen extends StatefulWidget {
   /// the counter — a display of a budget nobody supplied would be a guess, and
   /// this one costs real money to be wrong about.
   final int Function()? messagesLeft;
+
+  /// Earns the right to make ONE fresh description request -- the rewarded-ad
+  /// gate. True = may proceed, false = the user did not earn it and nothing is
+  /// sent. Null leaves the action ungated, which is what a premium user and
+  /// every test that is not about ads get.
+  ///
+  /// Shaped exactly like [requestConsent], and injected for the same reason:
+  /// AdMob's platform channels have no handler under `flutter_tester`, so a
+  /// screen that reached for `AdService` directly could not be widget-tested
+  /// at all.
+  final Future<bool> Function(BuildContext context)? earnDescribe;
 
   /// The saved conversation about this photo, if one exists, oldest turn
   /// first. Checked on every Describe tap, before any network call: when this
@@ -197,6 +209,28 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
       final granted = await request(context);
       if (!mounted) return;
       if (!granted) {
+        setState(() => _analyzing = false);
+        return;
+      }
+    }
+
+    // The rewarded-ad gate, and its position is the whole design.
+    //
+    // AFTER the resume check above: reopening a stored conversation sends
+    // nothing and costs no API call, so there is nothing for an ad to offset
+    // and charging one would be a pure toll on the user's own saved text.
+    //
+    // AFTER consent: the other order makes someone watch a full ad and THEN
+    // meet a sheet they decline -- a reward taken and never delivered, which
+    // is an AdMob policy problem before it is a UX one.
+    //
+    // BEFORE `analyze`: this is the call that costs real money, and it is the
+    // one the ad exists to pay for.
+    final earn = widget.earnDescribe;
+    if (earn != null) {
+      final earned = await earn(context);
+      if (!mounted) return;
+      if (!earned) {
         setState(() => _analyzing = false);
         return;
       }

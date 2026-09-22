@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:menstrul_track/common/catalog.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/models/cycle.dart';
 import 'package:menstrul_track/models/enums.dart';
@@ -16,6 +17,7 @@ AppSetting _settings({
   String? knownDiagnoses,
   bool? breastfeeding,
   DateTime? breastfeedingSince,
+  String? cycleRegularity,
 }) =>
     AppSetting(
       id: 0,
@@ -37,6 +39,7 @@ AppSetting _settings({
       knownDiagnoses: knownDiagnoses,
       breastfeeding: breastfeeding,
       breastfeedingSince: breastfeedingSince,
+      cycleRegularity: cycleRegularity,
     );
 
 void main() {
@@ -44,6 +47,32 @@ void main() {
 
   test('an empty profile produces an empty block', () {
     expect(buildProfileBlock(settings: _settings(), asOf: asOf), isEmpty);
+  });
+
+  test('a self-reported regularity travels, labelled as self-reported', () {
+    final out = buildProfileBlock(
+      settings: _settings(cycleRegularity: kRegularityIrregular),
+      asOf: asOf,
+    );
+    // The model must not read this as something the app MEASURED: until two
+    // cycles complete there is no measurement, and the wording is the only
+    // thing separating a claim from an observation.
+    expect(out, contains('Cycle regularity (self-reported): It varies a lot'));
+  });
+
+  test('an unanswered regularity prints nothing at all', () {
+    // Same rule as every other line here: an absent answer and a negative
+    // answer are different clinical facts, so silence stays silent.
+    final out = buildProfileBlock(settings: _settings(), asOf: asOf);
+    expect(out, isNot(contains('regularity')));
+  });
+
+  test('a key from a newer build is dropped, not printed raw', () {
+    final out = buildProfileBlock(
+      settings: _settings(cycleRegularity: 'reg_from_the_future'),
+      asOf: asOf,
+    );
+    expect(out, isNot(contains('reg_from_the_future')));
   });
 
   test('age is years only, never the date of birth', () {

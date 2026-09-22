@@ -640,6 +640,53 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
+  /// The label for [key], or null when unanswered or from a newer build.
+  ///
+  /// Mirrors `_labelFor` in `health_context.dart`: a key this build does not
+  /// know reads as unanswered rather than printing a raw slug at the user.
+  static String? _regularityLabel(String? key) {
+    for (final o in kCycleRegularityOptions) {
+      if (o.key == key) return o.label;
+    }
+    return null;
+  }
+
+  /// Cycle regularity. Single-select, so it commits on the tap that closes the
+  /// dialog -- and `null` is one of the choices, not an absence of one.
+  Future<void> _pickCycleRegularity(
+      BuildContext context, SettingsProvider settings) async {
+    final l10n = context.l10n;
+    final picked = await showDialog<({String? key})>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('How much your cycle varies'),
+        children: [
+          RadioGroup<String?>(
+            groupValue: settings.cycleRegularity,
+            onChanged: (v) => Navigator.pop(ctx, (key: v)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Explicitly `<String?>`: inference gives `RadioListTile<String>`
+                // here, which does NOT register with a `RadioGroup<String?>` --
+                // the tile renders, and tapping it silently does nothing.
+                for (final o in kCycleRegularityOptions)
+                  RadioListTile<String?>(value: o.key, title: Text(o.label)),
+                RadioListTile<String?>(
+                  value: null,
+                  title: Text(l10n.settingsClinicalContraceptionNotAsked),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    // The record wrapper is what lets "chose null" through: a bare `String?`
+    // return cannot tell it from "dismissed the dialog".
+    if (picked != null) await settings.setCycleRegularity(picked.key);
+  }
+
   /// Diagnoses already given by a clinician. A multi-select, so it commits on
   /// Save rather than on each tap — unlike every single-select dialog here,
   /// which commits on the tap that also closes it.
@@ -923,8 +970,8 @@ class SettingsScreen extends StatelessWidget {
                 title: l10n.settingsAvgCycleLength,
                 suffix: l10n.settingsUnitDays,
                 value: settings.cycleLength,
-                min: 21,
-                max: 35,
+                min: kCycleLengthMin,
+                max: kCycleLengthMax,
                 onChanged: settings.setCycleLength,
               ),
               _StepperTile(
@@ -932,9 +979,30 @@ class SettingsScreen extends StatelessWidget {
                 title: l10n.settingsAvgPeriodLength,
                 suffix: l10n.settingsUnitDays,
                 value: settings.periodLength,
-                min: 2,
-                max: 10,
+                min: kPeriodLengthMin,
+                max: kPeriodLengthMax,
                 onChanged: settings.setPeriodLength,
+              ),
+              // The only route to this answer for a user who UPGRADED: the
+              // v13 migration backfills nothing, so without this row she is
+              // stuck at "nobody asked" for good. Three states, like the
+              // clinical rows: null is not "regular", and clearing must stay
+              // reachable so a guess can be withdrawn rather than only
+              // swapped for another guess.
+              //
+              // No ARB keys yet, matching the 'Tracking' heading below.
+              ListTile(
+                leading: const TrackArt(path: kCycleLengthArt),
+                title: const Text('How much your cycle varies'),
+                subtitle: const Text(
+                  'Used until two cycles are logged, then your own data takes '
+                  'over',
+                ),
+                trailing: SettingsValue(
+                  _regularityLabel(settings.cycleRegularity) ??
+                      l10n.settingsClinicalContraceptionNotAsked,
+                ),
+                onTap: () => _pickCycleRegularity(context, settings),
               ),
             ],
           ),

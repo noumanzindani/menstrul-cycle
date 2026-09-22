@@ -1,0 +1,114 @@
+/* LunarFlow social cards — 1080 × 1350 (4:5 Instagram feed).
+   Shared by consumer.html and founder.html. Type is sized for a phone: the
+   canvas is 1080px wide but renders ~400px on screen, so body copy at 36px
+   reads as ~13px in hand. Nothing smaller than 25px is allowed on a card. */
+
+@font-face{font-family:'Fraunces';src:url('../../site/dist/_astro/fraunces-latin-wonk-normal.sgo-ioRB.woff2') format('woff2-variations');font-weight:100 900;font-display:block;}
+@font-face{font-family:'Public Sans';src:url('../../site/dist/_astro/public-sans-latin-400-normal.8Rpg0ruU.woff2') format('woff2');font-weight:400;font-display:block;}
+@font-face{font-family:'Public Sans';src:url('../../site/dist/_astro/public-sans-latin-500-normal.NlrCPXnF.woff2') format('woff2');font-weight:500;font-display:block;}
+@font-face{font-family:'Public Sans';src:url('../../site/dist/_astro/public-sans-latin-600-normal.Fru-LXNs.woff2') format('woff2');font-weight:600;font-display:block;}
+@font-face{font-family:'Public Sans';src:url('../../site/dist/_astro/public-sans-latin-700-normal.BqJmxWdE.woff2') format('woff2');font-weight:700;font-display:block;}
+
+:root{
+  --brand:#F489AF; --rose:#CB6A8A; --blush:#F7A9B5; --blush-lt:#FBC2CC;
+  --paper:#FDF2F2; --cream:#FFF7F7; --surface:#FFFFFF;
+  --ink:#5C3543; --ink-muted:#7E5464; --outline:#F6DDE3; --outline-2:#F0CFD9;
+  --menstrual:#CB6A8A; --follicular:#F489AF; --ovulatory:#F7A9B5; --luteal:#FBC2CC;
+}
+@page{size:11.25in 14.0625in;margin:0;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{font-family:'Public Sans',-apple-system,sans-serif;color:var(--ink);background:var(--paper);}
+
+.card{width:1080px;height:1350px;padding:88px 88px 76px;background:var(--paper);
+  position:relative;overflow:hidden;page-break-after:always;
+  display:flex;flex-direction:column;}
+.card:last-child{page-break-after:auto;}
+.card.cream{background:linear-gradient(168deg,var(--surface) 0%,var(--cream) 46%,var(--paper) 100%);}
+
+/* Brand wash + sparkle cluster, every card. */
+.card::before{content:"";position:absolute;top:-420px;right:-330px;width:980px;height:980px;
+  border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(247,169,181,.34) 0%,rgba(251,194,204,.14) 46%,rgba(253,242,242,0) 72%);}
+.card::after{content:"";position:absolute;top:56px;right:70px;width:230px;height:170px;
+  pointer-events:none;opacity:.62;background-repeat:no-repeat;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 0C52 30 70 48 100 50 70 52 52 70 50 100 48 70 30 52 0 50 30 48 48 30 50 0Z' fill='%23F489AF'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 0C52 30 70 48 100 50 70 52 52 70 50 100 48 70 30 52 0 50 30 48 48 30 50 0Z' fill='%23F7A9B5'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 0C52 30 70 48 100 50 70 52 52 70 50 100 48 70 30 52 0 50 30 48 48 30 50 0Z' fill='%23FBC2CC'/%3E%3C/svg%3E");
+  background-size:38px 38px,22px 22px,15px 15px;
+  background-position:right 12px top 4px,right 74px top 66px,right 118px top 16px;}
+.card>*{position:relative;z-index:1;}
+
+/* Crescent — offset inset shadow, never an SVG two-arc path (that degrades to
+   a disc when the inner radius is shorter than its chord). */
+.moon{position:absolute;border-radius:50%;background:transparent;z-index:0;
+  box-shadow:inset -96px -24px 0 0 rgba(244,137,175,.30);}
+.wave{position:absolute;left:0;right:0;bottom:0;height:330px;z-index:0;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 200' preserveAspectRatio='none'%3E%3Cpath d='M0 150 C220 84 420 196 640 130 C830 74 1010 128 1200 96 L1200 200 L0 200Z' fill='%23FBC2CC' fill-opacity='.36'/%3E%3Cpath d='M0 178 C240 120 430 208 660 160 C860 118 1030 160 1200 134 L1200 200 L0 200Z' fill='%23F7A9B5' fill-opacity='.32'/%3E%3C/svg%3E") bottom/100% 100% no-repeat;}
+
+/* ── Type ────────────────────────────────────────────────────────────────── */
+.eyebrow{font-size:24px;font-weight:600;letter-spacing:.19em;text-transform:uppercase;
+  color:var(--rose);margin-bottom:34px;}
+.h{font-family:'Fraunces',Georgia,serif;font-variation-settings:'WONK' 1,'SOFT' 0;
+  font-weight:600;line-height:1.04;letter-spacing:-.022em;color:var(--rose);font-size:88px;}
+.h.lg{font-size:106px;}
+.h.sm{font-size:66px;}
+.p{font-size:36px;line-height:1.5;color:var(--ink);margin-top:38px;}
+.p.muted{color:var(--ink-muted);}
+.p strong{color:var(--rose);font-weight:600;}
+.p em{font-style:italic;}
+.small{font-size:25px;line-height:1.5;color:var(--ink-muted);}
+.tagline{font-family:'Fraunces',Georgia,serif;font-variation-settings:'WONK' 1;
+  font-size:40px;font-style:italic;font-weight:500;color:var(--brand);}
+.rule{height:6px;width:150px;background:var(--brand);border-radius:3px;margin:30px 0 0;}
+.spacer{flex:1;}
+
+/* ── Components ──────────────────────────────────────────────────────────── */
+.stat{font-family:'Fraunces',Georgia,serif;font-variation-settings:'WONK' 1;font-weight:600;
+  font-size:190px;line-height:.92;letter-spacing:-.04em;color:var(--brand);}
+.stat.rose{color:var(--rose);}
+.statrow{display:flex;gap:34px;margin-top:44px;}
+.statbox{flex:1;background:var(--surface);border:1px solid var(--outline);border-radius:32px;
+  padding:40px 36px;box-shadow:0 3px 14px rgba(203,106,138,.06);}
+.statbox .n{font-family:'Fraunces',Georgia,serif;font-variation-settings:'WONK' 1;font-weight:600;
+  font-size:88px;line-height:1;color:var(--rose);letter-spacing:-.03em;}
+.statbox .l{font-size:26px;line-height:1.38;color:var(--ink-muted);margin-top:18px;}
+.quote{background:var(--surface);border:1px solid var(--outline);border-left:8px solid var(--brand);
+  border-radius:28px;padding:46px 48px;margin-top:44px;
+  font-family:'Fraunces',Georgia,serif;font-variation-settings:'WONK' 1;font-weight:600;
+  font-size:46px;line-height:1.26;color:var(--rose);letter-spacing:-.012em;}
+.panel{background:var(--surface);border:1px solid var(--outline);border-radius:32px;
+  padding:44px 46px;margin-top:40px;box-shadow:0 3px 14px rgba(203,106,138,.06);}
+.cols2{display:flex;gap:26px;margin-top:40px;}
+.cols2 .panel{margin-top:0;flex:1;}
+.panel h5{font-size:26px;letter-spacing:.1em;text-transform:uppercase;color:var(--rose);font-weight:600;margin-bottom:22px;}
+.panel .meth{font-size:30px;line-height:1.46;color:var(--ink-muted);}
+.panel.tint{background:linear-gradient(160deg,var(--cream) 0%,#FDEAEF 100%);border-color:var(--outline-2);}
+ul{list-style:none;margin-top:36px;}
+li{position:relative;padding-left:46px;margin-bottom:30px;font-size:34px;line-height:1.44;color:var(--ink);}
+li::before{content:"";position:absolute;left:0;top:.52em;width:16px;height:16px;border-radius:50%;background:var(--brand);}
+li strong{color:var(--rose);font-weight:600;}
+li.no::before{background:var(--rose);}
+.chips{display:flex;flex-wrap:wrap;gap:20px;margin-top:40px;}
+.chip{background:var(--surface);border:2px solid var(--blush-lt);border-radius:999px;
+  padding:20px 34px;font-size:31px;font-weight:500;color:var(--rose);}
+
+/* Cycle band — real day counts, 5 / 8 / 3 / 12 of 28. */
+.band{display:flex;height:34px;border-radius:17px;overflow:hidden;width:100%;margin-top:44px;}
+.band i{display:block;}
+.band .m{width:17.857%;background:var(--menstrual);}
+.band .f{width:28.571%;background:var(--follicular);}
+.band .o{width:10.714%;background:var(--ovulatory);}
+.band .l{width:42.857%;background:var(--luteal);}
+
+/* Footer: logo on every card. */
+.foot{position:absolute;left:88px;right:88px;bottom:56px;display:flex;
+  justify-content:space-between;align-items:center;z-index:2;}
+.foot .mark{display:flex;align-items:center;gap:20px;font-size:26px;font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--rose);}
+.foot .mark img{width:62px;height:62px;border-radius:16px;display:block;}
+.foot .num{font-size:26px;font-weight:600;color:var(--ink-muted);font-variant-numeric:tabular-nums;}
+.foot .swipe{font-size:26px;font-weight:600;color:var(--brand);letter-spacing:.06em;}
+.logo-xl{width:190px;height:190px;border-radius:46px;display:block;
+  box-shadow:0 12px 36px rgba(203,106,138,.22);}

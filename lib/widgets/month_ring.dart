@@ -31,16 +31,38 @@ class MonthRing extends StatefulWidget {
 
   static const revealCurve = Curves.easeOutCubic;
 
+  /// How long a day's colour takes to travel to its new role after a save.
+  ///
+  /// Shorter than [revealDuration] on purpose: the entrance is the component
+  /// introducing itself, this is an acknowledgement. It answers "did my log
+  /// land?" and then gets out of the way.
+  static const settleDuration = Duration(milliseconds: 380);
+
+  /// Symmetric, unlike the entrance. A settle has no arrival to emphasise --
+  /// it is one state becoming another, and easing only the tail makes the
+  /// colour appear to overshoot and correct itself.
+  static const settleCurve = Curves.easeInOut;
+
   @override
   State<MonthRing> createState() => _MonthRingState();
 }
 
 class _MonthRingState extends State<MonthRing>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _controller;
   late final CurvedAnimation _ringReveal;
   late final CurvedAnimation _dotFade;
   bool _started = false;
+
+  /// The entrance and the settle are SEPARATE controllers, not intervals of
+  /// one: the entrance runs once and the settle runs on every save, so they
+  /// have no shared timeline to be intervals of.
+  late final AnimationController _settle;
+  late final CurvedAnimation _settleProgress;
+
+  /// The ring the user is still looking at while [_settle] runs, or null when
+  /// nothing is settling. Only ever set to a ring of the same month.
+  MonthRingData? _previous;
 
   @override
   void initState() {
@@ -58,6 +80,45 @@ class _MonthRingState extends State<MonthRing>
       parent: _controller,
       curve: const Interval(MonthRing.dotFadeStart, 1.0, curve: Curves.easeIn),
     );
+    _settle = AnimationController(
+      vsync: this,
+      duration: MonthRing.settleDuration,
+      // Parked at the END, not the start: with no previous ring there is
+      // nothing to travel from, and a settle at 0 would paint the ring as if
+      // mid-transition on its very first frame.
+      value: 1,
+    );
+    _settleProgress =
+        CurvedAnimation(parent: _settle, curve: MonthRing.settleCurve);
+  }
+
+  @override
+  void didUpdateWidget(MonthRing old) {
+    super.didUpdateWidget(old);
+    if (old.data == widget.data) return;
+
+    // Only COLOURS settle, and only between two rings of the same month. Across
+    // a rollover each segment changes what it MEANS, so lerping January's day 3
+    // into February's day 3 would animate a relationship that does not exist.
+    final sameMonth = old.data.year == widget.data.year &&
+        old.data.month == widget.data.month &&
+        old.data.days.length == widget.data.days.length;
+
+    // A change arriving mid-entrance is absorbed BY the entrance: the sweep is
+    // still drawing these segments for the first time, so there is no earlier
+    // state the user ever saw to settle from.
+    if (!sameMonth || !_controller.isCompleted) {
+      _previous = null;
+      _settle.value = 1;
+      return;
+    }
+
+    _previous = old.data;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _settle.value = 1;
+    } else {
+      _settle.forward(from: 0);
+    }
   }
 
   @override
@@ -68,6 +129,9 @@ class _MonthRingState extends State<MonthRing>
     // didUpdateWidget hook on purpose.
     if (MediaQuery.disableAnimationsOf(context)) {
       _controller.value = 1;
+      // Reduced motion switched on mid-settle lands on the new colours too --
+      // the end state, never the old one.
+      _settle.value = 1;
     } else if (!_started) {
       _started = true;
       _controller.forward();
@@ -78,7 +142,9 @@ class _MonthRingState extends State<MonthRing>
   void dispose() {
     _ringReveal.dispose();
     _dotFade.dispose();
+    _settleProgress.dispose();
     _controller.dispose();
+    _settle.dispose();
     super.dispose();
   }
 
@@ -96,6 +162,8 @@ class _MonthRingState extends State<MonthRing>
           child: CustomPaint(
             painter: MonthRingPainter(
               data: widget.data,
+              previous: _previous,
+              settle: _settleProgress,
               ringReveal: _ringReveal,
               dotFade: _dotFade,
               normal: scheme.onSurface.withValues(alpha: 0.10),
@@ -240,6 +308,10 @@ class _MonthRingLegend extends StatelessWidget {
 class MonthRingPainter extends CustomPainter {
   MonthRingPainter({
     required this.data,
+    this.previous,
+    // Defaults to "nothing is settling": a painter built without a settle --
+    // as tests do to assert a static ring -- paints [data]'s colours outright.
+    this.settle = kAlwaysCompleteAnimation,
     required this.ringReveal,
     required this.dotFade,
     required this.normal,
@@ -250,9 +322,17 @@ class MonthRingPainter extends CustomPainter {
     required this.pms,
     required this.todayDot,
     required this.halo,
-  }) : super(repaint: Listenable.merge([ringReveal, dotFade]));
+  }) : super(repaint: Listenable.merge([ringReveal, dotFade, settle]));
 
   final MonthRingData data;
+
+  /// The ring being travelled FROM, or null when nothing is settling. Always
+  /// the same month and the same day count as [data] -- the widget refuses to
+  /// pair rings that are not comparable, so [paint] may index both freely.
+  final MonthRingData? previous;
+
+  /// 0 -> 1 as each day's colour travels from [previous] to [data].
+  final Animation<double> settle;
 
   /// 0 -> 1 as the day arcs sweep in clockwise from 12 o'clock.
   final Animation<double> ringReveal;
@@ -298,7 +378,7 @@ class MonthRingPainter extends CustomPainter {
       final visible = i < whole ? sweep : sweep * (revealed - whole);
       if (visible <= 0) break;
       final start = -math.pi / 2 + i * step + gap / 2;
-      paint.color = _colorFor(data.days[i].role);
+      paint.color = _segmentColor(i);
       canvas.drawArc(rect, start, visible, false, paint);
     }
 
@@ -334,6 +414,24 @@ class MonthRingPainter extends CustomPainter {
     }
   }
 
+  /// Day [i]'s colour, mid-settle if one is running.
+  ///
+  /// Lerped per SEGMENT rather than by swapping a whole palette: a save changes
+  /// the role of one day or a short run of them, and travelling every segment
+  /// through an interpolated palette would animate 30 days to say that one
+  /// changed.
+  Color _segmentColor(int i) {
+    final current = _colorFor(data.days[i].role);
+    final from = previous;
+    if (from == null) return current;
+    final t = settle.value.clamp(0.0, 1.0);
+    if (t >= 1) return current;
+    // Defensive: the widget only ever pairs equal-length rings, but paint must
+    // never throw on a frame.
+    if (i >= from.days.length) return current;
+    return Color.lerp(_colorFor(from.days[i].role), current, t) ?? current;
+  }
+
   Color _colorFor(RingDayRole role) => switch (role) {
         RingDayRole.normal => normal,
         RingDayRole.period => period,
@@ -346,6 +444,8 @@ class MonthRingPainter extends CustomPainter {
   @override
   bool shouldRepaint(MonthRingPainter old) =>
       !identical(old.data, data) ||
+      !identical(old.previous, previous) ||
+      !identical(old.settle, settle) ||
       !identical(old.ringReveal, ringReveal) ||
       !identical(old.dotFade, dotFade) ||
       old.normal != normal ||

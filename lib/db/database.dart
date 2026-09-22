@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -36,7 +36,15 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
           // Seed the single settings row so reads never return null.
           await into(appSettings).insert(
-            const AppSettingsCompanion(id: Value(0)),
+            const AppSettingsCompanion(
+              id: Value(0),
+              // Explicit, exactly like the other two seed sites. This was the
+              // LAST path still leaning on the column default, and leaning on
+              // it is what forced the declared schema to disagree with every
+              // database created before the light default -- see the note on
+              // `themeMode` in tables.dart.
+              themeMode: Value(kDefaultThemeMode),
+            ),
           );
         },
         // Every branch is additive-only (one nullable column each), so existing
@@ -142,6 +150,16 @@ class AppDatabase extends _$AppDatabase {
               if (!await _tableHasColumn(step.$1, step.$2)) await step.$3();
             }
           }
+          if (from < 13) {
+            // How much the user says her cycle varies. Backfilled by NOBODY:
+            // an upgrading user was never asked, and null is the only honest
+            // answer -- `cycleVariabilityPriorFor(null)` yields no prior, so
+            // she keeps exactly the predictions she already had until she
+            // answers in Settings.
+            if (!await _appSettingsHasColumn('cycle_regularity')) {
+              await m.addColumn(appSettings, appSettings.cycleRegularity);
+            }
+          }
         },
       );
 
@@ -245,7 +263,13 @@ class AppDatabase extends _$AppDatabase {
       // deleted next.
       await delete(analysisMessages).go();
       await delete(analysisSessions).go();
-      await into(appSettings).insert(const AppSettingsCompanion(id: Value(0)));
+      await into(appSettings).insert(AppSettingsCompanion(
+        id: const Value(0),
+        // Explicit, NOT left to the column default: that default is frozen
+        // into a database when it is created, so an install predating the
+        // light default would re-seed itself to 'system' here forever.
+        themeMode: const Value(kDefaultThemeMode),
+      ));
     });
   }
 
@@ -255,7 +279,13 @@ class AppDatabase extends _$AppDatabase {
           ..where((t) => t.id.equals(0)))
         .getSingleOrNull();
     if (existing != null) return existing;
-    await into(appSettings).insert(const AppSettingsCompanion(id: Value(0)));
+    await into(appSettings).insert(AppSettingsCompanion(
+      id: const Value(0),
+      // Explicit, NOT left to the column default: that default is frozen
+      // into a database when it is created, so an install predating the
+      // light default would re-seed itself to 'system' here forever.
+      themeMode: const Value(kDefaultThemeMode),
+    ));
     return (select(appSettings)..where((t) => t.id.equals(0))).getSingle();
   }
 }

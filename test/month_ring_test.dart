@@ -307,6 +307,119 @@ void main() {
     await tester.pump();
     expect(painterOf(tester).ringReveal.value, 1.0);
   });
+
+  // ---------------------------------------------------------------------------
+  // Settle: a save changes a day's role, and the colour TRAVELS to the new one.
+  //
+  // The entrance answers "here is your month"; the settle answers "your log
+  // landed". They are separate controllers precisely because the second must
+  // not replay the first (see the test directly above).
+  // ---------------------------------------------------------------------------
+
+  /// Re-renders [MonthRing] with [d] WITHOUT settling, so the caller owns the
+  /// frames and can stop partway through a settle.
+  Future<void> rebuildWith(WidgetTester tester, MonthRingData d) =>
+      tester.pumpWidget(MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(body: Center(child: MonthRing(data: d))),
+      ));
+
+  List<_RecordedArc> arcsNow(WidgetTester tester) {
+    final canvas = _RecordingCanvas();
+    painterOf(tester).paint(canvas, const Size(240, 240));
+    return canvas.arcs;
+  }
+
+  testWidgets('an equal ring starts no settle, so an unrelated save is silent',
+      (tester) async {
+    await pump(tester, data(PredictionConfidence.medium));
+
+    // A DIFFERENT INSTANCE carrying the same values -- exactly what the home
+    // screen's ProxyProvider2 hands over on every save. Without value equality
+    // on MonthRingData this compares unequal and settles on saves that changed
+    // nothing about this month.
+    final rebuilt = data(PredictionConfidence.medium);
+    expect(identical(rebuilt, painterOf(tester).data), isFalse);
+    expect(rebuilt, painterOf(tester).data);
+
+    await rebuildWith(tester, rebuilt);
+    await tester.pump();
+    expect(painterOf(tester).previous, isNull);
+    expect(painterOf(tester).settle.value, 1.0);
+  });
+
+  testWidgets('a changed ring travels to the new colours rather than snapping',
+      (tester) async {
+    await pump(tester, data(PredictionConfidence.medium));
+    final before = arcsNow(tester);
+
+    // Dropping fertility confidence strips the fertile/ovulation roles, so
+    // several days change colour while the month and day count do not.
+    await rebuildWith(tester, data(PredictionConfidence.low));
+    await tester.pump();
+    expect(painterOf(tester).previous, isNotNull);
+
+    await tester.pump(const Duration(milliseconds: 190));
+    final t = painterOf(tester).settle.value;
+    expect(t, greaterThan(0.0));
+    expect(t, lessThan(1.0));
+
+    final mid = arcsNow(tester);
+    await tester.pumpAndSettle();
+    final after = arcsNow(tester);
+
+    // Some day is genuinely mid-journey: its colour matches neither endpoint.
+    final travelling = <int>[
+      for (var i = 0; i < mid.length && i < after.length && i < before.length; i++)
+        if (before[i].color != after[i].color &&
+            mid[i].color != before[i].color &&
+            mid[i].color != after[i].color)
+          i,
+    ];
+    expect(travelling, isNotEmpty,
+        reason: 'no segment was between its old and new colour mid-settle');
+
+    expect(painterOf(tester).settle.value, 1.0);
+  });
+
+  testWidgets('a month rollover snaps, because a segment changes MEANING',
+      (tester) async {
+    await pump(tester, data(PredictionConfidence.medium));
+
+    // August has 31 days to July's 31 but every segment now means a different
+    // date; lerping July 3 into August 3 would animate a relationship that does
+    // not exist.
+    await rebuildWith(tester, MonthRingData.empty(DateTime(2026, 8, 15)));
+    await tester.pump();
+    expect(painterOf(tester).previous, isNull);
+    expect(painterOf(tester).settle.value, 1.0);
+  });
+
+  testWidgets('reduced motion lands on the new colours in one frame',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light(),
+      home: MediaQuery(
+        data: const MediaQueryData(disableAnimations: true),
+        child: Scaffold(
+            body: Center(
+                child: MonthRing(data: data(PredictionConfidence.medium)))),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light(),
+      home: MediaQuery(
+        data: const MediaQueryData(disableAnimations: true),
+        child: Scaffold(
+            body: Center(
+                child: MonthRing(data: data(PredictionConfidence.low)))),
+      ),
+    ));
+    await tester.pump();
+    expect(painterOf(tester).settle.value, 1.0);
+  });
 }
 
 /// One recorded `drawArc`. The painter reuses a single [Paint] across every arc,

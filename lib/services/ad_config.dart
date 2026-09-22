@@ -20,6 +20,8 @@ class AdConfig {
       'ca-app-pub-3940256099942544/1033173712';
   static const _testInterstitialIos =
       'ca-app-pub-3940256099942544/4411468910';
+  static const _testRewardedAndroid = 'ca-app-pub-3940256099942544/5224354917';
+  static const _testRewardedIos = 'ca-app-pub-3940256099942544/1712485313';
 
   // --- TODO: your real IDs (used only when useTestAds == false) ---
   static const _prodBannerAndroid = 'ca-app-pub-0000000000000000/0000000000';
@@ -27,12 +29,24 @@ class AdConfig {
   static const _prodInterstitialAndroid =
       'ca-app-pub-0000000000000000/0000000000';
   static const _prodInterstitialIos = 'ca-app-pub-0000000000000000/0000000000';
+  static const _prodRewardedAndroid = 'ca-app-pub-0000000000000000/0000000000';
+  static const _prodRewardedIos = 'ca-app-pub-0000000000000000/0000000000';
 
   static bool get _android => !kIsWeb && Platform.isAndroid;
 
   static String get bannerUnitId {
     if (useTestAds) return _android ? _testBannerAndroid : _testBannerIos;
     return _android ? _prodBannerAndroid : _prodBannerIos;
+  }
+
+  /// The unit behind the Describe action. Unlike the banner and the
+  /// interstitial, this one is EARNED: the user is asked first and gets
+  /// something concrete for watching, so it is the only unit here whose
+  /// absence has to be handled gracefully rather than silently skipped -- see
+  /// `earnOneDescribe`.
+  static String get rewardedUnitId {
+    if (useTestAds) return _android ? _testRewardedAndroid : _testRewardedIos;
+    return _android ? _prodRewardedAndroid : _prodRewardedIos;
   }
 
   static String get interstitialUnitId {

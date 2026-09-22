@@ -24,10 +24,26 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell>
+    with SingleTickerProviderStateMixin {
   int _index = 0;
   int _navCount = 0;
   static const _interstitialEvery = 5;
+
+  /// Long enough to read as a change of place, short enough that it never sits
+  /// between the user and a tap they have already made. The bottom bar is the
+  /// most-repeated interaction in the app; anything slower becomes a tax.
+  static const _tabSwitchDuration = Duration(milliseconds: 200);
+  static const _tabSwitchCurve = Curves.easeOut;
+
+  /// A HINT of travel, not a slide -- ~1% of the viewport. The screens are
+  /// siblings, not a stack, so a real slide would imply a direction and a
+  /// hierarchy that the bottom bar does not have.
+  static const _tabSwitchOffset = Offset(0, 0.012);
+
+  late final AnimationController _tabSwitch;
+  late final CurvedAnimation _tabFade;
+  late final Animation<Offset> _tabSlide;
 
   static const _screens = [
     HomeScreen(),
@@ -40,14 +56,54 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    _tabSwitch = AnimationController(
+      vsync: this,
+      duration: _tabSwitchDuration,
+      // Parked at the END: the first tab is already here on mount. Starting at
+      // 0 would fade Home in at launch, which is a splash, not a tab switch.
+      value: 1,
+    );
+    _tabFade = CurvedAnimation(parent: _tabSwitch, curve: _tabSwitchCurve);
+    _tabSlide =
+        Tween(begin: _tabSwitchOffset, end: Offset.zero).animate(_tabFade);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final premium = context.read<PremiumProvider>().isPremium;
       AdService.instance.preloadInterstitial(premium: premium);
+      // The rewarded unit behind Describe, warmed here for the same reason the
+      // interstitial is: loading it at tap time would put a spinner between
+      // "Watch ad" and the ad. Cheap to preload and never shown unasked --
+      // nothing plays it but an explicit opt-in (`showRewardedDescribePrompt`).
+      AdService.instance.preloadRewarded(premium: premium);
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced motion switched on mid-switch lands on the destination, never
+    // back on the tab being left.
+    if (MediaQuery.disableAnimationsOf(context)) _tabSwitch.value = 1;
+  }
+
+  @override
+  void dispose() {
+    _tabFade.dispose();
+    _tabSwitch.dispose();
+    super.dispose();
+  }
+
   void _onSelect(int i) {
+    // Re-tapping the tab you are already on is not an arrival, so it does not
+    // replay. NavigationBar reports every tap, not only the changes.
+    final arrived = i != _index;
     setState(() => _index = i);
+    if (arrived) {
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _tabSwitch.value = 1;
+      } else {
+        _tabSwitch.forward(from: 0);
+      }
+    }
     // Only Home (0) is an eligible ad moment — Calendar now hosts logging.
     if (i == 0) {
       _navCount++;
@@ -87,7 +143,31 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _index, children: _screens),
+      // IndexedStack, NOT AnimatedSwitcher: all five tabs stay mounted so each
+      // keeps its scroll offset and form state. The transition therefore wraps
+      // the stack rather than cross-fading two children -- only the ARRIVING
+      // tab is animated, which is the incoming half of a Material fade-through.
+      //
+      // The RepaintBoundary caches the tab content as one raster so the fade
+      // does not re-record the whole screen's picture every frame. It is the
+      // first in this app; the low-end target (OnePlus Nord N200) is why.
+      //
+      // NOT YET DEVICE-VERIFIED: the ad banner is a platform view
+      // (`google_mobile_ads` -> AdWidget) living in each screen's
+      // `bottomNavigationBar`, i.e. INSIDE this stack, so it is faded and
+      // translated with everything else. Android composites platform views
+      // through a texture layer that does not always follow opacity and
+      // transforms in lockstep. Check on a free (ad-showing) build that the
+      // banner does not tear, lag a frame behind, or flash during a switch.
+      body: FadeTransition(
+        opacity: _tabFade,
+        child: SlideTransition(
+          position: _tabSlide,
+          child: RepaintBoundary(
+            child: IndexedStack(index: _index, children: _screens),
+          ),
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: _onSelect,

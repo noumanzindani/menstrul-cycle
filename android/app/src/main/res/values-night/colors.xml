@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark-theme overrides. See values/colors.xml. -->
+<resources>
+    <!-- Matches the M3-derived dark surface in AppTheme (#191113), so the
+         splash hands over to the first frame without a visible step. -->
+    <color name="splash_background">#191113</color>
+</resources>

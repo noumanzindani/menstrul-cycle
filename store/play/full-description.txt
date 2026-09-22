@@ -1,0 +1,45 @@
+LunarFlow is a period and cycle tracker that refuses to overstate what it knows.
+
+No streaks. No badges. No score for your body. Just a clear answer to "where am I in my cycle", and a record you can hand to a doctor.
+
+IN SYNC WITH YOUR CYCLE
+
+• See today at a glance — cycle day, phase, and a month ring showing where you are
+• Log flow, symptoms, mood, pain, sleep, energy, medication and notes
+• Estimated next period, with the estimate labelled as an estimate
+• A calendar you can back-fill, and a diary that reads your own notes back
+
+TRACKING THAT ADAPTS TO YOU
+
+• Choose what you track — turn whole sections on or off
+• Track mode or Conceive mode, plus a loss-safe Pregnancy mode
+• Basal body temperature, cervical mucus and ovulation-test logging
+• Weight trend, BMI, and a health profile for context
+• A change timer for a pad, tampon, cup or period underwear
+
+BUILT FOR A REAL APPOINTMENT
+
+• Export a doctor-ready PDF summary — cycle history, symptom and mood frequency, patterns
+• Plain-language insights drawn only from what you logged, never a diagnosis
+
+HONEST ABOUT ESTIMATES
+
+Predictions use the calendar method. They are estimates and they can be wrong.
+
+LunarFlow is NOT a contraceptive method and does not replace medical advice. The fertile window is shown for awareness only. No day is ever labelled low-risk, and there is no percentage for your chance of pregnancy — a number like that would read as certainty this app does not have.
+
+YOUR DATA
+
+• The database on your device is encrypted at rest
+• The app works fully offline
+• Lock the app behind a PIN or biometrics
+• Export an encrypted backup file that only your passphrase opens
+• Delete everything on your device whenever you want
+
+An account keeps your logs in sync across devices. The synced copy is stored on our servers and is NOT end-to-end encrypted, which means the people who operate the service can read it. If that matters to you, read the privacy policy before signing up — it says exactly what is stored and where.
+
+FREE, WITH AN OPTIONAL ONE-TIME PURCHASE
+
+LunarFlow is free. Ads are non-personalised and never appear on the logging or insights screens. A single one-time purchase removes them permanently. There is no subscription.
+
+Cycle notifications are hidden from your lock screen by default.

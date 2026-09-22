@@ -384,6 +384,72 @@ const String kLegacyHighLibidoKey = 'shx_high_libido';
 ///
 /// [kContraceptionNone] is a real answer and not the same as null: null means
 /// "never asked", which must not be read as "not using contraception".
+const String kRegularityVeryRegular = 'reg_tight';
+const String kRegularityRoughly = 'reg_week';
+const String kRegularityIrregular = 'reg_varies';
+
+const List<TrackOption> kCycleRegularityOptions = [
+  TrackOption(kRegularityVeryRegular, 'Within a day or two'),
+  TrackOption(kRegularityRoughly, 'Within about a week'),
+  TrackOption(kRegularityIrregular, 'It varies a lot'),
+];
+
+/// The standard deviation, in days, each answer stands in for until real
+/// cycles exist.
+///
+/// ROUND NUMBERS read off the FIGO regularity bands, not a fit to data: FIGO
+/// calls a shortest-to-longest spread of 7-9 days regular, so "about a week"
+/// sits at the edge of normal and "varies a lot" is past it.
+/// `PredictionService` turns a sigma into a window by rounding, so these read
+/// straight off as +/-1, +/-2 and +/-5 days.
+const Map<String, double> _kCycleVariabilityPriors = {
+  kRegularityVeryRegular: 1,
+  kRegularityRoughly: 2,
+  kRegularityIrregular: 5,
+};
+
+/// The variability prior for [key], or null when the question was never
+/// answered or the key is from a version this build does not know.
+///
+/// Null rather than a default: an unanswered question is not a claim of
+/// regularity, and defaulting it to the tightest window would invent precision
+/// the user never offered.
+double? cycleVariabilityPriorFor(String? key) => _kCycleVariabilityPriors[key];
+
+/// Whether [key] means the fertile window should be suppressed.
+///
+/// Only the widest answer does. Counting back a fixed 14 days from a period
+/// whose date is itself a guess cannot locate ovulation, and the resulting
+/// band would be the app asserting something false -- the same asymmetry
+/// [contraceptionSuppressesOvulation] is argued from. Resolved HERE and passed
+/// to `PredictionService` as a plain bool, because that file deliberately
+/// imports nothing from Flutter and this one does.
+bool cycleRegularityIsIrregular(String? key) => key == kRegularityIrregular;
+
+/// The span a self-reported cycle length may take, shared by the onboarding
+/// wizard and the Settings tile.
+///
+/// SHARED because the bug was the drift: both hardcoded 21..35, which is
+/// narrower than FIGO's normal 24..38, so a 37-day cycle — ordinary — could
+/// not be entered and was pushed down to 35. Worse, the two could have been
+/// widened independently, and a value accepted by one surface that the other
+/// clamps is a TRAP: `_StepperTile` disables "+" at `value < max`, so a stored
+/// 40 against a ceiling of 35 renders fine and can only ever go down.
+///
+/// The bounds are implausibility, NOT normality. A stepper cannot explain why
+/// it refuses to move, so a user with a long cycle just enters something
+/// false; judging a cycle is the Insights screen's job, where there is room to
+/// say why. 45 is the practical ceiling of a stepper rather than a clinical
+/// claim — past it, "usual cycle length" has stopped meaning much and the app
+/// should be learning from logged periods instead.
+const int kCycleLengthMin = 20;
+const int kCycleLengthMax = 45;
+
+/// The same, for how many days the bleed lasts. FIGO calls a bleed over 8 days
+/// prolonged, so 10 leaves headroom above the clinical ceiling.
+const int kPeriodLengthMin = 2;
+const int kPeriodLengthMax = 10;
+
 const List<TrackOption> kContraceptionOptions = [
   TrackOption(kContraceptionNone, 'None'),
   TrackOption('contra_combined_pill', 'Combined pill'),

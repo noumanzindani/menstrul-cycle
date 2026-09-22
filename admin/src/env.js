@@ -11,6 +11,8 @@
 // `GOOGLE_CLOUD_PROJECT`) MUST be set, and startup fails loudly if it is not.
 
 /** Thrown for a configuration problem that must stop the process. */
+import { LUNA_DATABASE_ID } from './paths.js';
+
 export class ConfigError extends Error {}
 
 const required = (value, name, why) => {
@@ -57,7 +59,14 @@ export function readConfig(env = process.env) {
   // `lib/services/firestore_ref.dart`). A `(default)` database carries ONE
   // ruleset for every app in the project, which is exactly why the app does not
   // use it; the panel must read the same named database or it reads nothing.
-  const databaseId = env.LUNATRACK_DATABASE_ID ?? 'lunatrack';
+  // 'lunatrack-db', NOT 'lunatrack'. This default was wrong until 2026-09-19
+  // and the failure mode is the quietest one available: a Firestore handle for
+  // a database that does not exist does not throw at construction, so every
+  // count() returns 0 and every browse returns an empty page. The panel renders
+  // perfectly and reports that the product has no users. Transcribed from
+  // `kLunaDatabaseId` in `lib/services/firestore_ref.dart`, which is the only
+  // source of truth for this string.
+  const databaseId = env.LUNATRACK_DATABASE_ID ?? LUNA_DATABASE_ID;
 
   const adminEmails = parseAdminEmails(env.ADMIN_EMAILS);
   if (adminEmails.size === 0) {

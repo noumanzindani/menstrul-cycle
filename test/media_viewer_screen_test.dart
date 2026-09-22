@@ -44,14 +44,19 @@ void main() {
     required Future<AnalysisOutcome> Function(MediaItem, File, String?)
         analyze,
     Future<List<AnalysisTurn>> Function(MediaItem)? loadExistingTurns,
+    Future<bool> Function(BuildContext)? earnDescribe,
+    bool needsConsent = false,
+    Future<bool> Function(BuildContext)? requestConsent,
   }) async {
     await tester.pumpWidget(MaterialApp(
       home: MediaViewerScreen(
         item: item(),
         load: (_) async => imageFile,
         analyze: analyze,
-        needsConsent: () => false,
+        needsConsent: () => needsConsent,
+        requestConsent: requestConsent,
         loadExistingTurns: loadExistingTurns,
+        earnDescribe: earnDescribe,
       ),
     ));
     await tester.pumpAndSettle();
@@ -178,6 +183,90 @@ void main() {
       findsOneWidget,
     );
   });
+
+  group('the rewarded-ad gate on Describe', () {
+    Future<AnalysisOutcome> Function(MediaItem, File, String?) counting(
+            List<String> calls) =>
+        (_, _, _) async {
+          calls.add('analyze');
+          return const AnalysisOutcome(
+            result: AnalysisResult(prose: 'A fresh description.'),
+          );
+        };
+
+    testWidgets('earning the reward lets the request through', (tester) async {
+      final calls = <String>[];
+      await pumpViewer(
+        tester,
+        analyze: counting(calls),
+        earnDescribe: (_) async {
+          calls.add('gate');
+          return true;
+        },
+      );
+      expect(calls, ['gate', 'analyze']);
+    });
+
+    testWidgets('declining the ad sends NOTHING', (tester) async {
+      final calls = <String>[];
+      await pumpViewer(
+        tester,
+        analyze: counting(calls),
+        earnDescribe: (_) async {
+          calls.add('gate');
+          return false;
+        },
+      );
+      expect(calls, ['gate'],
+          reason: 'a declined reward must not reach the model -- the request '
+              'costs real money and the user did not earn it');
+    });
+
+    testWidgets('a null gate leaves Describe ungated, as premium gets it',
+        (tester) async {
+      final calls = <String>[];
+      await pumpViewer(tester, analyze: counting(calls));
+      expect(calls, ['analyze']);
+    });
+
+    testWidgets('resuming a saved conversation never shows an ad',
+        (tester) async {
+      final calls = <String>[];
+      await pumpViewer(
+        tester,
+        analyze: counting(calls),
+        earnDescribe: (_) async {
+          calls.add('gate');
+          return true;
+        },
+        loadExistingTurns: (_) async =>
+            const [AnalysisTurn.model('A pink diamond pattern.')],
+      );
+      expect(calls, isEmpty,
+          reason: 'reopening stored text sends nothing and costs no API call, '
+              'so there is nothing for an ad to offset');
+    });
+
+    testWidgets('the ad comes AFTER consent, so a declined consent never '
+        'burns an ad the user already watched', (tester) async {
+      final calls = <String>[];
+      await pumpViewer(
+        tester,
+        analyze: counting(calls),
+        needsConsent: true,
+        requestConsent: (_) async {
+          calls.add('consent');
+          return false;
+        },
+        earnDescribe: (_) async {
+          calls.add('gate');
+          return true;
+        },
+      );
+      expect(calls, ['consent']);
+    });
+  });
+
 }
 
 /// The smallest valid PNG, so `Image.file` has something real to decode.

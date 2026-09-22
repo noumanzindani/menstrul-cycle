@@ -19,9 +19,10 @@ import { createAuditLog } from '../src/audit.js';
 import { parseAdminEmails } from '../src/env.js';
 import { readOnly } from '../src/readonly.js';
 import { requireAdminIdentity, IAP_ISSUER } from '../src/iap.js';
+import { LUNA_DATABASE_ID } from '../src/paths.js';
 
 export const PROJECT_ID = 'demo-lunatrack';
-export const DATABASE_ID = 'lunatrack';
+export const DATABASE_ID = LUNA_DATABASE_ID;
 export const AUDIENCE = '/projects/000000000000/global/backendServices/test';
 export const OWNER = 'owner@example.com';
 

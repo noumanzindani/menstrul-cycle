@@ -66,6 +66,16 @@ String buildProfileBlock({
   final menarche = settings.menarcheAge;
   if (menarche != null) lines.add('Age at first period: $menarche');
 
+  // Labelled "(self-reported)" deliberately. Until two cycles complete the app
+  // has measured NOTHING about variability, and the wording is the only thing
+  // separating a claim the user made from an observation the app made. An
+  // unknown key drops out through [_labelFor], like every other option here.
+  final regularity = settings.cycleRegularity;
+  if (regularity != null) {
+    final label = _labelFor(kCycleRegularityOptions, regularity);
+    if (label != null) lines.add('Cycle regularity (self-reported): $label');
+  }
+
   final contra = settings.contraceptionMethod;
   if (contra != null) {
     final label = _labelFor(kContraceptionOptions, contra);

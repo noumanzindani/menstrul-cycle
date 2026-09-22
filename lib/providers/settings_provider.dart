@@ -108,10 +108,21 @@ class SettingsProvider extends ChangeNotifier {
     ));
   }
 
+  /// 'system' is matched EXPLICITLY, and the catch-all falls to light rather
+  /// than to system. The two used to share the `_` arm, which quietly made
+  /// them the same answer -- so a light default could not be introduced
+  /// without also deleting the System option from a picker that still offered
+  /// it.
+  ///
+  /// The catch-all covers a null [_settings] (the row is not read yet:
+  /// `main.dart` creates this provider with a fire-and-forget `..load()`, so
+  /// the first frames of every launch resolve HERE, not from the database)
+  /// and any unrecognised stored string.
   ThemeMode get themeMode => switch (_settings?.themeMode) {
         'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
+        'system' => ThemeMode.system,
+        _ => ThemeMode.light,
       };
 
   Future<void> load() async {
@@ -280,6 +291,23 @@ class SettingsProvider extends ChangeNotifier {
   String? get contraceptionMethod => _settings?.contraceptionMethod;
   DateTime? get contraceptionStartDate => _settings?.contraceptionStartDate;
 
+  /// How much the user says her cycle varies, or null when nobody asked.
+  ///
+  /// Null is NOT "regular" -- see the column note in `tables.dart`.
+  String? get cycleRegularity => _settings?.cycleRegularity;
+
+  /// The standard deviation to assume until two complete cycles exist, or null
+  /// to assume nothing. Resolved here, like [suppressesOvulation], so
+  /// `PredictionService` keeps taking plain numbers and never learns what an
+  /// option key is.
+  double? get cycleVariabilityPrior =>
+      cycleVariabilityPriorFor(cycleRegularity);
+
+  /// True when the user has said her cycles vary a lot, which makes a computed
+  /// fertile window as meaningless as an anovulatory method does. Feeds the
+  /// SAME `capConfidenceToLow` lever as perimenopause.
+  bool get cyclesAreIrregular => cycleRegularityIsIrregular(cycleRegularity);
+
   /// True when the method in use suppresses ovulation, which makes a predicted
   /// fertile window meaningless. Read by `main.dart` and the background
   /// isolate, both of which hand it to `PredictionService.predictFromLogs`.
@@ -316,6 +344,9 @@ class SettingsProvider extends ChangeNotifier {
   /// Sets the contraception method (a `contra_` key) and optionally when it
   /// started. Passing null for [method] clears the answer back to "never
   /// asked"; `kContraceptionNone` is how "using nothing" is recorded.
+  Future<void> setCycleRegularity(String? key) =>
+      update(AppSettingsCompanion(cycleRegularity: Value(key)));
+
   Future<void> setContraception(String? method, {DateTime? startDate}) =>
       update(AppSettingsCompanion(
         contraceptionMethod: Value(method),

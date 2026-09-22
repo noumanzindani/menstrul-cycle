@@ -33,7 +33,9 @@ and stored locally, and the app is fully usable offline.
 - **Platform:** Android-first (Play one-time $25). iOS deferred (the $99/yr Apple fee is
   the only real running cost).
 - **Monetization:** AdMob (non-personalized ads, **banned from the logging and insights
-  screens**) + a one-time **Premium** in-app purchase that removes ads.
+  screens**) + a one-time **Premium** in-app purchase that removes ads. As of 2026-09-22
+  a third format exists: a **rewarded** ad gating the Describe action — see the guardrail
+  below, which is what keeps it distinct from the banned ambient placements.
 
 ## Commands
 
@@ -95,6 +97,75 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   theme. `test/analysis_consent_sheet_test.dart` now pumps `AppTheme.light()` at 360×800
   and asserts the button's rect falls inside the viewport; copy that pattern for any
   button row.
+- **List entrances are OPT-IN per screen, and two screens deliberately declined.**
+  `widgets/entrance.dart` gives a list a staggered fade-up: `EntranceGroup` owns ONE
+  controller and each `EntranceItem` reads its own `Interval` of it, the `FlowDropStagger`
+  idiom — a controller per row is a `Ticker` per row, which is the cost that matters on
+  the low-end target. `step`, `window` and `maxStaggered` are NOT independently
+  adjustable: the last staggered interval must end at exactly 1.0 and `Interval` asserts
+  `end <= 1.0`, so `entrance_test.dart` pins the arithmetic. Past `maxStaggered` (6) rows
+  share the last interval — a forty-entry diary must not take four seconds to arrive, and
+  rows below the fold are built lazily long after the controller finished. An
+  `EntranceItem` with no group above it renders its child untouched, so a row stays
+  pumpable on its own.
+  **Applied to `diary_screen`, `media_timeline_screen` and `insights_screen`.** The first
+  two are homogeneous lists of cards and tiles and just wrap their builders. Insights
+  needed `_staggered()`, which numbers only the children that should travel and passes two
+  kinds through untouched: `SizedBox` spacers (this list interleaves them, and numbering a
+  gap would spend one of the six slots — so the stagger would be exhausted after three real
+  cards) and **`DisclaimerBanner`**. That second exemption is the safety one, mutation
+  tested in `insights_entrance_test.dart`: the banner is required on every surface carrying
+  estimates or a fertility observation, which is exactly what the cards above it are, so a
+  disclaimer fading in AFTER the claims it qualifies is the one piece of motion on that
+  screen that would be actively wrong. The same ruling keeps `_StorageNotice` outside the
+  media grid's group. **`medications_screen` deliberately declined:** it is one grouped card
+  plus the "gives no dosing advice" line, so there is nothing to stagger and the only
+  candidate is a disclaimer. The design warning this implements — "fade-and-slide-up
+  entrances on each section read as generic" — is why each screen is a separate decision
+  rather than a sweep.
+- **The lock LIFTS with a fade and DROPS instantly, and the asymmetry is a SECURITY
+  property.** A fade-*in* on the way down would leave the app readable for the length of
+  the animation at exactly the moment the phone is being backgrounded or handed over, so
+  only the unlock direction is ever animated (260ms). Three things make that hold and all
+  three are mutation-tested in `app_lock_reveal_test.dart`: (a) the veil's opacity is
+  driven by an explicit `_revealing` flag, NEVER by the controller's resting value —
+  "is the lock opaque?" must not depend on where an animation that is not running happened
+  to stop; (b) `_lock()` calls `_reveal.stop()` and clears the flag, so a lift still in
+  flight is ABANDONED rather than reversed; (c) `Offstage` still hides the app content the
+  instant `locked` goes true, unchanged — the fade is on the veil only, so no opacity is
+  ever applied to the app content (which would also have meant fading the ad banner's
+  platform view). The `_LockLayer`'s wrapper structure is deliberately IDENTICAL while
+  locked and while lifting: inserting or removing an ancestor would rebuild its element and
+  discard its State — and its own Overlay and ScaffoldMessenger with it — so the user would
+  watch a freshly built lock screen fade out.
+  **Testing note:** frames are disabled while the app is paused, so `AppLock._lock`'s
+  `setState` produces no rebuild until the app returns. A test must background AND resume
+  before pumping; the first post-resume frame is both the only observable one and the
+  security-relevant one.
+- **Tab switching animates the STACK, never swaps it.** `AppShell` keeps its
+  `IndexedStack` — all five tabs stay mounted so each holds its scroll offset and form
+  state — and wraps it in a 200ms `FadeTransition` + a ~1% `SlideTransition`, replayed
+  from `_onSelect` only when the index actually CHANGES (`NavigationBar` reports every
+  tap, including re-taps of the current tab). An `AnimatedSwitcher` would look nearly
+  identical and would silently discard four tabs' state, so
+  `app_shell_tab_motion_test.dart` asserts the shape as well as the timing. The
+  controller is parked at `value: 1` because the first tab is already there on mount —
+  starting at 0 fades Home in at launch, which is a splash, not a tab switch.
+  **NOT YET DEVICE-VERIFIED:** `AdBanner` is a platform view (`google_mobile_ads` →
+  `AdWidget`) living in each screen's `bottomNavigationBar`, i.e. INSIDE that stack, so
+  it is faded and translated along with everything else. Android composites platform
+  views through a texture layer that does not always follow opacity and transforms in
+  lockstep. Check on a free (ad-showing) build that the banner does not tear, lag a
+  frame, or flash during a switch. The app's first and only `RepaintBoundary` is here,
+  for the low-end target.
+- **`media_guardrails_test.dart`'s sixth-destination check was TIGHTENED, not relaxed**
+  (2026-09-19). It was `src.contains('Media')` over the whole of `app_shell.dart`, which
+  also matched `MediaQuery` — the API every reduced-motion guard in this app uses, so
+  the first shell change to respect reduced motion failed it. The ruling is unchanged;
+  the matcher now reads the `_labels` and `_screens` lists specifically and pins their
+  LENGTH at five as well as their contents. Both mutants (a sixth label, a sixth screen)
+  were confirmed to kill it. A guardrail that fails on unrelated code gets deleted rather
+  than obeyed.
 - **Cycles are derived, not stored.** The user logs daily flow; `CycleCalculator` groups
   consecutive bleeding days (1-day gap tolerance) into cycles. A `PeriodEntries` table
   exists but is intentionally **unused** — activating it would create a second source of
@@ -551,6 +622,28 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
 - **Ads never co-render with logging or insights.** `test/ad_placement_test.dart` guards
   this structurally. The interstitial only fires on switching into Home. (Banners live on
   Home, Calendar, Forecast and Settings.)
+- **The rewarded ad on Describe is a DIFFERENT category, and the distinction is the
+  whole defence** (2026-09-22, owner-requested). The rule above governs AMBIENT ads —
+  something the app shows next to content the user came for. A rewarded ad is not shown
+  at all until the user is told what they get and taps "Watch ad"
+  (`showRewardedDescribePrompt`), which is also what AdMob policy requires. That is why
+  it may live on the media viewer, a surface far more sensitive than the logging screen
+  the banners are banned from: nothing renders beside an intimate photo, and nothing
+  plays unasked. **If that opt-in is ever removed, this placement becomes an ambient ad
+  on a body-photo screen and the guardrail above applies to it.** It is also the reason
+  the ad sits behind the consent gate rather than in front of it (`_describe` in
+  `media_viewer_screen.dart`): watching an ad and THEN meeting a consent sheet is a
+  reward taken and never delivered.
+  The decision half is `services/rewarded_describe_gate.dart` (`earnOneDescribe`), pure
+  and free of AdMob types precisely so it can be tested — `google_mobile_ads` talks over
+  platform channels with no handler under `flutter_tester`, so anything that touches
+  `AdService` directly is untestable. It splits the two failure modes deliberately:
+  the user abandoning the ad does NOT earn the Describe, but an ad that could not be
+  SERVED (no fill, outage, flaky network) lets it through. Collapsing those is how an
+  AdMob hiccup silently disables a feature the user already consented to. **Follow-up
+  messages in the conversation are NOT gated** — only the Describe tap is — so a long
+  conversation still bills Gemini per turn against one ad. Revisit with the owner if
+  that ratio matters.
 - **A photo description is never an interpretation.** The model may describe what is
   visible; it may never name a condition, estimate severity or advise treatment. That is
   enforced by `kAnalysisSystemInstruction` (asserted clause-by-clause in
@@ -679,6 +772,20 @@ question about whether the ruling changed — not about how to make the test pas
   `hasOvulation` separately, so a window straddling the month boundary never shows a key
   with no arc). Display-only (no inline logging → never co-renders with the ad banner); the
   trailing `DisclaimerBanner` covers it.
+  **Two motions, two controllers, never one.** The 600ms entrance sweep
+  (`revealDuration`) runs ONCE and is deliberately never replayed — the home screen
+  rebuilds this widget on every log save. The 380ms **settle** (`settleDuration`) is the
+  separate answer to "did my log land?": when `didUpdateWidget` sees a genuinely different
+  ring it keeps the old one and `Color.lerp`s each segment to its new role. Two rules make
+  that safe and both are pinned by tests in `month_ring_test.dart`. (a) **`RingDay` and
+  `MonthRingData` carry value equality** — without it every `ProxyProvider2` rebuild
+  compares unequal by identity and settles on saves that changed nothing about this month.
+  It is hand-rolled rather than `listEquals` because `models/month_ring.dart` is
+  deliberately free of any Flutter import. (b) **A month rollover SNAPS.** Across a rollover
+  each segment changes what it MEANS, so lerping July 3 into August 3 would animate a
+  relationship that does not exist; the settle is skipped unless year, month and day count
+  all match, and skipped mid-entrance too (there is no earlier state the user ever saw to
+  travel from). Reduced motion lands on the new colours in one frame, as everywhere else.
 
 - **One-tap check-in from the notification shade (Phase A)** — answer the daily
   period check-in ("Didn't start" / "Mark ended here") from the notification
@@ -743,6 +850,37 @@ question about whether the ruling changed — not about how to make the test pas
   exist and must still carry the copy), so renaming it cannot silently disarm the scan. Note
   a naive `/bmi/` search matches "su**bmi**t", so it stays scoped to quoted strings with word
   boundaries.
+- **Cycle/period length ranges live in `catalog.dart` (2026-09-22)** —
+  `kCycleLengthMin/Max` (20..45) and `kPeriodLengthMin/Max` (2..10). Shared because the
+  bug WAS the drift: the wizard and the Settings tile each hardcoded 21..35, which is
+  narrower than FIGO's normal **24..38**, so an ordinary 37-day cycle could not be entered
+  and got pushed to 35 — predictions then running days early until enough real cycles
+  overrode the fallback. Widening one surface alone would have been worse than leaving both:
+  `_StepperTile` disables "+" at `value < max`, so a stored 40 against a ceiling of 35
+  renders fine and can only ever go DOWN. **The bounds are implausibility, not normality.**
+  A stepper cannot explain why it refuses to move, so judging a cycle belongs in Insights
+  where there is room to say why; 45 is a stepper's practical ceiling, not a clinical claim.
+  `test/cycle_length_range_test.dart` pins both surfaces against the constants, plus one
+  pure test asserting the span COVERS FIGO normal — stated as coverage of the standard, not
+  as the literal 20..45, so widening stays green and narrowing back inside the normal range
+  cannot. (`test/onboarding_period_length_test.dart` deliberately keeps a LITERAL 10 as an
+  independent tripwire on the value itself.)
+- **Period length is ASKED, not inherited (2026-09-22)** — `AppSettings.defaultPeriodLength`
+  carries a column default of 5 and, until this change, **nothing wrote it but the Settings
+  screen**, which a first-run user never opens. So every new user predicted with a five-day
+  bleed whatever their own was. That number is not cosmetic: it is `fallbackPeriodLength` in
+  `PredictionService.predict` → `avgPeriod` → whether `_phaseFor` calls today **menstrual**,
+  which `buildHealthContext` then states to Gemini as fact, and which paints the bleed block
+  in the multi-month forecast. The cycle page now carries **two** `_HeroStepper`s (cycle
+  21–35, period 2–10 — the same window the Settings tile uses, kept identical so the same
+  answer is reachable from both places) and the wizard writes both on finish. **Neither is
+  required**: both open on a seeded value, so the page still advances on a bare Continue and
+  `answerVisiblePage` needs no branch for it. Two steppers on one page both counting "days"
+  made the `_HeroStepper` +/- tooltips ambiguous, hence `tooltipUnit` ("More cycle days" /
+  "More period days") — a screen reader meeting "More days" twice cannot say which number
+  moves. Pinned by `test/onboarding_period_length_test.dart`; the page heading changed to
+  "How long are your cycles and periods?", which lives in ONE place for tests
+  (`cycleQuestion` in `test/support/onboarding_walk.dart`).
 - **Profile fields (the four "about you" answers)** — `dateOfBirth`, `heightCm`,
   `profileWeightKg` and `menarcheAge` on the single `AppSettings` row (v7→v8), read/written
   through `SettingsProvider`'s four getters and four nullable setters, all routed via
@@ -1096,7 +1234,7 @@ only checked that the ad hid, not that the entry form actually rendered.
 
 Two suites, and `flutter test` does not cover the second:
 
-- `flutter test` — **1322** passing, 3 skipped, **2 failing**. (Keep this number current; a
+- `flutter test` — **1369** passing, 3 skipped, **2 failing**. (Keep this number current; a
   stale one makes a real regression look like a miscount.) The two failures are
   PRE-EXISTING and not in this lane: `firebase_unavailable_test.dart` taps
   `Icons.settings_outlined`, which `409973a` replaced with an illustrated nav mark.

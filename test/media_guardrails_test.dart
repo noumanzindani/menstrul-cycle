@@ -299,8 +299,34 @@ void main() {
       // The bottom nav is at Material's five-destination ceiling, and
       // `AppShell._onSelect` fires the interstitial on index 0 — so any
       // reshuffle silently re-targets it.
+      //
+      // Scoped to the two lists the bar is actually BUILT from, and pinning
+      // their LENGTH as well as their contents. The original check was a bare
+      // `src.contains('Media')` over the whole file, which also matched
+      // `MediaQuery` — the API every reduced-motion guard in this app uses. A
+      // guardrail that fails on unrelated code gets deleted rather than
+      // obeyed, so this one is now narrower in what it looks at and stricter
+      // in what it asserts: five destinations, five screens, no media in
+      // either, and no media screen imported into the shell at all.
       final src = _code('lib/screens/app_shell.dart');
-      expect(src.contains('Media'), isFalse);
+
+      final labels = RegExp(r'_labels\s*=\s*\[(.*?)\];', dotAll: true)
+          .firstMatch(src)
+          ?.group(1);
+      expect(labels, isNotNull, reason: 'AppShell._labels not found');
+      expect(labels!.toLowerCase(), isNot(contains('media')));
+      expect(RegExp(r"'[^']+'").allMatches(labels), hasLength(5),
+          reason: 'the bottom nav must stay at five destinations');
+
+      final screens = RegExp(r'_screens\s*=\s*\[(.*?)\];', dotAll: true)
+          .firstMatch(src)
+          ?.group(1);
+      expect(screens, isNotNull, reason: 'AppShell._screens not found');
+      expect(screens!.toLowerCase(), isNot(contains('media')));
+      expect(RegExp(r'\w+\(\)').allMatches(screens), hasLength(5),
+          reason: 'five destinations means five screens');
+
+      expect(src, isNot(contains('screens/media/')));
     });
   });
 

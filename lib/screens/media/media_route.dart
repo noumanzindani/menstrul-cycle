@@ -11,6 +11,7 @@ import '../../db/database.dart';
 import '../../providers/log_provider.dart';
 import '../../providers/media_provider.dart';
 import '../../providers/medication_provider.dart';
+import '../../providers/premium_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../models/prediction.dart';
 import '../../services/device_id.dart';
@@ -20,6 +21,9 @@ import '../../services/health_context.dart';
 import '../../services/media_analysis.dart';
 import '../../services/media_analysis_service.dart';
 import '../../services/media_analyzer.dart';
+import '../../services/ad_service.dart';
+import '../../services/rewarded_describe_gate.dart';
+import 'rewarded_describe_prompt.dart';
 import '../../services/media_blob_store.dart';
 import '../../services/media_cache.dart';
 import '../../services/media_limits.dart';
@@ -81,6 +85,9 @@ Route<void> mediaTimelineRoute(BuildContext context) {
   // consent granted in Settings mid-session is seen without this route
   // listening to anything.
   final settings = context.read<SettingsProvider>();
+  // Read here with every other provider, NOT inside the viewer: the gate is
+  // handed down as a callback so the screen never reaches for AdMob itself.
+  final premium = context.read<PremiumProvider>();
   final canAnalyze = available && analysisAvailable;
 
   // Saved conversations. Local-only (see AnalysisSessionRepository's own
@@ -193,6 +200,18 @@ Route<void> mediaTimelineRoute(BuildContext context) {
                     healthContext: healthContext,
                   );
                 },
+          // The rewarded-ad gate. Premium is read at TAP time, not captured
+          // here: a purchase completing while this viewer is open must stop
+          // the ads immediately, the same way `needsConsent` re-reads consent
+          // rather than snapshotting it.
+          earnDescribe: !canAnalyze
+              ? null
+              : (context) => earnOneDescribe(
+                    premium: premium.isPremium,
+                    confirm: () => showRewardedDescribePrompt(context),
+                    showAd: () =>
+                        AdService.instance.showRewarded(premium: premium.isPremium),
+                  ),
           needsConsent: () => !analysisService.consented,
           endConversation: () => analysisService.endConversation(item.id),
           // Display only, and computed from the SAME pure helper the

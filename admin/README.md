@@ -52,11 +52,22 @@ a raw Firestore handle. It receives HTML this process rendered, with a CSP of
   free-text notes, BBT, OPK/LH, medications taken, lifestyle habits, numeric
   metrics including weight, plus per-day created/updated/synced timestamps and
   the writing device id.
+- Behind that same door: the **signup sexual-health baseline** from
+  `settings/current` — sex and solo frequency, general libido, how the user
+  masturbates (`soloWays`, plus their own words if they chose "Other"), time to
+  satisfaction, and sexual history. This is GDPR Art. 9 special-category data
+  and it is the most sensitive thing the product stores: the daily `Intimacy`
+  tag records *that* a day involved masturbation, this records *how*. It is read
+  through a `.select()` projection, so the rest of that document — the pregnancy
+  start date in particular — is never fetched, not merely never rendered.
 
 **It cannot see:**
 
-- Anything the app never syncs. Reminders, the medications table and
-  `PeriodEntries` are deliberately not synced and exist only on the device.
+- Anything the app never syncs. As of schema **v12** (2026-09-18) that is only
+  `PeriodEntries` and a reminder's `payload`; reminders, medications and saved
+  photo-description conversations now DO sync and are listed above. The earlier
+  wording here claimed reminders and medications were local-only, which stopped
+  being true the day v12 shipped.
 - Anything on a **local-only** install (the offline hatch, or a user who never
   signed in). Nothing about them reaches Firestore, so nothing about them
   reaches here.
@@ -108,7 +119,7 @@ asserts the denial rather than assuming it.
 | `LUNATRACK_PROJECT_ID` | **yes** | Firebase/GCP project id. `GOOGLE_CLOUD_PROJECT` is accepted as a fallback (Cloud Run sets it). **There is no default — see the TODO below.** |
 | `ADMIN_EMAILS` | **yes** | Comma-separated allowlist. One entry for a solo operator. Compared case-insensitively. |
 | `IAP_AUDIENCE` | **yes** (unless the emulator bypass is active) | The IAP JWT audience. Load balancer: `/projects/PROJECT_NUMBER/global/backendServices/BACKEND_SERVICE_ID`. Cloud Run direct IAP: `/projects/PROJECT_NUMBER/locations/REGION/services/SERVICE_NAME`. |
-| `LUNATRACK_DATABASE_ID` | no (`lunatrack`) | The **named** Firestore database. Never `(default)` — see below. |
+| `LUNATRACK_DATABASE_ID` | no (`lunatrack-db`) | The **named** Firestore database. Never `(default)` — see below. |
 | `PORT` | no (`8080`) | Cloud Run sets this. |
 | `ADMIN_PAGE_SIZE` | no (`25`) | Roster rows per page. |
 | `ADMIN_MAX_ROSTER_SWEEP` | no (`50000`) | Cap on accounts paged through for the dashboard. Beyond it the totals are reported as truncated rather than silently wrong. |
@@ -120,14 +131,22 @@ Nothing here hardcodes a project id, on purpose. `CLAUDE.md` records that
 `lib/services/firestore_ref.dart` names one project, the untracked root
 `firebase.json` names a **different, unrelated production project**
 (`ride-with-purpose`), and the owner has an open decision about moving LunarFlow
-to a dedicated project. It is also unverified whether the named `lunatrack`
-database has actually been created. **Settle that before deploying**, then set
+to a dedicated project. The named database itself is no longer in question: it
+exists and is called **`lunatrack-db`**, verified 2026-09-19 against the live
+project. **Settle that before deploying**, then set
 `LUNATRACK_PROJECT_ID` explicitly.
 
-The panel reads the **named** database `lunatrack` (`kLunaDatabaseId`), not
+The panel reads the **named** database `lunatrack-db` (`kLunaDatabaseId`), not
 `(default)`, for the same reason the app does: a `(default)` database carries one
 ruleset for every app in the project. Pointing this at `(default)` would read a
 different database and quietly report zeros.
+
+**This default was wrong until 2026-09-19** — it read `lunatrack`, a database
+that does not exist. That is worth stating because of how it fails: a Firestore
+handle for a missing database does not throw when it is constructed. Every
+`count()` returns 0 and every browse returns an empty page, so the panel renders
+perfectly and reports that the product has no users. A test now pins the
+default.
 
 ---
 
@@ -187,7 +206,7 @@ remote Firebase project. These are the commands **you** run, after deciding
 which project LunarFlow belongs in.
 
 1. **Settle the project.** Resolve the project-id TODO above. Confirm the named
-   `lunatrack` Firestore database exists in that project.
+   `lunatrack-db` Firestore database exists in that project.
 
 2. **Create a runtime service account** with the least privilege that works:
    - `roles/datastore.viewer` — reading Firestore.
@@ -273,8 +292,11 @@ visible rather than silent.
 - The **account-deletion purge job does not exist** (see `CLAUDE.md`). Accounts
   with a `deletionRequests/{uid}` marker still have all their cloud data. The
   panel flags them loudly on every view, but it cannot make the erasure real.
-- `firestore.rules` is **not deployed**. That does not affect this panel (the
-  Admin SDK bypasses rules), but it does mean the `adminAudit` collection's
-  client-side inaccessibility is only guaranteed once the rules are live.
+- ~~`firestore.rules` is not deployed.~~ **Deployed 2026-09-18** to
+  `lunatrack-db`, verified byte-identical to the file in git. The `adminAudit`
+  collection's client-side inaccessibility is therefore now actually guaranteed
+  rather than pending. Note the deploy CLI prints "released rules … to
+  `cloud.firestore`" even when the target is the named database — that string is
+  not confirmation; read the release list instead.
 - Audit records are never pruned. That is deliberate — but decide a retention
   policy before the collection grows.

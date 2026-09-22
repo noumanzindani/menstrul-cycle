@@ -21,7 +21,13 @@ import express from 'express';
 
 import { auditedRead } from './audit.js';
 import { accountDetail, deletionState } from './account.js';
-import { browseDays, currentStatus, dayCount, recentDeletions } from './records.js';
+import {
+  browseDays,
+  currentStatus,
+  dayCount,
+  getSexualBaseline,
+  recentDeletions,
+} from './records.js';
 import { collectDashboard } from './stats.js';
 import { findAccount, listRoster } from './roster.js';
 import {
@@ -199,13 +205,20 @@ export function createApp({ auth, db, audit, identity, config, now = () => Date.
             path: req.path,
           },
           async () => {
-            const [page_, deletion, deletions, total] = await Promise.all([
+            // The baseline read lives INSIDE this closure with the day
+            // fetches, so it is covered by the same rule the rest of the
+            // content is: the audit record is written and awaited first, and a
+            // failed audit write means this never runs. Hoisting it out to
+            // save a round trip would make it the one disclosure on this page
+            // that could happen unlogged.
+            const [page_, deletion, deletions, total, baseline] = await Promise.all([
               browseDays(db, uid, { before }),
               deletionState(db, uid),
               recentDeletions(db, uid),
               dayCount(db, uid),
+              getSexualBaseline(db, uid),
             ]);
-            return { page: page_, deletion, deletions, total };
+            return { page: page_, deletion, deletions, total, baseline };
           },
         );
       } catch (error) {
@@ -236,6 +249,7 @@ export function createApp({ auth, db, audit, identity, config, now = () => Date.
           deletion: result.deletion,
           deletions: result.deletions,
           total: result.total,
+          baseline: result.baseline,
           reason,
         }),
       );

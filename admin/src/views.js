@@ -306,7 +306,76 @@ ${tagList(entry.tags)}
 <dt>synced / device</dt><dd>${esc(stamp(entry.syncedAt))} / <code>${esc(entry.deviceId ?? '—')}</code></dd>
 </dl></div>`;
 
-export function recordsView({ uid, days, nextBefore, status, deletion, reason, deletions, total }) {
+/**
+ * One labelled baseline value. An unknown key renders as the raw key with a
+ * marker rather than being hidden, so a panel that is behind the app is
+ * visibly behind rather than quietly lying.
+ */
+const baselineValue = (entry) => {
+  if (!entry) return '—';
+  return entry.known
+    ? esc(entry.label)
+    : `<code>${esc(entry.key)}</code> <span class="flag">unknown key</span>`;
+};
+
+const baselineSet = (entries) =>
+  entries && entries.length
+    ? entries.map(baselineValue).join(', ')
+    : '—';
+
+/**
+ * The signup sexual-health baseline.
+ *
+ * Rendered inside the records page, which means it is already behind the typed
+ * reason and the audit write. It is separated visually and labelled as
+ * special-category data because an operator scrolling to a support question
+ * about a missed period should not meet this by accident and should know what
+ * they are looking at when they do.
+ */
+const baselineBlock = (baseline) => {
+  if (baseline === null || baseline === undefined) {
+    return `<h2>Signup baseline</h2>
+<p class="mut">Never answered. The column is null, which the app distinguishes from
+answering nothing.</p>`;
+  }
+  if (baseline.malformed) {
+    return `<h2>Signup baseline</h2>
+<div class="banner"><b>Malformed.</b> The stored value is not decodable JSON, so nothing
+is shown rather than guessed. Raw length ${esc(String(baseline.raw ?? '').length)} chars.</div>`;
+  }
+  const other = baseline.soloWayOther
+    ? `<dt>their own words</dt><dd>${esc(baseline.soloWayOther)} <span class="flag">free text</span></dd>`
+    : '';
+  return `<h2>Signup baseline</h2>
+<div class="banner"><b>Special-category data</b> (GDPR Art. 9, sex life). Answered once at
+signup — this is what is TYPICALLY true for this user, not a record of any particular day.</div>
+<dl class="day dl">
+<dt>sex frequency</dt><dd>${baselineValue(baseline.sexFrequency)}</dd>
+<dt>solo frequency</dt><dd>${baselineValue(baseline.soloFrequency)}</dd>
+<dt>libido (general)</dt><dd>${baselineValue(baseline.libido)}</dd>
+<dt>ways</dt><dd>${baselineSet(baseline.soloWays)}</dd>
+${other}
+<dt>time to satisfaction</dt><dd>${baselineValue(baseline.satisfactionTime)}</dd>
+<dt>history</dt><dd>${baselineSet(baseline.history)}</dd>
+</dl>
+<p class="note">Stored as a JSON <em>string</em> in <code>settings/current</code>, so
+Firestore cannot index it and no security rule can see inside it — <code>isOwner</code> on
+the whole document is the only boundary on any of these values. The daily
+<b>Intimacy</b> tag below records <em>that</em> a day involved masturbation; this records
+<em>how</em>, and is the more sensitive of the two.</p>`;
+};
+
+export function recordsView({
+  uid,
+  days,
+  nextBefore,
+  status,
+  deletion,
+  reason,
+  deletions,
+  total,
+  baseline,
+}) {
   const banner =
     deletion?.pending === true
       ? `<div class="banner"><b>Pending account deletion.</b> Purge due ${esc(stamp(deletion.purgeAfter))}.</div>`
@@ -361,6 +430,7 @@ lacks it — so if the pages never add up to this total, that is the reason to l
 was rendered.</p>
 ${banner}
 <h2>Current status</h2>${statusBlock}
+${baselineBlock(baseline)}
 <h2>Days</h2>${reconcile}${days.map(dayCard).join('')}
 ${more}
 ${deletionsBlock}

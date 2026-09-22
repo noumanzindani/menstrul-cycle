@@ -12,6 +12,8 @@
  */
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+
+import { LUNA_DATABASE_ID } from './src/paths.js';
 import { getAuth } from 'firebase-admin/auth';
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
@@ -20,7 +22,7 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
 }
 
 const PROJECT_ID = 'demo-lunatrack';
-const DATABASE_ID = 'lunatrack';
+const DATABASE_ID = process.env.LUNATRACK_DATABASE_ID ?? LUNA_DATABASE_ID;
 
 const app = initializeApp({ projectId: PROJECT_ID });
 const db = getFirestore(app, DATABASE_ID);
@@ -40,6 +42,14 @@ const accounts = [
   {
     uid: 'u-ada', email: 'ada@example.com', days: 96, devices: ['pixel-8', 'tablet-a'],
     mode: 'conceive', tracking: ['flow', 'symptoms', 'bbt', 'weight'],
+    // A fully answered signup baseline, so the records page has the block to
+    // render. `u-bea` below exercises the free-text and retired-key paths, and
+    // `u-cleo` leaves it unset so "never asked" is visible too.
+    baseline: {
+      sexFrequency: 'freq_weekly', soloFrequency: 'freq_rarely',
+      libido: 'lbd_medium', history: ['shx_none'],
+      soloWays: ['slfw_hands'], satisfactionTime: 'sat_5_15',
+    },
     flavour: (i) => ({
       flow: i % 28 < 5 ? [4, 4, 3, 2, 1][i % 28] : 0,
       symptoms: i % 28 < 5
@@ -54,9 +64,25 @@ const accounts = [
   {
     uid: 'u-bea', email: 'bea@example.com', days: 34, devices: ['moto-g'],
     mode: 'track', tracking: ['flow', 'symptoms'],
+    baseline: {
+      sexFrequency: 'freq_never', soloFrequency: 'freq_often',
+      libido: 'lbd_high', history: ['shx_pain', 'vag_dryness'],
+      // `slfw_private` was retired from the picker on 2026-09-18 and must still
+      // read back as the deliberate refusal it was, not as an unknown key.
+      soloWays: ['slfw_toy', 'slfw_private', 'slfw_other'],
+      soloWayOther: 'her own words land here, verbatim',
+      satisfactionTime: 'sat_under5',
+    },
     flavour: (i) => ({
       flow: i % 30 < 4 ? [3, 3, 2, 1][i % 30] : 0,
-      symptoms: i % 6 === 0 ? { bloating: true, skin_acne: true, water: 5 } : {},
+      // `slf_`/`lbd_` are the DAY tags, deliberately seeded alongside Bea's
+      // signup baseline above: the records page shows both, and they answer
+      // different questions. The day tag records THAT a day involved
+      // masturbation; the baseline records HOW. `slf_none` is a real answer
+      // ("not today"), not an absence, which is why it is seeded too.
+      symptoms: i % 6 === 0
+        ? { bloating: true, skin_acne: true, water: 5, slf_masturbation: true, lbd_high: true }
+        : (i % 5 === 0 ? { slf_none: true, lbd_low: true } : {}),
       mood: ['calm', 'anxious'][i % 2],
       notes: null, bbt: null, opk: null,
     }),
@@ -94,6 +120,9 @@ for (const a of accounts) {
       mode: a.mode, cycleLength: 28, periodLength: 5, themeMode: 'system',
       language: 'en', genderNeutralLanguage: false, pregnancyStartDate: null,
       trackingCategories: a.tracking, weightUnit: 'kg',
+      // A JSON STRING, exactly as `SyncService._pushSettings` writes the drift
+      // column — not a map. Absent (not null) when the account never answered.
+      ...(a.baseline ? { sexualHealthBaseline: JSON.stringify(a.baseline) } : {}),
       updatedAt: now - DAY, syncedAt: new Date(now - DAY),
     });
   }

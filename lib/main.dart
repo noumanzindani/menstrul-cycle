@@ -206,6 +206,8 @@ class LunarFlowApp extends StatelessWidget {
             cycleLength: settings.cycleLength,
             periodLength: settings.periodLength,
             contraceptionSuppressesOvulation: settings.suppressesOvulation,
+            cycleVariabilityPrior: settings.cycleVariabilityPrior,
+            cyclesReportedIrregular: settings.cyclesAreIrregular,
           ),
         ),
         // Multi-month forecast: projects future periods from the user's entered
@@ -265,7 +267,19 @@ class LunarFlowApp extends StatelessWidget {
         ),
         // Local writes schedule a debounced sync. Returns void because nothing
         // consumes it; it exists purely for the side effect of reacting to a
-        // LogProvider change.
+        // LogProvider or SettingsProvider change.
+        //
+        // SettingsProvider is watched as well as LogProvider, and it is not
+        // decoration: the signup wizard and the Settings screen write the
+        // whole clinical profile -- date of birth, height, weight, menarche
+        // age, contraception, diagnoses, breastfeeding, the sexual-health
+        // baseline -- through SettingsProvider alone, touching no log. While
+        // this watched only LogProvider, every one of those edits pushed
+        // NOTHING until the next app resume. Onboarding happened to survive it
+        // because its mandatory last-period date writes a log on the way out;
+        // a user changing their contraception method in Settings and never
+        // backgrounding the app had no such luck, and `settingsUpdatedAt`
+        // being stamped correctly only meant the push was pending, not made.
         //
         // `lazy: false` is load-bearing, not a tweak: a lazy provider builds
         // its value on first read, and nothing anywhere reads a `void`, so
@@ -274,9 +288,9 @@ class LunarFlowApp extends StatelessWidget {
         // gated: `SyncTrigger.setUser` sets the claim gate before its first
         // `await`, and the debounce is 2 seconds, so the eager first call
         // cannot slip a push in ahead of the claim decision.
-        ProxyProvider2<LogProvider, SyncTrigger, void>(
+        ProxyProvider3<LogProvider, SettingsProvider, SyncTrigger, void>(
           lazy: false,
-          update: (_, log, trigger, _) => trigger.scheduleSync(),
+          update: (_, log, settings, trigger, _) => trigger.scheduleSync(),
         ),
       ],
       child: Consumer2<AuthProvider, SyncTrigger>(

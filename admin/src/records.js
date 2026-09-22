@@ -25,6 +25,8 @@
 // layers on top.
 
 import {
+  BASELINE_FIELD,
+  BASELINE_LABELS,
   DATE_ID,
   NUMERIC_METRICS,
   TAG_PREFIXES,
@@ -32,6 +34,7 @@ import {
   deletionsPath,
   flowLabel,
   isBleeding,
+  settingsPath,
 } from './paths.js';
 
 const millis = (value) =>
@@ -207,6 +210,108 @@ export async function recentDeletions(db, uid, { limit = 40 } = {}) {
     deletedAt: millis(doc.data()?.deletedAt),
     syncedAt: stamp(doc.data()?.syncedAt),
   }));
+}
+
+/**
+ * The signup sexual-health baseline from `users/{uid}/settings/current`.
+ *
+ * ## Why this is not on the account-metadata page
+ *
+ * `account.js`'s `settingsMeta` projects the settings document down to two
+ * timestamps so its CONTENT never enters the process at all. That is a
+ * deliberate property and this function does not weaken it: metadata stays
+ * projected to timestamps, and the baseline is read only here, on the path
+ * that is already behind the typed-reason gate and the audit log. An operator
+ * cannot reach it by browsing.
+ *
+ * This is special-category data under GDPR Art. 9 (sex life). It is also the
+ * most sensitive thing this product stores: the daily `slf_` tag records THAT
+ * a user masturbated, while this records HOW. It rides the same projection
+ * discipline as the rest of the settings document -- `.select(BASELINE_FIELD)`
+ * means the pregnancy start date, theme, language and tracking preferences
+ * sitting in the same document are never fetched, not merely never rendered.
+ *
+ * Returns null for "never asked", which is what a null column means in
+ * `encodeSexualBaseline` -- deliberately distinct from an empty answer set.
+ */
+export async function getSexualBaseline(db, uid) {
+  let raw;
+  try {
+    const snapshot = await db
+      .collection(settingsPath(uid))
+      .select(BASELINE_FIELD)
+      .get();
+    const doc = snapshot.docs.find((entry) => entry.id === 'current');
+    if (!doc) return null;
+    raw = doc.data()?.[BASELINE_FIELD];
+  } catch {
+    return null;
+  }
+  return decodeSexualBaseline(raw);
+}
+
+const labelled = (table, key) => ({
+  key,
+  label: table[key] ?? null,
+  known: Object.prototype.hasOwnProperty.call(table, key),
+});
+
+/**
+ * Decodes the baseline JSON string written by `encodeSexualBaseline`
+ * (`lib/common/catalog.dart`).
+ *
+ * The column holds a STRING, not a map, so this is the one place in the panel
+ * that parses operator-visible content out of a blob. It fails soft in both
+ * directions: a null/absent column is "never asked" (null), and a string that
+ * is not valid JSON is reported as malformed rather than thrown, because an
+ * unparseable preference blob must not take down a support lookup for a real
+ * person.
+ *
+ * Unknown keys are carried through with `known: false` rather than dropped, for
+ * the same reason `decodeDayTags` keeps `unrecognised`: the first time the app
+ * adds an option, a panel that silently hid it would be quietly wrong instead
+ * of visibly behind.
+ */
+export function decodeSexualBaseline(raw) {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== 'string') return { malformed: true, raw: String(raw) };
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { malformed: true, raw };
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { malformed: true, raw };
+  }
+
+  const set = (table, value) =>
+    Array.isArray(value)
+      ? value.filter((v) => typeof v === 'string').map((v) => labelled(table, v))
+      : [];
+  const one = (table, value) =>
+    typeof value === 'string' ? labelled(table, value) : null;
+
+  const otherText =
+    typeof parsed.soloWayOther === 'string' && parsed.soloWayOther.length > 0
+      ? parsed.soloWayOther
+      : null;
+
+  return {
+    malformed: false,
+    sexFrequency: one(BASELINE_LABELS.frequency, parsed.sexFrequency),
+    soloFrequency: one(BASELINE_LABELS.frequency, parsed.soloFrequency),
+    libido: one(BASELINE_LABELS.libido, parsed.libido),
+    history: set(BASELINE_LABELS.history, parsed.history),
+    soloWays: set(BASELINE_LABELS.soloWays, parsed.soloWays),
+    // The ONLY free text in the baseline, capped at `kSoloWayOtherMaxLength`
+    // (120) by the app. `SexualBaseline` notes it never reaches
+    // `health_context.dart`, so it is not in any Gemini payload -- but it does
+    // ride the Firestore sync, which is how it reaches this panel.
+    soloWayOther: otherText,
+    satisfactionTime: one(BASELINE_LABELS.satisfactionTime, parsed.satisfactionTime),
+  };
 }
 
 /**

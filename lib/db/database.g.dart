@@ -2067,7 +2067,7 @@ class $AppSettingsTable extends AppSettings
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('system'),
+    defaultValue: const Constant(kFrozenThemeModeDefault),
   );
   static const VerificationMeta _languageMeta = const VerificationMeta(
     'language',
@@ -2362,6 +2362,17 @@ class $AppSettingsTable extends AppSettings
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _cycleRegularityMeta = const VerificationMeta(
+    'cycleRegularity',
+  );
+  @override
+  late final GeneratedColumn<String> cycleRegularity = GeneratedColumn<String>(
+    'cycle_regularity',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2394,6 +2405,7 @@ class $AppSettingsTable extends AppSettings
     breastfeeding,
     breastfeedingSince,
     sexualHealthBaseline,
+    cycleRegularity,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2644,6 +2656,15 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('cycle_regularity')) {
+      context.handle(
+        _cycleRegularityMeta,
+        cycleRegularity.isAcceptableOrUnknown(
+          data['cycle_regularity']!,
+          _cycleRegularityMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2775,6 +2796,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}sexual_health_baseline'],
       ),
+      cycleRegularity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cycle_regularity'],
+      ),
     );
   }
 
@@ -2792,6 +2817,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final TrackingMode mode;
   final int defaultCycleLength;
   final int defaultPeriodLength;
+
+  /// The column default is the HISTORICAL value and must never change again.
+  ///
+  /// It is not the app's default theme -- [kDefaultThemeMode] is, and every
+  /// site that seeds this row passes it explicitly, so this clause is never
+  /// what decides a user's theme. It exists only to match what old databases
+  /// physically contain: SQLite bakes a column default into the table at
+  /// CREATE time and offers no way to alter it, so a database made at v12
+  /// carries `DEFAULT 'system'` forever. Moving the declared default made
+  /// `SchemaVerifier` report a divergence on every upgraded database, which
+  /// broke `migrateAndValidate` for every migration test the moment the schema
+  /// version was next bumped.
   final String themeMode;
   final String language;
   final bool genderNeutralLanguage;
@@ -2818,6 +2855,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final bool? breastfeeding;
   final DateTime? breastfeedingSince;
   final String? sexualHealthBaseline;
+
+  /// How much the user says her cycle varies, from `kCycleRegularityOptions`.
+  ///
+  /// Nullable, and null means NOBODY ASKED -- not "regular". The whole value of
+  /// this column is in the first two or three months, before two complete
+  /// cycles exist for `_stdDev` to work on, and treating silence as a claim of
+  /// regularity would invent exactly the precision this is meant to stop.
+  ///
+  /// Only ever SUBTRACTS certainty downstream: it widens the +/- window
+  /// (`cycleVariabilityPriorFor`) and the widest answer suppresses the fertile
+  /// band (`cycleRegularityIsIrregular`), but no answer here raises confidence.
+  final String? cycleRegularity;
   const AppSetting({
     required this.id,
     required this.mode,
@@ -2849,6 +2898,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.breastfeeding,
     this.breastfeedingSince,
     this.sexualHealthBaseline,
+    this.cycleRegularity,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2927,6 +2977,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || sexualHealthBaseline != null) {
       map['sexual_health_baseline'] = Variable<String>(sexualHealthBaseline);
     }
+    if (!nullToAbsent || cycleRegularity != null) {
+      map['cycle_regularity'] = Variable<String>(cycleRegularity);
+    }
     return map;
   }
 
@@ -3002,6 +3055,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       sexualHealthBaseline: sexualHealthBaseline == null && nullToAbsent
           ? const Value.absent()
           : Value(sexualHealthBaseline),
+      cycleRegularity: cycleRegularity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cycleRegularity),
     );
   }
 
@@ -3065,6 +3121,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       sexualHealthBaseline: serializer.fromJson<String?>(
         json['sexualHealthBaseline'],
       ),
+      cycleRegularity: serializer.fromJson<String?>(json['cycleRegularity']),
     );
   }
   @override
@@ -3105,6 +3162,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'breastfeeding': serializer.toJson<bool?>(breastfeeding),
       'breastfeedingSince': serializer.toJson<DateTime?>(breastfeedingSince),
       'sexualHealthBaseline': serializer.toJson<String?>(sexualHealthBaseline),
+      'cycleRegularity': serializer.toJson<String?>(cycleRegularity),
     };
   }
 
@@ -3139,6 +3197,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<bool?> breastfeeding = const Value.absent(),
     Value<DateTime?> breastfeedingSince = const Value.absent(),
     Value<String?> sexualHealthBaseline = const Value.absent(),
+    Value<String?> cycleRegularity = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     mode: mode ?? this.mode,
@@ -3198,6 +3257,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     sexualHealthBaseline: sexualHealthBaseline.present
         ? sexualHealthBaseline.value
         : this.sexualHealthBaseline,
+    cycleRegularity: cycleRegularity.present
+        ? cycleRegularity.value
+        : this.cycleRegularity,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -3279,6 +3341,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       sexualHealthBaseline: data.sexualHealthBaseline.present
           ? data.sexualHealthBaseline.value
           : this.sexualHealthBaseline,
+      cycleRegularity: data.cycleRegularity.present
+          ? data.cycleRegularity.value
+          : this.cycleRegularity,
     );
   }
 
@@ -3314,7 +3379,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('knownDiagnoses: $knownDiagnoses, ')
           ..write('breastfeeding: $breastfeeding, ')
           ..write('breastfeedingSince: $breastfeedingSince, ')
-          ..write('sexualHealthBaseline: $sexualHealthBaseline')
+          ..write('sexualHealthBaseline: $sexualHealthBaseline, ')
+          ..write('cycleRegularity: $cycleRegularity')
           ..write(')'))
         .toString();
   }
@@ -3351,6 +3417,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     breastfeeding,
     breastfeedingSince,
     sexualHealthBaseline,
+    cycleRegularity,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -3385,7 +3452,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.knownDiagnoses == this.knownDiagnoses &&
           other.breastfeeding == this.breastfeeding &&
           other.breastfeedingSince == this.breastfeedingSince &&
-          other.sexualHealthBaseline == this.sexualHealthBaseline);
+          other.sexualHealthBaseline == this.sexualHealthBaseline &&
+          other.cycleRegularity == this.cycleRegularity);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -3419,6 +3487,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<bool?> breastfeeding;
   final Value<DateTime?> breastfeedingSince;
   final Value<String?> sexualHealthBaseline;
+  final Value<String?> cycleRegularity;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.mode = const Value.absent(),
@@ -3450,6 +3519,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.breastfeeding = const Value.absent(),
     this.breastfeedingSince = const Value.absent(),
     this.sexualHealthBaseline = const Value.absent(),
+    this.cycleRegularity = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -3482,6 +3552,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.breastfeeding = const Value.absent(),
     this.breastfeedingSince = const Value.absent(),
     this.sexualHealthBaseline = const Value.absent(),
+    this.cycleRegularity = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -3514,6 +3585,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<bool>? breastfeeding,
     Expression<DateTime>? breastfeedingSince,
     Expression<String>? sexualHealthBaseline,
+    Expression<String>? cycleRegularity,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3556,6 +3628,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (breastfeedingSince != null) 'breastfeeding_since': breastfeedingSince,
       if (sexualHealthBaseline != null)
         'sexual_health_baseline': sexualHealthBaseline,
+      if (cycleRegularity != null) 'cycle_regularity': cycleRegularity,
     });
   }
 
@@ -3590,6 +3663,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<bool?>? breastfeeding,
     Value<DateTime?>? breastfeedingSince,
     Value<String?>? sexualHealthBaseline,
+    Value<String?>? cycleRegularity,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -3625,6 +3699,7 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       breastfeeding: breastfeeding ?? this.breastfeeding,
       breastfeedingSince: breastfeedingSince ?? this.breastfeedingSince,
       sexualHealthBaseline: sexualHealthBaseline ?? this.sexualHealthBaseline,
+      cycleRegularity: cycleRegularity ?? this.cycleRegularity,
     );
   }
 
@@ -3733,6 +3808,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
         sexualHealthBaseline.value,
       );
     }
+    if (cycleRegularity.present) {
+      map['cycle_regularity'] = Variable<String>(cycleRegularity.value);
+    }
     return map;
   }
 
@@ -3768,7 +3846,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('knownDiagnoses: $knownDiagnoses, ')
           ..write('breastfeeding: $breastfeeding, ')
           ..write('breastfeedingSince: $breastfeedingSince, ')
-          ..write('sexualHealthBaseline: $sexualHealthBaseline')
+          ..write('sexualHealthBaseline: $sexualHealthBaseline, ')
+          ..write('cycleRegularity: $cycleRegularity')
           ..write(')'))
         .toString();
   }
@@ -6664,6 +6743,7 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<bool?> breastfeeding,
       Value<DateTime?> breastfeedingSince,
       Value<String?> sexualHealthBaseline,
+      Value<String?> cycleRegularity,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -6697,6 +6777,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<bool?> breastfeeding,
       Value<DateTime?> breastfeedingSince,
       Value<String?> sexualHealthBaseline,
+      Value<String?> cycleRegularity,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -6856,6 +6937,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get sexualHealthBaseline => $composableBuilder(
     column: $table.sexualHealthBaseline,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cycleRegularity => $composableBuilder(
+    column: $table.cycleRegularity,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7018,6 +7104,11 @@ class $$AppSettingsTableOrderingComposer
     column: $table.sexualHealthBaseline,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get cycleRegularity => $composableBuilder(
+    column: $table.cycleRegularity,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -7166,6 +7257,11 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.sexualHealthBaseline,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get cycleRegularity => $composableBuilder(
+    column: $table.cycleRegularity,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -7229,6 +7325,7 @@ class $$AppSettingsTableTableManager
                 Value<bool?> breastfeeding = const Value.absent(),
                 Value<DateTime?> breastfeedingSince = const Value.absent(),
                 Value<String?> sexualHealthBaseline = const Value.absent(),
+                Value<String?> cycleRegularity = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 mode: mode,
@@ -7260,6 +7357,7 @@ class $$AppSettingsTableTableManager
                 breastfeeding: breastfeeding,
                 breastfeedingSince: breastfeedingSince,
                 sexualHealthBaseline: sexualHealthBaseline,
+                cycleRegularity: cycleRegularity,
               ),
           createCompanionCallback:
               ({
@@ -7293,6 +7391,7 @@ class $$AppSettingsTableTableManager
                 Value<bool?> breastfeeding = const Value.absent(),
                 Value<DateTime?> breastfeedingSince = const Value.absent(),
                 Value<String?> sexualHealthBaseline = const Value.absent(),
+                Value<String?> cycleRegularity = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 mode: mode,
@@ -7324,6 +7423,7 @@ class $$AppSettingsTableTableManager
                 breastfeeding: breastfeeding,
                 breastfeedingSince: breastfeedingSince,
                 sexualHealthBaseline: sexualHealthBaseline,
+                cycleRegularity: cycleRegularity,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

@@ -101,14 +101,22 @@ class PredictionService {
     required int periodLength,
     DateTime? asOf,
     bool contraceptionSuppressesOvulation = false,
+    double? cycleVariabilityPrior,
+    bool cyclesReportedIrregular = false,
   }) {
     final pregnancy = mode == TrackingMode.pregnancy;
     return predict(
       pregnancy ? const <Cycle>[] : CycleCalculator.computeCycles(logs),
       fallbackCycleLength: cycleLength,
       fallbackPeriodLength: periodLength,
+      variabilityPrior: cycleVariabilityPrior,
+      // A third reason for the SAME lever. Placing a fertile window by counting
+      // back a fixed 14 days from a date that is itself a guess is not merely
+      // uncertain -- it is the app asserting something false, which is the
+      // argument the other two already rest on.
       capConfidenceToLow: mode == TrackingMode.perimenopause ||
-          contraceptionSuppressesOvulation,
+          contraceptionSuppressesOvulation ||
+          cyclesReportedIrregular,
       asOf: asOf,
       logs: pregnancy ? const <DailyLog>[] : logs,
     );
@@ -121,6 +129,11 @@ class PredictionService {
     DateTime? asOf,
     bool capConfidenceToLow = false,
     List<DailyLog> logs = const [],
+    /// Stands in for [_stdDev] until two complete cycles exist, from the
+    /// user's own answer at signup (`cycleVariabilityPriorFor`). It may only
+    /// ever WIDEN the window: [_confidenceFor] is untouched, so a claim of
+    /// regularity cannot buy confidence the app has not earned.
+    double? variabilityPrior,
   }) {
     final today = dateOnly(asOf ?? DateTime.now());
 
@@ -134,7 +147,12 @@ class PredictionService {
 
     final avgCycle =
         recent.isNotEmpty ? _mean(recent).round() : fallbackCycleLength;
-    final variability = _stdDev(recent);
+    // The COUNT is the gate, never the value. `_stdDev` returns 0 both for
+    // "fewer than two cycles" and for "two identical cycles", and only the
+    // first is missing information a self-reported answer may stand in for --
+    // the second is a real, earned zero that a prior must not overwrite.
+    final variability =
+        recent.length >= 2 ? _stdDev(recent) : (variabilityPrior ?? 0);
 
     final periodLengths = [for (final c in cycles) c.periodLengthDays];
     final avgPeriod = periodLengths.isNotEmpty

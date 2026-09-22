@@ -1,5 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+
+import '../../widgets/entrance.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
@@ -205,222 +207,253 @@ class InsightsScreen extends StatelessWidget {
       ),
       body: !stats.hasData
           ? const _EmptyInsights()
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-              children: [
-                _StatGrid(stats: stats),
-                const SizedBox(height: 12),
-                if (stats.regularity != CycleRegularity.unknown)
-                  _RegularityCard(
-                      regularity: stats.regularity,
-                      variability: stats.variability),
-                if (gynYears != null || profileIndex != null)
-                  _SectionCard(
-                    title: 'From your profile',
-                    dotColor: phases?.follicular,
-                    subtitle: 'Worked out from the answers you saved in your '
-                        'profile, not from your logs. Descriptions, not a '
-                        'diagnosis.',
-                    child: Column(
-                      children: [
-                        if (gynYears != null)
-                          _NoticeRow(
-                            icon: Icons.timelapse_outlined,
-                            title:
-                                'Gynaecological age: ${_yearsLabel(gynYears)}',
-                            message: 'The time since your first period, from '
-                                'your date of birth and the age you gave for '
-                                'it. Cycle length is commonly more variable in '
-                                'the years soon after a first period.',
+          : EntranceGroup(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                children: _staggered([
+                  _StatGrid(stats: stats),
+                  const SizedBox(height: 12),
+                  if (stats.regularity != CycleRegularity.unknown)
+                    _RegularityCard(
+                        regularity: stats.regularity,
+                        variability: stats.variability),
+                  if (gynYears != null || profileIndex != null)
+                    _SectionCard(
+                      title: 'From your profile',
+                      dotColor: phases?.follicular,
+                      subtitle: 'Worked out from the answers you saved in your '
+                          'profile, not from your logs. Descriptions, not a '
+                          'diagnosis.',
+                      child: Column(
+                        children: [
+                          if (gynYears != null)
+                            _NoticeRow(
+                              icon: Icons.timelapse_outlined,
+                              title:
+                                  'Gynaecological age: ${_yearsLabel(gynYears)}',
+                              message: 'The time since your first period, from '
+                                  'your date of birth and the age you gave for '
+                                  'it. Cycle length is commonly more variable in '
+                                  'the years soon after a first period.',
+                            ),
+                          if (profileIndex != null)
+                            _NoticeRow(
+                              icon: Icons.straighten_outlined,
+                              title: profileIndex,
+                              message: 'From the height and current weight you '
+                                  'saved on your profile, not from the weights '
+                                  'you log day to day.',
+                            ),
+                        ],
+                      ),
+                    ),
+                  if (narratives.isNotEmpty)
+                    _SectionCard(
+                      title: 'Your patterns',
+                      dotColor: phases?.predicted,
+                      subtitle: 'Plain-language notes from your own logs — '
+                          'descriptions, not a diagnosis.',
+                      child: Column(
+                        children: [
+                          for (final n in narratives)
+                            _NarrativeRow(narrative: n),
+                        ],
+                      ),
+                    ),
+                  if (insights.cycleLengthSeries.length >= 2)
+                    _SectionCard(
+                      title: 'Cycle length trend',
+                      dotColor: phases?.predicted,
+                      child: SizedBox(
+                        height: 180,
+                        child: _CycleTrendChart(
+                            series: insights.cycleLengthSeries),
+                      ),
+                    ),
+                  if (flow.hasData)
+                    _SectionCard(
+                      title: 'Flow intensity trend',
+                      dotColor: phases?.menstrual,
+                      subtitle:
+                          'Average bleeding heaviness per cycle, oldest to newest. '
+                          'Self-reported — a description of your logs, not a diagnosis.',
+                      child: SizedBox(height: 170, child: _FlowChart(analysis: flow)),
+                    ),
+                  if (symptoms.hasData)
+                    _SectionCard(
+                      title: 'Most-logged symptoms',
+                      dotColor: phases?.follicular,
+                      subtitle: 'How often each symptom appears in your logs'
+                          '${symptoms.painPeak != null ? ', with your logged pain level' : ''}. '
+                          'A count of what you logged — not a diagnosis.',
+                      child: _SymptomFrequencyList(analysis: symptoms),
+                    ),
+                  if (cycles.isNotEmpty)
+                    _SectionCard(
+                      title: 'Cycle history',
+                      dotColor: phases?.menstrual,
+                      subtitle: 'Tap a cycle to see everything you logged in it.',
+                      contentPadding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
+                      child: _CycleHistory(
+                        cycles: cycles,
+                        logs: logProvider.logs,
+                        medNames: {
+                          for (final m
+                              in context.watch<MedicationProvider?>()?.items ??
+                                  const [])
+                            m.id: m.name,
+                        },
+                      ),
+                    ),
+                  if (adherence.hasData)
+                    _SectionCard(
+                      title: 'Medications this cycle',
+                      dotColor: phases?.predicted,
+                      subtitle:
+                          'Days you logged each medication in your last complete cycle.',
+                      child: _MedicationAdherenceList(adherence: adherence),
+                    ),
+                  if (insights.flags.isNotEmpty)
+                    _SectionCard(
+                      title: 'Worth noting',
+                      dotColor: phases?.luteal,
+                      child: Column(
+                        children: [
+                          for (final f in insights.flags)
+                            _NoticeRow(
+                              icon: Icons.lightbulb_outline,
+                              title: f.title,
+                              message: f.message,
+                            ),
+                        ],
+                      ),
+                    ),
+                  if (nudges.isNotEmpty)
+                    _SectionCard(
+                      title: 'Patterns worth discussing',
+                      dotColor: phases?.ovulatory,
+                      subtitle:
+                          'General observations from your logs — not a diagnosis. '
+                          'A clinician can help you make sense of them.',
+                      child: Column(
+                        children: [
+                          for (final n in nudges)
+                            _NoticeRow(
+                              icon: Icons.medical_services_outlined,
+                              title: n.title,
+                              message: n.message,
+                            ),
+                        ],
+                      ),
+                    ),
+                  if (bbtLogs.length >= 2)
+                    _SectionCard(
+                      title: 'Basal body temperature',
+                      dotColor: phases?.ovulatory,
+                      subtitle: 'An observation, not a diagnosis.',
+                      child: Column(
+                        children: [
+                          SizedBox(height: 170, child: _BbtChart(readings: bbtLogs)),
+                          if (thermalShift != null) ...[
+                            const SizedBox(height: 14),
+                            Text(
+                              'A sustained temperature rise appeared around '
+                              '${DateFormat.MMMd().format(thermalShift)}. This can '
+                              'indicate ovulation has already happened this cycle — '
+                              'it is awareness only, not a contraceptive method.',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  if (weightTrend != null)
+                    _SectionCard(
+                      title: 'Weight',
+                      dotColor: phases?.predicted,
+                      // A value and a direction, never a category. No BMI, no
+                      // target, no "ideal range" band on the chart.
+                      trailing: Text(
+                        '${weightTrend.netChangeKg >= 0 ? 'up' : 'down'} '
+                        '${formatWeightFromKg(weightTrend.netChangeKg.abs(), weightUnit)}'
+                        ' $weightUnit',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelLarge
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            height: 170,
+                            child: _WeightChart(trend: weightTrend),
                           ),
-                        if (profileIndex != null)
-                          _NoticeRow(
-                            icon: Icons.straighten_outlined,
-                            title: profileIndex,
-                            message: 'From the height and current weight you '
-                                'saved on your profile, not from the weights '
-                                'you log day to day.',
-                          ),
-                      ],
-                    ),
-                  ),
-                if (narratives.isNotEmpty)
-                  _SectionCard(
-                    title: 'Your patterns',
-                    dotColor: phases?.predicted,
-                    subtitle: 'Plain-language notes from your own logs — '
-                        'descriptions, not a diagnosis.',
-                    child: Column(
-                      children: [
-                        for (final n in narratives)
-                          _NarrativeRow(narrative: n),
-                      ],
-                    ),
-                  ),
-                if (insights.cycleLengthSeries.length >= 2)
-                  _SectionCard(
-                    title: 'Cycle length trend',
-                    dotColor: phases?.predicted,
-                    child: SizedBox(
-                      height: 180,
-                      child: _CycleTrendChart(
-                          series: insights.cycleLengthSeries),
-                    ),
-                  ),
-                if (flow.hasData)
-                  _SectionCard(
-                    title: 'Flow intensity trend',
-                    dotColor: phases?.menstrual,
-                    subtitle:
-                        'Average bleeding heaviness per cycle, oldest to newest. '
-                        'Self-reported — a description of your logs, not a diagnosis.',
-                    child: SizedBox(height: 170, child: _FlowChart(analysis: flow)),
-                  ),
-                if (symptoms.hasData)
-                  _SectionCard(
-                    title: 'Most-logged symptoms',
-                    dotColor: phases?.follicular,
-                    subtitle: 'How often each symptom appears in your logs'
-                        '${symptoms.painPeak != null ? ', with your logged pain level' : ''}. '
-                        'A count of what you logged — not a diagnosis.',
-                    child: _SymptomFrequencyList(analysis: symptoms),
-                  ),
-                if (cycles.isNotEmpty)
-                  _SectionCard(
-                    title: 'Cycle history',
-                    dotColor: phases?.menstrual,
-                    subtitle: 'Tap a cycle to see everything you logged in it.',
-                    contentPadding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
-                    child: _CycleHistory(
-                      cycles: cycles,
-                      logs: logProvider.logs,
-                      medNames: {
-                        for (final m
-                            in context.watch<MedicationProvider?>()?.items ??
-                                const [])
-                          m.id: m.name,
-                      },
-                    ),
-                  ),
-                if (adherence.hasData)
-                  _SectionCard(
-                    title: 'Medications this cycle',
-                    dotColor: phases?.predicted,
-                    subtitle:
-                        'Days you logged each medication in your last complete cycle.',
-                    child: _MedicationAdherenceList(adherence: adherence),
-                  ),
-                if (insights.flags.isNotEmpty)
-                  _SectionCard(
-                    title: 'Worth noting',
-                    dotColor: phases?.luteal,
-                    child: Column(
-                      children: [
-                        for (final f in insights.flags)
-                          _NoticeRow(
-                            icon: Icons.lightbulb_outline,
-                            title: f.title,
-                            message: f.message,
-                          ),
-                      ],
-                    ),
-                  ),
-                if (nudges.isNotEmpty)
-                  _SectionCard(
-                    title: 'Patterns worth discussing',
-                    dotColor: phases?.ovulatory,
-                    subtitle:
-                        'General observations from your logs — not a diagnosis. '
-                        'A clinician can help you make sense of them.',
-                    child: Column(
-                      children: [
-                        for (final n in nudges)
-                          _NoticeRow(
-                            icon: Icons.medical_services_outlined,
-                            title: n.title,
-                            message: n.message,
-                          ),
-                      ],
-                    ),
-                  ),
-                if (bbtLogs.length >= 2)
-                  _SectionCard(
-                    title: 'Basal body temperature',
-                    dotColor: phases?.ovulatory,
-                    subtitle: 'An observation, not a diagnosis.',
-                    child: Column(
-                      children: [
-                        SizedBox(height: 170, child: _BbtChart(readings: bbtLogs)),
-                        if (thermalShift != null) ...[
-                          const SizedBox(height: 14),
-                          Text(
-                            'A sustained temperature rise appeared around '
-                            '${DateFormat.MMMd().format(thermalShift)}. This can '
-                            'indicate ovulation has already happened this cycle — '
-                            'it is awareness only, not a contraceptive method.',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Latest '
+                              '${formatWeightFromKg(weightTrend.points.last.kg, weightUnit)} '
+                              '$weightUnit across ${weightTrend.points.length} '
+                              'readings in the last 90 days.',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: () => _exportPdf(context, insights),
+                    icon: const Icon(Icons.download_outlined),
+                    label: const Text('Export summary for your doctor'),
                   ),
-                if (weightTrend != null)
-                  _SectionCard(
-                    title: 'Weight',
-                    dotColor: phases?.predicted,
-                    // A value and a direction, never a category. No BMI, no
-                    // target, no "ideal range" band on the chart.
-                    trailing: Text(
-                      '${weightTrend.netChangeKg >= 0 ? 'up' : 'down'} '
-                      '${formatWeightFromKg(weightTrend.netChangeKg.abs(), weightUnit)}'
-                      ' $weightUnit',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelLarge
-                          ?.copyWith(color: scheme.onSurfaceVariant),
-                    ),
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          height: 170,
-                          child: _WeightChart(trend: weightTrend),
-                        ),
-                        const SizedBox(height: 10),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Latest '
-                            '${formatWeightFromKg(weightTrend.points.last.kg, weightUnit)} '
-                            '$weightUnit across ${weightTrend.points.length} '
-                            'readings in the last 90 days.',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: scheme.onSurfaceVariant),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                FilledButton.icon(
-                  onPressed: () => _exportPdf(context, insights),
-                  icon: const Icon(Icons.download_outlined),
-                  label: const Text('Export summary for your doctor'),
-                ),
-                // Required on every surface that carries estimates or any
-                // fertility/ovulation observation — the thermal-shift note and
-                // the exported report both do. A permanent designed element,
-                // never an error state.
-                const SizedBox(height: 16),
-                const DisclaimerBanner(),
-              ],
+                  // Required on every surface that carries estimates or any
+                  // fertility/ovulation observation — the thermal-shift note and
+                  // the exported report both do. A permanent designed element,
+                  // never an error state.
+                  const SizedBox(height: 16),
+                  const DisclaimerBanner(),
+                ]),
+              ),
             ),
     );
   }
+}
+
+
+/// Numbers only the sections that are actually PRESENT, and only the ones that
+/// should travel.
+///
+/// Two kinds of child are passed through untouched:
+///
+/// - **Spacers.** A `SizedBox` between two cards is not content arriving, and
+///   numbering it would spend one of [EntranceGroup.maxStaggered]'s six slots
+///   on a gap — this list interleaves them, so the stagger would be exhausted
+///   after three real cards.
+/// - **[DisclaimerBanner].** It is required on every surface carrying estimates
+///   or a fertility observation, which is exactly what the cards above it are.
+///   A disclaimer that fades in AFTER the claims it qualifies is the one piece
+///   of motion on this screen that would actually be wrong. Same ruling keeps
+///   `_StorageNotice` outside the media grid's group.
+///
+/// The `if (...)` entries in the list literal mean absent sections never reach
+/// here at all, so the indices are dense whatever the user has logged.
+List<Widget> _staggered(List<Widget> children) {
+  var index = 0;
+  return [
+    for (final child in children)
+      if (child is SizedBox || child is DisclaimerBanner)
+        child
+      else
+        EntranceItem(index: index++, child: child),
+  ];
 }
 
 /// The workhorse container: one filled 20dp card per section, headed by a small

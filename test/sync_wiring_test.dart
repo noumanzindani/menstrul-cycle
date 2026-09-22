@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/main.dart';
 import 'package:menstrul_track/providers/log_provider.dart';
+import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/services/auth_service.dart';
 import 'package:menstrul_track/services/sync_trigger.dart';
 import 'package:provider/provider.dart';
@@ -82,6 +83,40 @@ void main() {
       trigger.scheduleSyncCalls,
       greaterThan(before),
       reason: 'a LogProvider change must re-run the write-sync provider',
+    );
+  });
+
+  testWidgets('a settings write schedules a sync too, not just a log write',
+      (tester) async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.getSettings();
+    await (db.update(db.appSettings)..where((t) => t.id.equals(0)))
+        .write(const AppSettingsCompanion(onboardingComplete: Value(true)));
+
+    final trigger = _CountingSyncTrigger(db);
+    await tester.pumpWidget(LunarFlowApp(
+      database: db,
+      authService: _FakeSignedInAuthService(),
+      syncTrigger: trigger,
+    ));
+    await tester.pumpAndSettle();
+
+    final before = trigger.scheduleSyncCalls;
+    final context = tester.element(find.byType(MaterialApp));
+    // A real profile answer, the kind the signup wizard and the Settings
+    // screen both write. Nothing about it touches LogProvider, which is the
+    // whole point: while the write-sync provider watched only LogProvider,
+    // editing your date of birth (or contraception, or the sexual-health
+    // baseline) pushed NOTHING until the next app resume.
+    await Provider.of<SettingsProvider>(context, listen: false)
+        .setDateOfBirth(DateTime(1995, 4, 20));
+    await tester.pumpAndSettle();
+
+    expect(
+      trigger.scheduleSyncCalls,
+      greaterThan(before),
+      reason: 'a SettingsProvider change must re-run the write-sync provider',
     );
   });
 }

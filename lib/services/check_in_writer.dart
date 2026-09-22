@@ -61,6 +61,12 @@ class CheckInWriter {
         // itself suppresses.
         contraceptionSuppressesOvulation:
             contraceptionSuppressesOvulation(settings.contraceptionMethod),
+        // Resolved from the ROW through the same catalog helpers the provider
+        // getters use, for the reason above: there is no Provider tree here.
+        cycleVariabilityPrior:
+            cycleVariabilityPriorFor(settings.cycleRegularity),
+        cyclesReportedIrregular:
+            cycleRegularityIsIrregular(settings.cycleRegularity),
       );
 
       final logNudge =
