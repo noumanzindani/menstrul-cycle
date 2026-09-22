@@ -258,7 +258,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await settings.setPeriodLength(_periodLength);
     await settings.setCycleRegularity(_cycleRegularity);
     await settings.setGenderNeutralLanguage(_genderNeutral);
-    await settings.setMode(_mode);
+    // Pregnancy mode needs its start date, and the last period IS that date
+    // (pregnancies are dated from it). `_lastPeriod` is required, so it is set.
+    if (_mode == TrackingMode.pregnancy && _lastPeriod != null) {
+      await settings.startPregnancy(dateOnly(_lastPeriod!));
+    } else {
+      await settings.setMode(_mode);
+    }
 
     // The profile, in canonical units — CENTIMETRES and KILOGRAMS, converted
     // at the display boundary above. Written unconditionally, nulls included:
@@ -520,6 +526,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       if (!pregnancyStatusNeedsEventDate(v)) {
                         _pregnancyWeeksAgo = null;
                       }
+                      // "Pregnant now" pre-chooses pregnancy mode on the goal
+                      // page; withdrawing the answer withdraws the mode, which
+                      // would otherwise be left standing on nothing.
+                      if (v == kPregnancyNow) {
+                        _mode = TrackingMode.pregnancy;
+                      } else if (_mode == TrackingMode.pregnancy) {
+                        _mode = TrackingMode.track;
+                      }
                       _pageError = null;
                     }),
                     onWeeksChanged: (w) => setState(() {
@@ -577,6 +591,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   _ModePage(
                     mode: _mode,
+                    offerPregnancy: _pregnancyStatus == kPregnancyNow,
                     genderNeutral: _genderNeutral,
                     onModeChanged: (v) => setState(() => _mode = v),
                     onGenderNeutralChanged: (v) =>
@@ -1439,12 +1454,17 @@ class _IntimacyBaselinePage extends StatelessWidget {
 class _ModePage extends StatelessWidget {
   const _ModePage({
     required this.mode,
+    required this.offerPregnancy,
     required this.genderNeutral,
     required this.onModeChanged,
     required this.onGenderNeutralChanged,
   });
 
   final TrackingMode mode;
+
+  /// Only for someone who said "pregnant now" on the pregnancy page. Offered
+  /// to nobody else: the card would be a question the user already answered.
+  final bool offerPregnancy;
   final bool genderNeutral;
   final ValueChanged<TrackingMode> onModeChanged;
   final ValueChanged<bool> onGenderNeutralChanged;
@@ -1470,6 +1490,15 @@ class _ModePage extends StatelessWidget {
             selected: mode == TrackingMode.conceive,
             onTap: () => onModeChanged(TrackingMode.conceive),
           ),
+          if (offerPregnancy) ...[
+            const SizedBox(height: 12),
+            _ChoiceCard(
+              title: 'Track my pregnancy',
+              description: 'Weeks pregnant and a due date, instead of period predictions',
+              selected: mode == TrackingMode.pregnancy,
+              onTap: () => onModeChanged(TrackingMode.pregnancy),
+            ),
+          ],
           const SizedBox(height: 24),
           Material(
             color: scheme.surfaceContainerHighest,

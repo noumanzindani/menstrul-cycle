@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/common/catalog.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/main.dart';
+import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/services/auth_service.dart';
 import 'package:menstrul_track/services/sync_trigger.dart';
 
@@ -187,5 +188,65 @@ void main() {
     expect(s.pregnancyStatus, kPregnancyNow);
     expect(s.pregnancyStatusDate, _today(),
         reason: 'the weeks answer belonged to the loss, not to this answer');
+  });
+
+  group('pregnant now turns on pregnancy mode', () {
+    const card = 'Track my pregnancy';
+
+    testWidgets('the goal page offers it, already chosen, and finishing starts '
+        'pregnancy mode dated from the last period', (tester) async {
+      final db = await _pumpOnboarding(tester);
+      await walkTo(tester, pregnancyQuestion);
+      await _choose(tester, "Yes, I'm pregnant now");
+      await finishWizard(tester);
+
+      final s = await db.getSettings();
+      expect(s.mode, TrackingMode.pregnancy);
+      // The walk answers the last-period page with today.
+      expect(s.pregnancyStartDate, _today(),
+          reason: 'a pregnancy is dated from the last menstrual period');
+    });
+
+    testWidgets('the user can still choose cycle tracking instead',
+        (tester) async {
+      final db = await _pumpOnboarding(tester);
+      await walkTo(tester, pregnancyQuestion);
+      await _choose(tester, "Yes, I'm pregnant now");
+      await walkTo(tester, modeQuestion);
+      expect(find.text(card), findsOneWidget);
+
+      await tester.tap(find.text('Track my cycle'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Get started'));
+      await tester.pumpAndSettle();
+
+      final s = await db.getSettings();
+      expect(s.mode, TrackingMode.track);
+      expect(s.pregnancyStartDate, isNull);
+      expect(s.pregnancyStatus, kPregnancyNow,
+          reason: 'the answer stands even when the mode is declined');
+    });
+
+    testWidgets('any other answer offers no pregnancy card', (tester) async {
+      await _pumpOnboarding(tester);
+      await walkTo(tester, pregnancyQuestion);
+      await _choose(tester, 'No');
+      await walkTo(tester, modeQuestion);
+      expect(find.text(card), findsNothing);
+    });
+
+    testWidgets('changing the answer away from pregnant drops the mode',
+        (tester) async {
+      final db = await _pumpOnboarding(tester);
+      await walkTo(tester, pregnancyQuestion);
+      await _choose(tester, "Yes, I'm pregnant now");
+      await _choose(tester, 'No');
+      await finishWizard(tester);
+
+      final s = await db.getSettings();
+      expect(s.mode, TrackingMode.track,
+          reason: 'a mode chosen for an answer the user withdrew is stale');
+      expect(s.pregnancyStartDate, isNull);
+    });
   });
 }
