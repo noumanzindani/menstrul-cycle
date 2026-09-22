@@ -139,6 +139,7 @@ flutter:
   #         chip is disabled. Owner decision per icon, never a default.
   assets:
     - assets/track/
+    - assets/icon/icon.png
     # OFL licence texts ship alongside the fonts so the attribution travels
     # with the binary, as SIL OFL 1.1 requires for a redistributed font.
     - assets/fonts/OFL-Fraunces.txt

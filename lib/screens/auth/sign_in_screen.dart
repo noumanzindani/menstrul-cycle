@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../widgets/app_logo.dart';
 import '../../widgets/cloud_sync_unavailable_banner.dart';
 import 'auth_error_text.dart';
 import 'forgot_password_screen.dart';
@@ -140,7 +141,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(child: LunaRingMark()),
+                    const Center(child: AppLogo()),
                     const SizedBox(height: 16),
                     Text(
                       'LunarFlow',
