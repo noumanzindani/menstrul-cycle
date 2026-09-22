@@ -119,7 +119,19 @@ const int kMaxQuestionLength = 200;
 /// would be in substance no consent to that disclosure at all — the same
 /// reasoning that produced version 2 when the tracked health record was added.
 /// Everyone who agreed under 2 is asked again.
-const int kCurrentConsentVersion = 3;
+///
+/// Bumped to 4 on 2026-09-23: the request now also carries the signup
+/// sexual-health answers (pain or bleeding during or after sex, dryness,
+/// general libido and how often) and the tracking goal (trying to conceive,
+/// pregnancy, perimenopause). The sheet also names age and breastfeeding,
+/// which version 3 already sent without saying so. Everyone who agreed under
+/// 3 is asked again.
+///
+/// Bumped to 5 on 2026-09-23 (same day, separate disclosure): the request now
+/// also carries a recent pregnancy, birth or pregnancy loss and its date, from
+/// the signup question added in schema v14. Everyone who agreed under 4 is
+/// asked again.
+const int kCurrentConsentVersion = 5;
 
 /// Whether [uid] is consented, given the STORED [consentUid] / [consentVersion].
 ///

@@ -198,6 +198,11 @@ void main() {
       'contraception',
       'diagnoses',
       'diary',
+      'your age',
+      'breastfeeding',
+      'pain or bleeding during or after sex',
+      'trying to conceive',
+      'a recent pregnancy, birth or pregnancy loss',
     ]) {
       expect(texts, contains(mustName), reason: 'sheet must name: $mustName');
     }

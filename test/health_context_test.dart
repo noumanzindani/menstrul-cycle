@@ -18,10 +18,14 @@ AppSetting _settings({
   bool? breastfeeding,
   DateTime? breastfeedingSince,
   String? cycleRegularity,
+  TrackingMode mode = TrackingMode.track,
+  String? sexualHealthBaseline,
+  String? pregnancyStatus,
+  DateTime? pregnancyStatusDate,
 }) =>
     AppSetting(
       id: 0,
-      mode: TrackingMode.track,
+      mode: mode,
       defaultCycleLength: 28,
       defaultPeriodLength: 5,
       themeMode: 'system',
@@ -40,6 +44,9 @@ AppSetting _settings({
       breastfeeding: breastfeeding,
       breastfeedingSince: breastfeedingSince,
       cycleRegularity: cycleRegularity,
+      sexualHealthBaseline: sexualHealthBaseline,
+      pregnancyStatus: pregnancyStatus,
+      pregnancyStatusDate: pregnancyStatusDate,
     );
 
 void main() {
@@ -215,6 +222,173 @@ void main() {
         createdAt: date,
         updatedAt: date,
       );
+
+  group('signup sexual-health baseline', () {
+    String baseline(Map<String, Object?> m) => jsonEncode(m);
+
+    test('ever-experienced history travels as labels', () {
+      final out = buildProfileBlock(
+        settings: _settings(
+          sexualHealthBaseline:
+              baseline({'history': ['shx_pain', 'shx_post_coital']}),
+        ),
+        asOf: asOf,
+      );
+      expect(out,
+          contains('Ever experienced: Pain during sex, Bleeding after sex'));
+    });
+
+    test('"None of these" is sent as a negative answer, not omitted', () {
+      // A clinician reads "never had post-coital bleeding" differently from
+      // "not asked" -- the same distinction breastfeeding: no already keeps.
+      final out = buildProfileBlock(
+        settings: _settings(
+            sexualHealthBaseline: baseline({'history': [kShxNone]})),
+        asOf: asOf,
+      );
+      expect(out, contains('Ever experienced: none of pain during sex, '
+          'bleeding after sex or dryness'));
+    });
+
+    test('general libido and sex frequency travel, marked as general', () {
+      final out = buildProfileBlock(
+        settings: _settings(
+          sexualHealthBaseline:
+              baseline({'libido': 'lbd_low', 'sexFrequency': 'freq_weekly'}),
+        ),
+        asOf: asOf,
+      );
+      expect(out, contains('Libido, generally: Low libido'));
+      expect(out, contains('Sex, generally: Weekly'));
+    });
+
+    test('solo answers from signup never travel', () {
+      // No gynaecological signal and the most sensitive answers held. The
+      // per-day solo tags are a separate, already-disclosed stream.
+      final out = buildProfileBlock(
+        settings: _settings(
+          sexualHealthBaseline: baseline({
+            'soloFrequency': 'freq_often',
+            'soloWays': [kSoloWayOther],
+            'soloWayOther': 'MARKER-TEXT',
+            'satisfactionTime': 'sat_over30',
+          }),
+        ),
+        asOf: asOf,
+      );
+      expect(out, isEmpty);
+    });
+
+    test('a skipped or malformed baseline prints nothing', () {
+      for (final raw in [null, '', 'not json', '[]']) {
+        expect(
+          buildProfileBlock(
+              settings: _settings(sexualHealthBaseline: raw), asOf: asOf),
+          isEmpty,
+          reason: 'raw: $raw',
+        );
+      }
+    });
+  });
+
+  group('recent pregnancy', () {
+    // asOf is 2026-09-14; 2026-08-10 is exactly five weeks earlier.
+    final fiveWeeksAgo = DateTime(2026, 8, 10);
+
+    test('a birth travels with its date and how long ago', () {
+      final out = buildProfileBlock(
+        settings: _settings(
+            pregnancyStatus: kPregnancyBirth,
+            pregnancyStatusDate: fiveWeeksAgo),
+        asOf: asOf,
+      );
+      // Postpartum bleeding reads like a period in a photo; the model has to
+      // know the birth happened and how recently.
+      expect(out, contains('Gave birth: 2026-08-10 (5 weeks ago)'));
+    });
+
+    test('a loss travels with its date and how long ago', () {
+      final out = buildProfileBlock(
+        settings: _settings(
+            pregnancyStatus: kPregnancyLoss,
+            pregnancyStatusDate: fiveWeeksAgo),
+        asOf: asOf,
+      );
+      expect(
+          out,
+          contains('Pregnancy ended (miscarriage or termination): '
+              '2026-08-10 (5 weeks ago)'));
+    });
+
+    test('pregnant now travels with the date it was said', () {
+      // A signup answer goes stale; the date lets the model see how old it is.
+      final out = buildProfileBlock(
+        settings: _settings(
+            pregnancyStatus: kPregnancyNow,
+            pregnancyStatusDate: DateTime(2026, 9, 1)),
+        asOf: asOf,
+      );
+      expect(out, contains('Pregnant: yes, as of 2026-09-01'));
+    });
+
+    test('"No" is sent as a negative answer, with the date it was said', () {
+      final out = buildProfileBlock(
+        settings: _settings(
+            pregnancyStatus: kPregnancyNone,
+            pregnancyStatusDate: DateTime(2026, 9, 1)),
+        asOf: asOf,
+      );
+      expect(
+          out,
+          contains('Pregnant, gave birth or had a pregnancy end in the 3 '
+              'months before 2026-09-01: no'));
+    });
+
+    test('"Prefer not to say" sends nothing at all', () {
+      final out = buildProfileBlock(
+        settings: _settings(
+            pregnancyStatus: kPregnancyPreferNot,
+            pregnancyStatusDate: DateTime(2026, 9, 1)),
+        asOf: asOf,
+      );
+      expect(out, isEmpty);
+    });
+
+    test('an unknown key from a newer build is dropped', () {
+      final out = buildProfileBlock(
+        settings: _settings(
+            pregnancyStatus: 'preg_from_the_future',
+            pregnancyStatusDate: DateTime(2026, 9, 1)),
+        asOf: asOf,
+      );
+      expect(out, isEmpty);
+    });
+
+    test('a birth with no date still travels, without inventing one', () {
+      final out = buildProfileBlock(
+        settings: _settings(pregnancyStatus: kPregnancyBirth),
+        asOf: asOf,
+      );
+      expect(out, contains('Gave birth: date not given'));
+    });
+  });
+
+  group('tracking goal', () {
+    test('plain cycle tracking is the default and adds no line', () {
+      expect(buildProfileBlock(settings: _settings(), asOf: asOf), isEmpty);
+    });
+
+    for (final (mode, label) in [
+      (TrackingMode.conceive, 'Goal: trying to conceive'),
+      (TrackingMode.pregnancy, 'Goal: tracking a pregnancy'),
+      (TrackingMode.perimenopause, 'Goal: tracking perimenopause'),
+    ]) {
+      test('${mode.name} travels', () {
+        expect(buildProfileBlock(settings: _settings(mode: mode), asOf: asOf),
+            contains(label));
+      });
+    }
+  });
 
   group('day lines', () {
     test('labels the day with cycle day and phase', () {

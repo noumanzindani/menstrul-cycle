@@ -417,6 +417,15 @@ class AppSettings extends Table {
   /// band (`cycleRegularityIsIrregular`), but no answer here raises confidence.
   TextColumn get cycleRegularity => text().nullable()();
 
+  /// Pregnant now, or pregnant in the last three months: a key from
+  /// `kPregnancyStatusOptions`. Null means NOBODY ASKED, not "no".
+  TextColumn get pregnancyStatus => text().nullable()();
+
+  /// For a birth or a loss, the date it happened (the wizard asks "how many
+  /// weeks ago"). For the other answers, the date the answer was given -- a
+  /// signup answer goes stale, and this is what lets a reader see how stale.
+  DateTimeColumn get pregnancyStatusDate => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

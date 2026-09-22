@@ -96,6 +96,7 @@ void main() {
       dobQuestion,
       bodyQuestion,
       contraceptionQuestion,
+      pregnancyQuestion,
       sexQuestion,
       shxQuestion,
       soloQuestion,

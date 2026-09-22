@@ -347,6 +347,21 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setCycleRegularity(String? key) =>
       update(AppSettingsCompanion(cycleRegularity: Value(key)));
 
+  /// Pregnant now, or in the last three months (a `preg_` key). Null = never
+  /// asked, which is not the same as `kPregnancyNone`.
+  String? get pregnancyStatus => _settings?.pregnancyStatus;
+
+  /// The event date for a birth or a loss; otherwise when the answer was given.
+  DateTime? get pregnancyStatusDate => _settings?.pregnancyStatusDate;
+
+  /// Writes the answer and its date TOGETHER, so a date can never outlive the
+  /// answer it belonged to. Clearing [key] clears the date.
+  Future<void> setPregnancyStatus(String? key, {DateTime? date}) =>
+      update(AppSettingsCompanion(
+        pregnancyStatus: Value(key),
+        pregnancyStatusDate: Value(key == null ? null : date),
+      ));
+
   Future<void> setContraception(String? method, {DateTime? startDate}) =>
       update(AppSettingsCompanion(
         contraceptionMethod: Value(method),

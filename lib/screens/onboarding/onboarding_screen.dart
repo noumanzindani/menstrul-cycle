@@ -40,7 +40,7 @@ final OutlineInputBorder _kOnboardingFieldBorder = OutlineInputBorder(
 );
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  static const _pageCount = 11;
+  static const _pageCount = 12;
 
   /// Index of the height / weight / first-period page. Its two typed
   /// measurements are the only answers in the wizard that can be WRONG rather
@@ -95,6 +95,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // The signup sexual-health baseline: what is TYPICALLY true. Stored in one
   // JSON column, and deliberately NOT the same data as the `_today*` fields
   // below — those record what happened today and become a real log entry.
+  // Pregnant now, or in the last 3 months. The weeks answer is asked only for
+  // a birth or a loss, and is dropped whenever the answer moves off those two.
+  String? _pregnancyStatus;
+  int? _pregnancyWeeksAgo;
   String? _sexFrequency;
   String? _soloFrequency;
   String? _baselineLibido;
@@ -151,17 +155,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ? 'Choose a method to continue. "None" is an answer.'
             : null;
       case 7:
+        if (_pregnancyStatus == null) {
+          return 'Choose an answer to continue. "Prefer not to say" is an '
+              'answer.';
+        }
+        return pregnancyStatusNeedsEventDate(_pregnancyStatus) &&
+                _pregnancyWeeksAgo == null
+            ? 'Tell us about how many weeks ago to continue.'
+            : null;
+      case 8:
         return _sexFrequency == null || _todaySex == null
             ? 'Answer both questions to continue.'
             : null;
-      case 8:
+      case 9:
         return _sexualHistory.isEmpty ||
                 _baselineLibido == null ||
                 _todaySexualHealth.isEmpty ||
                 _todayLibido == null
             ? 'Answer every question to continue. "None of these" is an answer.'
             : null;
-      case 9:
+      case 10:
         if (_soloFrequency == null ||
             _todayIntimacy.isEmpty ||
             _soloWays.isEmpty ||
@@ -259,6 +272,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     // says nobody asked, the other says the user uses nothing. Only the second
     // belongs in a doctor report.
     await settings.setContraception(_contraception);
+    // For a birth or a loss the date is the EVENT's; for every other answer it
+    // is today, so a reader can tell how stale a signup answer has become.
+    final answeredOn = dateOnly(DateTime.now());
+    await settings.setPregnancyStatus(
+      _pregnancyStatus,
+      date: pregnancyStatusNeedsEventDate(_pregnancyStatus) &&
+              _pregnancyWeeksAgo != null
+          ? DateTime(answeredOn.year, answeredOn.month,
+              answeredOn.day - 7 * _pregnancyWeeksAgo!)
+          : answeredOn,
+    );
     await settings.setSexualBaseline(
       sexFrequency: _sexFrequency,
       soloFrequency: _soloFrequency,
@@ -485,6 +509,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     method: _contraception,
                     onChanged: (m) => setState(() {
                       _contraception = m;
+                      _pageError = null;
+                    }),
+                  ),
+                  _PregnancyPage(
+                    status: _pregnancyStatus,
+                    weeksAgo: _pregnancyWeeksAgo,
+                    onStatusChanged: (v) => setState(() {
+                      _pregnancyStatus = v;
+                      if (!pregnancyStatusNeedsEventDate(v)) {
+                        _pregnancyWeeksAgo = null;
+                      }
+                      _pageError = null;
+                    }),
+                    onWeeksChanged: (w) => setState(() {
+                      _pregnancyWeeksAgo = w;
                       _pageError = null;
                     }),
                   ),
@@ -1022,6 +1061,88 @@ class _ContraceptionPage extends StatelessWidget {
               onTap: () => onChanged(method == o.key ? null : o.key),
             ),
             const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "Have you been pregnant in the last 3 months?"
+///
+/// Asked because a photo cannot tell postpartum bleeding from a period, and
+/// bleeding in pregnancy needs a completely different reading. REQUIRED, with
+/// "Prefer not to say" so nobody has to disclose a loss to finish signup.
+///
+/// A birth or a loss also asks how many weeks ago. Weeks rather than a date
+/// picker: nobody needs the exact day, and "about five weeks" is the precision
+/// the answer actually has.
+class _PregnancyPage extends StatelessWidget {
+  const _PregnancyPage({
+    required this.status,
+    required this.weeksAgo,
+    required this.onStatusChanged,
+    required this.onWeeksChanged,
+  });
+
+  final String? status;
+  final int? weeksAgo;
+  final ValueChanged<String?> onStatusChanged;
+  final ValueChanged<int> onWeeksChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return _QuestionPage(
+      question: 'Have you been pregnant in the last 3 months?',
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 12),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text(
+              'Bleeding after a birth or a pregnancy loss can look like a '
+              'period. Knowing this lets photo descriptions read it '
+              'correctly.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ),
+          KeyedSubtree(
+            key: const Key('pregnancy-status'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final o in kPregnancyStatusOptions) ...[
+                  _ChoiceCard(
+                    title: o.label,
+                    description: '',
+                    selected: status == o.key,
+                    // Tapping the selected card again clears it, like the
+                    // contraception page, so a mis-tap is recoverable.
+                    onTap: () =>
+                        onStatusChanged(status == o.key ? null : o.key),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ],
+            ),
+          ),
+          if (pregnancyStatusNeedsEventDate(status)) ...[
+            const SizedBox(height: 16),
+            _HeroStepper(
+              key: const Key('pregnancy-weeks-stepper'),
+              value: weeksAgo,
+              min: 0,
+              max: kPregnancyEventMaxWeeksAgo,
+              unsetValue: 1,
+              unit: 'weeks ago',
+              tooltipUnit: 'weeks',
+              caption: 'About how long ago? 0 means this week.',
+              onChanged: onWeeksChanged,
+            ),
           ],
         ],
       ),

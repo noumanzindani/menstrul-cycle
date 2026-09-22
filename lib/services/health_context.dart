@@ -38,7 +38,8 @@ int? _ageInYears(DateTime? dob, DateTime asOf) {
   return years < 0 ? null : years;
 }
 
-/// The standing facts about the person: profile, contraception, diagnoses.
+/// The standing facts about the person: profile, contraception, diagnoses,
+/// goal and the signup sexual-health baseline.
 ///
 /// Every line is omitted when its field is unanswered — never sent as null or
 /// "unknown", because an absent answer and a negative answer are different
@@ -101,7 +102,85 @@ String buildProfileBlock({
         : 'Breastfeeding: no');
   }
 
+  final pregnancy = _pregnancyLine(
+      settings.pregnancyStatus, settings.pregnancyStatusDate, asOf);
+  if (pregnancy != null) lines.add(pregnancy);
+
+  final goal = _goalLabel(settings.mode);
+  if (goal != null) lines.add('Goal: $goal');
+
+  lines.addAll(_baselineLines(settings.sexualHealthBaseline));
+
   return lines.join('\n');
+}
+
+/// Null for "Prefer not to say", for an unknown key, and when never asked.
+///
+/// A birth or a loss carries how many weeks ago it was, computed here rather
+/// than left to the model: date arithmetic is exactly what a model gets wrong,
+/// and "postpartum, week 5" is the fact a photo reading actually hinges on.
+String? _pregnancyLine(String? status, DateTime? date, DateTime asOf) {
+  String when() {
+    if (date == null) return 'date not given';
+    final today = DateTime(asOf.year, asOf.month, asOf.day);
+    final day = DateTime(date.year, date.month, date.day);
+    final weeks = today.difference(day).inDays ~/ 7;
+    return '${_ymd(date)} ($weeks ${weeks == 1 ? 'week' : 'weeks'} ago)';
+  }
+
+  return switch (status) {
+    kPregnancyBirth => 'Gave birth: ${when()}',
+    kPregnancyLoss => 'Pregnancy ended (miscarriage or termination): ${when()}',
+    kPregnancyNow =>
+      date == null ? 'Pregnant: yes' : 'Pregnant: yes, as of ${_ymd(date)}',
+    kPregnancyNone => date == null
+        ? 'Pregnant, gave birth or had a pregnancy end in the last 3 months: no'
+        : 'Pregnant, gave birth or had a pregnancy end in the 3 months before '
+            '${_ymd(date)}: no',
+    _ => null,
+  };
+}
+
+/// Null for plain cycle tracking: it is the default every row starts with, so
+/// it says nothing the model would not assume anyway.
+String? _goalLabel(TrackingMode mode) => switch (mode) {
+      TrackingMode.track => null,
+      TrackingMode.conceive => 'trying to conceive',
+      TrackingMode.pregnancy => 'tracking a pregnancy',
+      TrackingMode.perimenopause => 'tracking perimenopause',
+    };
+
+/// The signup sexual-health answers, as GENERAL statements.
+///
+/// Labelled "generally" / "ever" so the model cannot mistake them for a logged
+/// day. The solo answers (frequency, ways, the free-text "Other", time to
+/// satisfaction) are left out on purpose: no gynaecological signal, and the
+/// most sensitive answers the app holds.
+List<String> _baselineLines(String? json) {
+  final b = decodeSexualBaseline(json);
+  final lines = <String>[];
+
+  if (b.history.contains(kShxNone)) {
+    final asked = kSexualHistoryOptions
+        .where((o) => o.key != kShxNone)
+        .map((o) => o.label.toLowerCase())
+        .toList();
+    final last = asked.removeLast();
+    lines.add('Ever experienced: none of ${asked.join(', ')} or $last');
+  } else {
+    final history = _labelsFor(kSexualHistoryOptions, b.history);
+    if (history.isNotEmpty) lines.add('Ever experienced: ${history.join(', ')}');
+  }
+
+  final libido = b.libido == null ? null : _labelFor(kLibidoOptions, b.libido!);
+  if (libido != null) lines.add('Libido, generally: $libido');
+
+  final sex = b.sexFrequency == null
+      ? null
+      : _labelFor(kFrequencyOptions, b.sexFrequency!);
+  if (sex != null) lines.add('Sex, generally: $sex');
+
+  return lines;
 }
 
 String _ymd(DateTime d) =>

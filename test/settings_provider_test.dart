@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:menstrul_track/common/catalog.dart';
 import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/models/enums.dart';
@@ -25,6 +26,37 @@ void main() {
   test('setMode round-trips through the settings row', () async {
     await provider.setMode(TrackingMode.conceive);
     expect(provider.mode, TrackingMode.conceive);
+  });
+
+  group('pregnancy status', () {
+    test('never asked reads as null, not "no"', () {
+      expect(provider.pregnancyStatus, isNull);
+      expect(provider.pregnancyStatusDate, isNull);
+    });
+
+    test('an answer and its date round-trip', () async {
+      final when = DateTime(2026, 8, 10);
+      await provider.setPregnancyStatus(kPregnancyBirth, date: when);
+      expect(provider.pregnancyStatus, kPregnancyBirth);
+      expect(provider.pregnancyStatusDate, when);
+    });
+
+    test('changing the answer replaces a stale date', () async {
+      await provider.setPregnancyStatus(kPregnancyBirth,
+          date: DateTime(2026, 8, 10));
+      await provider.setPregnancyStatus(kPregnancyNone,
+          date: DateTime(2026, 9, 1));
+      expect(provider.pregnancyStatus, kPregnancyNone);
+      expect(provider.pregnancyStatusDate, DateTime(2026, 9, 1));
+    });
+
+    test('clearing the answer clears the date with it', () async {
+      await provider.setPregnancyStatus(kPregnancyLoss,
+          date: DateTime(2026, 8, 10));
+      await provider.setPregnancyStatus(null);
+      expect(provider.pregnancyStatus, isNull);
+      expect(provider.pregnancyStatusDate, isNull);
+    });
   });
 
   group('profile fields', () {

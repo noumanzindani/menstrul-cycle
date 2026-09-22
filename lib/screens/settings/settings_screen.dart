@@ -687,6 +687,79 @@ class SettingsScreen extends StatelessWidget {
     if (picked != null) await settings.setCycleRegularity(picked.key);
   }
 
+  /// The short form of a pregnancy answer for the row's trailing value; the
+  /// full option labels are sentences and would not fit. Null when unanswered
+  /// or from a newer build.
+  static String? _pregnancyValue(String? key) => switch (key) {
+        kPregnancyNone => 'No',
+        kPregnancyNow => 'Pregnant now',
+        kPregnancyBirth => 'Gave birth',
+        kPregnancyLoss => 'Pregnancy ended',
+        kPregnancyPreferNot => 'Prefer not to say',
+        _ => null,
+      };
+
+  /// Pregnant in the last 3 months. A birth or a loss asks how many weeks ago
+  /// in a second dialog, and dismissing THAT keeps the old answer: a loss
+  /// without its date is half an answer, and the date is the part that matters.
+  Future<void> _pickPregnancyStatus(
+      BuildContext context, SettingsProvider settings) async {
+    final l10n = context.l10n;
+    final picked = await showDialog<({String? key})>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Pregnant in the last 3 months'),
+        children: [
+          RadioGroup<String?>(
+            groupValue: settings.pregnancyStatus,
+            onChanged: (v) => Navigator.pop(ctx, (key: v)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Explicitly `<String?>`, for the reason given in
+                // `_pickCycleRegularity`.
+                for (final o in kPregnancyStatusOptions)
+                  RadioListTile<String?>(value: o.key, title: Text(o.label)),
+                RadioListTile<String?>(
+                  value: null,
+                  title: Text(l10n.settingsClinicalContraceptionNotAsked),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked == null) return;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (!pregnancyStatusNeedsEventDate(picked.key)) {
+      await settings.setPregnancyStatus(picked.key, date: today);
+      return;
+    }
+    if (!context.mounted) return;
+    final weeks = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('About how long ago?'),
+        children: [
+          for (var w = 0; w <= kPregnancyEventMaxWeeksAgo; w++)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, w),
+              child: Text(switch (w) {
+                0 => 'This week',
+                1 => '1 week ago',
+                _ => '$w weeks ago',
+              }),
+            ),
+        ],
+      ),
+    );
+    if (weeks == null) return;
+    await settings.setPregnancyStatus(picked.key,
+        date: DateTime(today.year, today.month, today.day - 7 * weeks));
+  }
+
   /// Diagnoses already given by a clinician. A multi-select, so it commits on
   /// Save rather than on each tap — unlike every single-select dialog here,
   /// which commits on the tap that also closes it.
@@ -925,6 +998,16 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   onTap: () => _pickBreastfeedingSince(context, settings),
                 ),
+              // No ARB key yet, matching the regularity row.
+              ListTile(
+                leading: const Icon(Icons.pregnant_woman_outlined),
+                title: const Text('Pregnant in the last 3 months'),
+                trailing: SettingsValue(
+                  _pregnancyValue(settings.pregnancyStatus) ??
+                      l10n.settingsClinicalContraceptionNotAsked,
+                ),
+                onTap: () => _pickPregnancyStatus(context, settings),
+              ),
             ],
           ),
           // Outside the card, as a caption. The app collects this to give the

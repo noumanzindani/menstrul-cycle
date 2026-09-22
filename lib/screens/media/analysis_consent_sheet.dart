@@ -84,10 +84,13 @@ class _AnalysisConsentSheet extends StatelessWidget {
                       'To describe a photo, LunarFlow sends it to Google, an '
                       'automatic image-recognition service outside '
                       'LunarFlow, together with what you have tracked: your '
-                      'cycle and period history, symptoms and mood, height '
-                      'and weight, discharge, sexual activity and '
-                      'masturbation, libido, contraception, any diagnoses a '
-                      'clinician has given you, and your diary notes. This '
+                      'cycle and period history, symptoms and mood, your age, '
+                      'height and weight, discharge, sexual activity and '
+                      'masturbation, libido, any pain or bleeding during or '
+                      'after sex, contraception, breastfeeding, a recent '
+                      'pregnancy, birth or pregnancy loss, any diagnoses '
+                      'a clinician has given you, your goal (such as trying '
+                      'to conceive), and your diary notes. This '
                       'happens only when you tap Describe on a photo — '
                       'never on its own, and never to your other photos.',
                       style: theme.textTheme.bodyMedium,

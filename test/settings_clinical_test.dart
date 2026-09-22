@@ -162,6 +162,85 @@ void main() {
     });
   });
 
+  /// The only route to this answer for a user who UPGRADED (v14 backfills
+  /// nothing), and the way to fill in later what signup declined.
+  group('recent pregnancy', () {
+    const rowTitle = 'Pregnant in the last 3 months';
+
+    DateTime today() {
+      final n = DateTime.now();
+      return DateTime(n.year, n.month, n.day);
+    }
+
+    Future<void> reveal(WidgetTester tester) async {
+      await tester.dragUntilVisible(find.text(rowTitle),
+          find.byType(Scrollable).first, const Offset(0, -120));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('reads as unanswered until it is answered', (tester) async {
+      await pump(tester);
+      await reveal(tester);
+      expect(rowValue(rowTitle, 'Not answered'), findsOneWidget);
+    });
+
+    testWidgets('"No" is stored with today\'s date and shown back',
+        (tester) async {
+      await pump(tester);
+      await tapRow(tester, rowTitle);
+      await tester.tap(find.text('No').last);
+      await tester.pumpAndSettle();
+
+      final s = await db.getSettings();
+      expect(s.pregnancyStatus, kPregnancyNone);
+      expect(s.pregnancyStatusDate, today());
+      expect(rowValue(rowTitle, 'No'), findsOneWidget);
+    });
+
+    testWidgets('a birth asks how long ago and stores the event date',
+        (tester) async {
+      await pump(tester);
+      await tapRow(tester, rowTitle);
+      await tester.tap(find.text('Yes, I gave birth').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('3 weeks ago').last);
+      await tester.pumpAndSettle();
+
+      final s = await db.getSettings();
+      final t = today();
+      expect(s.pregnancyStatus, kPregnancyBirth);
+      expect(s.pregnancyStatusDate, DateTime(t.year, t.month, t.day - 21));
+      expect(rowValue(rowTitle, 'Gave birth'), findsOneWidget);
+    });
+
+    testWidgets('dismissing the weeks question changes nothing',
+        (tester) async {
+      await settings.setPregnancyStatus(kPregnancyNone, date: today());
+      await pump(tester);
+      await tapRow(tester, rowTitle);
+      await tester.tap(find.text('Yes, a miscarriage or ended pregnancy').last);
+      await tester.pumpAndSettle();
+      // Tap outside the dialog.
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+
+      expect((await db.getSettings()).pregnancyStatus, kPregnancyNone,
+          reason: 'a loss without its date is half an answer; keep the old one');
+    });
+
+    testWidgets('it can be put back to unanswered', (tester) async {
+      await settings.setPregnancyStatus(kPregnancyNow, date: today());
+      await pump(tester);
+      await tapRow(tester, rowTitle);
+      await tester.tap(find.text('Not answered').last);
+      await tester.pumpAndSettle();
+
+      final s = await db.getSettings();
+      expect(s.pregnancyStatus, isNull);
+      expect(s.pregnancyStatusDate, isNull);
+    });
+  });
+
   testWidgets('every clinical row reads as unanswered until it is answered',
       (tester) async {
     await pump(tester);

@@ -426,6 +426,40 @@ double? cycleVariabilityPriorFor(String? key) => _kCycleVariabilityPriors[key];
 /// imports nothing from Flutter and this one does.
 bool cycleRegularityIsIrregular(String? key) => key == kRegularityIrregular;
 
+/// Pregnant now, or pregnant in the last three months (single-select), stored
+/// in `AppSettings.pregnancyStatus`.
+///
+/// Asked because a photo cannot tell postpartum bleeding from a period, and
+/// bleeding in pregnancy needs a completely different reading. Null means
+/// NOBODY ASKED -- not "no".
+///
+/// [kPregnancyPreferNot] exists so the question can be required without
+/// forcing anyone to disclose a miscarriage or termination to finish signup.
+/// It is stored so the wizard can tell "declined" from "never asked", and is
+/// never sent anywhere.
+const String kPregnancyNone = 'preg_none';
+const String kPregnancyNow = 'preg_now';
+const String kPregnancyBirth = 'preg_birth';
+const String kPregnancyLoss = 'preg_loss';
+const String kPregnancyPreferNot = 'preg_prefer_not';
+
+const List<TrackOption> kPregnancyStatusOptions = [
+  TrackOption(kPregnancyNone, 'No'),
+  TrackOption(kPregnancyNow, "Yes, I'm pregnant now"),
+  TrackOption(kPregnancyBirth, 'Yes, I gave birth'),
+  TrackOption(kPregnancyLoss, 'Yes, a miscarriage or ended pregnancy'),
+  TrackOption(kPregnancyPreferNot, 'Prefer not to say'),
+];
+
+/// The two answers whose DATE is the event's date (and so must be asked). For
+/// the other three, `pregnancyStatusDate` records when the answer was given.
+bool pregnancyStatusNeedsEventDate(String? key) =>
+    key == kPregnancyBirth || key == kPregnancyLoss;
+
+/// How far back the event-date question reaches, in weeks. Matches the
+/// question's own "last 3 months".
+const int kPregnancyEventMaxWeeksAgo = 13;
+
 /// The span a self-reported cycle length may take, shared by the onboarding
 /// wizard and the Settings tile.
 ///

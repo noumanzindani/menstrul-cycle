@@ -25,6 +25,7 @@ const cycleQuestion = 'About your cycle';
 const dobQuestion = 'When were you born?';
 const bodyQuestion = 'A few more details about you';
 const contraceptionQuestion = 'Are you using contraception?';
+const pregnancyQuestion = 'Have you been pregnant in the last 3 months?';
 const sexQuestion = 'How often do you have sex?';
 const shxQuestion = 'Have you ever experienced any of these?';
 const soloQuestion = 'How often do you masturbate?';
@@ -40,6 +41,7 @@ const allPageHeadings = [
   dobQuestion,
   bodyQuestion,
   contraceptionQuestion,
+  pregnancyQuestion,
   sexQuestion,
   shxQuestion,
   soloQuestion,
@@ -111,6 +113,8 @@ Future<void> answerVisiblePage(WidgetTester tester) async {
     await tester.pumpAndSettle();
   } else if (on(contraceptionQuestion)) {
     await tapText(tester, 'None');
+  } else if (on(pregnancyQuestion)) {
+    await tapInGroup(tester, 'pregnancy-status', 'No');
   } else if (on(sexQuestion)) {
     await tapText(tester, 'Never');
     await tapInGroup(tester, 'sex-today', 'None');

@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -158,6 +158,19 @@ class AppDatabase extends _$AppDatabase {
             // answers in Settings.
             if (!await _appSettingsHasColumn('cycle_regularity')) {
               await m.addColumn(appSettings, appSettings.cycleRegularity);
+            }
+          }
+          if (from < 14) {
+            // Pregnant now, or in the last three months. Backfilled by NOBODY,
+            // for the same reason as `cycle_regularity`: an upgrading user was
+            // never asked, and "no" would be a claim she never made.
+            for (final (name, column) in [
+              ('pregnancy_status', appSettings.pregnancyStatus),
+              ('pregnancy_status_date', appSettings.pregnancyStatusDate),
+            ]) {
+              if (!await _appSettingsHasColumn(name)) {
+                await m.addColumn(appSettings, column);
+              }
             }
           }
         },

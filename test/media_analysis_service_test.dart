@@ -206,6 +206,22 @@ void main() {
       expect(analyzer.calls, 0);
     });
 
+    test('a v3 consenter is asked again — v4 adds the signup sexual-health '
+        'answers and the goal', () async {
+      consentVersion = 3;
+      final outcome = await run(buildService());
+      expect(outcome.blocked, AnalysisBlock.notConsented);
+      expect(analyzer.calls, 0);
+    });
+
+    test('a v4 consenter is asked again — v5 adds a recent pregnancy, birth '
+        'or pregnancy loss', () async {
+      consentVersion = 4;
+      final outcome = await run(buildService());
+      expect(outcome.blocked, AnalysisBlock.notConsented);
+      expect(analyzer.calls, 0);
+    });
+
     test('a null version (never consented) reports notConsented', () async {
       consentVersion = null;
       final outcome = await run(buildService());

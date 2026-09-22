@@ -56,6 +56,7 @@ const _periodQuestion = 'When did your last period start?';
 const _dobQuestion = 'When were you born?';
 const _bodyQuestion = 'A few more details about you';
 const _contraceptionQuestion = 'Are you using contraception?';
+const _pregnancyQuestion = 'Have you been pregnant in the last 3 months?';
 const _sexQuestion = 'How often do you have sex?';
 const _shxQuestion = 'Have you ever experienced any of these?';
 const _soloQuestion = 'How often do you masturbate?';
@@ -149,6 +150,11 @@ Future<void> _answerVisiblePage(WidgetTester tester) async {
   }
   if (find.text(_contraceptionQuestion).hitTestable().evaluate().isNotEmpty) {
     await _tapText(tester, 'None');
+    return;
+  }
+  if (find.text(_pregnancyQuestion).hitTestable().evaluate().isNotEmpty) {
+    // The escape option: proves the page is answerable without disclosing.
+    await _tapInGroup(tester, 'pregnancy-status', 'Prefer not to say');
     return;
   }
   if (find.text(_sexQuestion).hitTestable().evaluate().isNotEmpty) {
