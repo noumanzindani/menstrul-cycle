@@ -1160,7 +1160,7 @@ class _PregnancyPage extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 16),
             child: Text(
               'Bleeding after a birth or a pregnancy loss can look like a '
-              'period. Knowing this lets photo descriptions read it '
+              'period. Knowing this lets the assistant read it '
               'correctly.',
               style: Theme.of(context)
                   .textTheme

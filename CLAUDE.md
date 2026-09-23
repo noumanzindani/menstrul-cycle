@@ -483,7 +483,11 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   index 2 (still exactly five tabs; index 0 and the interstitial untouched); Forecast is
   a pushed route from Home's cycle card ("See forecast", key `home-see-forecast`) and a
   Calendar app-bar action (`calendar-forecast-action`) — `forecast_entry_points_test`
-  exists because nothing else would notice Forecast becoming unreachable. Describe opens
+  exists because nothing else would notice Forecast becoming unreachable. **In pregnancy
+  mode and in Home's no-prediction empty state there is no cycle card, so Forecast is
+  reached ONLY from the Calendar app-bar action — intentional, not a gap:** pregnancy
+  pauses predictions, and with no prediction there is nothing to forecast yet. Keep the
+  Calendar action unconditional for that reason. Describe opens
   the same chat with the photo attached (resume → consent → `earnOneConversation` →
   push). Non-obvious parts:
   - **A tab is mounted at launch**, so `MediaWiring` (and `AssistantBackend`) is now
@@ -1282,7 +1286,7 @@ only checked that the ad hid, not that the entry form actually rendered.
 
 Two suites, and `flutter test` does not cover the second:
 
-- `flutter test` — **1709** passing, **2 failing** (2026-09-24; the merged-manifest guardrails
+- `flutter test` — **1725** passing, **2 failing** (2026-09-24; the merged-manifest guardrails
   skip instead of running when there is no `build/` output). (Keep this number current; a
   stale one makes a real regression look like a miscount.) The two failures are
   PRE-EXISTING and not in this lane: `firebase_unavailable_test.dart` taps

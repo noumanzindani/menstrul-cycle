@@ -1416,7 +1416,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  /// The "Describe photos" switch's `onChanged` — pulled out to a named,
+  /// The "AI assistant" switch's `onChanged` — pulled out to a named,
   /// `@visibleForTesting` method because the switch itself is gated on
   /// `analysisAvailable` (a compile-time `String.fromEnvironment`, false
   /// under plain `flutter test`), so no widget test can reach it through
