@@ -110,6 +110,32 @@ void main() {
     expect(find.text('Just asked'), findsOneWidget);
   });
 
+  testWidgets('a conversation saved elsewhere (Describe) appears without '
+      'leaving the list', (tester) async {
+    final backend = FakeAssistantBackend();
+    await pump(tester, backend);
+    expect(find.byKey(const Key('assistant-empty')), findsOneWidget);
+
+    backend.list.add(convo('d', subtitle: 'A pink pattern.'));
+    backend.changed();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('assistant-conversation-d')), findsOneWidget);
+  });
+
+  testWidgets('signing in after it was built loads the list', (tester) async {
+    final backend = FakeAssistantBackend(
+        available: false, conversations: [convo('a', title: 'hi')]);
+    await pump(tester, backend);
+    expect(find.byKey(const Key('assistant-unavailable')), findsOneWidget);
+
+    backend.available = true;
+    await pump(tester, backend); // the rebuild a sign-in causes
+
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byKey(const Key('assistant-conversation-a')), findsOneWidget);
+  });
+
   group('delete', () {
     Future<void> longPress(WidgetTester tester) async {
       await tester.longPress(find.byKey(const Key('assistant-conversation-a')));

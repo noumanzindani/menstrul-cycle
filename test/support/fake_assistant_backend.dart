@@ -61,12 +61,25 @@ class FakeAssistantBackend implements AssistantBackend {
   /// What [capture] resolves to. A [Completer] holds the upload in flight.
   AttachOutcome captureOutcome = const AttachOutcome();
   Completer<AttachOutcome>? captureGate;
+
+  /// Held uploads handed out one per [capture], in order, ahead of
+  /// [captureGate]: for overlapping captures that resolve differently.
+  final List<Completer<AttachOutcome>> captureQueue = [];
+  final List<int> captureLimits = [];
   int? lastCaptureLimit;
 
   final List<String> ended = [];
   final List<String> deleted = [];
 
   String? forMedia;
+
+  final _changes = ValueNotifier<int>(0);
+
+  @override
+  Listenable get changes => _changes;
+
+  /// What a save or delete made somewhere else looks like to a listener.
+  void changed() => _changes.value++;
 
   @override
   String newConversationId() => 'new-chat';
@@ -82,6 +95,20 @@ class FakeAssistantBackend implements AssistantBackend {
   Future<bool> earnConversation(BuildContext context) async {
     calls.add('ad');
     return adEarned;
+  }
+
+  /// What [preflight] answers. Its calls are counted in [preflights], not
+  /// [calls], so the gate-order assertions stay about the gates the user sees.
+  String? preflightBlock;
+  int preflights = 0;
+
+  @override
+  Future<String?> preflight({
+    String? conversationId,
+    List<MediaItem> attachments = const [],
+  }) async {
+    preflights++;
+    return preflightBlock;
   }
 
   @override
@@ -130,6 +157,8 @@ class FakeAssistantBackend implements AssistantBackend {
   Future<AttachOutcome> capture(MediaSource source, {required int limit}) async {
     calls.add('capture:${source.name}');
     lastCaptureLimit = limit;
+    captureLimits.add(limit);
+    if (captureQueue.isNotEmpty) return captureQueue.removeAt(0).future;
     return captureGate?.future ?? captureOutcome;
   }
 

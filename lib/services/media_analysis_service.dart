@@ -212,12 +212,20 @@ class MediaAnalysisService {
   /// The prepared photos each conversation's turns attach, by media id.
   final Map<String, Map<String, InlineImage>> _images = {};
 
+  /// Which opening of each conversation a call belongs to; see [_remember].
+  ///
+  /// Taken by [analyze] when it starts and dropped by [endConversation], so a
+  /// call still in flight when its chat closes finds a different token (or
+  /// none) when it returns.
+  final Map<String, Object> _openings = {};
+
   /// Forgets [conversationId]'s transcript and photos. Called when the chat
   /// closes, so reopening it resumes from storage rather than silently from
   /// memory.
   void endConversation(String conversationId) {
     _transcripts.remove(conversationId);
     _images.remove(conversationId);
+    _openings.remove(conversationId);
   }
 
   /// Seeds [conversationId]'s in-memory conversation from a STORED transcript,
@@ -302,29 +310,9 @@ class MediaAnalysisService {
     String? question,
     String? healthContext,
   }) async {
-    if (!_available) {
-      return const AnalysisOutcome(blocked: AnalysisBlock.unavailable);
-    }
-
-    final uid = _trigger.currentUid;
-    if (uid == null) {
-      return const AnalysisOutcome(blocked: AnalysisBlock.notSignedIn);
-    }
-    if (_trigger.writesBlocked) {
-      final declined = await _trigger.declinedUidOnRecord();
-      return AnalysisOutcome(
-        blocked: declined == uid
-            ? AnalysisBlock.syncDeclined
-            : AnalysisBlock.writesBlocked,
-      );
-    }
-    if (await _trigger.declinedUidOnRecord() == uid) {
-      return const AnalysisOutcome(blocked: AnalysisBlock.syncDeclined);
-    }
-    // Broadest of the sync gates, and last of them — see MediaUploadBlock.syncOff.
-    if (!await _trigger.isSyncEnabledFor(uid)) {
-      return const AnalysisOutcome(blocked: AnalysisBlock.syncOff);
-    }
+    final accountBlock = await _accountGate();
+    if (accountBlock != null) return AnalysisOutcome(blocked: accountBlock);
+    final uid = _trigger.currentUid!;
     // Consent is checked AFTER the sync gates so a user who has not turned sync
     // on is told that, rather than being sent to a toggle that would not help.
     // Compared against the CURRENT uid: a consent recorded by another account on
@@ -353,19 +341,10 @@ class MediaAnalysisService {
       }
     }
 
+    final opening = _openings.putIfAbsent(conversationId, Object.new);
     final history = _transcripts[conversationId] ?? const <AnalysisTurn>[];
     final newIds = {for (final photo in attachments) photo.mediaId};
-    if (newIds.length > kMaxImagesPerMessage) {
-      return const AnalysisOutcome(blocked: AnalysisBlock.tooManyPhotos);
-    }
-    final conversationIds = {
-      for (final turn in history)
-        if (turn.includeInModel && turn.role == AnalysisRole.user)
-          for (final ref in turn.attachments)
-            if (ref.kind == AttachmentKind.image) ref.mediaId,
-      ...newIds,
-    };
-    if (conversationIds.length > kMaxImagesPerConversation) {
+    if (_tooManyPhotos(history, newIds)) {
       return const AnalysisOutcome(blocked: AnalysisBlock.tooManyPhotos);
     }
 
@@ -395,8 +374,8 @@ class MediaAnalysisService {
     final now = _now();
     final day = analysisDayKey(now);
     _expireMemo(uid, day);
-    final opening = !history.any((t) => t.includeInModel);
-    final memoKey = opening && newIds.isNotEmpty ? _memoKey(newIds, asked) : null;
+    final fresh = !history.any((t) => t.includeInModel);
+    final memoKey = fresh && newIds.isNotEmpty ? _memoKey(newIds, asked) : null;
     if (memoKey != null) {
       final memoized = _memo.remove(memoKey);
       // Served before the cap is consulted: a repeat view costs nothing, so
@@ -404,7 +383,8 @@ class MediaAnalysisService {
       if (memoized != null) {
         _memo[memoKey] = memoized; // most recently used again
         // Seeded so a follow-up after a memo hit still has a referent.
-        await _remember(conversationId, history, next, images, memoized,
+        await _remember(conversationId, opening, history, next, images,
+            memoized,
             isMemoHit: true);
         return AnalysisOutcome(result: memoized);
       }
@@ -450,9 +430,69 @@ class MediaAnalysisService {
       _memo[memoKey] = result;
       if (_memo.length > kAnalysisMemoSize) _memo.remove(_memo.keys.first);
     }
-    await _remember(conversationId, history, next, images, result,
+    await _remember(conversationId, opening, history, next, images, result,
         isMemoHit: false);
     return AnalysisOutcome(result: result);
+  }
+
+  /// Whether a message attaching [newImageIds] would be refused before it
+  /// was sent, for a reason the caller could have known up front: the account
+  /// gates, the daily cap, and the photo caps. Sends nothing, counts nothing.
+  ///
+  /// For running BEFORE a rewarded ad, so nobody watches one for a message
+  /// that was always going to be refused — a reward taken and never
+  /// delivered. Consent is deliberately not checked: the caller asks for it
+  /// itself, between this and the ad. [analyze] still runs every gate; this
+  /// only moves the predictable refusals earlier.
+  Future<AnalysisBlock?> preflight({
+    String? conversationId,
+    Set<String> newImageIds = const {},
+  }) async {
+    final accountBlock = await _accountGate();
+    if (accountBlock != null) return accountBlock;
+    final history = conversationId == null
+        ? const <AnalysisTurn>[]
+        : _transcripts[conversationId] ?? const <AnalysisTurn>[];
+    if (_tooManyPhotos(history, newImageIds)) {
+      return AnalysisBlock.tooManyPhotos;
+    }
+    if (remainingToday <= 0) return AnalysisBlock.dailyCap;
+    return null;
+  }
+
+  /// The gates about the build and the account, in [analyze]'s order: shared
+  /// with [preflight] so the two cannot disagree.
+  Future<AnalysisBlock?> _accountGate() async {
+    if (!_available) return AnalysisBlock.unavailable;
+    final uid = _trigger.currentUid;
+    if (uid == null) return AnalysisBlock.notSignedIn;
+    if (_trigger.writesBlocked) {
+      final declined = await _trigger.declinedUidOnRecord();
+      return declined == uid
+          ? AnalysisBlock.syncDeclined
+          : AnalysisBlock.writesBlocked;
+    }
+    if (await _trigger.declinedUidOnRecord() == uid) {
+      return AnalysisBlock.syncDeclined;
+    }
+    // Broadest of the sync gates, and last of them — see MediaUploadBlock.syncOff.
+    if (!await _trigger.isSyncEnabledFor(uid)) return AnalysisBlock.syncOff;
+    return null;
+  }
+
+  /// Whether [newIds] is more photos than one message may attach, or would
+  /// take the conversation past its own cap. Only photos the model was sent
+  /// count: a declined message's photos never reached it.
+  static bool _tooManyPhotos(List<AnalysisTurn> history, Set<String> newIds) {
+    if (newIds.length > kMaxImagesPerMessage) return true;
+    final conversationIds = {
+      for (final turn in history)
+        if (turn.includeInModel && turn.role == AnalysisRole.user)
+          for (final ref in turn.attachments)
+            if (ref.kind == AttachmentKind.image) ref.mediaId,
+      ...newIds,
+    };
+    return conversationIds.length > kMaxImagesPerConversation;
   }
 
   /// `'<sorted photo ids>|<question>'`. Sorted so the same photos attached in
@@ -485,8 +525,15 @@ class MediaAnalysisService {
   ///
   /// [isMemoHit] is forwarded to [_persistTurn] untouched — see that field's
   /// doc comment for why this class does not act on it itself.
+  ///
+  /// [opening] is the token [analyze] took when it started. When the chat
+  /// was closed while the call was out, it no longer matches, and the
+  /// exchange is saved but NOT written back into memory: [endConversation]
+  /// already forgot that conversation, and rewriting it here would hold its
+  /// transcript and photo bytes for the life of the app.
   Future<void> _remember(
     String conversationId,
+    Object opening,
     List<AnalysisTurn> history,
     AnalysisTurn next,
     Map<String, InlineImage> images,
@@ -495,12 +542,14 @@ class MediaAnalysisService {
   }) async {
     final prose = result.prose;
     if (prose == null || prose.trim().isEmpty) return;
-    _transcripts[conversationId] = <AnalysisTurn>[
-      ...history,
-      next,
-      AnalysisTurn.model(prose),
-    ];
-    if (images.isNotEmpty) _images[conversationId] = images;
+    if (identical(_openings[conversationId], opening)) {
+      _transcripts[conversationId] = <AnalysisTurn>[
+        ...history,
+        next,
+        AnalysisTurn.model(prose),
+      ];
+      if (images.isNotEmpty) _images[conversationId] = images;
+    }
     await _persistTurn(
       conversationId: conversationId,
       question: next.text,

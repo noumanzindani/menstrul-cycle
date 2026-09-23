@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:drift/native.dart';
@@ -27,6 +28,9 @@ class _FakeAnalyzer implements MediaAnalyzer {
   Map<String, InlineImage> lastImages = const {};
   String? lastHealthContext;
 
+  /// Holds the reply in flight until completed.
+  Completer<void>? gate;
+
   @override
   Future<AnalysisResult> analyze({
     List<AnalysisTurn> history = const [],
@@ -39,6 +43,7 @@ class _FakeAnalyzer implements MediaAnalyzer {
     lastNext = next;
     lastImages = images;
     lastHealthContext = healthContext;
+    await gate?.future;
     return AnalysisResult(prose: answer);
   }
 }
@@ -54,6 +59,7 @@ void main() {
   late _FakeAnalyzer analyzer;
   late Map<String, MediaItem> media;
   late List<String> originalLoads;
+  late Set<String> failingLoads;
   late bool syncOn;
   String? consentUid;
   int? usageCount;
@@ -94,6 +100,7 @@ void main() {
         libraryFor: (uid) async => media.values.toList(),
         loadOriginal: (item) async {
           originalLoads.add(item.id);
+          if (failingLoads.remove(item.id)) throw StateError('offline');
           return (Uint8List(64), 'image/jpeg');
         },
         healthContext: () => 'TRACKED',
@@ -116,6 +123,7 @@ void main() {
     analyzer = _FakeAnalyzer();
     media = {'p1': item('p1'), 'p2': item('p2'), 'v1': item('v1', kind: 'video')};
     originalLoads = [];
+    failingLoads = {};
     syncOn = true;
     consentUid = uid;
     usageCount = null;
@@ -246,6 +254,50 @@ void main() {
       expect((await sessions.byId('chat-1'))!.deletedAt, isNotNull);
       expect(await sessions.messagesFor('chat-1'), isEmpty);
     });
+    test('closing the chat mid-send still files the conversation under its '
+        'photo, and keeps nothing in memory', () async {
+      final backend = build();
+      analyzer.gate = Completer();
+      final sending = backend.send(
+        conversationId: 'chat-1',
+        originMediaId: 'p1',
+        text: '',
+        attachments: [media['p1']!],
+      );
+      // Let the send reach the model, then close the chat under it.
+      await pumpEventQueue();
+      expect(analyzer.calls, 1);
+      backend.endConversation('chat-1');
+      analyzer.gate!.complete();
+      await sending;
+
+      final session = await sessions.byId('chat-1');
+      expect(session!.mediaId, 'p1');
+      expect(session.title, isNull);
+      expect(await backend.conversationForMedia('p1'), 'chat-1');
+      expect(backend.service.turnsUsed('chat-1'), 0,
+          reason: 'an ended conversation must not be rewritten into memory');
+
+      // Nothing of the old conversation, photos included, rides along now.
+      analyzer.gate = null;
+      await backend.send(conversationId: 'chat-1', text: 'and?');
+      expect(analyzer.lastHistory, isEmpty);
+      expect(analyzer.lastImages, isEmpty);
+    });
+
+    test('a typed opener closed mid-send keeps its title', () async {
+      final backend = build();
+      analyzer.gate = Completer();
+      final sending =
+          backend.send(conversationId: 'chat-1', text: 'is this normal?');
+      await pumpEventQueue();
+      backend.endConversation('chat-1');
+      analyzer.gate!.complete();
+      await sending;
+
+      expect((await sessions.byId('chat-1'))!.title, 'is this normal?');
+    });
+
   });
 
   group('open', () {
@@ -305,6 +357,34 @@ void main() {
       expect(await sessions.messagesFor('chat-1'), hasLength(4));
     });
 
+    test('a photo that fails to load is retried on the next send, and the '
+        'ones that loaded are kept', () async {
+      final s = await sessions.create(
+          uid: uid, consentVersion: kCurrentConsentVersion, id: 'chat-1');
+      await sessions.append(
+          sessionId: s.id,
+          role: 'user',
+          text: 'look',
+          attachments: const [
+            AttachmentRef.image('p1'),
+            AttachmentRef.image('p2'),
+          ]);
+      await sessions.append(sessionId: s.id, role: 'model', text: 'I see.');
+
+      final backend = build();
+      await backend.open('chat-1');
+      failingLoads = {'p2'};
+
+      final first = await backend.send(conversationId: 'chat-1', text: 'a');
+      expect(first.kind, AssistantReplyKind.failed);
+      expect(analyzer.calls, 0);
+
+      final second = await backend.send(conversationId: 'chat-1', text: 'b');
+      expect(second.kind, AssistantReplyKind.answer);
+      expect(analyzer.lastImages.keys, unorderedEquals(['p1', 'p2']),
+          reason: 'a photo that still exists is never sent as removed');
+    });
+
     test('a v15 Describe session gets its photo on the first turn', () async {
       final s = await sessions.create(
           uid: uid,
@@ -350,6 +430,25 @@ void main() {
       await backend.send(conversationId: 'a', text: 'ok then');
       final a = (await backend.conversations()).single;
       expect(a.subtitle, 'an answer');
+    });
+
+    test('saving and deleting tell listeners the list changed', () async {
+      final backend = build();
+      var changes = 0;
+      backend.changes.addListener(() => changes++);
+
+      await backend.send(conversationId: 'a', text: 'hi');
+      expect(changes, 1);
+      await backend.send(
+          conversationId: 'b', text: '', attachments: [media['v1']!]);
+      expect(changes, 2);
+      await backend.delete('a');
+      expect(changes, 3);
+
+      usageDay = analysisDayKey(DateTime.now());
+      usageCount = kMaxAnalysesPerDay;
+      await backend.send(conversationId: 'c', text: 'refused');
+      expect(changes, 3, reason: 'nothing was saved');
     });
 
     test('delete tombstones the conversation', () async {

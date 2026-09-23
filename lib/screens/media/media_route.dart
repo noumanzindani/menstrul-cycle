@@ -235,8 +235,9 @@ Route<void> mediaTimelineRoute(BuildContext context) {
                       conversationId: conversationId,
                       pendingAttachments: [?attach],
                       // The viewer ran consent and the ad before opening a
-                      // new conversation; a resumed one never needs them.
-                      adEarned: true,
+                      // new conversation. A resumed one decides from its own
+                      // transcript whether it has ever billed.
+                      adEarned: attach != null,
                     ),
                   )),
           // Looked up fresh on every Describe tap rather than once here: a
@@ -248,6 +249,7 @@ Route<void> mediaTimelineRoute(BuildContext context) {
           needsConsent: () => assistant.needsConsent,
           requestConsent: assistant.requestConsent,
           earnDescribe: assistant.earnConversation,
+          preflight: (item) => assistant.preflight(attachments: [item]),
         ),
       ),
     );

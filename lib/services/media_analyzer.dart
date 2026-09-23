@@ -94,7 +94,7 @@ class GeminiMediaAnalyzer implements MediaAnalyzer {
   }) async {
     if (_apiKey.isEmpty) {
       throw const AnalysisException(
-        'Photo descriptions are not available in this build.',
+        'The assistant is not available in this build.',
       );
     }
     // The service refuses an oversized conversation before it counts it; this

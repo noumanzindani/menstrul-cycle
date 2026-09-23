@@ -521,9 +521,27 @@ void main() {
     });
   });
 
+  test('refusal copy names the assistant, not the old photo descriptions', () {
+    for (final block in AnalysisBlock.values) {
+      final text = messageForAnalysisBlock(block).toLowerCase();
+      expect(text, isNot(contains('photo description')), reason: '$block');
+    }
+    expect(messageForAnalysisBlock(AnalysisBlock.turnCap).toLowerCase(),
+        isNot(contains('photo')),
+        reason: 'a conversation need not be about a photo');
+  });
+
   group('kAnalysisCaveat', () {
     test('disclaims medical meaning', () {
       expect(kAnalysisCaveat.toLowerCase(), contains('not a medical opinion'));
+    });
+
+    test('fits a conversation with no picture in it', () {
+      // Shown under every assistant chat, and most of those are text only.
+      final text = kAnalysisCaveat.toLowerCase();
+      for (final word in ['picture', 'photo', 'image', 'description']) {
+        expect(text, isNot(contains(word)), reason: word);
+      }
     });
 
     test('claims nothing about safety or privacy', () {
@@ -794,7 +812,9 @@ void main() {
     test('the turn cap names the number and says how to start over', () {
       final text = messageForAnalysisBlock(AnalysisBlock.turnCap);
       expect(text, contains('$kMaxChatTurns'));
-      expect(text.toLowerCase(), contains('again'));
+      // Not "open the photo again": Describe now resumes the same
+      // conversation, so only a new one starts over.
+      expect(text.toLowerCase(), contains('new conversation'));
     });
 
     test('the photo cap names both limits', () {

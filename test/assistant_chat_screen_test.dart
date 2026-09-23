@@ -218,6 +218,40 @@ void main() {
       expect(backend.calls, ['ad']);
     });
 
+    testWidgets('a refusal known up front stops the send before the ad',
+        (tester) async {
+      final refusal = messageForAnalysisBlock(AnalysisBlock.syncOff);
+      final backend = FakeAssistantBackend(needsConsent: true)
+        ..preflightBlock = refusal;
+      await pump(tester, backend);
+
+      await type(tester, 'hi');
+      await tapSend(tester);
+      await tester.pumpAndSettle();
+
+      expect(backend.preflights, 1);
+      expect(backend.calls, isEmpty,
+          reason: 'no consent sheet, no ad and no send for a message that '
+              'was always going to be refused');
+      expect(find.text(refusal), findsOneWidget);
+      final field = tester.widget<TextField>(
+          find.byKey(const Key('analysis-question-field')));
+      expect(field.controller!.text, 'hi');
+    });
+
+    testWidgets('a follow-up is not preflighted: it has no ad to protect',
+        (tester) async {
+      final backend = FakeAssistantBackend();
+      await pump(tester, backend);
+      await type(tester, 'one');
+      await tapSend(tester);
+      await tester.pumpAndSettle();
+      await type(tester, 'two');
+      await tapSend(tester);
+      await tester.pumpAndSettle();
+      expect(backend.preflights, 1);
+    });
+
     testWidgets('only the first send of a new conversation asks for the ad',
         (tester) async {
       final backend = FakeAssistantBackend();
@@ -250,6 +284,25 @@ void main() {
 
       expect(backend.calls, ['open', 'send']);
       expect(backend.sends.single.conversationId, 'c1');
+    });
+
+    testWidgets('a resumed conversation that never billed still asks for the '
+        'ad', (tester) async {
+      // Started with a video (declined, so no ad and nothing billed), closed,
+      // and reopened: its first real send is still the first billable one.
+      final backend = FakeAssistantBackend(saved: {
+        'c1': const [
+          ChatEntry.user(''),
+          ChatEntry.notice(kVideoDeclinedNotice),
+        ],
+      });
+      await pump(tester, backend, conversationId: 'c1');
+
+      await type(tester, 'what about now?');
+      await tapSend(tester);
+      await tester.pumpAndSettle();
+
+      expect(backend.calls, ['open', 'ad', 'send']);
     });
   });
 
@@ -373,6 +426,49 @@ void main() {
       expect(find.text(messageForAnalysisBlock(AnalysisBlock.syncOff)),
           findsOneWidget);
       expect(find.byIcon(Icons.cloud_off_outlined), findsNothing);
+    });
+
+    testWidgets('two overlapping uploads never overfill the composer',
+        (tester) async {
+      final first = Completer<AttachOutcome>();
+      final second = Completer<AttachOutcome>();
+      final backend = FakeAssistantBackend()
+        ..captureQueue.addAll([first, second]);
+      await pump(tester, backend);
+
+      await openAttach(tester);
+      await tester.tap(find.text('Choose from gallery'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      // Not openAttach: the first upload's spinner never lets it settle.
+      await tester.tap(find.byKey(const Key('analysis-attach-button')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tap(find.text('Choose from gallery'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(backend.captureLimits, [
+        kMaxAttachmentsPerMessage,
+        kMaxAttachmentsPerMessage - 1,
+      ]);
+
+      first.complete(AttachOutcome(items: [
+        for (var i = 0; i < kMaxAttachmentsPerMessage; i++) fakeMedia('a$i'),
+      ]));
+      await tester.pump();
+      second.complete(AttachOutcome(items: [
+        for (var i = 0; i < kMaxAttachmentsPerMessage - 1; i++)
+          fakeMedia('b$i'),
+      ]));
+      await tester.pumpAndSettle();
+
+      final chips = find.byWidgetPredicate((w) {
+        final key = w.key;
+        return key is ValueKey<String> &&
+            key.value.startsWith('analysis-chip-') &&
+            !key.value.startsWith('analysis-chip-remove-');
+      });
+      expect(chips, findsNWidgets(kMaxAttachmentsPerMessage));
     });
 
     testWidgets('never offers more than a message can carry', (tester) async {

@@ -16,12 +16,15 @@ enum _AttachSource { camera, video, gallery, library }
 /// The screen holds the conversation; [AssistantBackend] does everything that
 /// leaves it. Three rules live here because only the screen knows them:
 ///
-/// * **Consent, then the ad, then the send.** Consent first so nobody watches
-///   an ad and then meets a sheet they decline — a reward taken and never
-///   delivered.
-/// * **The ad is for the first billable send of a NEW conversation only.** A
-///   resumed conversation, a follow-up and a message carrying a video (which
-///   is never sent, so never billed) are never gated.
+/// * **Preflight, consent, then the ad, then the send.** Consent first so
+///   nobody watches an ad and then meets a sheet they decline — a reward
+///   taken and never delivered — and the backend's preflight before both, for
+///   the same reason: a refusal it can see coming must not cost an ad.
+/// * **The ad is for the first billable send of a conversation only.** A
+///   follow-up, a resumed conversation that already has an answer, and a
+///   message carrying a video (which is never sent, so never billed) are
+///   never gated. A resumed conversation with NO answer — one that only ever
+///   held a declined video — has never billed, so its first send still is.
 /// * **One send in flight, and none while an attachment is uploading.** Every
 ///   send bills, and a message must not leave without the photo it is about.
 class AssistantChatScreen extends StatefulWidget {
@@ -68,9 +71,10 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
   bool _loading = false;
   bool _busy = false;
 
-  /// Whether this conversation may send without the ad: it was resumed, the
-  /// caller already earned it, or the ad was watched here.
-  late bool _earned = widget.adEarned || widget.conversationId != null;
+  /// Whether this conversation may send without the ad: the caller already
+  /// earned it, the ad was watched here, or it was resumed with an answer in
+  /// it (see [_load]).
+  late bool _earned = widget.adEarned;
 
   /// A standing line above the composer, such as why an attach failed.
   String? _notice;
@@ -110,6 +114,11 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
     setState(() {
       _entries.insertAll(0, entries);
       _loading = false;
+      // A reply is what a billable send leaves behind; a declined video
+      // leaves only a notice. Merely having been resumed is not enough: a
+      // conversation started with a video skipped the ad, and treating it as
+      // earned would let every later message skip it too.
+      if (entries.any((e) => e.kind == ChatEntryKind.reply)) _earned = true;
     });
   }
 
@@ -125,12 +134,29 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
 
     // Held while the gates run, so a second tap cannot start a second send.
     setState(() => _busy = true);
+    final gated = !_earned && !hasVideo;
+    if (gated) {
+      // Before consent and the ad: a refusal the service would give anyway
+      // (sync off, the photo caps) must not cost the user an ad first.
+      final refusal = await _backend.preflight(
+        conversationId: _conversationId,
+        attachments: attachments,
+      );
+      if (!mounted) return;
+      if (refusal != null) {
+        setState(() {
+          _busy = false;
+          _notice = refusal;
+        });
+        return;
+      }
+    }
     if (_backend.needsConsent && !await _backend.requestConsent(context)) {
       if (mounted) setState(() => _busy = false);
       return;
     }
     if (!mounted) return;
-    if (!_earned && !hasVideo) {
+    if (gated) {
       if (!await _backend.earnConversation(context)) {
         if (mounted) setState(() => _busy = false);
         return;
@@ -250,15 +276,19 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
     setState(() {
       final at = _chips.indexWhere((c) => c.key == key);
       if (at < 0) return; // removed while it uploaded
+      // Recounted now, not taken from `slots`: another attach can land while
+      // this one uploads, and both were offered the room that was free then.
+      // Whatever does not fit is still in Photos & videos.
+      final free = kMaxAttachmentsPerMessage - (_chips.length - 1);
       final fresh = outcome.items
           .where((item) => !_chips.any((c) => c.item?.id == item.id))
-          .take(slots)
+          .take(free)
           .map((item) => PendingAttachment(
               key: item.id, state: PendingState.ready, item: item))
           .toList();
       _chips.replaceRange(at, at + 1, [
         ...fresh,
-        if (outcome.failed > 0)
+        if (outcome.failed > 0 && fresh.length < free)
           PendingAttachment(key: key, state: PendingState.failed),
       ]);
       _notice = outcome.message;

@@ -102,8 +102,26 @@ abstract class AssistantBackend {
   /// The rewarded-ad gate for a new conversation. True = may proceed.
   Future<bool> earnConversation(BuildContext context);
 
+  /// Why a message attaching [attachments] to [conversationId] (null for one
+  /// not started yet) would be refused, as user-facing copy — or null when
+  /// nothing predictable stands in its way. Sends and counts nothing.
+  ///
+  /// Asked before the rewarded ad, so the ad never plays for a message that
+  /// was always going to be refused. Consent is not part of it; the caller
+  /// asks for that itself.
+  Future<String?> preflight({
+    String? conversationId,
+    List<MediaItem> attachments = const [],
+  });
+
   /// This account's conversations, most recently active first.
   Future<List<AssistantConversation>> conversations();
+
+  /// Fires when a conversation is saved or deleted through this backend —
+  /// from any screen, Describe included — so a list can reload.
+  ///
+  /// Not fired by a sync pull: nothing in the sync layer announces one yet.
+  Listenable get changes;
 
   /// The conversation that started from [mediaId], if there is one.
   Future<String?> conversationForMedia(String mediaId);

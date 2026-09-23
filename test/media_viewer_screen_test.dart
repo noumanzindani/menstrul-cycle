@@ -64,6 +64,7 @@ void main() {
     Future<bool> Function(BuildContext)? earnDescribe,
     bool needsConsent = false,
     Future<bool> Function(BuildContext)? requestConsent,
+    Future<String?> Function(MediaItem)? preflight,
     bool tap = true,
   }) async {
     await tester.pumpWidget(MaterialApp(
@@ -75,6 +76,7 @@ void main() {
         needsConsent: () => needsConsent,
         requestConsent: requestConsent,
         earnDescribe: earnDescribe,
+        preflight: preflight,
       ),
     ));
     await tester.pumpAndSettle();
@@ -114,6 +116,34 @@ void main() {
       earnDescribe: recording('ad', true),
     );
     expect(calls, ['consent', 'ad', 'new:m1']);
+  });
+
+  testWidgets('at the daily cap, Describe says so and never shows the ad',
+      (tester) async {
+    final cap = messageForAnalysisBlock(AnalysisBlock.dailyCap);
+    await pumpViewer(
+      tester,
+      findConversation: (_) async => null,
+      needsConsent: true,
+      requestConsent: recording('consent', true),
+      earnDescribe: recording('ad', true),
+      preflight: (_) async => cap,
+    );
+    expect(calls, isEmpty,
+        reason: 'an ad watched for a send that cannot happen is a reward '
+            'taken and never delivered');
+    expect(find.text(cap), findsOneWidget);
+  });
+
+  testWidgets('the preflight never blocks resuming a saved conversation',
+      (tester) async {
+    await pumpViewer(
+      tester,
+      findConversation: (_) async => 'c1',
+      preflight: (_) async =>
+          messageForAnalysisBlock(AnalysisBlock.dailyCap),
+    );
+    expect(calls, ['resume:c1']);
   });
 
   testWidgets('a declined consent never shows the ad or opens the chat',

@@ -43,6 +43,7 @@ class MediaViewerScreen extends StatefulWidget {
     this.needsConsent,
     this.requestConsent,
     this.earnDescribe,
+    this.preflight,
   });
 
   final MediaItem item;
@@ -87,6 +88,11 @@ class MediaViewerScreen extends StatefulWidget {
   /// screen that reached for `AdService` directly could not be widget-tested
   /// at all.
   final Future<bool> Function(BuildContext context)? earnDescribe;
+
+  /// Why a NEW Describe of [item] would be refused before it was sent (the
+  /// daily cap, sync off), as user-facing copy, or null. Asked after the
+  /// resume check and before consent and the ad. Null skips the check.
+  final Future<String?> Function(MediaItem item)? preflight;
 
   @override
   State<MediaViewerScreen> createState() => _MediaViewerScreenState();
@@ -177,6 +183,23 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
       setState(() => _analyzing = false);
       await open(context, conversationId: existing);
       return;
+    }
+
+    // A refusal known up front, next. The chat would refuse this send the
+    // moment it opened (at the daily cap it returns without a word), so
+    // running consent and the ad first would take a reward and deliver
+    // nothing -- the AdMob problem the ad's placement below exists to avoid.
+    final check = widget.preflight;
+    if (check != null) {
+      final refusal = await check(widget.item);
+      if (!mounted) return;
+      if (refusal != null) {
+        setState(() => _analyzing = false);
+        ScaffoldMessenger.maybeOf(context)
+          ?..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(refusal)));
+        return;
+      }
     }
 
     // Consent next, and it is a hard gate for everything below: nothing is

@@ -94,13 +94,27 @@ class LiveAssistantBackend implements AssistantBackend {
 
   /// How a conversation that has no row yet should be created: the photo it
   /// started from and its first words. Set by [send] before the service can
-  /// call [persistTurn].
+  /// call [persistTurn], and dropped only when that send returns — NOT by
+  /// [endConversation]: a chat closed while its first send is out still gets
+  /// its reply saved, and without this the row would be created with no
+  /// photo and no title, so Describe could never find it again.
   final Map<String, ({String originMediaId, String title})> _pending = {};
+
+  /// Which opening of each conversation a send belongs to. Dropped by
+  /// [endConversation], so a send still loading photos when its chat closes
+  /// does not hand them to the service afterwards.
+  final Map<String, Object> _openings = {};
 
   /// Photos a resumed conversation attached that the service has not been
   /// handed yet. Loaded at the next send, not at [open]: reading a
   /// transcript must not download anything.
   final Map<String, Set<String>> _unseeded = {};
+
+  /// Bumped after every save and delete; see [changes].
+  final ValueNotifier<int> _revision = ValueNotifier(0);
+
+  @override
+  Listenable get changes => _revision;
 
   @override
   bool get needsConsent => !service.consented;
@@ -122,6 +136,21 @@ class LiveAssistantBackend implements AssistantBackend {
   @override
   Future<bool> earnConversation(BuildContext context) async =>
       await _earnConversation?.call(context) ?? true;
+
+  @override
+  Future<String?> preflight({
+    String? conversationId,
+    List<MediaItem> attachments = const [],
+  }) async {
+    final block = await service.preflight(
+      conversationId: conversationId,
+      newImageIds: {
+        for (final a in attachments)
+          if (a.kind != 'video') a.id,
+      },
+    );
+    return block == null ? null : messageForAnalysisBlock(block);
+  }
 
   @override
   Future<List<AssistantConversation>> conversations() async {
@@ -223,13 +252,14 @@ class LiveAssistantBackend implements AssistantBackend {
   Future<void> delete(String conversationId) async {
     endConversation(conversationId);
     await _sessions.tombstone(conversationId);
+    _revision.value++;
   }
 
   @override
   void endConversation(String conversationId) {
     service.endConversation(conversationId);
     _unseeded.remove(conversationId);
-    _pending.remove(conversationId);
+    _openings.remove(conversationId);
   }
 
   @override
@@ -239,8 +269,21 @@ class LiveAssistantBackend implements AssistantBackend {
     required String text,
     List<MediaItem> attachments = const [],
   }) async {
-    final hasVideo = attachments.any((a) => a.kind == 'video');
     _pending[conversationId] = (originMediaId: originMediaId, title: text);
+    try {
+      return await _send(conversationId, text, attachments);
+    } finally {
+      _pending.remove(conversationId);
+    }
+  }
+
+  Future<AssistantReply> _send(
+    String conversationId,
+    String text,
+    List<MediaItem> attachments,
+  ) async {
+    final hasVideo = attachments.any((a) => a.kind == 'video');
+    final opening = _openings.putIfAbsent(conversationId, Object.new);
 
     final prepared = <AnalysisAttachment>[];
     if (hasVideo) {
@@ -250,7 +293,7 @@ class LiveAssistantBackend implements AssistantBackend {
       }
     } else {
       try {
-        await _seedEarlierPhotos(conversationId);
+        await _seedEarlierPhotos(conversationId, opening);
         for (final a in attachments) {
           final image = await _prep.prepare(a.id, () => _loadOriginal(a));
           prepared.add(AnalysisAttachment.image(
@@ -299,20 +342,41 @@ class LiveAssistantBackend implements AssistantBackend {
   /// Hands the service the photos of a resumed conversation. A photo that has
   /// since been deleted is simply left out, and the request builder sends the
   /// deleted-photo placeholder in its place.
-  Future<void> _seedEarlierPhotos(String conversationId) async {
+  ///
+  /// A photo that exists but would not load (offline, say) is NOT left out:
+  /// that would tell the model the user deleted it. The ones that loaded are
+  /// seeded, the rest stay owed for the next send, and the error is rethrown
+  /// so this send fails instead of going out without them.
+  Future<void> _seedEarlierPhotos(String conversationId, Object opening) async {
     final ids = _unseeded.remove(conversationId);
     if (ids == null) return;
     final images = <String, InlineImage>{};
+    final owed = <String>{};
+    Object? failure;
+    StackTrace? trace;
     for (final id in ids) {
-      final item = await _loadMedia(id);
-      if (item == null) continue;
-      final image = await _prep.prepare(id, () => _loadOriginal(item));
-      images[id] = InlineImage(
-        mimeType: image.mimeType,
-        base64: base64Encode(image.bytes),
-      );
+      try {
+        final item = await _loadMedia(id);
+        if (item == null) continue;
+        final image = await _prep.prepare(id, () => _loadOriginal(item));
+        images[id] = InlineImage(
+          mimeType: image.mimeType,
+          base64: base64Encode(image.bytes),
+        );
+      } catch (e, s) {
+        owed.add(id);
+        failure ??= e;
+        trace ??= s;
+      }
     }
+    // Closed while the photos loaded: the service has already forgotten this
+    // conversation, and a reopen seeds it afresh.
+    if (!identical(_openings[conversationId], opening)) return;
     service.seedConversation(conversationId, const [], images: images);
+    if (failure != null) {
+      _unseeded.putIfAbsent(conversationId, () => {}).addAll(owed);
+      Error.throwWithStackTrace(failure, trace!);
+    }
   }
 
   /// Saves the declined-video pair, both halves out of the model's sight.
@@ -343,6 +407,7 @@ class LiveAssistantBackend implements AssistantBackend {
       text: kVideoDeclinedNotice,
       includeInModel: false,
     );
+    _revision.value++;
   }
 
   /// Saves one errorless exchange; handed to the service at construction.
@@ -376,6 +441,7 @@ class LiveAssistantBackend implements AssistantBackend {
       role: AnalysisRole.model.name,
       text: answer,
     );
+    _revision.value++;
   }
 
   /// The row for [conversationId], created on first use. Null when it was

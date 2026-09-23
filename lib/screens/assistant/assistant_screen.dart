@@ -29,16 +29,41 @@ class _AssistantScreenState extends State<AssistantScreen> {
 
   List<AssistantConversation>? _conversations;
 
+  /// Which [_load] is the latest: an older one finishing late must not
+  /// overwrite a newer list.
+  int _loadSeq = 0;
+
+  /// A load is running, so [build] does not start another.
+  bool _loadingList = false;
+
   @override
   void initState() {
     super.initState();
+    // Kept alive as a tab, so a conversation saved from Describe, or deleted
+    // anywhere, has to reach this list without it being reopened.
+    _backend.changes.addListener(_onChanged);
     if (_backend.available) _load();
   }
 
+  @override
+  void dispose() {
+    _backend.changes.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted && _backend.available) _load();
+  }
+
   Future<void> _load() async {
+    final seq = ++_loadSeq;
+    _loadingList = true;
     final list = await _backend.conversations();
-    if (!mounted) return;
-    setState(() => _conversations = list);
+    if (!mounted || seq != _loadSeq) return;
+    setState(() {
+      _conversations = list;
+      _loadingList = false;
+    });
   }
 
   Future<void> _openChat({String? conversationId}) async {
@@ -95,6 +120,20 @@ class _AssistantScreenState extends State<AssistantScreen> {
   @override
   Widget build(BuildContext context) {
     final available = _backend.available;
+    if (!available) {
+      // Signed out: forget whose list this was, so the next sign-in (maybe
+      // another account) loads its own rather than showing this one.
+      _conversations = null;
+      _loadSeq++;
+      _loadingList = false;
+    } else if (_conversations == null && !_loadingList) {
+      // Became available after initState (a sign-in): nothing else would
+      // start the load, and the spinner below would turn forever.
+      _loadingList = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
     final conversations = _conversations;
     return Scaffold(
       appBar: AppBar(title: const Text('Assistant')),

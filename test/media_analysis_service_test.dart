@@ -984,4 +984,47 @@ void main() {
       expect(analyzer.calls, 2);
     });
   });
+
+  group('preflight', () {
+    test('a clear path is null, and sends and counts nothing', () async {
+      final service = buildService();
+      expect(await service.preflight(), isNull);
+      expect(analyzer.calls, 0);
+      expect(usageCount, isNull);
+    });
+
+    test('the account gates are the ones analyze uses', () async {
+      trigger = await buildTrigger(null);
+      expect(await buildService().preflight(), AnalysisBlock.notSignedIn);
+
+      claim = const ClaimRecord(uid: uid, declined: true);
+      trigger = await buildTrigger(uid);
+      expect(await buildService().preflight(), AnalysisBlock.syncDeclined);
+    });
+
+    test('consent is left to the caller, which asks for it', () async {
+      consentUid = null;
+      expect(await buildService().preflight(), isNull);
+    });
+
+    test('at the daily cap', () async {
+      usageDay = analysisDayKey(clock);
+      usageCount = kMaxAnalysesPerDay;
+      expect(await buildService().preflight(), AnalysisBlock.dailyCap);
+    });
+
+    test('more photos than a message may carry', () async {
+      final service = buildService();
+      expect(
+        await service.preflight(
+            newImageIds: {for (var i = 0; i <= kMaxImagesPerMessage; i++) 'p$i'}),
+        AnalysisBlock.tooManyPhotos,
+      );
+      expect(
+        await service.preflight(
+            newImageIds: {for (var i = 0; i < kMaxImagesPerMessage; i++) 'p$i'}),
+        isNull,
+      );
+    });
+  });
 }
