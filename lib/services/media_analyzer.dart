@@ -13,9 +13,10 @@ import 'media_analysis.dart';
 /// ```
 ///
 /// Empty is the default and it is a working state, not a broken one: with no
-/// key, `media_route.dart` passes `analyze: null` and the affordance is hidden
-/// entirely — the same "hidden, not disabled" rule the media entry point itself
-/// follows. That is what keeps the feature absent from any build that was not
+/// key, the assistant reports itself unavailable (`MediaWiring` in
+/// `media_route.dart`): Describe is hidden entirely — the same "hidden, not
+/// disabled" rule the media entry point itself follows — and the Assistant
+/// shows a neutral unavailable state. That is what keeps the feature absent from any build that was not
 /// deliberately given a key, including every CI and test run.
 ///
 /// **This does not keep the key secret from a user of the app.** `--dart-define`

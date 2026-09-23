@@ -7,12 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/screens/media/media_viewer_screen.dart';
 import 'package:menstrul_track/services/media_analysis.dart';
-import 'package:menstrul_track/services/media_analysis_service.dart';
+import 'package:menstrul_track/screens/assistant/assistant_chat_screen.dart';
 
-/// Describe's resume behaviour: whether a saved conversation short-circuits a
-/// fresh network call. No service, no database, no Firebase — [analyze] and
-/// [loadExistingTurns] are injected, the same seam every other media screen
-/// test in this repo uses.
+import 'support/fake_assistant_backend.dart';
+
+/// Describe: resume a saved conversation, or run consent then the ad and
+/// open a new one with the photo attached. No service, no database, no
+/// Firebase — the lookups and the opener are injected, the same seam every
+/// other media screen test in this repo uses.
 void main() {
   late Directory tempDir;
   late File imageFile;
@@ -39,234 +41,145 @@ void main() {
         thumbnail: Uint8List.fromList(_tinyPng),
       );
 
+  /// What the viewer asked to open, in order.
+  late List<String> calls;
+
+  Future<void> openRecorder(
+    BuildContext context, {
+    String? conversationId,
+    MediaItem? attach,
+  }) async {
+    calls.add(conversationId != null
+        ? 'resume:$conversationId'
+        : 'new:${attach?.id}');
+  }
+
+  setUp(() => calls = []);
+
   Future<void> pumpViewer(
     WidgetTester tester, {
-    required Future<AnalysisOutcome> Function(MediaItem, File, String?)
-        analyze,
-    Future<List<AnalysisTurn>> Function(MediaItem)? loadExistingTurns,
+    Future<String?> Function(MediaItem)? findConversation,
+    Future<void> Function(BuildContext, {String? conversationId, MediaItem? attach})?
+        openConversation,
     Future<bool> Function(BuildContext)? earnDescribe,
     bool needsConsent = false,
     Future<bool> Function(BuildContext)? requestConsent,
+    bool tap = true,
   }) async {
     await tester.pumpWidget(MaterialApp(
       home: MediaViewerScreen(
         item: item(),
         load: (_) async => imageFile,
-        analyze: analyze,
+        openConversation: openConversation ?? openRecorder,
+        findConversation: findConversation,
         needsConsent: () => needsConsent,
         requestConsent: requestConsent,
-        loadExistingTurns: loadExistingTurns,
         earnDescribe: earnDescribe,
       ),
     ));
     await tester.pumpAndSettle();
+    if (!tap) return;
     await tester.tap(find.byKey(const Key('media-describe')));
     await tester.pumpAndSettle();
   }
 
-  testWidgets(
-      'Describe resumes a saved conversation instead of asking again',
+  Future<bool> Function(BuildContext) recording(String name, bool result) =>
+      (_) async {
+        calls.add(name);
+        return result;
+      };
+
+  testWidgets('Describe resumes a saved conversation: no consent, no ad',
       (tester) async {
-    var analyzeCalls = 0;
     await pumpViewer(
       tester,
-      analyze: (_, _, _) async {
-        analyzeCalls++;
-        return const AnalysisOutcome(
-          result: AnalysisResult(prose: 'A fresh description.'),
-        );
-      },
-      loadExistingTurns: (_) async => const [
-        AnalysisTurn.model('A pink diamond pattern.'),
-        AnalysisTurn.user('what colour is it'),
-        AnalysisTurn.model('It is pink.'),
-      ],
+      findConversation: (_) async => 'c1',
+      needsConsent: true,
+      requestConsent: recording('consent', true),
+      earnDescribe: recording('ad', true),
     );
 
-    // The saved transcript is shown...
-    expect(find.text('A pink diamond pattern.'), findsOneWidget);
-    expect(find.text('what colour is it'), findsOneWidget);
-    expect(find.text('It is pink.'), findsOneWidget);
-    // ...and nothing new was asked to produce it.
-    expect(analyzeCalls, 0);
-    expect(find.text('A fresh description.'), findsNothing);
+    // Reading what is already stored sends nothing, so neither the consent
+    // gate (which governs SENDING) nor the ad (which pays for a call) applies.
+    expect(calls, ['resume:c1']);
   });
 
-  testWidgets(
-      'Describe still asks fresh when there is no saved conversation '
-      '(regression)', (tester) async {
-    var analyzeCalls = 0;
+  testWidgets('a fresh Describe runs consent, then the ad, then opens the chat '
+      'with the photo attached', (tester) async {
     await pumpViewer(
       tester,
-      analyze: (_, _, _) async {
-        analyzeCalls++;
-        return const AnalysisOutcome(
-          result: AnalysisResult(prose: 'A fresh description.'),
-        );
-      },
-      loadExistingTurns: (_) async => const [],
+      findConversation: (_) async => null,
+      needsConsent: true,
+      requestConsent: recording('consent', true),
+      earnDescribe: recording('ad', true),
     );
-
-    expect(analyzeCalls, 1);
-    expect(find.text('A fresh description.'), findsOneWidget);
+    expect(calls, ['consent', 'ad', 'new:m1']);
   });
 
-  testWidgets('a null loadExistingTurns behaves exactly as before (regression)',
+  testWidgets('a declined consent never shows the ad or opens the chat',
       (tester) async {
-    var analyzeCalls = 0;
     await pumpViewer(
       tester,
-      analyze: (_, _, _) async {
-        analyzeCalls++;
-        return const AnalysisOutcome(
-          result: AnalysisResult(prose: 'A fresh description.'),
-        );
-      },
-      loadExistingTurns: null,
+      needsConsent: true,
+      requestConsent: recording('consent', false),
+      earnDescribe: recording('ad', true),
     );
-
-    expect(analyzeCalls, 1);
-    expect(find.text('A fresh description.'), findsOneWidget);
+    expect(calls, ['consent']);
   });
 
-  testWidgets(
-      'a revoked consent still allows reading a saved transcript, but a '
-      'follow-up stays blocked', (tester) async {
-    var analyzeCalls = 0;
-    var requestConsentCalls = 0;
+  testWidgets('a declined ad opens nothing', (tester) async {
+    await pumpViewer(tester, earnDescribe: recording('ad', false));
+    expect(calls, ['ad'],
+        reason: 'a declined reward must not reach the model -- the request '
+            'costs real money and the user did not earn it');
+  });
 
+  testWidgets('a null gate leaves Describe ungated, as premium gets it',
+      (tester) async {
+    await pumpViewer(tester);
+    expect(calls, ['new:m1']);
+  });
+
+  testWidgets('a failed lookup falls through to a fresh conversation',
+      (tester) async {
+    await pumpViewer(
+      tester,
+      findConversation: (_) async => throw StateError('db'),
+    );
+    expect(calls, ['new:m1']);
+  });
+
+  testWidgets('no openConversation hides Describe entirely', (tester) async {
     await tester.pumpWidget(MaterialApp(
-      home: MediaViewerScreen(
-        item: item(),
-        load: (_) async => imageFile,
-        analyze: (_, _, _) async {
-          analyzeCalls++;
-          // Simulates `MediaAnalysisService.analyze`'s OWN, authoritative
-          // consent gate — the one that still fires no matter what this
-          // widget decided, so a follow-up genuinely cannot get through.
-          return const AnalysisOutcome(blocked: AnalysisBlock.notConsented);
-        },
-        // Consent has been revoked (or was never granted).
-        needsConsent: () => true,
-        requestConsent: (_) async {
-          requestConsentCalls++;
-          return true;
-        },
-        loadExistingTurns: (_) async => const [
-          AnalysisTurn.model('A pink diamond pattern.'),
-        ],
-      ),
+      home: MediaViewerScreen(item: item(), load: (_) async => imageFile),
     ));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('media-describe')));
-    await tester.pumpAndSettle();
-
-    // Reading the saved transcript is NOT gated: it renders, and the consent
-    // sheet was never invoked to show it.
-    expect(find.text('A pink diamond pattern.'), findsOneWidget);
-    expect(requestConsentCalls, 0);
-    expect(analyzeCalls, 0);
-
-    // A follow-up IS a send, and stays gated: it still reaches `analyze`,
-    // whose own consent check (simulated above) refuses it — reading was
-    // never what unlocked sending.
-    await tester.enterText(
-      find.byKey(const Key('analysis-question-field')),
-      'what colour is it',
-    );
-    await tester.tap(find.byKey(const Key('analysis-ask-button')));
-    await tester.pumpAndSettle();
-
-    expect(analyzeCalls, 1);
-    expect(
-      find.text(messageForAnalysisBlock(AnalysisBlock.notConsented)),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('media-describe')), findsNothing);
   });
 
-  group('the rewarded-ad gate on Describe', () {
-    Future<AnalysisOutcome> Function(MediaItem, File, String?) counting(
-            List<String> calls) =>
-        (_, _, _) async {
-          calls.add('analyze');
-          return const AnalysisOutcome(
-            result: AnalysisResult(prose: 'A fresh description.'),
-          );
-        };
+  testWidgets('the chat it opens sends the default question with the photo',
+      (tester) async {
+    final backend = FakeAssistantBackend();
+    await pumpViewer(
+      tester,
+      openConversation: (context, {conversationId, attach}) =>
+          Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => AssistantChatScreen(
+          backend: backend,
+          conversationId: conversationId,
+          pendingAttachments: [?attach],
+          adEarned: true,
+        ),
+      )),
+    );
 
-    testWidgets('earning the reward lets the request through', (tester) async {
-      final calls = <String>[];
-      await pumpViewer(
-        tester,
-        analyze: counting(calls),
-        earnDescribe: (_) async {
-          calls.add('gate');
-          return true;
-        },
-      );
-      expect(calls, ['gate', 'analyze']);
-    });
-
-    testWidgets('declining the ad sends NOTHING', (tester) async {
-      final calls = <String>[];
-      await pumpViewer(
-        tester,
-        analyze: counting(calls),
-        earnDescribe: (_) async {
-          calls.add('gate');
-          return false;
-        },
-      );
-      expect(calls, ['gate'],
-          reason: 'a declined reward must not reach the model -- the request '
-              'costs real money and the user did not earn it');
-    });
-
-    testWidgets('a null gate leaves Describe ungated, as premium gets it',
-        (tester) async {
-      final calls = <String>[];
-      await pumpViewer(tester, analyze: counting(calls));
-      expect(calls, ['analyze']);
-    });
-
-    testWidgets('resuming a saved conversation never shows an ad',
-        (tester) async {
-      final calls = <String>[];
-      await pumpViewer(
-        tester,
-        analyze: counting(calls),
-        earnDescribe: (_) async {
-          calls.add('gate');
-          return true;
-        },
-        loadExistingTurns: (_) async =>
-            const [AnalysisTurn.model('A pink diamond pattern.')],
-      );
-      expect(calls, isEmpty,
-          reason: 'reopening stored text sends nothing and costs no API call, '
-              'so there is nothing for an ad to offset');
-    });
-
-    testWidgets('the ad comes AFTER consent, so a declined consent never '
-        'burns an ad the user already watched', (tester) async {
-      final calls = <String>[];
-      await pumpViewer(
-        tester,
-        analyze: counting(calls),
-        needsConsent: true,
-        requestConsent: (_) async {
-          calls.add('consent');
-          return false;
-        },
-        earnDescribe: (_) async {
-          calls.add('gate');
-          return true;
-        },
-      );
-      expect(calls, ['consent']);
-    });
+    expect(find.byType(AssistantChatScreen), findsOneWidget);
+    expect(backend.calls, ['send']);
+    expect(backend.sends.single.originMediaId, 'm1');
+    expect(backend.sends.single.attachments.single.id, 'm1');
+    expect(find.text(kDefaultAnalysisQuestion), findsOneWidget);
+    expect(find.text('An answer.'), findsOneWidget);
   });
-
 }
 
 /// The smallest valid PNG, so `Image.file` has something real to decode.

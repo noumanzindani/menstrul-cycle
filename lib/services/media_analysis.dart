@@ -27,7 +27,7 @@
 /// pure as the header above describes — no I/O, no database, no repository
 /// import — because persistence is not this file's job: `MediaAnalysisService`
 /// (`media_analysis_service.dart`) calls out to an injected closure the CALLER
-/// wires up in `media_route.dart`, and `test/media_guardrails_test.dart`
+/// wires up (`LiveAssistantBackend.persistTurn`), and `test/media_guardrails_test.dart`
 /// structurally forbids the service from importing a repository or the
 /// database itself.
 ///

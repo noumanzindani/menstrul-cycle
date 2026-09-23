@@ -4,9 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../db/database.dart';
-import '../../services/media_analysis.dart';
-import '../../services/media_analysis_service.dart';
-import 'analysis_result_sheet.dart';
 import 'media_timeline_screen.dart' show mediaDateFormat;
 
 /// Builds the player for a downloaded file.
@@ -41,12 +38,10 @@ class MediaViewerScreen extends StatefulWidget {
     required this.item,
     required this.load,
     this.controllerFactory = _defaultController,
-    this.analyze,
+    this.openConversation,
+    this.findConversation,
     this.needsConsent,
     this.requestConsent,
-    this.endConversation,
-    this.messagesLeft,
-    this.loadExistingTurns,
     this.earnDescribe,
   });
 
@@ -57,14 +52,22 @@ class MediaViewerScreen extends StatefulWidget {
 
   final VideoControllerFactory controllerFactory;
 
-  /// Sends the photo out for description. Null hides the action entirely —
-  /// the "hidden, not disabled" rule the media entry point itself follows,
-  /// and what keeps this absent from any build with no API key compiled in.
-  final Future<AnalysisOutcome> Function(
-    MediaItem item,
-    File file,
-    String? question,
-  )? analyze;
+  /// Opens the assistant: [conversationId] resumes a saved conversation,
+  /// [attach] starts a new one that sends this photo with the default
+  /// question. Null hides Describe entirely — the "hidden, not disabled" rule
+  /// the media entry point itself follows, and what keeps it absent from any
+  /// build with no API key compiled in.
+  final Future<void> Function(
+    BuildContext context, {
+    String? conversationId,
+    MediaItem? attach,
+  })? openConversation;
+
+  /// The saved conversation that started from this photo, if there is one.
+  /// Checked on every Describe tap, before any gate: when it returns an id,
+  /// Describe reopens that conversation instead of starting a second one
+  /// about the same picture. Null or a null result starts a new one.
+  final Future<String?> Function(MediaItem item)? findConversation;
 
   /// Whether the account still has to opt in. Read at TAP time rather than at
   /// build time so a consent granted in Settings mid-session takes effect
@@ -74,17 +77,7 @@ class MediaViewerScreen extends StatefulWidget {
   /// Shows the opt-in sheet and records the answer. True = may proceed.
   final Future<bool> Function(BuildContext context)? requestConsent;
 
-  /// Forgets this photo's conversation when the sheet closes, so re-opening it
-  /// starts over rather than silently resuming a transcript the user can no
-  /// longer see.
-  final VoidCallback? endConversation;
-
-  /// How many messages today's cap still allows, read at build time. Null hides
-  /// the counter — a display of a budget nobody supplied would be a guess, and
-  /// this one costs real money to be wrong about.
-  final int Function()? messagesLeft;
-
-  /// Earns the right to make ONE fresh description request -- the rewarded-ad
+  /// Earns the right to start ONE new conversation -- the rewarded-ad
   /// gate. True = may proceed, false = the user did not earn it and nothing is
   /// sent. Null leaves the action ungated, which is what a premium user and
   /// every test that is not about ads get.
@@ -94,14 +87,6 @@ class MediaViewerScreen extends StatefulWidget {
   /// screen that reached for `AdService` directly could not be widget-tested
   /// at all.
   final Future<bool> Function(BuildContext context)? earnDescribe;
-
-  /// The saved conversation about this photo, if one exists, oldest turn
-  /// first. Checked on every Describe tap, before any network call: when this
-  /// returns a non-empty list, Describe reopens that conversation instead of
-  /// asking the model a brand new opening question and silently starting a
-  /// second one about the same picture. Null or an empty list behaves exactly
-  /// as before — a fresh description is requested.
-  final Future<List<AnalysisTurn>> Function(MediaItem item)? loadExistingTurns;
 
   @override
   State<MediaViewerScreen> createState() => _MediaViewerScreenState();
@@ -169,37 +154,33 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
   /// The control itself appears one state earlier (see [_showDescribe]) and is
   /// disabled until this holds.
   bool get _canDescribe =>
-      widget.analyze != null && !_isVideo && _file != null && _error == null;
+      widget.openConversation != null &&
+      !_isVideo &&
+      _file != null &&
+      _error == null;
 
   Future<void> _describe() async {
-    final analyze = widget.analyze;
-    final file = _file;
-    if (analyze == null || file == null || _analyzing) return;
+    final open = widget.openConversation;
+    if (open == null || _file == null || _analyzing) return;
 
     setState(() => _analyzing = true);
 
-    // Checked BEFORE the consent gate AND before any network call. This is a
-    // READ of a conversation already stored on this device — see
-    // [MediaViewerScreen.loadExistingTurns]'s doc comment — and reading it
-    // sends nothing anywhere. Consent governs SENDING, so a resumed,
-    // read-only reopen must not be blocked by a revoked or missing consent;
-    // conflating "may I read what I already have" with "may I send more" is
-    // exactly the bug this ordering avoids. A follow-up typed into the
-    // reopened sheet is a SEND, and remains fully gated: it goes through
-    // [analyze] below, and `MediaAnalysisService.analyze` enforces its own
-    // consent check regardless of anything decided here.
-    final existing = await _loadExisting();
+    // Checked BEFORE the consent gate AND before the ad. Reopening a
+    // conversation already stored on this device sends nothing anywhere, and
+    // consent governs SENDING, so a resumed, read-only reopen must not be
+    // blocked by a revoked or missing consent; and there is no call for an ad
+    // to offset. A follow-up typed into the reopened chat IS a send, and the
+    // chat and `MediaAnalysisService.analyze` still gate it.
+    final existing = await _findExisting();
     if (!mounted) return;
-    if (existing.isNotEmpty) {
+    if (existing != null) {
       setState(() => _analyzing = false);
-      await _openSheet(analyze, file, initialTurns: existing);
+      await open(context, conversationId: existing);
       return;
     }
 
-    // Consent next, and it is a hard gate for every path below: nothing is
-    // read from disk and no request is built until it passes. Reached only
-    // once no resumable conversation was found — from here on every path may
-    // reach the network.
+    // Consent next, and it is a hard gate for everything below: nothing is
+    // read from disk and nothing is sent until it passes.
     if (widget.needsConsent?.call() ?? false) {
       final request = widget.requestConsent;
       if (request == null) {
@@ -224,8 +205,8 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
     // meet a sheet they decline -- a reward taken and never delivered, which
     // is an AdMob policy problem before it is a UX one.
     //
-    // BEFORE `analyze`: this is the call that costs real money, and it is the
-    // one the ad exists to pay for.
+    // BEFORE the chat opens: it sends the photo straight away, and that is
+    // the call that costs real money and the one the ad exists to pay for.
     final earn = widget.earnDescribe;
     if (earn != null) {
       final earned = await earn(context);
@@ -236,93 +217,22 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
       }
     }
 
-    final outcome = await analyze(widget.item, file, null);
-    if (!mounted) return;
     setState(() => _analyzing = false);
-
-    final blocked = outcome.blocked;
-    if (blocked != null) {
-      _say(messageForAnalysisBlock(blocked));
-      return;
-    }
-    final error = outcome.error;
-    if (error != null) {
-      _say(error);
-      return;
-    }
-    final prose = outcome.result?.prose;
-    if (prose == null || prose.trim().isEmpty) {
-      _say('No description came back for this photo.');
-      return;
-    }
-
-    await _openSheet(analyze, file, initialText: prose);
+    await open(context, attach: widget.item);
   }
 
-  /// Reads the stored conversation for this photo, if [MediaViewerScreen.
-  /// loadExistingTurns] was given one. A lookup failure reads the same as "no
-  /// saved conversation" — Describe simply falls through to asking the model
-  /// fresh, rather than getting stuck on a database error the user cannot act
-  /// on.
-  Future<List<AnalysisTurn>> _loadExisting() async {
-    final load = widget.loadExistingTurns;
-    if (load == null) return const [];
+  /// The saved conversation for this photo, if [MediaViewerScreen.
+  /// findConversation] was given. A lookup failure reads the same as "no
+  /// saved conversation" — Describe simply starts a new one, rather than
+  /// getting stuck on a database error the user cannot act on.
+  Future<String?> _findExisting() async {
+    final find = widget.findConversation;
+    if (find == null) return null;
     try {
-      return await load(widget.item);
+      return await find(widget.item);
     } catch (_) {
-      return const [];
+      return null;
     }
-  }
-
-  /// Opens the conversation sheet, either freshly seeded from [initialText]
-  /// (a new description just came back) or hydrated from [initialTurns] (an
-  /// existing session is being resumed). Exactly one of the two is meaningful
-  /// per call; [showAnalysisResultSheet] itself ignores [initialText]
-  /// whenever [initialTurns] is non-empty.
-  Future<void> _openSheet(
-    Future<AnalysisOutcome> Function(MediaItem, File, String?) analyze,
-    File file, {
-    String? initialText,
-    List<AnalysisTurn> initialTurns = const [],
-  }) {
-    return showAnalysisResultSheet(
-      context,
-      initialText: initialText ?? '',
-      initialTurns: initialTurns,
-      // The sheet sits over the photo but does not show it: at 80% height the
-      // top-left thumbnail is the only thing that says which picture the
-      // answer is about.
-      title: mediaDateFormat.format(widget.item.capturedAt),
-      thumbnail: widget.item.thumbnail,
-      messagesLeft: widget.messagesLeft,
-      onClosed: widget.endConversation,
-      onAsk: (question) async {
-        final next = await analyze(widget.item, file, question);
-        final nextBlock = next.blocked;
-        if (nextBlock != null) {
-          return AnalysisSheetReply(
-            messageForAnalysisBlock(nextBlock),
-            isError: true,
-          );
-        }
-        if (next.error != null) {
-          return AnalysisSheetReply(next.error!, isError: true);
-        }
-        final text = next.result?.prose;
-        if (text == null || text.trim().isEmpty) {
-          return const AnalysisSheetReply(
-            'No description came back for this photo.',
-            isError: true,
-          );
-        }
-        return AnalysisSheetReply(text);
-      },
-    );
-  }
-
-  void _say(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// Whether the Describe control belongs on screen at all.
@@ -332,7 +242,7 @@ class _MediaViewerScreenState extends State<MediaViewerScreen>
   /// feature is absent (no key, or a video) there is no bar at all: hidden, not
   /// disabled, the same rule the media entry point itself follows.
   bool get _showDescribe =>
-      widget.analyze != null && !_isVideo && _error == null;
+      widget.openConversation != null && !_isVideo && _error == null;
 
   @override
   Widget build(BuildContext context) {

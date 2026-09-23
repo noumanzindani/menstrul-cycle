@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -19,7 +18,6 @@ import '../../services/device_id.dart';
 import '../../services/firebase_availability.dart';
 import '../../services/firestore_ref.dart';
 import '../../services/health_context.dart';
-import '../../services/media_analysis.dart';
 import '../../services/media_analysis_service.dart';
 import '../../services/media_analyzer.dart';
 import '../../services/ad_service.dart';
@@ -34,6 +32,7 @@ import '../../services/media_sync_service.dart';
 import '../../services/media_thumbnailer.dart';
 import '../../services/media_upload_service.dart';
 import '../../services/sync_trigger.dart';
+import '../assistant/assistant_chat_screen.dart';
 import '../assistant/assistant_screen.dart';
 import '../assistant/live_assistant_backend.dart';
 import 'analysis_consent_sheet.dart';
@@ -214,245 +213,41 @@ Route<void> mediaTimelineRoute(BuildContext context) {
         )
       : null;
 
-  // Photo descriptions. Gated on a compiled-in key as well as on Firebase:
-  // with no key there is no backend, so the action is hidden rather than shown
-  // and failing. `settings` is captured once and its fields read lazily, so a
-  // consent granted in Settings mid-session is seen without this route
-  // listening to anything.
-  final settings = context.read<SettingsProvider>();
-  // Read here with every other provider, NOT inside the viewer: the gate is
-  // handed down as a callback so the screen never reaches for AdMob itself.
-  final premium = context.read<PremiumProvider>();
-  final canAnalyze = available && analysisAvailable;
+  // Hidden rather than shown and failing when there is no key, no Firebase
+  // or no account — the assistant's own notion of available.
+  final canAnalyze = assistant.available;
 
-  final sessionRepo = wiring.sessions;
-
-  // Persists one errorless exchange, resuming the existing session for this
-  // mediaId when there is one rather than starting a second conversation
-  // about the same photo. Handed to MediaAnalysisService as an opaque
-  // callback: that class must never import AnalysisSessionRepository or
-  // AppDatabase itself (test/media_guardrails_test.dart enforces it), so the
-  // find-or-create logic lives here, where the database already is.
-  //
-  // [isMemoHit] (see MediaAnalysisService._persistTurn's doc comment) is
-  // where the duplicate-turn defect lived: a memo hit re-serves an answer
-  // already shown once before, and `AnalysisSessionRepository.append` is a
-  // pure insert with no dedup, so persisting it again would insert an exact
-  // duplicate pair into a session that already holds it. The live transcript
-  // never repeats that exchange, so the saved one must not either — hence
-  // the early return below whenever a session already exists. The one case
-  // that must still persist a memo hit is when NO session exists yet (it was
-  // deleted independently of the in-memory memo, e.g. by `deleteForMedia`):
-  // skipping there would leave a later follow-up with no opening turn to
-  // attach to, which is a worse transcript than a duplicated one.
-  //
-  // A Describe conversation's id IS its photo's media id, which is what
-  // `forMedia` looks the session up by.
-  Future<void> persistAnalysisTurn({
-    required String conversationId,
-    required String question,
-    required List<AttachmentRef> attachments,
-    required String answer,
-    required bool isMemoHit,
-  }) async {
-    final uid = trigger.currentUid;
-    if (uid == null) return;
-    final mediaId = conversationId;
-    final existing =
-        await sessionRepo.forMedia(uid: uid, mediaId: mediaId);
-    if (isMemoHit && existing != null) return;
-    final session = existing ??
-        await sessionRepo.create(
-          uid: uid,
-          mediaId: mediaId,
-          consentVersion: kCurrentConsentVersion,
-        );
-    await sessionRepo.append(
-      sessionId: session.id,
-      role: 'user',
-      text: question,
-      attachments: attachments,
-    );
-    await sessionRepo.append(
-      sessionId: session.id,
-      role: 'model',
-      text: answer,
-    );
-  }
-
-  final analysisService = MediaAnalysisService(
-    analyzer: canAnalyze ? GeminiMediaAnalyzer() : const UnavailableMediaAnalyzer(),
-    trigger: trigger,
-    consentUid: () => settings.analysisConsentUid,
-    consentVersion: () => settings.analysisConsentVersion,
-    readUsage: () => (
-      day: settings.analysisCountDay,
-      count: settings.analysisCountToday,
-    ),
-    writeUsage: settings.recordAnalysisUsage,
-    persistTurn: persistAnalysisTurn,
-    available: canAnalyze,
-  );
-
-  // Opens one item full-screen, from a grid tile.
+  // Opens one item full-screen, from a grid tile. Describe on it opens the
+  // assistant: resuming the conversation that started from this photo, or
+  // starting one that sends the photo with the default question.
   void openViewer(BuildContext context, MediaItem item) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => MediaViewerScreen(
           item: item,
           load: (item) => _loadFile(item, cache, blobs),
-          analyze: !canAnalyze
+          openConversation: !canAnalyze
               ? null
-              : (item, file, question) async {
-                  // Gathered from providers BEFORE the async gap, so no
-                  // BuildContext is used across an await — mirrors
-                  // insights_screen.dart:79-99's PDF export. The service
-                  // itself may not read these providers (or the database
-                  // behind them) at all; assembling the context is this
-                  // caller's job precisely so it stays that way.
-                  final logProvider = context.read<LogProvider>();
-                  final medicationProvider =
-                      context.read<MedicationProvider>();
-                  final prediction = context.read<PredictionResult?>();
-                  final appSettings = settings.settings;
-                  final healthContext = appSettings == null
-                      ? null
-                      : buildHealthContext(
-                          logs: logProvider.logs,
-                          cycles: logProvider.cycles,
-                          prediction: prediction,
-                          medications: medicationProvider.items,
-                          settings: appSettings,
-                          asOf: DateTime.now(),
-                        );
-                  if (item.kind != 'image') {
-                    return analysisService.analyze(
-                      conversationId: item.id,
-                      attachments: [AnalysisAttachment.video(item.id)],
-                      question: question,
-                      healthContext: healthContext,
-                    );
-                  }
-                  final bytes = await file.readAsBytes();
-                  final mimeType = _guessContentType(item.storagePath);
-                  // The photo rides the opening turn only; after that it is
-                  // resent from the service's own copy. A resumed
-                  // conversation already names it on its first turn (see
-                  // `loadExistingTurns` below), so only its bytes are handed
-                  // over, never a second attachment.
-                  if (analysisService.turnsUsed(item.id) == 0) {
-                    return analysisService.analyze(
-                      conversationId: item.id,
-                      attachments: [
-                        AnalysisAttachment.image(
-                          mediaId: item.id,
-                          mimeType: mimeType,
-                          bytes: bytes,
-                        ),
-                      ],
-                      question: question,
-                      healthContext: healthContext,
-                    );
-                  }
-                  analysisService.seedConversation(
-                    item.id,
-                    const [],
-                    images: {
-                      item.id: InlineImage(
-                        mimeType: mimeType,
-                        base64: base64Encode(bytes),
-                      ),
-                    },
-                  );
-                  return analysisService.analyze(
-                    conversationId: item.id,
-                    question: question,
-                    healthContext: healthContext,
-                  );
-                },
-          // The rewarded-ad gate. Premium is read at TAP time, not captured
-          // here: a purchase completing while this viewer is open must stop
-          // the ads immediately, the same way `needsConsent` re-reads consent
-          // rather than snapshotting it.
-          earnDescribe: !canAnalyze
-              ? null
-              : (context) => earnOneConversation(
-                    premium: premium.isPremium,
-                    confirm: () => showRewardedDescribePrompt(context),
-                    showAd: () =>
-                        AdService.instance.showRewarded(premium: premium.isPremium),
-                  ),
-          needsConsent: () => !analysisService.consented,
-          endConversation: () => analysisService.endConversation(item.id),
-          // Display only, and computed from the SAME pure helper the
-          // service counts with — a second reading of "how many are left"
-          // is a second place for it to be wrong. Read lazily, so it is
-          // current every time the sheet rebuilds.
-          messagesLeft: !canAnalyze
-              ? null
-              : () {
-                  final used = analysisCountForDay(
-                    storedDay: settings.analysisCountDay,
-                    storedCount: settings.analysisCountToday,
-                    now: DateTime.now(),
-                  );
-                  final left = kMaxAnalysesPerDay - used;
-                  return left < 0 ? 0 : left;
-                },
+              : (context, {conversationId, attach}) =>
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => AssistantChatScreen(
+                      backend: assistant,
+                      conversationId: conversationId,
+                      pendingAttachments: [?attach],
+                      // The viewer ran consent and the ad before opening a
+                      // new conversation; a resumed one never needs them.
+                      adEarned: true,
+                    ),
+                  )),
           // Looked up fresh on every Describe tap rather than once here: a
           // conversation can be created (or, via `deleteForMedia`, removed)
           // while this viewer is already open.
-          loadExistingTurns: !canAnalyze
-              ? null
-              : (item) async {
-                  final uid = trigger.currentUid;
-                  if (uid == null) return const <AnalysisTurn>[];
-                  final session =
-                      await sessionRepo.forMedia(uid: uid, mediaId: item.id);
-                  if (session == null) return const <AnalysisTurn>[];
-                  final messages = await sessionRepo.messagesFor(session.id);
-                  // A v15 session stored no attachments; its photo is the
-                  // session's, on the first user turn — `effectiveAttachments`
-                  // restores that reading.
-                  final refs = effectiveAttachments(session.mediaId, [
-                    for (final m in messages)
-                      (role: m.role, attachmentsJson: m.attachmentsJson),
-                  ]);
-                  // includeInModel is carried over, not filtered here: the
-                  // sheet still shows such a turn, and the request builder
-                  // is what leaves it out of what the model sees.
-                  final turns = [
-                    for (var i = 0; i < messages.length; i++)
-                      messages[i].role == 'user'
-                          ? AnalysisTurn.user(messages[i].messageText,
-                              attachments: refs[i],
-                              includeInModel: messages[i].includeInModel)
-                          : AnalysisTurn.model(messages[i].messageText,
-                              attachments: refs[i],
-                              includeInModel: messages[i].includeInModel),
-                  ];
-                  // Seeds the SERVICE's in-memory history, not just the UI:
-                  // the sheet renders these turns from the return value below,
-                  // but the next follow-up goes through `analysisService`
-                  // (captured above), whose `_transcripts` map is the only
-                  // thing `analyze()` reads for context. Without this call a
-                  // resumed conversation would show old turns on screen while
-                  // the model itself remembers none of them. See
-                  // `MediaAnalysisService.seedConversation`'s doc comment.
-                  analysisService.seedConversation(item.id, turns);
-                  return turns;
-                },
-          requestConsent: (context) async {
-            final allowed = await showAnalysisConsentSheet(context);
-            if (allowed != true) return false;
-            final uid = trigger.currentUid;
-            if (uid == null) return false;
-            // Recorded against the UID that is signed in RIGHT NOW, read
-            // after the sheet rather than before it: the account can change
-            // while a modal is open, and consent belongs to whoever gave it.
-            await settings.setAnalysisConsent(uid);
-            return true;
-          },
+          findConversation: (item) => assistant.conversationForMedia(item.id),
+          // Re-read at TAP time, so consent granted in Settings mid-session
+          // and a purchase completing mid-session both take effect at once.
+          needsConsent: () => assistant.needsConsent,
+          requestConsent: assistant.requestConsent,
+          earnDescribe: assistant.earnConversation,
         ),
       ),
     );

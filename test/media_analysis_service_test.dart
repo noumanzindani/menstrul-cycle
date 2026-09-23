@@ -59,9 +59,9 @@ class _FakeAnalyzer implements MediaAnalyzer {
   }
 }
 
-/// Stands in for the `persistAnalysisTurn` wiring built in `media_route.dart`
+/// Stands in for `LiveAssistantBackend.persistTurn`
 /// against `AnalysisSessionRepository`: resolves an existing session for a
-/// mediaId (or creates one) and appends turns to it as PURE inserts — this
+/// conversation id (or creates one) and appends turns to it as PURE inserts — this
 /// deliberately mirrors `AnalysisSessionRepository.append`, which has no
 /// dedup of its own, so a caller-side mistake that re-persists an
 /// already-saved exchange shows up here as an observable duplicate rather
@@ -86,10 +86,10 @@ class _FakeSessionStore {
     required bool isMemoHit,
   }) async {
     final existingId = sessionIdByConversation[conversationId];
-    // Mirrors persistAnalysisTurn's own early return: a memo hit re-serves an
+    // Mirrors persistTurn's own early return: a memo hit re-serves an
     // exchange already shown once before, and when a session already exists
     // it already holds that opening exchange — appending it again would be a
-    // duplicate. See the doc comment on that function in media_route.dart.
+    // duplicate. See the doc comment on LiveAssistantBackend.persistTurn.
     if (isMemoHit && existingId != null) return;
     final sessionId = existingId ?? _createSession(conversationId);
     messages.add((
@@ -171,8 +171,8 @@ void main() {
   }
 
   /// One send, Describe-shaped by default: [id] is both the conversation and
-  /// its photo, and the photo rides the opening turn only — which is what
-  /// `media_route.dart` does. Pass [attachments] to send something else.
+  /// its photo, and the photo rides the opening turn only — the shape the
+  /// v15 Describe wiring used. Pass [attachments] to send something else.
   Future<AnalysisOutcome> run(
     MediaAnalysisService service, {
     String id = 'media-1',
