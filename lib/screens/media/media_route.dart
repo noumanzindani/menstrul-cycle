@@ -352,7 +352,7 @@ Route<void> mediaTimelineRoute(BuildContext context) {
               },
         onAdd: !available
             ? null
-            : (source) => _pickAndUpload(uploader, source),
+            : (source) => pickAndUploadMedia(uploader, source),
         onOpen: openViewer,
         // Local-only and independent of `available` (Firestore/cloud): the
         // sessions list reads nothing but this device's own database. Gated
@@ -420,8 +420,19 @@ Future<File> _loadFile(
 /// rather than at startup: it is idempotent, it costs a type test, and a
 /// structural test in `media_picker_config_test.dart` fails if a second entry
 /// point ever constructs a picker without it.
-Future<MediaUploadOutcome> _pickAndUpload(
-    MediaUploadService uploader, MediaSource source) async {
+///
+/// Exported for the assistant's composer, which attaches new photos by
+/// uploading them to Photos & videos first — this stays the ONE place an
+/// `ImagePicker` is constructed (`media_guardrails_test.dart` counts them).
+/// [limit] caps a library pick below [kMaxItemsPerPick]; a limit of one uses
+/// the single-item picker, because the multi-item one refuses a limit under
+/// two.
+Future<MediaUploadOutcome> pickAndUploadMedia(
+  MediaUploadService uploader,
+  MediaSource source, {
+  int? limit,
+}) async {
+  final pickLimit = (limit ?? kMaxItemsPerPick).clamp(1, kMaxItemsPerPick);
   // Runs for capture too, not only for library picks. The configuration is
   // per-platform-instance rather than per-call, and a capture path that skipped
   // it would leave the flag unset for whichever call came next.
@@ -432,8 +443,15 @@ Future<MediaUploadOutcome> _pickAndUpload(
   // control on upload size. Videos are unaffected — there is no transcoding,
   // and the duration cap is what bounds them instead.
   final files = switch (source) {
+    MediaSource.library when pickLimit == 1 => [
+        ?await picker.pickMedia(
+          maxWidth: 2048,
+          maxHeight: 2048,
+          imageQuality: 85,
+        ),
+      ],
     MediaSource.library => await picker.pickMultipleMedia(
-        limit: kMaxItemsPerPick,
+        limit: pickLimit,
         maxWidth: 2048,
         maxHeight: 2048,
         imageQuality: 85,

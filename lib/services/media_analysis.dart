@@ -295,6 +295,15 @@ const String kAnalysisCaveat =
     'This is an automatic description of the picture. LunarFlow does not '
     'interpret it, and it is not a medical opinion.';
 
+/// What the assistant says when a message attached a video.
+///
+/// Said by the app, not the model: the video is declined on the device, so
+/// nothing was sent and no model ever saw it. Stored as the model half of the
+/// declined pair with `includeInModel` false, so a replay never sends it.
+const String kVideoDeclinedNotice =
+    "I can't look at videos yet, so this one wasn't sent anywhere. It's saved "
+    'in Photos & videos — ask in words or attach a photo.';
+
 /// Why an analysis was refused before any request was made.
 ///
 /// Ordered narrow-to-broad in [messageForAnalysisBlock] and checked in that same

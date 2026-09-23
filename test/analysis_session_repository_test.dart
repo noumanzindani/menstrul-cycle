@@ -51,12 +51,38 @@ void main() {
       expect(blank.title, isNull, reason: 'a blank title is no title');
     });
 
+    test('takes the id the caller chose, so a chat can name itself early',
+        () async {
+      // The assistant screen picks its conversation id before the first
+      // reply exists; the session row created on that reply must carry it.
+      final s = await repo.create(uid: 'u1', consentVersion: 7, id: 'chat-1');
+      expect(s.id, 'chat-1');
+      expect((await repo.byId('chat-1'))!.uid, 'u1');
+    });
+
     test('cutting the title never splits a surrogate pair', () async {
       // 59 ASCII characters then an emoji, which is two UTF-16 code units: a
       // code-unit cut at 60 would leave half of it behind.
       final s = await repo.create(
           uid: 'u1', consentVersion: 7, title: '${'a' * 59}\u{1F338}tail');
       expect(s.title, '${'a' * 59}\u{1F338}');
+    });
+  });
+
+  group('byId', () {
+    test('returns the row, or null for an unknown id', () async {
+      final s = await repo.create(uid: 'u1', consentVersion: 7);
+      expect((await repo.byId(s.id))!.id, s.id);
+      expect(await repo.byId('nope'), isNull);
+    });
+
+    test('still returns a tombstone, so a caller can tell it was deleted',
+        () async {
+      // An open chat whose conversation was deleted elsewhere must not
+      // re-create it under the same id; seeing the tombstone is how it knows.
+      final s = await repo.create(uid: 'u1', consentVersion: 7);
+      await repo.tombstone(s.id);
+      expect((await repo.byId(s.id))!.deletedAt, isNotNull);
     });
   });
 

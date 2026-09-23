@@ -61,7 +61,7 @@ Future<void> main() async {
   // `deleteOnExit()` it relies on does not fire on Android. Startup is the only
   // moment no pick can be in flight, so it is the only moment the sweep is
   // unconditionally safe. A pick in the SAME session is cleared by the sweep in
-  // `_pickAndUpload`'s finally.
+  // `pickAndUploadMedia`'s finally.
   unawaited(sweepPickerTempFiles());
   final db = AppDatabase();
   runApp(LunarFlowApp(database: db, firebaseAvailable: firebaseAvailable));

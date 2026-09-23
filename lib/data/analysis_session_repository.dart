@@ -48,6 +48,16 @@ class AnalysisSessionRepository {
             ]))
           .get();
 
+  /// The session [id], tombstone or not.
+  ///
+  /// Unlike every other read here this one does NOT skip tombstones: its
+  /// caller is an open chat about to save a reply, and a conversation deleted
+  /// meanwhile (on this device or another) must be recognised as deleted
+  /// rather than silently re-created under the same id.
+  Future<AnalysisSession?> byId(String id) =>
+      (_db.select(_db.analysisSessions)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+
   /// The existing conversation about [mediaId] under [uid], if there is one.
   ///
   /// Lets tapping Describe on a photo RESUME the existing conversation
@@ -75,17 +85,23 @@ class AnalysisSessionRepository {
   /// [mediaId] is the photo a Describe chat started from; leave it `''` for a
   /// chat started in the Assistant tab. [title] is the first thing the user
   /// typed, stored trimmed and cut to [kMaxSessionTitleLength] characters.
+  ///
+  /// [id] lets the caller name the conversation before its first reply
+  /// exists — the assistant screen holds an id from the moment it opens, and
+  /// the row created on the first reply must be that conversation. Omitted,
+  /// a fresh one is generated.
   Future<AnalysisSession> create({
     required String uid,
     String mediaId = '',
     String? title,
     required int consentVersion,
+    String? id,
   }) =>
       _db.into(_db.analysisSessions).insertReturning(
             AnalysisSessionsCompanion.insert(
               // Same 128-bit opaque generator the media ids use — random, not
               // content-derived, so it carries no information of its own.
-              id: newMediaId(),
+              id: id ?? newMediaId(),
               uid: uid,
               mediaId: mediaId,
               consentVersion: consentVersion,
