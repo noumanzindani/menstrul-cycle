@@ -101,9 +101,8 @@ class GeminiMediaAnalyzer implements MediaAnalyzer {
 
     final body = utf8.encode(
       jsonEncode(
-        buildAnalysisRequest(
-          base64Image: base64Encode(bytes),
-          mimeType: mimeType,
+        buildDescribeRequest(
+          photo: InlineImage(mimeType: mimeType, base64: base64Encode(bytes)),
           question: question,
           history: history,
           healthContext: healthContext,

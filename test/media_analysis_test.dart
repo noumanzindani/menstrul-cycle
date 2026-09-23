@@ -1,6 +1,48 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/services/media_analysis.dart';
 
+/// The one photo most of these tests attach, as the Describe opener does.
+const _photo = InlineImage(mimeType: 'image/jpeg', base64: 'QUJD');
+
+/// A Describe-shaped request: [question] as the next turn, with the photo
+/// attached to the first user turn of the conversation.
+Map<String, Object?> _describe(
+  String question, {
+  List<AnalysisTurn> history = const [],
+  String? healthContext,
+  InlineImage photo = _photo,
+}) {
+  const ref = [AttachmentRef.image('p1')];
+  final firstUser = history.indexWhere((t) => t.role == AnalysisRole.user);
+  return buildAnalysisRequest(
+    history: [
+      for (var i = 0; i < history.length; i++)
+        i == firstUser
+            ? AnalysisTurn.user(
+                history[i].text,
+                attachments: ref,
+                includeInModel: history[i].includeInModel,
+              )
+            : history[i],
+    ],
+    next: AnalysisTurn.user(
+      question,
+      attachments: firstUser < 0 ? ref : const [],
+    ),
+    images: {'p1': photo},
+    healthContext: healthContext,
+  );
+}
+
+/// Every part of every content entry, flattened, oldest first.
+List<Map<Object?, Object?>> _allParts(Map<String, Object?> request) => [
+  for (final c in request['contents']! as List)
+    for (final p in (c as Map)['parts']! as List) p as Map<Object?, Object?>,
+];
+
+List<Object?> _partsAt(Map<String, Object?> request, int index) =>
+    ((request['contents']! as List)[index] as Map)['parts']! as List<Object?>;
+
 /// The pure layer of photo descriptions: request shape, response parsing, the
 /// daily-cap arithmetic, and the safety strings.
 ///
@@ -9,11 +51,7 @@ import 'package:menstrul_track/services/media_analysis.dart';
 /// inside `flutter_test` silently returns 400 rather than failing.
 void main() {
   group('buildAnalysisRequest', () {
-    final request = buildAnalysisRequest(
-      base64Image: 'QUJD',
-      mimeType: 'image/jpeg',
-      question: 'what is this',
-    );
+    final request = _describe('what is this');
 
     test('sends the image as snake_case inline_data', () {
       // REST spelling, not the SDK's camelCase `inlineData`. The API ignores
@@ -51,10 +89,8 @@ void main() {
   });
 
   group('buildAnalysisRequest, multi-turn', () {
-    final request = buildAnalysisRequest(
-      base64Image: 'QUJD',
-      mimeType: 'image/jpeg',
-      question: 'how many are there',
+    final request = _describe(
+      'how many are there',
       history: const [
         AnalysisTurn.user('what colour is it'),
         AnalysisTurn.model('It is pink.'),
@@ -93,11 +129,7 @@ void main() {
     });
 
     test('an opening question is still a user turn', () {
-      final opening = buildAnalysisRequest(
-        base64Image: 'QUJD',
-        mimeType: 'image/jpeg',
-        question: 'what is this',
-      );
+      final opening = _describe('what is this');
       final first = (opening['contents']! as List).first as Map;
       expect(first['role'], 'user');
     });
@@ -111,10 +143,8 @@ void main() {
     test('skips a turn stored with includeInModel false', () {
       // The declined-video pair is kept for the transcript on screen, but a
       // replay or resume must never send it to the model.
-      final skipped = buildAnalysisRequest(
-        base64Image: 'QUJD',
-        mimeType: 'image/jpeg',
-        question: 'and now?',
+      final skipped = _describe(
+        'and now?',
         history: const [
           AnalysisTurn.user('what colour is it'),
           AnalysisTurn.model('It is pink.'),
@@ -136,6 +166,319 @@ void main() {
       // enum .name is what is serialised, so a rename here is a wire change.
       expect(AnalysisRole.user.name, 'user');
       expect(AnalysisRole.model.name, 'model');
+    });
+  });
+
+  group('buildAnalysisRequest, per-turn attachments', () {
+    const a = InlineImage(mimeType: 'image/jpeg', base64: 'AAAA');
+    const b = InlineImage(mimeType: 'image/png', base64: 'BBBB');
+    const c = InlineImage(mimeType: 'image/webp', base64: 'CCCC');
+    const context = '<<<TRACKED_DATA\nAge: 30\nEND_TRACKED_DATA>>>';
+
+    Map<Object?, Object?> inline(InlineImage image) => {
+      'inline_data': {'mime_type': image.mimeType, 'data': image.base64},
+    };
+
+    test('a text-only turn sends text and nothing else', () {
+      // The assistant tab starts conversations with no photo at all.
+      final req = buildAnalysisRequest(
+        next: const AnalysisTurn.user('is a 35 day cycle normal'),
+      );
+      expect(_partsAt(req, 0), [
+        {'text': 'is a 35 day cycle normal'},
+      ]);
+    });
+
+    test('health context rides a first turn that has no image', () {
+      // The bug this fixes: the context was nested inside the image branch,
+      // so a text-only conversation silently went without it.
+      final req = buildAnalysisRequest(
+        next: const AnalysisTurn.user('why am I tired'),
+        healthContext: context,
+      );
+      expect(_partsAt(req, 0), [
+        {'text': context},
+        {'text': 'why am I tired'},
+      ]);
+    });
+
+    test('an image added mid-conversation rides its own turn', () {
+      final req = buildAnalysisRequest(
+        history: const [AnalysisTurn.user('hello'), AnalysisTurn.model('Hi.')],
+        next: const AnalysisTurn.user(
+          'what is this',
+          attachments: [AttachmentRef.image('a')],
+        ),
+        images: const {'a': a},
+        healthContext: context,
+      );
+      expect(_partsAt(req, 0), [
+        {'text': context},
+        {'text': 'hello'},
+      ]);
+      expect(_partsAt(req, 2), [
+        inline(a),
+        {'text': 'what is this'},
+      ]);
+    });
+
+    test('an earlier turn\'s image is resent on every call', () {
+      // generateContent keeps no state: a photo from turn one is only in
+      // context for turn three if turn one's inline_data is sent again.
+      final req = buildAnalysisRequest(
+        history: const [
+          AnalysisTurn.user('look', attachments: [AttachmentRef.image('a')]),
+          AnalysisTurn.model('A pink pattern.'),
+        ],
+        next: const AnalysisTurn.user('and the colour?'),
+        images: const {'a': a},
+      );
+      expect(_partsAt(req, 0).first, inline(a));
+      expect(
+        _allParts(req).where((p) => p.containsKey('inline_data')).length,
+        1,
+      );
+    });
+
+    test('several images on one turn keep their order, before the text', () {
+      final req = buildAnalysisRequest(
+        next: const AnalysisTurn.user(
+          'compare these',
+          attachments: [
+            AttachmentRef.image('b'),
+            AttachmentRef.image('a'),
+            AttachmentRef.image('c'),
+          ],
+        ),
+        images: const {'a': a, 'b': b, 'c': c},
+        healthContext: context,
+      );
+      expect(_partsAt(req, 0), [
+        inline(b),
+        inline(a),
+        inline(c),
+        {'text': context},
+        {'text': 'compare these'},
+      ]);
+    });
+
+    test('a deleted photo is replaced by a placeholder, not dropped', () {
+      // The attachment still exists on the stored turn, but the media item is
+      // gone: the model is told so rather than left answering about a photo
+      // it cannot see.
+      final req = buildAnalysisRequest(
+        history: const [
+          AnalysisTurn.user('look', attachments: [AttachmentRef.image('gone')]),
+          AnalysisTurn.model('A pink pattern.'),
+        ],
+        next: const AnalysisTurn.user('still there?'),
+      );
+      expect(kDeletedPhotoPlaceholder, '[photo no longer available]');
+      expect(_partsAt(req, 0), [
+        {'text': kDeletedPhotoPlaceholder},
+        {'text': 'look'},
+      ]);
+      expect(_allParts(req).any((p) => p.containsKey('inline_data')), isFalse);
+    });
+
+    test('a video reference never produces inline_data', () {
+      // Video is declined on the device and its turn is excluded from the
+      // model. Should one reach the builder anyway, nothing about it is sent.
+      final req = buildAnalysisRequest(
+        next: const AnalysisTurn.user(
+          'and this',
+          attachments: [AttachmentRef.video('v')],
+        ),
+        images: const {'v': a},
+      );
+      expect(_partsAt(req, 0), [
+        {'text': 'and this'},
+      ]);
+    });
+
+    test('a skipped turn carries neither its image nor the context', () {
+      final req = buildAnalysisRequest(
+        history: const [
+          AnalysisTurn.user(
+            'this video',
+            attachments: [AttachmentRef.image('a')],
+            includeInModel: false,
+          ),
+          AnalysisTurn.model('I cannot look at videos.', includeInModel: false),
+        ],
+        next: const AnalysisTurn.user('ok, in words then'),
+        images: const {'a': a},
+        healthContext: context,
+      );
+      expect(_partsAt(req, 0), [
+        {'text': context},
+        {'text': 'ok, in words then'},
+      ]);
+      expect((req['contents']! as List).length, 1);
+    });
+  });
+
+  group('buildDescribeRequest (one photo per conversation)', () {
+    test('an opener is exactly the per-turn Describe shape', () {
+      expect(
+        buildDescribeRequest(photo: _photo, question: 'what is this'),
+        _describe('what is this'),
+      );
+    });
+
+    test('a v15 transcript gets the photo on its first user turn only', () {
+      // v15 stored no attachments: the photo was implied by the session.
+      final req = buildDescribeRequest(
+        photo: _photo,
+        question: 'and now',
+        history: const [
+          AnalysisTurn.user('what colour is it'),
+          AnalysisTurn.model('It is pink.'),
+        ],
+        healthContext: 'ctx',
+      );
+      expect(_partsAt(req, 0), [
+        {
+          'inline_data': {'mime_type': 'image/jpeg', 'data': 'QUJD'},
+        },
+        {'text': 'ctx'},
+        {'text': 'what colour is it'},
+      ]);
+      expect(
+        _allParts(req).where((p) => p.containsKey('inline_data')).length,
+        1,
+      );
+    });
+
+    test(
+      'a resumed v16 transcript that names the photo is not a placeholder',
+      () {
+        final req = buildDescribeRequest(
+          photo: _photo,
+          question: 'and now',
+          history: const [
+            AnalysisTurn.user(
+              'what colour is it',
+              attachments: [AttachmentRef.image('m1')],
+            ),
+            AnalysisTurn.model('It is pink.'),
+          ],
+        );
+        expect(
+          (_partsAt(req, 0).first as Map).containsKey('inline_data'),
+          isTrue,
+        );
+        expect(
+          _allParts(req).any((p) => p['text'] == kDeletedPhotoPlaceholder),
+          isFalse,
+        );
+      },
+    );
+
+    test('the photo skips a turn the model never sees', () {
+      final req = buildDescribeRequest(
+        photo: _photo,
+        question: 'and now',
+        history: const [
+          AnalysisTurn.user('a video', includeInModel: false),
+          AnalysisTurn.model('Declined.', includeInModel: false),
+        ],
+      );
+      expect((req['contents']! as List).length, 1);
+      expect(
+        (_partsAt(req, 0).first as Map).containsKey('inline_data'),
+        isTrue,
+      );
+    });
+  });
+
+  group('inline request budget', () {
+    const big = InlineImage(mimeType: 'image/jpeg', base64: 'xxxxxxxxxx');
+
+    test('is 12 MB of base64', () {
+      // Gemini's inline request limit is ~20 MB; 12 MB leaves room for the
+      // JSON envelope, the transcript and the health context.
+      expect(kMaxInlineRequestBytes, 12 * 1024 * 1024);
+    });
+
+    test('counts every image each time the request carries it', () {
+      final bytes = inlineRequestBytes(
+        history: const [
+          AnalysisTurn.user('one', attachments: [AttachmentRef.image('a')]),
+          AnalysisTurn.model('ok'),
+          AnalysisTurn.user('two', attachments: [AttachmentRef.image('a')]),
+          AnalysisTurn.model('ok'),
+        ],
+        next: const AnalysisTurn.user(
+          'three',
+          attachments: [AttachmentRef.image('b')],
+        ),
+        images: const {'a': big, 'b': big},
+      );
+      expect(bytes, 30);
+    });
+
+    test('ignores skipped turns, videos and deleted photos', () {
+      final bytes = inlineRequestBytes(
+        history: const [
+          AnalysisTurn.user(
+            'skipped',
+            attachments: [AttachmentRef.image('a')],
+            includeInModel: false,
+          ),
+          AnalysisTurn.model('ok', includeInModel: false),
+        ],
+        next: const AnalysisTurn.user(
+          'now',
+          attachments: [AttachmentRef.video('a'), AttachmentRef.image('gone')],
+        ),
+        images: const {'a': big},
+      );
+      expect(bytes, 0);
+    });
+
+    test('matches exactly what the builder sends', () {
+      // One definition of "what gets sent", so the budget can never approve
+      // a request the builder then makes larger.
+      const history = [
+        AnalysisTurn.user('one', attachments: [AttachmentRef.image('a')]),
+        AnalysisTurn.model('ok'),
+      ];
+      const next = AnalysisTurn.user(
+        'two',
+        attachments: [AttachmentRef.image('a'), AttachmentRef.image('b')],
+      );
+      const images = {'a': big, 'b': InlineImage(mimeType: 'x', base64: 'yy')};
+      final sent = buildAnalysisRequest(
+        history: history,
+        next: next,
+        images: images,
+      );
+      final total = _allParts(sent)
+          .where((p) => p.containsKey('inline_data'))
+          .map((p) => ((p['inline_data']! as Map)['data']! as String).length)
+          .fold<int>(0, (s, n) => s + n);
+      expect(
+        inlineRequestBytes(history: history, next: next, images: images),
+        total,
+      );
+    });
+
+    test('withinInlineBudget is inclusive of the limit', () {
+      final exact = InlineImage(
+        mimeType: 'image/jpeg',
+        base64: 'x' * kMaxInlineRequestBytes,
+      );
+      const next = AnalysisTurn.user(
+        'q',
+        attachments: [AttachmentRef.image('a')],
+      );
+      expect(withinInlineBudget(next: next, images: {'a': exact}), isTrue);
+      final over = InlineImage(
+        mimeType: 'image/jpeg',
+        base64: 'x' * (kMaxInlineRequestBytes + 1),
+      );
+      expect(withinInlineBudget(next: next, images: {'a': over}), isFalse);
     });
   });
 
@@ -402,10 +745,9 @@ void main() {
     }
 
     test('rides the first user turn, after the image', () {
-      final req = buildAnalysisRequest(
-        base64Image: 'AAAA',
-        mimeType: 'image/jpeg',
-        question: 'what is this',
+      final req = _describe(
+        'what is this',
+        photo: const InlineImage(mimeType: 'image/jpeg', base64: 'AAAA'),
         healthContext: '<<<TRACKED_DATA\nAge: 30\nEND_TRACKED_DATA>>>',
       );
       expect(firstUserPart(req, 0).containsKey('inline_data'), isTrue);
@@ -413,10 +755,9 @@ void main() {
     });
 
     test('is absent entirely when not supplied', () {
-      final req = buildAnalysisRequest(
-        base64Image: 'AAAA',
-        mimeType: 'image/jpeg',
-        question: 'what is this',
+      final req = _describe(
+        'what is this',
+        photo: const InlineImage(mimeType: 'image/jpeg', base64: 'AAAA'),
       );
       final parts = ((req['contents'] as List<Object?>).first
           as Map<String, Object?>)['parts'] as List<Object?>;
@@ -426,10 +767,9 @@ void main() {
     test('an empty healthContext string is treated as absent', () {
       // The builder guards on isNotEmpty, not just non-null; exercise that
       // branch directly rather than leaving it uncovered.
-      final req = buildAnalysisRequest(
-        base64Image: 'AAAA',
-        mimeType: 'image/jpeg',
-        question: 'what is this',
+      final req = _describe(
+        'what is this',
+        photo: const InlineImage(mimeType: 'image/jpeg', base64: 'AAAA'),
         healthContext: '',
       );
       final parts = ((req['contents'] as List<Object?>).first
@@ -438,10 +778,9 @@ void main() {
     });
 
     test('never leaks into the system instruction', () {
-      final req = buildAnalysisRequest(
-        base64Image: 'AAAA',
-        mimeType: 'image/jpeg',
-        question: 'q',
+      final req = _describe(
+        'q',
+        photo: const InlineImage(mimeType: 'image/jpeg', base64: 'AAAA'),
         healthContext: 'Age: 30',
       );
       final sys = (req['systemInstruction'] as Map<String, Object?>)['parts']
@@ -458,26 +797,25 @@ void main() {
     test(
         'healthContext: null is byte-identical to omitting the parameter '
         'entirely — the regression guard for every existing caller', () {
-      final withExplicitNull = buildAnalysisRequest(
-        base64Image: 'QUJD',
-        mimeType: 'image/jpeg',
-        question: 'what is this',
-        healthContext: null,
-      );
-      final omitted = buildAnalysisRequest(
-        base64Image: 'QUJD',
-        mimeType: 'image/jpeg',
-        question: 'what is this',
-      );
+      final withExplicitNull =
+          _describe('what is this', healthContext: null);
+      final omitted = _describe('what is this');
       expect(withExplicitNull, equals(omitted));
     });
 
     test('with no context, the request shape is exactly what it was before '
         'this feature', () {
+      // The Describe opener exactly as the viewer sends it: one photo on the
+      // opening turn. The expected literal below is unchanged from before the
+      // per-turn builder, and is the regression pin for that shape.
       final noContext = buildAnalysisRequest(
-        base64Image: 'QUJD',
-        mimeType: 'image/jpeg',
-        question: 'what is this',
+        next: const AnalysisTurn.user(
+          'what is this',
+          attachments: [AttachmentRef.image('m1')],
+        ),
+        images: const {
+          'm1': InlineImage(mimeType: 'image/jpeg', base64: 'QUJD'),
+        },
       );
       expect(noContext, {
         'systemInstruction': {
@@ -508,10 +846,8 @@ void main() {
         'with multi-turn history, the context appears exactly once, on the '
         'first user turn', () {
       const context = '<<<TRACKED_DATA\nAge: 30\nEND_TRACKED_DATA>>>';
-      final req = buildAnalysisRequest(
-        base64Image: 'QUJD',
-        mimeType: 'image/jpeg',
-        question: 'how many are there',
+      final req = _describe(
+        'how many are there',
         history: const [
           AnalysisTurn.user('what colour is it'),
           AnalysisTurn.model('It is pink.'),
@@ -547,12 +883,7 @@ void main() {
 
     test('generationConfig is unaffected by healthContext, thinking stays 0',
         () {
-      final req = buildAnalysisRequest(
-        base64Image: 'QUJD',
-        mimeType: 'image/jpeg',
-        question: 'q',
-        healthContext: 'Age: 30',
-      );
+      final req = _describe('q', healthContext: 'Age: 30');
       final gen = req['generationConfig']! as Map;
       expect(gen['maxOutputTokens'], kAnalysisMaxOutputTokens);
       expect(gen['temperature'], kAnalysisTemperature);

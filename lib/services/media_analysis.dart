@@ -258,11 +258,11 @@ enum AnalysisBlock {
 /// separate top-level field.
 enum AnalysisRole { user, model }
 
-/// One message in a conversation about one photo.
+/// One message in a conversation.
 ///
-/// The Describe image is not carried per-turn: it is attached once to the
-/// first user turn when the request is built, because the whole array is
-/// resent on every call anyway.
+/// A turn's photos ride that turn: [buildAnalysisRequest] inlines each
+/// [attachments] image on the turn that attached it, and on every later call
+/// too, because the whole array is resent.
 ///
 /// [attachments] and [includeInModel] mirror the stored v16 columns of the
 /// same names, so a resumed conversation keeps them in memory.
@@ -462,8 +462,95 @@ class AnalysisException implements Exception {
   String toString() => 'AnalysisException($message)';
 }
 
-/// The request body for one image, the conversation so far, and the new
-/// [question].
+/// One image ready to inline into a request: already downscaled and
+/// base64-encoded by the caller.
+///
+/// Carried as base64 rather than bytes because base64 is what the JSON body
+/// holds and what [kMaxInlineRequestBytes] measures.
+class InlineImage {
+  const InlineImage({required this.mimeType, required this.base64});
+
+  final String mimeType;
+  final String base64;
+}
+
+/// What the model is told in place of a photo whose media item has been
+/// deleted since the turn attached it.
+///
+/// Sent rather than silently dropped: without it, a follow-up about "the
+/// photo" would be answered as if the model had never been shown one, or
+/// worse, as if a later photo were the one being asked about.
+const String kDeletedPhotoPlaceholder = '[photo no longer available]';
+
+/// Most base64 this feature will inline into one request.
+///
+/// Gemini refuses an inline request over about 20 MB. Every earlier photo in
+/// the conversation is resent on every call (see [buildAnalysisRequest]), so a
+/// conversation grows towards that limit turn by turn; 12 MB of image data
+/// leaves room for the JSON envelope, the transcript and the health context.
+/// A request over it is refused as [AnalysisBlock.tooLarge] before it is sent.
+const int kMaxInlineRequestBytes = 12 * 1024 * 1024;
+
+/// One part of a user turn, before it becomes JSON: an image, or the
+/// placeholder for a photo that is gone.
+typedef _ResolvedPart = ({InlineImage? image, String? placeholder});
+
+/// The turns actually sent, oldest first, each with its resolved attachments.
+///
+/// The ONE definition of what a request carries, shared by
+/// [buildAnalysisRequest] and [inlineRequestBytes] so the budget can never
+/// approve a request the builder then makes larger. Skips turns with
+/// `includeInModel == false`, never sends a video, and resolves an image whose
+/// id is missing from [images] to [kDeletedPhotoPlaceholder]. Model turns carry
+/// text only.
+List<(AnalysisTurn, List<_ResolvedPart>)> _resolveTurns(
+  List<AnalysisTurn> history,
+  AnalysisTurn next,
+  Map<String, InlineImage> images,
+) {
+  return [
+    for (final turn in [...history, next])
+      if (turn.includeInModel)
+        (
+          turn,
+          [
+            if (turn.role == AnalysisRole.user)
+              for (final ref in {...turn.attachments})
+                if (ref.kind == AttachmentKind.image)
+                  images[ref.mediaId] == null
+                      ? (image: null, placeholder: kDeletedPhotoPlaceholder)
+                      : (image: images[ref.mediaId], placeholder: null),
+          ],
+        ),
+  ];
+}
+
+/// Base64 bytes of image data the request for [next] would inline, counting
+/// each image once per turn that carries it.
+int inlineRequestBytes({
+  List<AnalysisTurn> history = const [],
+  required AnalysisTurn next,
+  Map<String, InlineImage> images = const {},
+}) {
+  var total = 0;
+  for (final (_, parts) in _resolveTurns(history, next, images)) {
+    for (final part in parts) {
+      total += part.image?.base64.length ?? 0;
+    }
+  }
+  return total;
+}
+
+/// Whether the request for [next] fits [kMaxInlineRequestBytes].
+bool withinInlineBudget({
+  List<AnalysisTurn> history = const [],
+  required AnalysisTurn next,
+  Map<String, InlineImage> images = const {},
+}) =>
+    inlineRequestBytes(history: history, next: next, images: images) <=
+    kMaxInlineRequestBytes;
+
+/// The request body for the conversation so far plus the [next] turn.
 ///
 /// Pure so the shape is testable without a network. `inline_data` (snake_case)
 /// is the REST spelling — the camelCase `inlineData` of the client SDKs is
@@ -476,56 +563,57 @@ class AnalysisException implements Exception {
 /// resent every call, as alternating `user`/`model` entries, with the model's
 /// own past replies echoed back to it — nothing is remembered server-side.
 ///
-/// The image is attached to the FIRST user turn and only that one. The array is
-/// resent whole each time, so the photo is in context for every answer; adding
-/// it to each turn would bill several copies of the same picture per request and
-/// leave the model reconciling duplicates.
+/// ## Attachments ride the turn that attached them
 ///
-/// [healthContext], when supplied, rides that SAME first user turn, right after
-/// the image — never `systemInstruction`, which carries the refusal rules and
-/// must not be diluted with user-authored data. It is already delimited by the
-/// caller (`buildHealthContext` in `health_context.dart`); this function places
-/// it verbatim and does not re-wrap it. The same "attach once" reasoning that
-/// governs the image governs this: the transcript is resent whole, so one copy
-/// is in scope for every answer, and repeating it per turn would bill it again
-/// on every follow-up question.
+/// Each user turn's parts are, in order: its own images as `inline_data` (in
+/// attachment order), then [healthContext] if this is the first user turn
+/// sent, then its text. [images] maps a media id to its prepared bytes; an
+/// image the map does not hold was deleted and becomes
+/// [kDeletedPhotoPlaceholder]. Because the array is resent whole, a photo from
+/// turn one is inlined again on every later call — that is what keeps it in
+/// context, and it is why [kMaxInlineRequestBytes] exists. A photo is never
+/// copied onto a turn that did not attach it.
+///
+/// Turns with `includeInModel == false` (the declined-video pair) are left out
+/// entirely, attachments and all, and video is never sent.
+///
+/// [healthContext], when supplied, rides the FIRST user turn sent, after its
+/// images and before its text — whether or not that turn has an image. Never
+/// `systemInstruction`, which carries the refusal rules and must not be
+/// diluted with user-authored data. It is already delimited by the caller
+/// (`buildHealthContext` in `health_context.dart`); this function places it
+/// verbatim and does not re-wrap it. Once is enough: the transcript is resent
+/// whole, so one copy is in scope for every answer, and repeating it per turn
+/// would bill it again on every follow-up question.
 Map<String, Object?> buildAnalysisRequest({
-  required String base64Image,
-  required String mimeType,
-  required String question,
   List<AnalysisTurn> history = const [],
+  required AnalysisTurn next,
+  Map<String, InlineImage> images = const {},
   String? healthContext,
 }) {
-  final turns = <AnalysisTurn>[
-    for (final turn in history)
-      if (turn.includeInModel) turn,
-    AnalysisTurn.user(question),
-  ];
   final contents = <Object?>[];
-  var imageAttached = false;
   var contextAttached = false;
-  for (final turn in turns) {
-    final parts = <Object?>[];
-    if (!imageAttached && turn.role == AnalysisRole.user) {
-      parts.add(<String, Object?>{
-        'inline_data': <String, Object?>{
-          'mime_type': mimeType,
-          'data': base64Image,
-        },
-      });
-      imageAttached = true;
-      if (!contextAttached &&
-          healthContext != null &&
-          healthContext.isNotEmpty) {
+  for (final (turn, attachments) in _resolveTurns(history, next, images)) {
+    final parts = <Object?>[
+      for (final part in attachments)
+        if (part.image case final image?)
+          <String, Object?>{
+            'inline_data': <String, Object?>{
+              'mime_type': image.mimeType,
+              'data': image.base64,
+            },
+          }
+        else
+          <String, Object?>{'text': part.placeholder},
+    ];
+    if (!contextAttached && turn.role == AnalysisRole.user) {
+      if (healthContext != null && healthContext.isNotEmpty) {
         parts.add(<String, Object?>{'text': healthContext});
-        contextAttached = true;
       }
+      contextAttached = true;
     }
     parts.add(<String, Object?>{'text': turn.text});
-    contents.add(<String, Object?>{
-      'role': turn.role.name,
-      'parts': parts,
-    });
+    contents.add(<String, Object?>{'role': turn.role.name, 'parts': parts});
   }
 
   return <String, Object?>{
@@ -543,6 +631,56 @@ Map<String, Object?> buildAnalysisRequest({
       },
     },
   };
+}
+
+/// A one-photo Describe conversation in the per-turn request shape.
+///
+/// The bridge for a caller that still holds a single photo per conversation
+/// (`GeminiMediaAnalyzer`, until it takes several attachments). A resumed v16
+/// conversation may already name the photo on a stored turn, so every image
+/// id the sent transcript references maps to [photo] — mapping none of them
+/// would send [kDeletedPhotoPlaceholder] for a photo that exists. A transcript
+/// that names no image (a v15 session, or an opening turn) gets [photo] on its
+/// first user turn sent, which is where the one-photo builder always put it.
+Map<String, Object?> buildDescribeRequest({
+  required InlineImage photo,
+  required String question,
+  List<AnalysisTurn> history = const [],
+  String? healthContext,
+}) {
+  final ids = {
+    for (final t in history)
+      if (t.includeInModel && t.role == AnalysisRole.user)
+        for (final a in t.attachments)
+          if (a.kind == AttachmentKind.image) a.mediaId,
+  };
+  if (ids.isNotEmpty) {
+    return buildAnalysisRequest(
+      history: history,
+      next: AnalysisTurn.user(question),
+      images: {for (final id in ids) id: photo},
+      healthContext: healthContext,
+    );
+  }
+  const key = 'describe-photo';
+  const ref = [AttachmentRef.image(key)];
+  final firstUser = history.indexWhere(
+    (t) => t.includeInModel && t.role == AnalysisRole.user,
+  );
+  return buildAnalysisRequest(
+    history: [
+      for (var i = 0; i < history.length; i++)
+        i == firstUser
+            ? AnalysisTurn.user(history[i].text, attachments: ref)
+            : history[i],
+    ],
+    next: AnalysisTurn.user(
+      question,
+      attachments: firstUser < 0 ? ref : const [],
+    ),
+    images: {key: photo},
+    healthContext: healthContext,
+  );
 }
 
 /// Parses a `generateContent` response into a result, or throws.
