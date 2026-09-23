@@ -34,6 +34,10 @@ rules_version = '2';
 //   users/{uid}/settings/current       SyncService._remoteSettings  (get/set)
 //   users/{uid}/deletions/{date}       SyncService._remoteDeletions (get/list/set/delete)
 //   users/{uid}/devices/{deviceId}     SyncService._deviceDoc       (get/set-merge)
+//   users/{uid}/reminders/{id}         SyncService._remoteReminders (get/list/set)
+//   users/{uid}/medications/{id}       SyncService._remoteMedications (get/list/set)
+//   users/{uid}/analysisSessions/{id}  SyncService._remoteSessions  (get/list/set)
+//   users/{uid}/analysisMessages/{id}  SyncService._remoteMessages  (get/list/set/delete)
 //   users/{uid}/media/{mediaId}        MediaSyncService             (get/list/set/delete)
 //   deletionRequests/{uid}             AccountDeletionService       (get/create/delete)
 service cloud.firestore {
@@ -96,17 +100,103 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
-      // Saved photo-description conversations. The TEXT is model-generated
-      // prose about a body photo, held here in plaintext exactly as the
-      // consent sheet now states. `isOwner` is the whole boundary, and in a
+      // Saved assistant conversations. The TEXT is what the user typed and
+      // model-generated prose about their body, held here in plaintext exactly
+      // as the consent sheet states. `isOwner` is the boundary, and in a
       // SHARED project `request.auth != null` would be no boundary at all —
       // every other app's users hold a valid token against this database.
+      //
+      // Since v16 a deleted conversation stays as a session TOMBSTONE (the
+      // full v15 shape plus `deletedAt`, title removed) and its messages are
+      // deleted; see `SyncService._pushAnalysis`.
+
+      // One attachment reference at index [i], or nothing there. Rules cannot
+      // loop, so `validMessage` calls this once per index up to the cap, and
+      // `size() <= i` short-circuits past the end of the list.
+      //
+      // A reference is exactly `{mediaId, kind}`: never bytes, and never a
+      // URL. `hasOnly` blocks a smuggled `url`/`downloadUrl` key, and the id
+      // pattern (`newMediaId()`'s 32 lowercase hex) stops a URL being parked
+      // in `mediaId` itself — the same reasoning as the `media` rules below,
+      // for the same reason: a Storage download URL is a bearer credential.
+      function validAttachmentAt(list, i) {
+        return list.size() <= i
+            || (list[i] is map
+                && list[i].keys().hasOnly(['mediaId', 'kind'])
+                && list[i].mediaId is string
+                && list[i].mediaId.matches('^[0-9a-f]{32}$')
+                && list[i].kind in ['image', 'video']);
+      }
+
+      // Every field a v15 or v16 client writes, and nothing else. `attachments`
+      // and `includeInModel` are v16; a v15 message has neither, and passes.
+      //
+      // The cap of 6 references sits above `kMaxImagesPerMessage` (3) to
+      // leave room for videos, which the assistant declines but still stores.
+      // The composer must never allow more than this in one message: a
+      // refused write is skipped by the sync, not retried.
+      function validMessage() {
+        let d = request.resource.data;
+        return d.keys().hasOnly([
+                 'sessionId', 'role', 'messageText', 'createdAt', 'updatedAt',
+                 'syncedAt', 'attachments', 'includeInModel'
+               ])
+            && (!('attachments' in d)
+                || (d.attachments is list
+                    && d.attachments.size() <= 6
+                    && validAttachmentAt(d.attachments, 0)
+                    && validAttachmentAt(d.attachments, 1)
+                    && validAttachmentAt(d.attachments, 2)
+                    && validAttachmentAt(d.attachments, 3)
+                    && validAttachmentAt(d.attachments, 4)
+                    && validAttachmentAt(d.attachments, 5)));
+      }
+
+      // BEGIN live-analysis — replaced by the STAGED block below once enabled.
       match /analysisSessions/{sessionId} {
         allow read, write: if isOwner(userId);
       }
       match /analysisMessages/{messageId} {
-        allow read, write: if isOwner(userId);
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validMessage();
       }
+      // END live-analysis
+
+      // STAGED — enable only once the MINIMUM supported client is v16 or
+      // later. To enable: delete the live-analysis block above and uncomment
+      // this one (strip the leading `//S `). `firebase_test/rules.test.mjs`
+      // derives exactly that ruleset and tests it, so the staged rules are
+      // proven before anyone switches them on.
+      //
+      // Why not now: each clause refuses something a v15 client does as a
+      // matter of course. v15 writes sessions with a blind whole-document
+      // `set()` that drops `deletedAt` (it has never heard of it), and pushes
+      // messages without knowing their session was deleted elsewhere. Denied,
+      // that `set()` throws inside v15's `SyncService.syncNow`, which has no
+      // per-document tolerance: the run aborts, its cursors never advance, and
+      // every later sync stalls on the same document — the 2026-09-19 failure
+      // again. Until then, the v16 client itself re-asserts a tombstone that a
+      // stale v15 `set()` overwrote (`SyncService._applyRemoteSession`).
+      //
+      //S match /analysisSessions/{sessionId} {
+      //S   allow read, delete: if isOwner(userId);
+      //S   allow create, update: if isOwner(userId)
+      //S       // A session names its owner, and it must be this path's owner.
+      //S       && request.resource.data.uid == userId
+      //S       // A tombstone stays a tombstone: no write may drop `deletedAt`.
+      //S       && (resource == null
+      //S           || !('deletedAt' in resource.data)
+      //S           || 'deletedAt' in request.resource.data);
+      //S }
+      //S match /analysisMessages/{messageId} {
+      //S   allow read, delete: if isOwner(userId);
+      //S   allow update: if isOwner(userId) && validMessage();
+      //S   // No new turn under a deleted conversation. A missing session is
+      //S   // allowed: a device may push a message before its session lands.
+      //S   allow create: if isOwner(userId) && validMessage()
+      //S       && (!exists(/databases/$(database)/documents/users/$(userId)/analysisSessions/$(request.resource.data.sessionId))
+      //S           || get(/databases/$(database)/documents/users/$(userId)/analysisSessions/$(request.resource.data.sessionId)).data.get('deletedAt', null) == null);
+      //S }
 
       // Metadata for uploaded photos and videos. The BYTES live in Cloud
       // Storage under `storage.rules`; this is the index.

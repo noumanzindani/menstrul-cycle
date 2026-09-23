@@ -160,6 +160,67 @@ const MUTANTS = [
       'the collection can NEVER be listed, not even by an owner',
     ],
   },
+  // --- assistant conversations (v16) ---------------------------------------
+  {
+    name: 'attachment entries allowed extra keys (a URL)',
+    from: "&& list[i].keys().hasOnly(['mediaId', 'kind'])",
+    to: '&& true',
+    expect: [
+      'an attachment carrying a URL key is refused',
+      'a later attachment is checked, not only the first',
+    ],
+  },
+  {
+    name: 'attachment mediaId pattern dropped',
+    from: "&& list[i].mediaId.matches('^[0-9a-f]{32}$')",
+    to: '&& true',
+    expect: [
+      'an attachment whose mediaId is not a media id is refused',
+      'staged: attachment validation still applies',
+    ],
+  },
+  {
+    name: 'attachment kind check dropped',
+    from: "&& list[i].kind in ['image', 'video']);",
+    to: '&& true);',
+    expect: ['an attachment of an unknown kind is refused'],
+  },
+  {
+    name: 'attachment count cap dropped',
+    from: '&& d.attachments.size() <= 6',
+    to: '&& true',
+    expect: ['more attachments than the cap are refused'],
+  },
+  {
+    name: 'the last attachment index left unchecked',
+    from: '&& validAttachmentAt(d.attachments, 5)));',
+    to: '));',
+    expect: ['a later attachment is checked, not only the first'],
+  },
+  {
+    name: 'message fields widened to admit a URL',
+    from: "'syncedAt', 'attachments', 'includeInModel'",
+    to: "'syncedAt', 'attachments', 'includeInModel', 'downloadUrl'",
+    expect: ['a smuggled extra field on a message is refused'],
+  },
+  {
+    name: 'staged: session uid/path agreement dropped',
+    from: '&& request.resource.data.uid == userId',
+    to: '&& true',
+    expect: ['staged: a session naming another owner is refused'],
+  },
+  {
+    name: 'staged: a tombstone may lose deletedAt',
+    from: "|| 'deletedAt' in request.resource.data);",
+    to: '|| true);',
+    expect: ['staged: a write that drops deletedAt from a tombstone is refused'],
+  },
+  {
+    name: 'staged: messages allowed under a deleted session',
+    from: '&& (!exists(',
+    to: '&& (true || !exists(',
+    expect: ['staged: a new message under a deleted conversation is refused'],
+  },
   // --- deliberately redundant clauses ------------------------------------
   {
     name: 'hasAll() dropped (partial markers allowed)',
@@ -180,6 +241,16 @@ const MUTANTS = [
       'comparing a non-timestamp against request.time is itself an evaluation ' +
       'error, so the bounds already reject it; the type check names the ' +
       'requirement rather than leaving it implicit.',
+  },
+  {
+    name: 'the "attachments is list" type check dropped',
+    from: '(d.attachments is list',
+    to: '(true',
+    expect: [],
+    redundant:
+      'a string or map in its place is refused anyway: indexing it with ' +
+      'list[0] is an evaluation error, so validAttachmentAt denies it; the ' +
+      'type check names the requirement rather than leaving it implicit.',
   },
 ];
 

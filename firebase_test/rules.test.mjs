@@ -9,6 +9,8 @@
 //   users/{uid}/settings/current    SyncService._remoteSettings
 //   users/{uid}/deletions/{date}    SyncService._remoteDeletions
 //   users/{uid}/devices/{deviceId}  SyncService._deviceDoc
+//   users/{uid}/analysisSessions    SyncService._remoteSessions
+//   users/{uid}/analysisMessages    SyncService._remoteMessages
 //   deletionRequests/{uid}          AccountDeletionService
 //
 // `alice` is the account under test. `mallory` is a signed-in user who is NOT
@@ -22,6 +24,8 @@
 // and fails if the corresponding test still passes.
 
 import { after, before, beforeEach, describe, test } from 'node:test';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -533,6 +537,274 @@ describe('users/{uid}/media — uploaded photos and videos', () => {
     await assertDenied(
       setDoc(alice, 'users/alice/scratch/anything', { a: 1 }),
       'alice writing to an unmodelled subcollection',
+    );
+  });
+});
+
+
+// --- assistant conversations ---------------------------------------------
+
+const SESSION_ID = 'fedcba9876543210fedcba9876543210';
+const SESSION = `users/alice/analysisSessions/${SESSION_ID}`;
+const MESSAGE = 'users/alice/analysisMessages/0000000000000000000000000000000a';
+const PHOTO_ID = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const VIDEO_ID = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
+/** A session exactly as `analysisSessionToMap` writes it. */
+const sessionDoc = (overrides = {}) => ({
+  uid: 'alice',
+  mediaId: '',
+  consentVersion: 7,
+  createdAt: 1780000000000,
+  updatedAt: 1780000000000,
+  title: 'is this normal',
+  ...overrides,
+});
+
+/** The v16 tombstone: the full shape plus deletedAt, and no title. */
+const tombstoneDoc = () => {
+  const { title, ...rest } = sessionDoc({ updatedAt: 1780000009000 });
+  return { ...rest, deletedAt: 1780000009000 };
+};
+
+/** A message exactly as `analysisMessageToMap` writes it (v16). */
+const messageDoc = (overrides = {}) => ({
+  sessionId: SESSION_ID,
+  role: 'user',
+  messageText: 'what is this',
+  createdAt: 1780000000000,
+  updatedAt: 1780000000000,
+  attachments: [
+    { mediaId: PHOTO_ID, kind: 'image' },
+    { mediaId: VIDEO_ID, kind: 'video' },
+  ],
+  includeInModel: true,
+  ...overrides,
+});
+
+/** The same message as a v15 client writes it: no v16 fields at all. */
+const v15MessageDoc = () => {
+  const { attachments, includeInModel, ...rest } = messageDoc();
+  return rest;
+};
+
+describe('users/{uid}/analysis* — assistant conversations', () => {
+  test('the owner can write, read and list her own conversation', async () => {
+    await assertAllowed(setDoc(alice, SESSION, sessionDoc()), 'alice writing a session');
+    await assertAllowed(setDoc(alice, MESSAGE, messageDoc()), 'alice writing a message');
+    await assertAllowed(getDoc(alice, SESSION), 'alice reading her session');
+    await assertAllowed(
+      listDocs(alice, 'users/alice/analysisMessages'),
+      'alice listing her messages',
+    );
+  });
+
+  test('a v15 client can still write its old-shape message', async () => {
+    await assertAllowed(
+      setDoc(alice, MESSAGE, v15MessageDoc()),
+      'a v15 client writing a message with no attachments field',
+    );
+  });
+
+  test('the owner can push a tombstone and delete its messages', async () => {
+    await seed(SESSION, sessionDoc());
+    await seed(MESSAGE, messageDoc());
+    await assertAllowed(setDoc(alice, SESSION, tombstoneDoc()), 'alice tombstoning a session');
+    await assertAllowed(deleteDoc(alice, MESSAGE), "alice deleting the tombstone's message");
+  });
+
+  test('another signed-in user CANNOT read or write a conversation', async () => {
+    await seed(SESSION, sessionDoc());
+    await seed(MESSAGE, messageDoc());
+    await assertDenied(getDoc(mallory, SESSION), "mallory reading alice's session");
+    await assertDenied(getDoc(mallory, MESSAGE), "mallory reading alice's message");
+    await assertDenied(
+      setDoc(mallory, SESSION, sessionDoc()),
+      "mallory writing alice's session",
+    );
+    await assertDenied(
+      setDoc(mallory, MESSAGE, messageDoc()),
+      "mallory writing alice's message",
+    );
+    await assertDenied(
+      deleteDoc(mallory, MESSAGE),
+      "mallory deleting alice's message",
+    );
+  });
+
+  test('an attachment carrying a URL key is refused', async () => {
+    for (const field of ['url', 'downloadUrl', 'downloadURL', 'token']) {
+      await assertDenied(
+        setDoc(
+          alice,
+          MESSAGE,
+          messageDoc({
+            attachments: [
+              { mediaId: PHOTO_ID, kind: 'image', [field]: 'https://example.test/x' },
+            ],
+          }),
+        ),
+        `alice storing a ${field} on an attachment`,
+      );
+    }
+  });
+
+  test('an attachment whose mediaId is not a media id is refused', async () => {
+    await assertDenied(
+      setDoc(
+        alice,
+        MESSAGE,
+        messageDoc({
+          attachments: [{ mediaId: 'https://example.test/x', kind: 'image' }],
+        }),
+      ),
+      'alice parking a URL in mediaId',
+    );
+  });
+
+  test('an attachment of an unknown kind is refused', async () => {
+    await assertDenied(
+      setDoc(
+        alice,
+        MESSAGE,
+        messageDoc({ attachments: [{ mediaId: PHOTO_ID, kind: 'document' }] }),
+      ),
+      'alice attaching an unrecognised kind',
+    );
+  });
+
+  test('a later attachment is checked, not only the first', async () => {
+    await assertDenied(
+      setDoc(
+        alice,
+        MESSAGE,
+        messageDoc({
+          attachments: [
+            { mediaId: PHOTO_ID, kind: 'image' },
+            { mediaId: PHOTO_ID, kind: 'image' },
+            { mediaId: PHOTO_ID, kind: 'image' },
+            { mediaId: PHOTO_ID, kind: 'image' },
+            { mediaId: PHOTO_ID, kind: 'image' },
+            { mediaId: PHOTO_ID, kind: 'image', url: 'https://example.test/x' },
+          ],
+        }),
+      ),
+      'alice hiding a URL in the last permitted attachment',
+    );
+  });
+
+  test('attachments that are not a list are refused', async () => {
+    await assertDenied(
+      setDoc(alice, MESSAGE, messageDoc({ attachments: 'https://example.test/x' })),
+      'alice storing attachments as a string',
+    );
+  });
+
+  test('more attachments than the cap are refused', async () => {
+    const seven = Array.from({ length: 7 }, () => ({ mediaId: PHOTO_ID, kind: 'image' }));
+    await assertDenied(
+      setDoc(alice, MESSAGE, messageDoc({ attachments: seven })),
+      'alice attaching seven references',
+    );
+  });
+
+  test('a smuggled extra field on a message is refused', async () => {
+    await assertDenied(
+      setDoc(alice, MESSAGE, messageDoc({ downloadUrl: 'https://example.test/x' })),
+      'alice storing a URL beside the message',
+    );
+  });
+
+  test('a v15 set() over a tombstone is still allowed while the stricter rules are staged', async () => {
+    // Characterisation, not an endorsement: this is the write the staged rule
+    // below refuses. It stays allowed until the minimum client is v16, because
+    // a v15 client that is denied here aborts its whole sync.
+    await seed(SESSION, tombstoneDoc());
+    await assertAllowed(
+      setDoc(alice, SESSION, sessionDoc()),
+      'a v15 client re-setting a tombstoned session',
+    );
+  });
+});
+
+/**
+ * `firestore.rules` with the STAGED analysis block switched on: the live
+ * block removed and the `//S ` lines uncommented — exactly the edit the rules
+ * file tells whoever enables it to make.
+ */
+function stagedRules(source) {
+  const begin = source.indexOf('// BEGIN live-analysis');
+  const end = source.indexOf('// END live-analysis');
+  if (begin < 0 || end < 0 || !source.includes('//S ')) {
+    throw new Error('firestore.rules no longer has the staged analysis markers');
+  }
+  const withoutLive = source.slice(0, begin) + source.slice(end);
+  return withoutLive.replace(/^(\s*)\/\/S ?/gm, '$1');
+}
+
+describe('STAGED analysis rules (enable once the minimum client is v16)', () => {
+  const file = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), 'lunatrack-staged-')),
+    'staged.rules',
+  );
+
+  before(() => {
+    fs.writeFileSync(file, stagedRules(fs.readFileSync(RULES, 'utf8')));
+    return loadRules(file);
+  });
+  after(() => loadRules(RULES));
+
+  test('staged: the owner can still do everything a v16 client does', async () => {
+    await assertAllowed(setDoc(alice, SESSION, sessionDoc()), 'alice writing a session');
+    await assertAllowed(setDoc(alice, MESSAGE, messageDoc()), 'alice writing a message');
+    await assertAllowed(setDoc(alice, SESSION, tombstoneDoc()), 'alice tombstoning it');
+    await assertAllowed(setDoc(alice, SESSION, tombstoneDoc()), 'alice re-pushing the tombstone');
+    await assertAllowed(deleteDoc(alice, MESSAGE), 'alice deleting its message');
+  });
+
+  test('staged: a session naming another owner is refused', async () => {
+    await assertDenied(
+      setDoc(alice, SESSION, sessionDoc({ uid: 'mallory' })),
+      "alice writing a session that claims mallory's uid",
+    );
+  });
+
+  test('staged: a write that drops deletedAt from a tombstone is refused', async () => {
+    await seed(SESSION, tombstoneDoc());
+    await assertDenied(
+      setDoc(alice, SESSION, sessionDoc()),
+      'a stale v15 set() resurrecting a deleted conversation',
+    );
+  });
+
+  test('staged: a new message under a deleted conversation is refused', async () => {
+    await seed(SESSION, tombstoneDoc());
+    await assertDenied(
+      setDoc(alice, MESSAGE, messageDoc()),
+      'a message pushed under a tombstoned session',
+    );
+  });
+
+  test('staged: a message under a live or not-yet-synced session is allowed', async () => {
+    await assertAllowed(
+      setDoc(alice, MESSAGE, messageDoc()),
+      'a message whose session has not landed yet',
+    );
+    await seed(SESSION, sessionDoc());
+    await assertAllowed(
+      setDoc(alice, 'users/alice/analysisMessages/0000000000000000000000000000000b', messageDoc()),
+      'a message under a live session',
+    );
+  });
+
+  test('staged: attachment validation still applies', async () => {
+    await assertDenied(
+      setDoc(
+        alice,
+        MESSAGE,
+        messageDoc({ attachments: [{ mediaId: 'https://example.test/x', kind: 'image' }] }),
+      ),
+      'a URL in mediaId under the staged rules',
     );
   });
 });
