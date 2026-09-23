@@ -1,15 +1,15 @@
 # LunarFlow Privacy Policy
 
-_Last updated: 7 August 2026_
+_Last updated: 24 September 2026_
 
 LunarFlow ("the app", "we") is a menstrual and cycle tracking app. This policy
 explains what data the app handles and how. **Short version: LunarFlow uses an
 account, and the health data you log is uploaded to our cloud database so it can
 sync between your devices. It is stored in a readable form and is not sold or
-shared with advertisers. If you turn on photo descriptions, a photo you tap
-Describe on — together with your tracked health record — is sent to Google;
-that is off unless you turn it on, and the resulting conversation is now kept
-on your device.**
+shared with advertisers. If you turn on the AI assistant, each message you send
+— with the photos in that conversation and your tracked health record — is
+sent to Google; that is off unless you turn it on, and your conversations are
+saved to your account.**
 
 > ⚠️ Before publishing, all of the following must be true:
 >
@@ -69,6 +69,11 @@ account id}`):
   once it has been uploaded to your account, which is what lets it appear on
   your other devices. Alongside the file itself we store when it was taken, how
   large it is, its dimensions or length, and a small thumbnail.
+- **Reminders and your medication list** — the reminders you set up and the
+  medications you added (names, doses, schedules). The one exception is the
+  menstrual-product change timer, which never leaves the device.
+- **AI assistant conversations**, if you use the assistant — see "The AI
+  assistant" below.
 - **Bookkeeping** — a random per-installation device identifier stamped on each
   synced entry, a small per-device record of how far that device has synced, and
   markers recording the dates of days you deleted so the deletion reaches your
@@ -105,68 +110,82 @@ works differently than it does.
   "Deleting your account" below. Until the purge job is deployed, requesting
   deletion does not automatically erase your uploaded media from the server.
 
-### Describing a photo (off unless you turn it on)
+### The AI assistant (off unless you turn it on)
 
-LunarFlow can describe what is in one of your photos, and let you ask
-follow-up questions about it. This feature is **off by default**, and turning
-it on is a separate choice from cloud sync.
+LunarFlow has an assistant you can ask about periods, cycles, symptoms and
+using the app, in words or with photos attached. Tapping **Describe** on a
+photo opens the same assistant with that photo attached. This feature is
+**off by default**, and turning it on is a separate choice from cloud sync.
 
 - It is **off until you turn it on**, per account, on each device. You are
   asked before you can use it, and you can turn it off again at any time in
-  Settings → Describe photos.
-- **This does not send only the photo.** Along with it, LunarFlow sends what
-  you have tracked, from roughly the last 90 days: your cycle and period
-  history, symptoms and mood, height and weight (and the BMI figure
-  calculated from them), discharge, sexual activity and masturbation, libido,
-  vaginal and other sexual-health notes, habits, medications you have marked
-  as taken (by name), basal body temperature and ovulation test results,
-  your contraception method, any diagnoses a clinician has given you,
-  breastfeeding status, and your free-text diary notes. This happens only
-  when you tap **Describe** on a photo, and again on every follow-up question
-  you send in that conversation — the service keeps nothing between messages,
-  so the same information is sent again each time. Nothing is sent while you
-  are typing, only when you send a message.
-- **If you previously agreed to an earlier version of this feature that sent
-  only the photo, you will be asked to agree again** before it sends anything
-  more. LunarFlow tracks which version of this disclosure you agreed to, and
-  widening what is sent asks again rather than being applied automatically.
-- When you tap **Describe**, the photo and that record are **sent to Google**,
-  an automatic image-recognition service that is not part of LunarFlow and
-  not part of your account. It happens only for the photo you tapped, only
-  when you send a message, and never on its own or in the background.
-- **Google is a separate company with its own terms and its own handling of
-  what it receives.** LunarFlow cannot speak for what happens to a photo, or
-  the tracked information sent with it, after it is sent, and does not claim
-  to.
-- **LunarFlow now keeps the conversation on your device.** This is a change:
-  it used to be shown to you and discarded the moment you closed the photo.
-  Each conversation is stored, per photo, in the same encrypted on-device
-  database as the rest of your data, so you can reopen a photo later and pick
-  up where you left off. It is:
-  - **not** uploaded to our cloud database or to any LunarFlow server — it
-    stays on this device only;
-  - **not** included in the doctor-summary PDF;
-  - **not** included in the `.lunabak` backup file;
-  - **erased** whenever the photo it is about is deleted, whenever you use
-    **Settings → Delete all my data**, and whenever you sign out or switch
-    accounts on this device.
-- A description is **not a medical opinion**. The feature describes what is
-  visible in a picture. It cannot tell you what something is, how serious it
-  is, or what to do about it, and it is instructed to refuse if asked — even
-  with your tracked health information available to it.
-- **Once a photo and your tracked record have been sent, they have left
-  LunarFlow.** Turning the feature off, deleting the photo, deleting the
-  on-device conversation, or deleting your LunarFlow account does not reach a
-  copy held by Google.
-- The number of **messages** is limited per day, and the number of questions
-  about any one photo is limited too. These are cost limits, not privacy
-  controls.
+  Settings → AI assistant.
+- **What is sent, and when.** Only when you send a message — never while you
+  are typing, never on its own and never in the background — LunarFlow sends
+  to Google:
+  - the messages you have typed in that conversation;
+  - **every photo in the conversation, again with every message** (the
+    service keeps nothing between messages, so the whole conversation is sent
+    each time). Photos are shrunk before sending; a message can carry up to 3
+    photos and a conversation up to 4;
+  - what you have tracked, from roughly the last 90 days: your cycle and
+    period history, symptoms and mood, your age, height and weight (and the
+    BMI figure calculated from them), discharge, sexual activity and
+    masturbation, libido, any pain or bleeding during or after sex, vaginal
+    and other sexual-health notes, habits, medications you have marked as
+    taken (by name), basal body temperature and ovulation test results, your
+    contraception method, breastfeeding, a recent pregnancy, birth or
+    pregnancy loss, your puberty stage (breast and pubic hair development) and
+    its timing, any diagnoses a clinician has given you, your goal (such as
+    trying to conceive), and your free-text diary notes.
+- **Videos are never sent.** You can attach one, and it stays in the
+  conversation and in Photos & videos, but the assistant tells you it cannot
+  look at videos. Nothing about the video is sent to Google, and it does not
+  count against the daily limit.
+- **Photos you take or pick from inside the assistant are saved to Photos &
+  videos**, on the same terms as any other photo you add (see above).
+- Google is **an automatic service that is not part of LunarFlow and not part
+  of your account**. **Google is a separate company with its own terms and its
+  own handling of what it receives.** LunarFlow cannot speak for what happens
+  to a photo, a message, or the tracked information sent with them, after
+  they are sent, and does not claim to.
+- **If you agreed to an earlier version of this feature, you will be asked to
+  agree again** before it sends anything. LunarFlow tracks which version of
+  this disclosure you agreed to, and widening what is sent asks again rather
+  than being applied automatically.
+- **Your conversations are saved to your account.** This is a change: they
+  used to be kept on one device only. Each conversation — what you typed, the
+  replies, and which of your photos and videos it refers to (a reference, not
+  a second copy) — is stored in the encrypted database on your device **and
+  uploaded to our cloud database** so it is backed up and reaches your other
+  devices. The cloud copy is stored **as plain text that the operator of the
+  service can read**, like the rest of your synced data. A conversation is:
+  - **deleted** from this device, from your account and from your other
+    devices when you delete it (long-press it in the Assistant), including if
+    you deleted it while offline;
+  - **deleted** whenever a photo it includes is deleted;
+  - **erased from this device** by **Settings → Delete all my data** and when
+    you sign out or switch accounts — the copy in your account stays, as with
+    your logs;
+  - **not** included in the doctor-summary PDF or in the `.lunabak` backup
+    file;
+  - covered by account deletion, on the same terms and with the same gap as
+    everything else in the cloud (see "Deleting your account").
+- A reply is **not a medical opinion**. The assistant answers in general
+  terms. It cannot tell you what something is, how serious it is, or what to
+  do about it, and it is instructed to refuse if asked — even with your
+  tracked health information available to it.
+- **Once a message, a photo and your tracked record have been sent, they have
+  left LunarFlow.** Turning the feature off, deleting the photo, deleting the
+  conversation, or deleting your LunarFlow account does not reach a copy held
+  by Google.
+- The number of **messages** is limited per day (20), and so is the length of
+  a single conversation. These are cost limits, not privacy controls.
 
 ### What is never uploaded
 
-- **Reminders and notification schedules** stay on the device.
-- **Your medication list** (names, doses, schedules) stays on the device; only
-  the per-day "took it" marks travel, as part of the daily log.
+- **The menstrual-product change timer** (when a product went in) stays on the
+  device.
 - **Your app-lock PIN**, whether app lock is on, and whether you have completed
   onboarding are per-device and stay on the device.
 - **Premium** is a Google Play purchase and is not synced by us; it is tied to

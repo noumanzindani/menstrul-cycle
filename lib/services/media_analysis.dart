@@ -21,9 +21,11 @@
 /// ## Conversations are now stored — deliberately, and at a paid cost
 ///
 /// A result used to be held for the life of the viewer and discarded; that is
-/// no longer the whole story. Conversations are now persisted to the encrypted
-/// drift database (`AnalysisSessions` / `AnalysisMessages`, schema v11), local
-/// to the device and never synced to Firestore. This file stays exactly as
+/// no longer the whole story. Conversations are persisted to the encrypted
+/// drift database (`AnalysisSessions` / `AnalysisMessages`, schema v11; titles,
+/// attachments and tombstones since v16) and, since v12, synced to Firestore
+/// like every other table -- the uid-filtered push and the `deletedAt`
+/// tombstone live in `SyncService`. This file stays exactly as
 /// pure as the header above describes — no I/O, no database, no repository
 /// import — because persistence is not this file's job: `MediaAnalysisService`
 /// (`media_analysis_service.dart`) calls out to an injected closure the CALLER
@@ -37,8 +39,9 @@
 /// cascade-deleting a conversation when its photo is deleted, and exclusion
 /// from `.lunabak` and the doctor PDF — all of it built and structurally
 /// guarded (`test/media_guardrails_test.dart`), not merely asserted here.
-/// Because the store is local-only, it needs no purge-job coverage the way
-/// synced media does.
+/// Because the rows are synced, the cloud copy is covered by the account purge
+/// job (`functions/purge.js` lists both collections) and a deletion reaches
+/// other devices through the session tombstone.
 library;
 
 import 'dart:convert';

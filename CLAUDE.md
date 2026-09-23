@@ -71,7 +71,7 @@ lib/
   services/      pure logic (PredictionService, CycleCalculator, InsightsService, PdfReportService, AdService)
                  + the sync/auth layer (AuthService, SyncService, SyncTrigger, SyncMapper,
                    AccountDeletionService, firestore_ref.dart, FirebaseAvailability, DeviceId)
-  screens/       app_gate + app_shell + home / calendar / forecast / insights / settings / log
+  screens/       app_gate + app_shell + home / calendar / assistant / forecast / insights / settings / log
                  / onboarding / auth (sign in, sign up, forgot password, claim sheet)
                  / account (deletion_pending_screen)
   widgets/       shared widgets (DayEntryForm, AdBanner, disclaimer_banner, …)
@@ -186,7 +186,7 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   Numeric metrics (`pain`, `water`, `sleep`, `energy`, `stress`, `sleep_quality`, `weight`)
   ride the same blob as real JSON numbers, so they never satisfy the `== true` symptom check
   and need no key prefix. **`0` means "unset" for every numeric metric**, weight included.
-- **Schema & migrations.** `schemaVersion` is **12**. `onUpgrade` uses independent additive
+- **Schema & migrations.** `schemaVersion` is **16**. `onUpgrade` uses independent additive
   `if (from < n)` branches (not else-if), one nullable column each, so a user on any old
   version runs every intervening branch and existing rows need no backfill: v1→v2 added
   `AppSettings.pregnancyStartDate`; v2→v3 added `AppSettings.trackingCategories`; v3→v4
@@ -219,16 +219,21 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   **v11→v12 is also the first branch to guard its own ADD COLUMN steps** with
   `_tableHasColumn`, for the reason the v10→v11 comment records at length: `createTable`
   is idempotent (drift emits IF NOT EXISTS) but `addColumn` is not, and a v12-then-v10
-  install sequence re-runs the branch against columns that already exist. Note the two `SettingsRepository` entry
+  install sequence re-runs the branch against columns that already exist. v13 (cycle
+  regularity), v14 (recent pregnancy), v15 (puberty stage) and **v16 (the assistant:
+  `AnalysisSessions.title` / `deletedAt`, `AnalysisMessages.attachmentsJson` /
+  `includeInModel`)** follow the same guarded, add-column-only pattern. v16's snapshots
+  were made with `dart run drift_dev schema dump` then `schema generate` (there is no
+  `build.yaml` / make-migrations setup). Note the two `SettingsRepository` entry
   points that write those columns: **`update()` stamps `settingsUpdatedAt`** (a user
   edit, so it pushes on the next sync), **`updateSyncState()` deliberately does not** —
   it is sync bookkeeping, and stamping it would make every sync look like a settings
   change and push forever. A committed JSON snapshot per version lives in
-  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v12.json` /
-  `schema_v12.dart`); `test/db_migration_v12_test.dart` uses drift's `SchemaVerifier` to run
+  `drift_schemas/` and `test/generated_migrations/` (through `drift_schema_v16.json` /
+  `schema_v16.dart`); `test/db_migration_v12_test.dart` uses drift's `SchemaVerifier` to run
   the REAL `onUpgrade` against a v11 DB seeded with non-default rows — including a live
   product-change session, the one row that must survive untouched. The suite runs one
-  such test per hop, `db_migration_v3_test.dart` through `db_migration_v12_test.dart`.
+  such test per hop, `db_migration_v3_test.dart` through `db_migration_v16_test.dart`.
   In-memory `AppDatabase.forTesting` runs `onCreate` at the current schema and NEVER
   exercises `onUpgrade`, so every new migration needs a snapshot dumped BEFORE the version
   bump (only derivable while that version is current) and its own SchemaVerifier test.
@@ -463,7 +468,8 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   Saved conversations **were** local-only; the owner reversed that on 2026-09-18 and
   they now sync (`users/{uid}/analysisSessions` + `analysisMessages`), so they DO need
   `firestore.rules` and `functions/purge.js` coverage and have it. That reversal is why
-  `kCurrentConsentVersion` is **3**: version 2's sheet promised the conversation stayed
+  `kCurrentConsentVersion` became **3** (it is **7** since the assistant — see "The AI
+  assistant" below): version 2's sheet promised the conversation stayed
   on the device, so uploading under an unchanged "Allow" would have been no consent to
   the new disclosure — the same reasoning that created version 2.
   `analysisConsentUid`/`analysisConsentVersion` themselves are still NOT synced. `deleteAllData()`, the sign-out/account-switch
@@ -472,6 +478,40 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   (`MediaRepository.deleteById` / `deleteExcept`), and exclusion from
   `.lunabak` and the doctor PDF are the whole erasure surface, and all of it is
   structurally asserted in `test/media_guardrails_test.dart`.
+- **The AI assistant (2026-09-23, schema v16, consent v7) replaced the one-photo
+  Describe chat and the Forecast TAB.** Owner decisions: the Assistant sits at shell
+  index 2 (still exactly five tabs; index 0 and the interstitial untouched); Forecast is
+  a pushed route from Home's cycle card ("See forecast", key `home-see-forecast`) and a
+  Calendar app-bar action (`calendar-forecast-action`) — `forecast_entry_points_test`
+  exists because nothing else would notice Forecast becoming unreachable. Describe opens
+  the same chat with the photo attached (resume → consent → `earnOneConversation` →
+  push). Non-obvious parts:
+  - **A tab is mounted at launch**, so `MediaWiring` (and `AssistantBackend`) is now
+    built when the shell mounts, not on first open. `FirebaseMediaBlobStore` therefore
+    resolves `lunaStorage()` LAZILY on first use — built eagerly it threw `[core/no-app]`
+    in every harness that pumps `LunarFlowApp`. Its 20-second retry bounds moved with it
+    and are still load-bearing.
+  - **Conversations sync**, pushed filtered by uid (message documents carry no uid, so
+    they are filtered by their session). A user's delete is a **tombstone**
+    (`deletedAt`), pushed in full document shape so a v15 client cannot resurrect an
+    empty ghost; a pulled tombstone wins and there is no undelete. Stricter rules are
+    STAGED in `firestore.rules` until the minimum client is v16 — enabling them now
+    fails a v15 client's whole sync pass.
+  - **Video is declined on the device**, after the consent gates and before size, caps,
+    memo and the daily count: nothing sent, nothing counted. The notice is stored as a
+    `model` row with `includeInModel = 0` so a replay never sends it and v15 devices
+    still see alternating roles.
+  - **Every image is resent with every message** (the API is stateless), so the caps
+    are the cost control: 3 photos per message, 4 distinct per conversation, each
+    downscaled to 1024 px JPEG q80, a 12 MB inline budget per request, 20 messages a day,
+    `kMaxQuestionLength` still **200** (500 awaits the owner).
+  - **Consent is v7** because the disclosure widened (typed messages, several photos,
+    cloud-saved conversations); earlier versions are asked again.
+  - **Owner items still open:** `kAssistantScopeClause` is a `TODO(owner)` placeholder;
+    `kNavArt[2]` borrows `nav_forecast.png` until `assets/track/nav_assistant.png` is
+    supplied (`TODO(owner)` in `option_art.dart`); Gemini terms for under-18 users. The
+    safety probe must be re-run against the assistant instruction before release
+    (`README.md`). NOT YET DEVICE-VERIFIED.
 - **Prediction is the calendar method**, always labelled an estimate and **never a
   contraceptive method**. Fertile window is awareness-only.
 - **Fertility indicator is a qualitative band, never a number** (`FertilityBand` enum,
@@ -621,7 +661,9 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
 - **No false precision** — fertility is qualitative, no synthesized %.
 - **Ads never co-render with logging or insights.** `test/ad_placement_test.dart` guards
   this structurally. The interstitial only fires on switching into Home. (Banners live on
-  Home, Calendar, Forecast and Settings.)
+  Home, Calendar, Forecast and Settings. Forecast is a pushed route since 2026-09-23 and
+  keeps its own banner; nothing under `screens/assistant/` may show one —
+  `media_guardrails_test` scans it.)
 - **The rewarded ad on Describe is a DIFFERENT category, and the distinction is the
   whole defence** (2026-09-22, owner-requested). The rule above governs AMBIENT ads —
   something the app shows next to content the user came for. A rewarded ad is not shown
@@ -634,7 +676,9 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   the ad sits behind the consent gate rather than in front of it (`_describe` in
   `media_viewer_screen.dart`): watching an ad and THEN meeting a consent sheet is a
   reward taken and never delivered.
-  The decision half is `services/rewarded_describe_gate.dart` (`earnOneDescribe`), pure
+  The decision half is `services/rewarded_describe_gate.dart` (`earnOneConversation`,
+  renamed from `earnOneDescribe` when the assistant arrived — one ad starts one NEW
+  conversation, from Describe or the Assistant tab; a resumed one plays none), pure
   and free of AdMob types precisely so it can be tested — `google_mobile_ads` talks over
   platform channels with no handler under `flutter_tester`, so anything that touches
   `AdService` directly is untestable. It splits the two failure modes deliberately:
@@ -982,8 +1026,10 @@ question about whether the ruling changed — not about how to make the test pas
   6. **Recents thumbnail** — open an item, press Home, open the app switcher. `grep
      FLAG_SECURE` returns nothing anywhere today, so an intimate photo currently lands in
      the system launcher's thumbnail, OUTSIDE `AppLock`. This is a known open gap.
-     **Second surface, found 2026-09-14:** `AnalysisSessionsScreen` (the saved-conversations
-     list) and `analysis_result_sheet.dart` (the Describe conversation itself) render AI
+     **Second surface, found 2026-09-14** (now `AssistantScreen`, a bottom-nav tab, and
+     `AssistantChatScreen`, which replaced `AnalysisSessionsScreen` and
+     `analysis_result_sheet.dart` on 2026-09-23 and also show typed health questions and
+     photo thumbnails): these render AI
      PROSE about a body photo — not just the photo — and neither is any more protected than
      the photo screens are. Same gap, same fix (`FLAG_SECURE`), wider surface: a description
      mentioning what is visible in an intimate photo can now land in the recents thumbnail
@@ -996,7 +1042,9 @@ question about whether the ruling changed — not about how to make the test pas
      client must be denied.
 
 - **Photo descriptions (v7 photo-only; v11 adds tracked-context + saved
-  conversations, opt-in)** — a **Describe** action in the media viewer sends
+  conversations, opt-in)** — *history; the assistant (v16, below "Key design decisions")
+  generalised this on 2026-09-23 and supersedes (d2): images now ride the user turn that
+  attached them and are resent every call.* A **Describe** action in the media viewer sends
   ONE image to Google's Generative Language API (`gemini-3.5-flash`) and opens a
   **conversation** about it in a sheet — the user can keep asking follow-ups. Three files
   mirror the media split: `media_analysis.dart` (pure — request shape, parser, refusal
@@ -1234,11 +1282,12 @@ only checked that the ad hid, not that the entry form actually rendered.
 
 Two suites, and `flutter test` does not cover the second:
 
-- `flutter test` — **1523** passing, 3 skipped, **2 failing**. (Keep this number current; a
+- `flutter test` — **1709** passing, **2 failing** (2026-09-24; the merged-manifest guardrails
+  skip instead of running when there is no `build/` output). (Keep this number current; a
   stale one makes a real regression look like a miscount.) The two failures are
   PRE-EXISTING and not in this lane: `firebase_unavailable_test.dart` taps
   `Icons.settings_outlined`, which `409973a` replaced with an illustrated nav mark.
-- `firebase_test/run.sh` — **39** Firestore rules tests against a LOCAL emulator
+- `firebase_test/run.sh` — **57** Firestore rules tests against a LOCAL emulator
   (`demo-lunatrack`; firebase-tools treats any `demo-*` id as emulator-only, and there is
   deliberately no `.firebaserc`, so no command here can fall into a real project). Needs
   Node 18+, a JDK 21+, and a `firebase.json` at the repo root — which IS tracked as of
