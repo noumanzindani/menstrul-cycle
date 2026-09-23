@@ -260,15 +260,33 @@ enum AnalysisRole { user, model }
 
 /// One message in a conversation about one photo.
 ///
-/// Text only, by design. The image is not carried per-turn: it is attached once
-/// to the first user turn when the request is built, because the whole array is
+/// The Describe image is not carried per-turn: it is attached once to the
+/// first user turn when the request is built, because the whole array is
 /// resent on every call anyway.
+///
+/// [attachments] and [includeInModel] mirror the stored v16 columns of the
+/// same names, so a resumed conversation keeps them in memory.
 class AnalysisTurn {
-  const AnalysisTurn.user(this.text) : role = AnalysisRole.user;
-  const AnalysisTurn.model(this.text) : role = AnalysisRole.model;
+  const AnalysisTurn.user(
+    this.text, {
+    this.attachments = const [],
+    this.includeInModel = true,
+  }) : role = AnalysisRole.user;
+  const AnalysisTurn.model(
+    this.text, {
+    this.attachments = const [],
+    this.includeInModel = true,
+  }) : role = AnalysisRole.model;
 
   final AnalysisRole role;
   final String text;
+
+  /// What this turn attached, as references only.
+  final List<AttachmentRef> attachments;
+
+  /// False for a turn kept for the transcript on screen but never sent to the
+  /// model — the declined-video pair. [buildAnalysisRequest] skips it.
+  final bool includeInModel;
 
   @override
   String toString() => 'AnalysisTurn(${role.name}, $text)';
@@ -478,7 +496,11 @@ Map<String, Object?> buildAnalysisRequest({
   List<AnalysisTurn> history = const [],
   String? healthContext,
 }) {
-  final turns = <AnalysisTurn>[...history, AnalysisTurn.user(question)];
+  final turns = <AnalysisTurn>[
+    for (final turn in history)
+      if (turn.includeInModel) turn,
+    AnalysisTurn.user(question),
+  ];
   final contents = <Object?>[];
   var imageAttached = false;
   var contextAttached = false;

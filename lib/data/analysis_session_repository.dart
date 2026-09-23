@@ -153,7 +153,8 @@ class AnalysisSessionRepository {
   }
 
   /// Deletes the conversation [id]: in one transaction, marks the session
-  /// row deleted, bumps its `updatedAt`, and hard-deletes its messages.
+  /// row deleted, bumps its `updatedAt`, clears its title, and hard-deletes
+  /// its messages.
   ///
   /// The session row stays behind as a tombstone because the rows sync: the
   /// bumped `updatedAt` is what makes the next push carry the deletion to the
@@ -172,9 +173,12 @@ class AnalysisSessionRepository {
   ///
   /// The later-turn search is a LIKE on the stored JSON, with the pattern
   /// passed through drift's `.like()` so [mediaId] is a bound parameter,
-  /// never interpolated SQL. LIKE still treats `_` and `%` as wildcards, so
-  /// every candidate is re-checked against its decoded references before
-  /// anything is deleted.
+  /// never interpolated SQL. It matches the bare id rather than this client's
+  /// exact `"mediaId":"…"` spelling, because the column syncs and another
+  /// client may space or order its JSON differently. That makes it only a
+  /// prefilter: LIKE also treats `_` and `%` as wildcards, so every candidate
+  /// is re-checked against its decoded references before anything is
+  /// deleted.
   Future<void> deleteForMedia(String mediaId) async {
     if (mediaId.isEmpty) return;
     final started = await (_db.select(_db.analysisSessions)
@@ -182,7 +186,7 @@ class AnalysisSessionRepository {
         .get();
 
     final candidates = await (_db.select(_db.analysisMessages)
-          ..where((t) => t.attachmentsJson.like('%"mediaId":"$mediaId"%')))
+          ..where((t) => t.attachmentsJson.like('%$mediaId%')))
         .get();
     final attachedIn = {
       for (final m in candidates)
@@ -208,6 +212,9 @@ class AnalysisSessionRepository {
           .write(AnalysisSessionsCompanion(
         deletedAt: Value(now),
         updatedAt: Value(now),
+        // The title is the user's own first words. The row is kept only to
+        // carry the deletion to other devices, so it keeps nothing they said.
+        title: const Value(null),
       ));
       await (_db.delete(_db.analysisMessages)
             ..where((t) => t.sessionId.isIn(ids)))

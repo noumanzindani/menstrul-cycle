@@ -241,11 +241,19 @@ Route<void> mediaTimelineRoute(BuildContext context) {
                       await sessionRepo.forMedia(uid: uid, mediaId: item.id);
                   if (session == null) return const <AnalysisTurn>[];
                   final messages = await sessionRepo.messagesFor(session.id);
-                  final turns = messages
-                      .map((m) => m.role == 'user'
-                          ? AnalysisTurn.user(m.messageText)
-                          : AnalysisTurn.model(m.messageText))
-                      .toList();
+                  // includeInModel is carried over, not filtered here: the
+                  // sheet still shows such a turn, and the request builder
+                  // is what leaves it out of what the model sees.
+                  final turns = messages.map((m) {
+                    final attachments = decodeAttachments(m.attachmentsJson);
+                    return m.role == 'user'
+                        ? AnalysisTurn.user(m.messageText,
+                            attachments: attachments,
+                            includeInModel: m.includeInModel)
+                        : AnalysisTurn.model(m.messageText,
+                            attachments: attachments,
+                            includeInModel: m.includeInModel);
+                  }).toList();
                   // Seeds the SERVICE's in-memory history, not just the UI:
                   // the sheet renders these turns from the return value below,
                   // but the next follow-up goes through `analysisService`

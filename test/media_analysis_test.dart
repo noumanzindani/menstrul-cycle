@@ -102,6 +102,36 @@ void main() {
       expect(first['role'], 'user');
     });
 
+    test('a turn defaults to no attachments and being sent to the model', () {
+      const turn = AnalysisTurn.user('hi');
+      expect(turn.attachments, isEmpty);
+      expect(turn.includeInModel, isTrue);
+    });
+
+    test('skips a turn stored with includeInModel false', () {
+      // The declined-video pair is kept for the transcript on screen, but a
+      // replay or resume must never send it to the model.
+      final skipped = buildAnalysisRequest(
+        base64Image: 'QUJD',
+        mimeType: 'image/jpeg',
+        question: 'and now?',
+        history: const [
+          AnalysisTurn.user('what colour is it'),
+          AnalysisTurn.model('It is pink.'),
+          AnalysisTurn.user('look at this video', includeInModel: false),
+          AnalysisTurn.model('Videos are not supported.', includeInModel: false),
+        ],
+      );
+      final sent = (skipped['contents']! as List).cast<Map<Object?, Object?>>();
+      expect(sent.map((c) => c['role']).toList(), ['user', 'model', 'user']);
+      final texts = [
+        for (final c in sent)
+          for (final p in c['parts']! as List)
+            if ((p as Map).containsKey('text')) p['text'],
+      ];
+      expect(texts, ['what colour is it', 'It is pink.', 'and now?']);
+    });
+
     test('the role strings are the ones the API defines', () {
       // enum .name is what is serialised, so a rename here is a wire change.
       expect(AnalysisRole.user.name, 'user');

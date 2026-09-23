@@ -288,6 +288,9 @@ void main() {
       expect(row.deletedAt, isNotNull);
       expect(row.updatedAt.isAfter(old), isTrue,
           reason: 'the push picks up rows by updatedAt');
+      // The title is a verbatim copy of what the user typed; the row survives
+      // only to carry the deletion, so it must not carry that text too.
+      expect(row.title, isNull);
       expect(await repo.messagesFor('a'), isEmpty);
       expect(await repo.allFor('u1'), isEmpty);
     });
@@ -332,9 +335,10 @@ void main() {
       expect(remaining.map((s) => s.id), [keep.id]);
     });
 
-    test('keeps the tombstone row so the deletion can sync', () async {
-      final s =
-          await repo.create(uid: 'u1', mediaId: 'm1', consentVersion: 2);
+    test('keeps the tombstone row so the deletion can sync, minus its title',
+        () async {
+      final s = await repo.create(
+          uid: 'u1', mediaId: 'm1', title: 'is this normal', consentVersion: 2);
 
       await repo.deleteForMedia('m1');
 
@@ -342,6 +346,7 @@ void main() {
             ..where((t) => t.id.equals(s.id)))
           .getSingle();
       expect(row.deletedAt, isNotNull);
+      expect(row.title, isNull);
     });
 
     test('also removes a conversation the photo was attached to later on',
@@ -368,6 +373,28 @@ void main() {
       expect((await repo.allFor('u1')).map((x) => x.id), [unrelated.id]);
       expect(await repo.messagesFor(s.id), isEmpty);
       expect(await repo.messagesFor(unrelated.id), hasLength(1));
+    });
+
+    test('finds a reference written with different JSON spacing', () async {
+      // attachmentsJson syncs, and decodeAttachments accepts any client's
+      // JSON — so the search must not depend on this encoder's exact
+      // spelling of the object.
+      final photo = 'e' * 32;
+      final s = await repo.create(uid: 'u1', consentVersion: 7);
+      await db.into(db.analysisMessages).insert(
+            AnalysisMessagesCompanion.insert(
+              id: 'foreign',
+              sessionId: s.id,
+              role: 'user',
+              messageText: 'this one',
+              attachmentsJson:
+                  Value('[{"kind": "image", "mediaId": "$photo"}]'),
+            ),
+          );
+
+      await repo.deleteForMedia(photo);
+
+      expect(await repo.allFor('u1'), isEmpty);
     });
 
     test('treats the id literally, not as a LIKE pattern', () async {
