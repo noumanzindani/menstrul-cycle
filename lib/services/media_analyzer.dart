@@ -49,14 +49,17 @@ abstract class MediaAnalyzer {
   /// [history] is the conversation about this same photo so far, oldest first.
   /// Empty for an opening description. [healthContext], when supplied, rides
   /// the first user turn alongside the image — see `buildAnalysisRequest` in
-  /// `media_analysis.dart` for exactly where and why. Throws
-  /// [AnalysisException] for anything the user needs told about.
+  /// `media_analysis.dart` for exactly where and why. [photoId] is the media
+  /// id of this photo; only that id in [history] is sent as [bytes] (see
+  /// `buildDescribeRequest`). Throws [AnalysisException] for anything the user
+  /// needs told about.
   Future<AnalysisResult> analyze({
     required Uint8List bytes,
     required String mimeType,
     required String question,
     List<AnalysisTurn> history = const [],
     String? healthContext,
+    String? photoId,
   });
 }
 
@@ -89,6 +92,7 @@ class GeminiMediaAnalyzer implements MediaAnalyzer {
     required String question,
     List<AnalysisTurn> history = const [],
     String? healthContext,
+    String? photoId,
   }) async {
     if (_apiKey.isEmpty) {
       throw const AnalysisException(
@@ -103,6 +107,7 @@ class GeminiMediaAnalyzer implements MediaAnalyzer {
       jsonEncode(
         buildDescribeRequest(
           photo: InlineImage(mimeType: mimeType, base64: base64Encode(bytes)),
+          photoId: photoId,
           question: question,
           history: history,
           healthContext: healthContext,
@@ -181,6 +186,7 @@ class UnavailableMediaAnalyzer implements MediaAnalyzer {
     required String question,
     List<AnalysisTurn> history = const [],
     String? healthContext,
+    String? photoId,
   }) async =>
       throw StateError('Photo analysis is unavailable in this build.');
 }

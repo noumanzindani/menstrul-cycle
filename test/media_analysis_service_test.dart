@@ -35,6 +35,9 @@ class _FakeAnalyzer implements MediaAnalyzer {
   /// logging or dropping it.
   String? lastHealthContext;
 
+  /// The session photo's id the service handed over on the most recent call.
+  String? lastPhotoId;
+
   @override
   Future<AnalysisResult> analyze({
     required Uint8List bytes,
@@ -42,8 +45,10 @@ class _FakeAnalyzer implements MediaAnalyzer {
     required String question,
     List<AnalysisTurn> history = const [],
     String? healthContext,
+    String? photoId,
   }) async {
     calls++;
+    lastPhotoId = photoId;
     lastQuestion = question;
     lastHistory = history;
     lastHealthContext = healthContext;
@@ -560,6 +565,13 @@ void main() {
         healthContext: '<<<TRACKED_DATA\nAge: 30\nEND_TRACKED_DATA>>>',
       );
       expect(analyzer.lastHealthContext, contains('Age: 30'));
+    });
+
+    test('forwards the session photo id to the analyzer', () async {
+      // The request builder sends the photo only in place of this id; any
+      // other id a transcript names is sent as the deleted-photo placeholder.
+      await run(buildService(), id: 'media-7');
+      expect(analyzer.lastPhotoId, 'media-7');
     });
 
     test('a null health context still works and forwards null', () async {

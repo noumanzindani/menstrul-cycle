@@ -337,6 +337,7 @@ class MediaAnalysisService {
         question: asked,
         history: history,
         healthContext: healthContext,
+        photoId: mediaId,
       );
     } on AnalysisException catch (e) {
       // The transcript is deliberately NOT extended on a failure. Appending a

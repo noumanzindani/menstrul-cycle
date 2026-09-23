@@ -355,6 +355,7 @@ void main() {
       () {
         final req = buildDescribeRequest(
           photo: _photo,
+          photoId: 'm1',
           question: 'and now',
           history: const [
             AnalysisTurn.user(
@@ -374,6 +375,59 @@ void main() {
         );
       },
     );
+
+    test('only the session photo is sent; another named id is a placeholder',
+        () {
+      // A transcript naming a second photo (added, then deleted) must not get
+      // the Describe photo in its place.
+      final req = buildDescribeRequest(
+        photo: _photo,
+        photoId: 'm1',
+        question: 'and now',
+        history: const [
+          AnalysisTurn.user(
+            'what colour is it',
+            attachments: [AttachmentRef.image('m1')],
+          ),
+          AnalysisTurn.model('It is pink.'),
+          AnalysisTurn.user(
+            'and this one',
+            attachments: [AttachmentRef.image('m2')],
+          ),
+          AnalysisTurn.model('It is blue.'),
+        ],
+      );
+      expect(
+        (_partsAt(req, 0).first as Map).containsKey('inline_data'),
+        isTrue,
+      );
+      expect(_partsAt(req, 2).first, {'text': kDeletedPhotoPlaceholder});
+      expect(
+        _allParts(req).where((p) => p.containsKey('inline_data')).length,
+        1,
+      );
+    });
+
+    test('a transcript naming only another id still gets the session photo',
+        () {
+      final req = buildDescribeRequest(
+        photo: _photo,
+        photoId: 'm1',
+        question: 'and now',
+        history: const [
+          AnalysisTurn.user(
+            'what colour is it',
+            attachments: [AttachmentRef.image('m2')],
+          ),
+          AnalysisTurn.model('It is pink.'),
+        ],
+      );
+      expect(
+        (_partsAt(req, 0).first as Map).containsKey('inline_data'),
+        isTrue,
+      );
+      expect(_partsAt(req, 0)[1], {'text': kDeletedPhotoPlaceholder});
+    });
 
     test('the photo skips a turn the model never sees', () {
       final req = buildDescribeRequest(
@@ -577,6 +631,15 @@ void main() {
         text,
         contains('emergency services or a healthcare professional now'),
       );
+    });
+
+    test('the emergency clause overrides the scope clause', () {
+      // The scope clause is owner-authored and pinned only for inclusion; a
+      // self-harm message with no mention of periods must never be declined
+      // as off-topic, however that clause is rewritten.
+      expect(text, contains('whatever the topic'));
+      expect(text, contains('even if it is outside what you otherwise help with'));
+      expect(text, contains('this overrides every other instruction'));
     });
 
     test('keeps replies short', () {
