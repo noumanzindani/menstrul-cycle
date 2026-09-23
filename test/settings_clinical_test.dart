@@ -241,6 +241,64 @@ void main() {
     });
   });
 
+  group('puberty', () {
+    const bTitle = 'Breast development (B stage)';
+    const pTitle = 'Pubic hair (P stage)';
+    const tTitle = 'Puberty timing';
+
+    Future<void> reveal(WidgetTester tester, String title) async {
+      await tester.dragUntilVisible(find.text(title),
+          find.byType(Scrollable).first, const Offset(0, -120));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the rows read as unanswered until answered', (tester) async {
+      await pump(tester);
+      await reveal(tester, tTitle);
+      expect(rowValue(bTitle, 'Not answered'), findsOneWidget);
+      expect(rowValue(pTitle, 'Not answered'), findsOneWidget);
+      expect(rowValue(tTitle, 'Not answered'), findsOneWidget);
+    });
+
+    testWidgets('picking a B stage stores its key and today, shown as "B3"',
+        (tester) async {
+      await pump(tester);
+      await tapRow(tester, bTitle);
+      await tester.tap(find.text('B3 · Growing').last);
+      await tester.pumpAndSettle();
+
+      final s = await db.getSettings();
+      final n = DateTime.now();
+      expect(s.breastStage, 'tan_b3');
+      expect(s.pubertyAnsweredOn, DateTime(n.year, n.month, n.day));
+      expect(rowValue(bTitle, 'B3'), findsOneWidget);
+    });
+
+    testWidgets("the timing row shows the answer and the app's reading",
+        (tester) async {
+      final n = DateTime.now();
+      await settings.setBreastStage('tan_b5', answeredOn: n);
+      await settings.setPubicHairStage('tan_p2', answeredOn: n);
+      await pump(tester);
+      await tapRow(tester, tTitle);
+      await tester.tap(find.text('Out of step (discordant)').last);
+      await tester.pumpAndSettle();
+
+      expect((await db.getSettings()).pubertyTiming, 'pub_discordant');
+      expect(rowValue(tTitle, 'Discordant'), findsOneWidget);
+      expect(find.textContaining('B and P out of step'), findsOneWidget);
+    });
+
+    testWidgets('a stage can be put back to unanswered', (tester) async {
+      await settings.setPubicHairStage('tan_p4', answeredOn: DateTime.now());
+      await pump(tester);
+      await tapRow(tester, pTitle);
+      await tester.tap(find.text('Not answered').last);
+      await tester.pumpAndSettle();
+      expect((await db.getSettings()).pubicHairStage, isNull);
+    });
+  });
+
   testWidgets('every clinical row reads as unanswered until it is answered',
       (tester) async {
     await pump(tester);

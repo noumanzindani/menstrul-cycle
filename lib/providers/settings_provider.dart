@@ -362,6 +362,31 @@ class SettingsProvider extends ChangeNotifier {
         pregnancyStatusDate: Value(key == null ? null : date),
       ));
 
+  /// Self-reported puberty stages (`tan_b*` / `tan_p*` keys) and timing
+  /// (`pub_*`). Null = never asked.
+  String? get breastStage => _settings?.breastStage;
+  String? get pubicHairStage => _settings?.pubicHairStage;
+  String? get pubertyTiming => _settings?.pubertyTiming;
+  DateTime? get pubertyAnsweredOn => _settings?.pubertyAnsweredOn;
+
+  /// A stage change restamps [answeredOn]: the stages describe the body on
+  /// that date, and the app's early / delayed reading uses the age then.
+  Future<void> setBreastStage(String? key, {required DateTime answeredOn}) =>
+      update(AppSettingsCompanion(
+        breastStage: Value(key),
+        pubertyAnsweredOn: Value(answeredOn),
+      ));
+
+  Future<void> setPubicHairStage(String? key,
+          {required DateTime answeredOn}) =>
+      update(AppSettingsCompanion(
+        pubicHairStage: Value(key),
+        pubertyAnsweredOn: Value(answeredOn),
+      ));
+
+  Future<void> setPubertyTiming(String? key) =>
+      update(AppSettingsCompanion(pubertyTiming: Value(key)));
+
   Future<void> setContraception(String? method, {DateTime? startDate}) =>
       update(AppSettingsCompanion(
         contraceptionMethod: Value(method),

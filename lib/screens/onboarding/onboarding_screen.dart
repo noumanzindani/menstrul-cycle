@@ -7,6 +7,7 @@ import '../../common/l10n.dart';
 import '../../models/enums.dart';
 import '../../providers/log_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/puberty_stage.dart';
 
 /// First-run flow: privacy promise → cycle basics + last period → the profile
 /// → done. Writing the last-period date seeds the first cycle so predictions
@@ -40,7 +41,7 @@ final OutlineInputBorder _kOnboardingFieldBorder = OutlineInputBorder(
 );
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  static const _pageCount = 12;
+  static const _pageCount = 14;
 
   /// Index of the height / weight / first-period page. Its two typed
   /// measurements are the only answers in the wizard that can be WRONG rather
@@ -99,6 +100,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // a birth or a loss, and is dropped whenever the answer moves off those two.
   String? _pregnancyStatus;
   int? _pregnancyWeeksAgo;
+  // Puberty stages (B: estrogen-driven, P: adrenal androgens) and the user's
+  // own timing answer. The app's reading of them is computed, never stored.
+  String? _breastStage;
+  String? _pubicStage;
+  String? _pubertyTiming;
   String? _sexFrequency;
   String? _soloFrequency;
   String? _baselineLibido;
@@ -164,17 +170,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ? 'Tell us about how many weeks ago to continue.'
             : null;
       case 8:
+        return _breastStage == null
+            ? 'Choose a stage to continue.'
+            : null;
+      case 9:
+        return _pubicStage == null || _pubertyTiming == null
+            ? 'Answer both questions to continue. "Not sure" is an answer '
+                'for the timing.'
+            : null;
+      case 10:
         return _sexFrequency == null || _todaySex == null
             ? 'Answer both questions to continue.'
             : null;
-      case 9:
+      case 11:
         return _sexualHistory.isEmpty ||
                 _baselineLibido == null ||
                 _todaySexualHealth.isEmpty ||
                 _todayLibido == null
             ? 'Answer every question to continue. "None of these" is an answer.'
             : null;
-      case 10:
+      case 12:
         if (_soloFrequency == null ||
             _todayIntimacy.isEmpty ||
             _soloWays.isEmpty ||
@@ -289,6 +304,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               answeredOn.day - 7 * _pregnancyWeeksAgo!)
           : answeredOn,
     );
+    await settings.setBreastStage(_breastStage, answeredOn: answeredOn);
+    await settings.setPubicHairStage(_pubicStage, answeredOn: answeredOn);
+    await settings.setPubertyTiming(_pubertyTiming);
     await settings.setSexualBaseline(
       sexFrequency: _sexFrequency,
       soloFrequency: _soloFrequency,
@@ -538,6 +556,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     }),
                     onWeeksChanged: (w) => setState(() {
                       _pregnancyWeeksAgo = w;
+                      _pageError = null;
+                    }),
+                  ),
+                  _BreastStagePage(
+                    stage: _breastStage,
+                    onChanged: (v) => setState(() {
+                      _breastStage = v;
+                      _pageError = null;
+                    }),
+                  ),
+                  _PubicStagePage(
+                    stage: _pubicStage,
+                    timing: _pubertyTiming,
+                    assessment: assessPuberty(
+                      breastStage: _breastStage,
+                      pubicStage: _pubicStage,
+                      dateOfBirth: _dateOfBirth,
+                      answeredOn: dateOnly(DateTime.now()),
+                    ),
+                    onStageChanged: (v) => setState(() {
+                      _pubicStage = v;
+                      _pageError = null;
+                    }),
+                    onTimingChanged: (v) => setState(() {
+                      _pubertyTiming = v;
                       _pageError = null;
                     }),
                   ),
@@ -1159,6 +1202,178 @@ class _PregnancyPage extends StatelessWidget {
               onChanged: onWeeksChanged,
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Tanner B stage: breast development, which follows estrogen.
+///
+/// Words only, no pictures. REQUIRED, with no opt-out: a stage must be picked.
+class _BreastStagePage extends StatelessWidget {
+  const _BreastStagePage({required this.stage, required this.onChanged});
+
+  final String? stage;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) => _StagePage(
+        question: 'Breast development (B stage)',
+        intro: 'This tracks estrogen-driven puberty. Pick the stage that '
+            'looks most like you now.',
+        groupKey: 'breast-stage',
+        options: kBreastStageOptions,
+        selected: stage,
+        onChanged: onChanged,
+      );
+}
+
+/// Tanner P stage: pubic hair, which follows the adrenal androgens. Also asks
+/// how the user would describe their puberty timing, and shows the app's own
+/// reading of the two stages beside it.
+class _PubicStagePage extends StatelessWidget {
+  const _PubicStagePage({
+    required this.stage,
+    required this.timing,
+    required this.assessment,
+    required this.onStageChanged,
+    required this.onTimingChanged,
+  });
+
+  final String? stage;
+  final String? timing;
+  final PubertyAssessment? assessment;
+  final ValueChanged<String?> onStageChanged;
+  final ValueChanged<String?> onTimingChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return _StagePage(
+      question: 'Pubic hair (P stage)',
+      intro: 'This tracks puberty driven by adrenal androgens, hormones from '
+          'the adrenal glands. Pick the stage that looks most like you now.',
+      groupKey: 'pubic-stage',
+      options: kPubicStageOptions,
+      selected: stage,
+      onChanged: onStageChanged,
+      footer: [
+        const SizedBox(height: 20),
+        Divider(color: scheme.outlineVariant),
+        const SizedBox(height: 12),
+        Text(
+          'How was the timing of your puberty?',
+          style:
+              theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        KeyedSubtree(
+          key: const Key('puberty-timing'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final o in kPubertyTimingOptions) ...[
+                _ChoiceCard(
+                  title: o.label,
+                  description: o.description,
+                  selected: timing == o.key,
+                  onTap: () => onTimingChanged(timing == o.key ? null : o.key),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        ),
+        if (assessment != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            key: const Key('puberty-assessment'),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: scheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("LunarFlow's reading: ${assessment!.label}",
+                    style: theme.textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(
+                  'Worked out from your B and P stages and your age. A '
+                  'screening guide, not a diagnosis.',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSecondaryContainer),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Shared body of the two stage pages: an intro line, then one card per stage.
+class _StagePage extends StatelessWidget {
+  const _StagePage({
+    required this.question,
+    required this.intro,
+    required this.groupKey,
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+    this.footer = const [],
+  });
+
+  final String question;
+  final String intro;
+  final String groupKey;
+  final List<PubertyStageOption> options;
+  final String? selected;
+  final ValueChanged<String?> onChanged;
+  final List<Widget> footer;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return _QuestionPage(
+      question: question,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 12),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text(
+              intro,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ),
+          KeyedSubtree(
+            key: Key(groupKey),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final o in options) ...[
+                  _ChoiceCard(
+                    title: o.label,
+                    description: o.description,
+                    selected: selected == o.key,
+                    // Tapping the selected card again clears it, like the
+                    // other single-choice pages, so a mis-tap is recoverable.
+                    onTap: () => onChanged(selected == o.key ? null : o.key),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ],
+            ),
+          ),
+          ...footer,
         ],
       ),
     );

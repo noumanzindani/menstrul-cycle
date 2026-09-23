@@ -6,6 +6,7 @@ import 'package:menstrul_track/models/cycle.dart';
 import 'package:menstrul_track/models/enums.dart';
 import 'package:menstrul_track/models/prediction.dart';
 import 'package:menstrul_track/services/health_context.dart';
+import 'package:menstrul_track/services/puberty_stage.dart';
 
 AppSetting _settings({
   DateTime? dateOfBirth,
@@ -22,6 +23,10 @@ AppSetting _settings({
   String? sexualHealthBaseline,
   String? pregnancyStatus,
   DateTime? pregnancyStatusDate,
+  String? breastStage,
+  String? pubicHairStage,
+  String? pubertyTiming,
+  DateTime? pubertyAnsweredOn,
 }) =>
     AppSetting(
       id: 0,
@@ -47,6 +52,10 @@ AppSetting _settings({
       sexualHealthBaseline: sexualHealthBaseline,
       pregnancyStatus: pregnancyStatus,
       pregnancyStatusDate: pregnancyStatusDate,
+      breastStage: breastStage,
+      pubicHairStage: pubicHairStage,
+      pubertyTiming: pubertyTiming,
+      pubertyAnsweredOn: pubertyAnsweredOn,
     );
 
 void main() {
@@ -1166,6 +1175,47 @@ void main() {
       );
       // Even with reversed input, day should be correctly computed as day 3
       expect(out, contains('day 3'));
+    });
+  });
+
+  group('puberty', () {
+    test('stages, the user timing and the app reading all travel, labelled',
+        () {
+      final out = buildProfileBlock(
+        settings: _settings(
+          dateOfBirth: DateTime(2014, 1, 1),
+          breastStage: 'tan_b4',
+          pubicHairStage: 'tan_p2',
+          pubertyTiming: kPubertyTimingEarly,
+          pubertyAnsweredOn: DateTime(2026, 9, 1),
+        ),
+        asOf: asOf,
+      );
+      expect(
+          out,
+          contains('Breast development (Tanner B stage, estrogen-driven '
+              'puberty, self-reported): B4, as of 2026-09-01'));
+      expect(
+          out,
+          contains('Pubic hair (Tanner P stage, adrenal androgens, '
+              'self-reported): P2, as of 2026-09-01'));
+      expect(out, contains('Puberty timing (self-reported): early'));
+      expect(
+          out,
+          contains('Puberty timing (app-calculated from stage and age, '
+              'screening only): B and P out of step'));
+    });
+
+    test('"not sure" timing and no stages send nothing', () {
+      final out = buildProfileBlock(
+        settings: _settings(
+          pubertyTiming: kPubertyTimingNotSure,
+          pubertyAnsweredOn: DateTime(2026, 9, 1),
+        ),
+        asOf: asOf,
+      );
+      expect(out, isNot(contains('Tanner')));
+      expect(out, isNot(contains('Puberty')));
     });
   });
 }

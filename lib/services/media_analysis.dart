@@ -131,7 +131,12 @@ const int kMaxQuestionLength = 200;
 /// also carries a recent pregnancy, birth or pregnancy loss and its date, from
 /// the signup question added in schema v14. Everyone who agreed under 4 is
 /// asked again.
-const int kCurrentConsentVersion = 5;
+///
+/// Bumped to 6 on 2026-09-23: the request now also carries the self-reported
+/// puberty stages (Tanner B and P), the user's own puberty-timing answer and
+/// the app's early / delayed / discordant reading of them (schema v15).
+/// Everyone who agreed under 5 is asked again.
+const int kCurrentConsentVersion = 6;
 
 /// Whether [uid] is consented, given the STORED [consentUid] / [consentVersion].
 ///

@@ -52,7 +52,7 @@ void main() {
     await oldDb.close();
 
     final db = AppDatabase.forTesting(schema.newConnection());
-    await verifier.migrateAndValidate(db, 14);
+    await verifier.migrateAndValidate(db, 15);
     final settings = await db.getSettings();
 
     final columns = await db

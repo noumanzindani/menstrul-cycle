@@ -426,6 +426,19 @@ class AppSettings extends Table {
   /// signup answer goes stale, and this is what lets a reader see how stale.
   DateTimeColumn get pregnancyStatusDate => dateTime().nullable()();
 
+  /// Self-reported puberty stages (Tanner): keys from `kBreastStageOptions`
+  /// (B, estrogen-driven) and `kPubicStageOptions` (P, adrenal androgens).
+  /// Null means NOBODY ASKED.
+  TextColumn get breastStage => text().nullable()();
+  TextColumn get pubicHairStage => text().nullable()();
+
+  /// How the user describes their puberty timing: a `kPubertyTiming*` key.
+  TextColumn get pubertyTiming => text().nullable()();
+
+  /// When the stages were last given. Stages describe the body AT that date,
+  /// and the app's early / delayed reading needs the age then, not today.
+  DateTimeColumn get pubertyAnsweredOn => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

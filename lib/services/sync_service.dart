@@ -995,7 +995,7 @@ class SyncService {
       // fertile window. So each generation raises this, and each generation's
       // columns are gated on their own minimum. Bump it again whenever the
       // field set grows.
-      'profileFields': 5,
+      'profileFields': 6,
       'dateOfBirth': row.dateOfBirth?.millisecondsSinceEpoch,
       'heightCm': row.heightCm,
       'profileWeightKg': row.profileWeightKg,
@@ -1022,6 +1022,11 @@ class SyncService {
       // raw; the date as epoch millis like every other date here.
       'pregnancyStatus': row.pregnancyStatus,
       'pregnancyStatusDate': row.pregnancyStatusDate?.millisecondsSinceEpoch,
+      // Puberty stages and timing (marker 6), keys raw like the rest.
+      'breastStage': row.breastStage,
+      'pubicHairStage': row.pubicHairStage,
+      'pubertyTiming': row.pubertyTiming,
+      'pubertyAnsweredOn': row.pubertyAnsweredOn?.millisecondsSinceEpoch,
       'updatedAt': changed.millisecondsSinceEpoch,
       // `syncedAt` is written here for consistency with `dailyLogs` and
       // `deletions` (every remote document carries it), even though the
@@ -1079,6 +1084,8 @@ class SyncService {
     // And below `5` on anything written before schema v14.
     final knowsPregnancyStatus =
         (_asOrNull<int>(data['profileFields']) ?? 0) >= 5;
+    // And below `6` on anything written before schema v15.
+    final knowsPuberty = (_asOrNull<int>(data['profileFields']) ?? 0) >= 6;
     final dobMillis = _asOrNull<int>(data['dateOfBirth']);
     // `num`, not `double`: Firestore number typing is not stable across
     // writers, so a whole-number height (170) can arrive as an `int`, for
@@ -1097,6 +1104,7 @@ class SyncService {
     final cycleRegularity = _asOrNull<String>(data['cycleRegularity']);
     final pregnancyStatus = _asOrNull<String>(data['pregnancyStatus']);
     final pregnancyStatusMillis = _asOrNull<int>(data['pregnancyStatusDate']);
+    final pubertyAnsweredMillis = _asOrNull<int>(data['pubertyAnsweredOn']);
 
     await _settings.updateSyncState(
       AppSettingsCompanion(
@@ -1187,6 +1195,20 @@ class SyncService {
             ? Value(pregnancyStatusMillis == null
                 ? null
                 : DateTime.fromMillisecondsSinceEpoch(pregnancyStatusMillis))
+            : const Value.absent(),
+        breastStage: knowsPuberty
+            ? Value(_asOrNull<String>(data['breastStage']))
+            : const Value.absent(),
+        pubicHairStage: knowsPuberty
+            ? Value(_asOrNull<String>(data['pubicHairStage']))
+            : const Value.absent(),
+        pubertyTiming: knowsPuberty
+            ? Value(_asOrNull<String>(data['pubertyTiming']))
+            : const Value.absent(),
+        pubertyAnsweredOn: knowsPuberty
+            ? Value(pubertyAnsweredMillis == null
+                ? null
+                : DateTime.fromMillisecondsSinceEpoch(pubertyAnsweredMillis))
             : const Value.absent(),
         settingsUpdatedAt: Value(remoteUpdated),
       ),

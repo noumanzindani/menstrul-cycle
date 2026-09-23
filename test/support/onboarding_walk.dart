@@ -26,6 +26,8 @@ const dobQuestion = 'When were you born?';
 const bodyQuestion = 'A few more details about you';
 const contraceptionQuestion = 'Are you using contraception?';
 const pregnancyQuestion = 'Have you been pregnant in the last 3 months?';
+const breastQuestion = 'Breast development (B stage)';
+const pubicQuestion = 'Pubic hair (P stage)';
 const sexQuestion = 'How often do you have sex?';
 const shxQuestion = 'Have you ever experienced any of these?';
 const soloQuestion = 'How often do you masturbate?';
@@ -42,6 +44,8 @@ const allPageHeadings = [
   bodyQuestion,
   contraceptionQuestion,
   pregnancyQuestion,
+  breastQuestion,
+  pubicQuestion,
   sexQuestion,
   shxQuestion,
   soloQuestion,
@@ -115,6 +119,11 @@ Future<void> answerVisiblePage(WidgetTester tester) async {
     await tapText(tester, 'None');
   } else if (on(pregnancyQuestion)) {
     await tapInGroup(tester, 'pregnancy-status', 'No');
+  } else if (on(breastQuestion)) {
+    await tapInGroup(tester, 'breast-stage', 'B1 · Not started');
+  } else if (on(pubicQuestion)) {
+    await tapInGroup(tester, 'pubic-stage', 'P1 · Not started');
+    await tapInGroup(tester, 'puberty-timing', 'Not sure');
   } else if (on(sexQuestion)) {
     await tapText(tester, 'Never');
     await tapInGroup(tester, 'sex-today', 'None');

@@ -203,6 +203,7 @@ void main() {
       'pain or bleeding during or after sex',
       'trying to conceive',
       'a recent pregnancy, birth or pregnancy loss',
+      'your puberty stage (breast and pubic hair development)',
     ]) {
       expect(texts, contains(mustName), reason: 'sheet must name: $mustName');
     }

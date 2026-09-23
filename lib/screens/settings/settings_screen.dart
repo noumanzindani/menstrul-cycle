@@ -13,6 +13,7 @@ import '../../providers/log_provider.dart';
 import '../../providers/medication_provider.dart';
 import '../../providers/premium_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/puberty_stage.dart';
 import '../../services/backup_service.dart';
 import '../../services/firestore_ref.dart';
 import '../../services/health_import_service.dart';
@@ -760,6 +761,95 @@ class SettingsScreen extends StatelessWidget {
         date: DateTime(today.year, today.month, today.day - 7 * weeks));
   }
 
+  /// One puberty question (B stage, P stage or timing) as a radio dialog.
+  /// Returns the picked key, or `(key: null)` for "Not asked"; null when the
+  /// dialog is dismissed.
+  Future<({String? key})?> _pickPubertyKey(
+    BuildContext context, {
+    required String title,
+    required String? current,
+    required List<({String key, String label})> options,
+  }) {
+    final l10n = context.l10n;
+    return showDialog<({String? key})>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(title),
+        children: [
+          RadioGroup<String?>(
+            groupValue: current,
+            onChanged: (v) => Navigator.pop(ctx, (key: v)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final o in options)
+                  RadioListTile<String?>(value: o.key, title: Text(o.label)),
+                RadioListTile<String?>(
+                  value: null,
+                  title: Text(l10n.settingsClinicalContraceptionNotAsked),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickBreastStage(
+      BuildContext context, SettingsProvider settings) async {
+    final picked = await _pickPubertyKey(
+      context,
+      title: 'Breast development (B stage)',
+      current: settings.breastStage,
+      options: [for (final o in kBreastStageOptions) (key: o.key, label: o.label)],
+    );
+    if (picked == null) return;
+    await settings.setBreastStage(picked.key, answeredOn: _today());
+  }
+
+  Future<void> _pickPubicStage(
+      BuildContext context, SettingsProvider settings) async {
+    final picked = await _pickPubertyKey(
+      context,
+      title: 'Pubic hair (P stage)',
+      current: settings.pubicHairStage,
+      options: [for (final o in kPubicStageOptions) (key: o.key, label: o.label)],
+    );
+    if (picked == null) return;
+    await settings.setPubicHairStage(picked.key, answeredOn: _today());
+  }
+
+  Future<void> _pickPubertyTiming(
+      BuildContext context, SettingsProvider settings) async {
+    final picked = await _pickPubertyKey(
+      context,
+      title: 'Puberty timing',
+      current: settings.pubertyTiming,
+      options: [
+        for (final o in kPubertyTimingOptions) (key: o.key, label: o.label)
+      ],
+    );
+    if (picked == null) return;
+    await settings.setPubertyTiming(picked.key);
+  }
+
+  /// Short form of a timing answer for the row's trailing value; the option
+  /// labels are too long for it. Null when unanswered or from a newer build.
+  static String? _pubertyTimingValue(String? key) => switch (key) {
+        kPubertyTimingEarly => 'Early',
+        kPubertyTimingOnTime => 'Usual',
+        kPubertyTimingDelayed => 'Delayed',
+        kPubertyTimingDiscordant => 'Discordant',
+        kPubertyTimingNotSure => 'Not sure',
+        _ => null,
+      };
+
+  static DateTime _today() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
   /// Diagnoses already given by a clinician. A multi-select, so it commits on
   /// Save rather than on each tap — unlike every single-select dialog here,
   /// which commits on the tap that also closes it.
@@ -1008,6 +1098,49 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 onTap: () => _pickPregnancyStatus(context, settings),
               ),
+              ListTile(
+                key: const Key('settings-breast-stage'),
+                leading: const Icon(Icons.female_outlined),
+                title: const Text('Breast development (B stage)'),
+                subtitle: const Text('Estrogen-driven puberty'),
+                trailing: SettingsValue(
+                  pubertyLabel(settings.breastStage)?.split(' · ').first ??
+                      l10n.settingsClinicalContraceptionNotAsked,
+                ),
+                onTap: () => _pickBreastStage(context, settings),
+              ),
+              ListTile(
+                key: const Key('settings-pubic-stage'),
+                leading: const Icon(Icons.spa_outlined),
+                title: const Text('Pubic hair (P stage)'),
+                subtitle: const Text('Adrenal androgens'),
+                trailing: SettingsValue(
+                  pubertyLabel(settings.pubicHairStage)?.split(' · ').first ??
+                      l10n.settingsClinicalContraceptionNotAsked,
+                ),
+                onTap: () => _pickPubicStage(context, settings),
+              ),
+              Builder(builder: (context) {
+                final reading = assessPuberty(
+                  breastStage: settings.breastStage,
+                  pubicStage: settings.pubicHairStage,
+                  dateOfBirth: settings.dateOfBirth,
+                  answeredOn: settings.pubertyAnsweredOn,
+                );
+                return ListTile(
+                  key: const Key('settings-puberty-timing'),
+                  leading: const Icon(Icons.timeline_outlined),
+                  title: const Text('Puberty timing'),
+                  subtitle: Text(reading == null
+                      ? 'Your answer'
+                      : "LunarFlow's reading: ${reading.label}"),
+                  trailing: SettingsValue(
+                    _pubertyTimingValue(settings.pubertyTiming) ??
+                        l10n.settingsClinicalContraceptionNotAsked,
+                  ),
+                  onTap: () => _pickPubertyTiming(context, settings),
+                );
+              }),
             ],
           ),
           // Outside the card, as a caption. The app collects this to give the

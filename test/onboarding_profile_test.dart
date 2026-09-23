@@ -97,6 +97,8 @@ void main() {
       bodyQuestion,
       contraceptionQuestion,
       pregnancyQuestion,
+      breastQuestion,
+      pubicQuestion,
       sexQuestion,
       shxQuestion,
       soloQuestion,

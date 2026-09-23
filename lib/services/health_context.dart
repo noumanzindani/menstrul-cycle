@@ -6,6 +6,7 @@ import '../models/cycle.dart';
 import '../models/enums.dart';
 import '../models/prediction.dart';
 import 'bmi_service.dart';
+import 'puberty_stage.dart';
 
 /// How much daily history travels with a photo.
 ///
@@ -109,9 +110,53 @@ String buildProfileBlock({
   final goal = _goalLabel(settings.mode);
   if (goal != null) lines.add('Goal: $goal');
 
+  lines.addAll(_pubertyLines(settings));
+
   lines.addAll(_baselineLines(settings.sexualHealthBaseline));
 
   return lines.join('\n');
+}
+
+/// The self-reported puberty stages, the user's own timing answer, and the
+/// app's reading of the stages, each labelled with who is claiming it.
+///
+/// "Not sure" sends nothing. The stages carry the date
+/// they were given, because they describe the body then, not today.
+List<String> _pubertyLines(AppSetting settings) {
+  final lines = <String>[];
+  final on = settings.pubertyAnsweredOn;
+  final asOf = on == null ? '' : ', as of ${_ymd(on)}';
+
+  final b = pubertyStageNumber(settings.breastStage);
+  if (b != null) {
+    lines.add('Breast development (Tanner B stage, estrogen-driven puberty, '
+        'self-reported): B$b$asOf');
+  }
+  final p = pubertyStageNumber(settings.pubicHairStage);
+  if (p != null) {
+    lines.add('Pubic hair (Tanner P stage, adrenal androgens, '
+        'self-reported): P$p$asOf');
+  }
+
+  final timing = settings.pubertyTiming;
+  if (timing != null && timing != kPubertyTimingNotSure) {
+    final label = pubertyLabel(timing);
+    if (label != null) {
+      lines.add('Puberty timing (self-reported): ${label.toLowerCase()}');
+    }
+  }
+
+  final assessment = assessPuberty(
+    breastStage: settings.breastStage,
+    pubicStage: settings.pubicHairStage,
+    dateOfBirth: settings.dateOfBirth,
+    answeredOn: on,
+  );
+  if (assessment != null) {
+    lines.add('Puberty timing (app-calculated from stage and age, screening '
+        'only): ${assessment.label}');
+  }
+  return lines;
 }
 
 /// Null for "Prefer not to say", for an unknown key, and when never asked.

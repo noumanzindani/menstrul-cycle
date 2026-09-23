@@ -59,6 +59,35 @@ void main() {
     });
   });
 
+  group('puberty stages', () {
+    test('read null until answered', () {
+      expect(provider.breastStage, isNull);
+      expect(provider.pubicHairStage, isNull);
+      expect(provider.pubertyTiming, isNull);
+      expect(provider.pubertyAnsweredOn, isNull);
+    });
+
+    test('each stage and the timing round-trip; a stage stamps the date',
+        () async {
+      await provider.setBreastStage('tan_b3',
+          answeredOn: DateTime(2026, 9, 1));
+      await provider.setPubicHairStage('tan_p2',
+          answeredOn: DateTime(2026, 9, 2));
+      await provider.setPubertyTiming('pub_early');
+      expect(provider.breastStage, 'tan_b3');
+      expect(provider.pubicHairStage, 'tan_p2');
+      expect(provider.pubertyTiming, 'pub_early');
+      expect(provider.pubertyAnsweredOn, DateTime(2026, 9, 2));
+    });
+
+    test('the timing leaves the stage date alone', () async {
+      await provider.setBreastStage('tan_b3',
+          answeredOn: DateTime(2026, 9, 1));
+      await provider.setPubertyTiming('pub_delayed');
+      expect(provider.pubertyAnsweredOn, DateTime(2026, 9, 1));
+    });
+  });
+
   group('profile fields', () {
     test('all four read null until the user answers', () {
       expect(provider.dateOfBirth, isNull);

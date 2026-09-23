@@ -2395,6 +2395,51 @@ class $AppSettingsTable extends AppSettings
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _breastStageMeta = const VerificationMeta(
+    'breastStage',
+  );
+  @override
+  late final GeneratedColumn<String> breastStage = GeneratedColumn<String>(
+    'breast_stage',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pubicHairStageMeta = const VerificationMeta(
+    'pubicHairStage',
+  );
+  @override
+  late final GeneratedColumn<String> pubicHairStage = GeneratedColumn<String>(
+    'pubic_hair_stage',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pubertyTimingMeta = const VerificationMeta(
+    'pubertyTiming',
+  );
+  @override
+  late final GeneratedColumn<String> pubertyTiming = GeneratedColumn<String>(
+    'puberty_timing',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pubertyAnsweredOnMeta = const VerificationMeta(
+    'pubertyAnsweredOn',
+  );
+  @override
+  late final GeneratedColumn<DateTime> pubertyAnsweredOn =
+      GeneratedColumn<DateTime>(
+        'puberty_answered_on',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2430,6 +2475,10 @@ class $AppSettingsTable extends AppSettings
     cycleRegularity,
     pregnancyStatus,
     pregnancyStatusDate,
+    breastStage,
+    pubicHairStage,
+    pubertyTiming,
+    pubertyAnsweredOn,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2707,6 +2756,42 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('breast_stage')) {
+      context.handle(
+        _breastStageMeta,
+        breastStage.isAcceptableOrUnknown(
+          data['breast_stage']!,
+          _breastStageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pubic_hair_stage')) {
+      context.handle(
+        _pubicHairStageMeta,
+        pubicHairStage.isAcceptableOrUnknown(
+          data['pubic_hair_stage']!,
+          _pubicHairStageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('puberty_timing')) {
+      context.handle(
+        _pubertyTimingMeta,
+        pubertyTiming.isAcceptableOrUnknown(
+          data['puberty_timing']!,
+          _pubertyTimingMeta,
+        ),
+      );
+    }
+    if (data.containsKey('puberty_answered_on')) {
+      context.handle(
+        _pubertyAnsweredOnMeta,
+        pubertyAnsweredOn.isAcceptableOrUnknown(
+          data['puberty_answered_on']!,
+          _pubertyAnsweredOnMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2850,6 +2935,22 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.dateTime,
         data['${effectivePrefix}pregnancy_status_date'],
       ),
+      breastStage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}breast_stage'],
+      ),
+      pubicHairStage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pubic_hair_stage'],
+      ),
+      pubertyTiming: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}puberty_timing'],
+      ),
+      pubertyAnsweredOn: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}puberty_answered_on'],
+      ),
     );
   }
 
@@ -2926,6 +3027,19 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   /// weeks ago"). For the other answers, the date the answer was given -- a
   /// signup answer goes stale, and this is what lets a reader see how stale.
   final DateTime? pregnancyStatusDate;
+
+  /// Self-reported puberty stages (Tanner): keys from `kBreastStageOptions`
+  /// (B, estrogen-driven) and `kPubicStageOptions` (P, adrenal androgens).
+  /// Null means NOBODY ASKED.
+  final String? breastStage;
+  final String? pubicHairStage;
+
+  /// How the user describes their puberty timing: a `kPubertyTiming*` key.
+  final String? pubertyTiming;
+
+  /// When the stages were last given. Stages describe the body AT that date,
+  /// and the app's early / delayed reading needs the age then, not today.
+  final DateTime? pubertyAnsweredOn;
   const AppSetting({
     required this.id,
     required this.mode,
@@ -2960,6 +3074,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.cycleRegularity,
     this.pregnancyStatus,
     this.pregnancyStatusDate,
+    this.breastStage,
+    this.pubicHairStage,
+    this.pubertyTiming,
+    this.pubertyAnsweredOn,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3047,6 +3165,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || pregnancyStatusDate != null) {
       map['pregnancy_status_date'] = Variable<DateTime>(pregnancyStatusDate);
     }
+    if (!nullToAbsent || breastStage != null) {
+      map['breast_stage'] = Variable<String>(breastStage);
+    }
+    if (!nullToAbsent || pubicHairStage != null) {
+      map['pubic_hair_stage'] = Variable<String>(pubicHairStage);
+    }
+    if (!nullToAbsent || pubertyTiming != null) {
+      map['puberty_timing'] = Variable<String>(pubertyTiming);
+    }
+    if (!nullToAbsent || pubertyAnsweredOn != null) {
+      map['puberty_answered_on'] = Variable<DateTime>(pubertyAnsweredOn);
+    }
     return map;
   }
 
@@ -3131,6 +3261,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       pregnancyStatusDate: pregnancyStatusDate == null && nullToAbsent
           ? const Value.absent()
           : Value(pregnancyStatusDate),
+      breastStage: breastStage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(breastStage),
+      pubicHairStage: pubicHairStage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pubicHairStage),
+      pubertyTiming: pubertyTiming == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pubertyTiming),
+      pubertyAnsweredOn: pubertyAnsweredOn == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pubertyAnsweredOn),
     );
   }
 
@@ -3199,6 +3341,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       pregnancyStatusDate: serializer.fromJson<DateTime?>(
         json['pregnancyStatusDate'],
       ),
+      breastStage: serializer.fromJson<String?>(json['breastStage']),
+      pubicHairStage: serializer.fromJson<String?>(json['pubicHairStage']),
+      pubertyTiming: serializer.fromJson<String?>(json['pubertyTiming']),
+      pubertyAnsweredOn: serializer.fromJson<DateTime?>(
+        json['pubertyAnsweredOn'],
+      ),
     );
   }
   @override
@@ -3242,6 +3390,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'cycleRegularity': serializer.toJson<String?>(cycleRegularity),
       'pregnancyStatus': serializer.toJson<String?>(pregnancyStatus),
       'pregnancyStatusDate': serializer.toJson<DateTime?>(pregnancyStatusDate),
+      'breastStage': serializer.toJson<String?>(breastStage),
+      'pubicHairStage': serializer.toJson<String?>(pubicHairStage),
+      'pubertyTiming': serializer.toJson<String?>(pubertyTiming),
+      'pubertyAnsweredOn': serializer.toJson<DateTime?>(pubertyAnsweredOn),
     };
   }
 
@@ -3279,6 +3431,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<String?> cycleRegularity = const Value.absent(),
     Value<String?> pregnancyStatus = const Value.absent(),
     Value<DateTime?> pregnancyStatusDate = const Value.absent(),
+    Value<String?> breastStage = const Value.absent(),
+    Value<String?> pubicHairStage = const Value.absent(),
+    Value<String?> pubertyTiming = const Value.absent(),
+    Value<DateTime?> pubertyAnsweredOn = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     mode: mode ?? this.mode,
@@ -3347,6 +3503,16 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     pregnancyStatusDate: pregnancyStatusDate.present
         ? pregnancyStatusDate.value
         : this.pregnancyStatusDate,
+    breastStage: breastStage.present ? breastStage.value : this.breastStage,
+    pubicHairStage: pubicHairStage.present
+        ? pubicHairStage.value
+        : this.pubicHairStage,
+    pubertyTiming: pubertyTiming.present
+        ? pubertyTiming.value
+        : this.pubertyTiming,
+    pubertyAnsweredOn: pubertyAnsweredOn.present
+        ? pubertyAnsweredOn.value
+        : this.pubertyAnsweredOn,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -3437,6 +3603,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       pregnancyStatusDate: data.pregnancyStatusDate.present
           ? data.pregnancyStatusDate.value
           : this.pregnancyStatusDate,
+      breastStage: data.breastStage.present
+          ? data.breastStage.value
+          : this.breastStage,
+      pubicHairStage: data.pubicHairStage.present
+          ? data.pubicHairStage.value
+          : this.pubicHairStage,
+      pubertyTiming: data.pubertyTiming.present
+          ? data.pubertyTiming.value
+          : this.pubertyTiming,
+      pubertyAnsweredOn: data.pubertyAnsweredOn.present
+          ? data.pubertyAnsweredOn.value
+          : this.pubertyAnsweredOn,
     );
   }
 
@@ -3475,7 +3653,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('sexualHealthBaseline: $sexualHealthBaseline, ')
           ..write('cycleRegularity: $cycleRegularity, ')
           ..write('pregnancyStatus: $pregnancyStatus, ')
-          ..write('pregnancyStatusDate: $pregnancyStatusDate')
+          ..write('pregnancyStatusDate: $pregnancyStatusDate, ')
+          ..write('breastStage: $breastStage, ')
+          ..write('pubicHairStage: $pubicHairStage, ')
+          ..write('pubertyTiming: $pubertyTiming, ')
+          ..write('pubertyAnsweredOn: $pubertyAnsweredOn')
           ..write(')'))
         .toString();
   }
@@ -3515,6 +3697,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     cycleRegularity,
     pregnancyStatus,
     pregnancyStatusDate,
+    breastStage,
+    pubicHairStage,
+    pubertyTiming,
+    pubertyAnsweredOn,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -3552,7 +3738,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.sexualHealthBaseline == this.sexualHealthBaseline &&
           other.cycleRegularity == this.cycleRegularity &&
           other.pregnancyStatus == this.pregnancyStatus &&
-          other.pregnancyStatusDate == this.pregnancyStatusDate);
+          other.pregnancyStatusDate == this.pregnancyStatusDate &&
+          other.breastStage == this.breastStage &&
+          other.pubicHairStage == this.pubicHairStage &&
+          other.pubertyTiming == this.pubertyTiming &&
+          other.pubertyAnsweredOn == this.pubertyAnsweredOn);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -3589,6 +3779,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<String?> cycleRegularity;
   final Value<String?> pregnancyStatus;
   final Value<DateTime?> pregnancyStatusDate;
+  final Value<String?> breastStage;
+  final Value<String?> pubicHairStage;
+  final Value<String?> pubertyTiming;
+  final Value<DateTime?> pubertyAnsweredOn;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.mode = const Value.absent(),
@@ -3623,6 +3817,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.cycleRegularity = const Value.absent(),
     this.pregnancyStatus = const Value.absent(),
     this.pregnancyStatusDate = const Value.absent(),
+    this.breastStage = const Value.absent(),
+    this.pubicHairStage = const Value.absent(),
+    this.pubertyTiming = const Value.absent(),
+    this.pubertyAnsweredOn = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -3658,6 +3856,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.cycleRegularity = const Value.absent(),
     this.pregnancyStatus = const Value.absent(),
     this.pregnancyStatusDate = const Value.absent(),
+    this.breastStage = const Value.absent(),
+    this.pubicHairStage = const Value.absent(),
+    this.pubertyTiming = const Value.absent(),
+    this.pubertyAnsweredOn = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -3693,6 +3895,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<String>? cycleRegularity,
     Expression<String>? pregnancyStatus,
     Expression<DateTime>? pregnancyStatusDate,
+    Expression<String>? breastStage,
+    Expression<String>? pubicHairStage,
+    Expression<String>? pubertyTiming,
+    Expression<DateTime>? pubertyAnsweredOn,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3739,6 +3945,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (pregnancyStatus != null) 'pregnancy_status': pregnancyStatus,
       if (pregnancyStatusDate != null)
         'pregnancy_status_date': pregnancyStatusDate,
+      if (breastStage != null) 'breast_stage': breastStage,
+      if (pubicHairStage != null) 'pubic_hair_stage': pubicHairStage,
+      if (pubertyTiming != null) 'puberty_timing': pubertyTiming,
+      if (pubertyAnsweredOn != null) 'puberty_answered_on': pubertyAnsweredOn,
     });
   }
 
@@ -3776,6 +3986,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<String?>? cycleRegularity,
     Value<String?>? pregnancyStatus,
     Value<DateTime?>? pregnancyStatusDate,
+    Value<String?>? breastStage,
+    Value<String?>? pubicHairStage,
+    Value<String?>? pubertyTiming,
+    Value<DateTime?>? pubertyAnsweredOn,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -3814,6 +4028,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       cycleRegularity: cycleRegularity ?? this.cycleRegularity,
       pregnancyStatus: pregnancyStatus ?? this.pregnancyStatus,
       pregnancyStatusDate: pregnancyStatusDate ?? this.pregnancyStatusDate,
+      breastStage: breastStage ?? this.breastStage,
+      pubicHairStage: pubicHairStage ?? this.pubicHairStage,
+      pubertyTiming: pubertyTiming ?? this.pubertyTiming,
+      pubertyAnsweredOn: pubertyAnsweredOn ?? this.pubertyAnsweredOn,
     );
   }
 
@@ -3933,6 +4151,18 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
         pregnancyStatusDate.value,
       );
     }
+    if (breastStage.present) {
+      map['breast_stage'] = Variable<String>(breastStage.value);
+    }
+    if (pubicHairStage.present) {
+      map['pubic_hair_stage'] = Variable<String>(pubicHairStage.value);
+    }
+    if (pubertyTiming.present) {
+      map['puberty_timing'] = Variable<String>(pubertyTiming.value);
+    }
+    if (pubertyAnsweredOn.present) {
+      map['puberty_answered_on'] = Variable<DateTime>(pubertyAnsweredOn.value);
+    }
     return map;
   }
 
@@ -3971,7 +4201,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('sexualHealthBaseline: $sexualHealthBaseline, ')
           ..write('cycleRegularity: $cycleRegularity, ')
           ..write('pregnancyStatus: $pregnancyStatus, ')
-          ..write('pregnancyStatusDate: $pregnancyStatusDate')
+          ..write('pregnancyStatusDate: $pregnancyStatusDate, ')
+          ..write('breastStage: $breastStage, ')
+          ..write('pubicHairStage: $pubicHairStage, ')
+          ..write('pubertyTiming: $pubertyTiming, ')
+          ..write('pubertyAnsweredOn: $pubertyAnsweredOn')
           ..write(')'))
         .toString();
   }
@@ -6870,6 +7104,10 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<String?> cycleRegularity,
       Value<String?> pregnancyStatus,
       Value<DateTime?> pregnancyStatusDate,
+      Value<String?> breastStage,
+      Value<String?> pubicHairStage,
+      Value<String?> pubertyTiming,
+      Value<DateTime?> pubertyAnsweredOn,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -6906,6 +7144,10 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<String?> cycleRegularity,
       Value<String?> pregnancyStatus,
       Value<DateTime?> pregnancyStatusDate,
+      Value<String?> breastStage,
+      Value<String?> pubicHairStage,
+      Value<String?> pubertyTiming,
+      Value<DateTime?> pubertyAnsweredOn,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -7080,6 +7322,26 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<DateTime> get pregnancyStatusDate => $composableBuilder(
     column: $table.pregnancyStatusDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get breastStage => $composableBuilder(
+    column: $table.breastStage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pubicHairStage => $composableBuilder(
+    column: $table.pubicHairStage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pubertyTiming => $composableBuilder(
+    column: $table.pubertyTiming,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get pubertyAnsweredOn => $composableBuilder(
+    column: $table.pubertyAnsweredOn,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7257,6 +7519,26 @@ class $$AppSettingsTableOrderingComposer
     column: $table.pregnancyStatusDate,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get breastStage => $composableBuilder(
+    column: $table.breastStage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pubicHairStage => $composableBuilder(
+    column: $table.pubicHairStage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pubertyTiming => $composableBuilder(
+    column: $table.pubertyTiming,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get pubertyAnsweredOn => $composableBuilder(
+    column: $table.pubertyAnsweredOn,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -7420,6 +7702,26 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.pregnancyStatusDate,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get breastStage => $composableBuilder(
+    column: $table.breastStage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get pubicHairStage => $composableBuilder(
+    column: $table.pubicHairStage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get pubertyTiming => $composableBuilder(
+    column: $table.pubertyTiming,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get pubertyAnsweredOn => $composableBuilder(
+    column: $table.pubertyAnsweredOn,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -7486,6 +7788,10 @@ class $$AppSettingsTableTableManager
                 Value<String?> cycleRegularity = const Value.absent(),
                 Value<String?> pregnancyStatus = const Value.absent(),
                 Value<DateTime?> pregnancyStatusDate = const Value.absent(),
+                Value<String?> breastStage = const Value.absent(),
+                Value<String?> pubicHairStage = const Value.absent(),
+                Value<String?> pubertyTiming = const Value.absent(),
+                Value<DateTime?> pubertyAnsweredOn = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 mode: mode,
@@ -7520,6 +7826,10 @@ class $$AppSettingsTableTableManager
                 cycleRegularity: cycleRegularity,
                 pregnancyStatus: pregnancyStatus,
                 pregnancyStatusDate: pregnancyStatusDate,
+                breastStage: breastStage,
+                pubicHairStage: pubicHairStage,
+                pubertyTiming: pubertyTiming,
+                pubertyAnsweredOn: pubertyAnsweredOn,
               ),
           createCompanionCallback:
               ({
@@ -7556,6 +7866,10 @@ class $$AppSettingsTableTableManager
                 Value<String?> cycleRegularity = const Value.absent(),
                 Value<String?> pregnancyStatus = const Value.absent(),
                 Value<DateTime?> pregnancyStatusDate = const Value.absent(),
+                Value<String?> breastStage = const Value.absent(),
+                Value<String?> pubicHairStage = const Value.absent(),
+                Value<String?> pubertyTiming = const Value.absent(),
+                Value<DateTime?> pubertyAnsweredOn = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 mode: mode,
@@ -7590,6 +7904,10 @@ class $$AppSettingsTableTableManager
                 cycleRegularity: cycleRegularity,
                 pregnancyStatus: pregnancyStatus,
                 pregnancyStatusDate: pregnancyStatusDate,
+                breastStage: breastStage,
+                pubicHairStage: pubicHairStage,
+                pubertyTiming: pubertyTiming,
+                pubertyAnsweredOn: pubertyAnsweredOn,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

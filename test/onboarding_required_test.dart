@@ -57,6 +57,8 @@ const _dobQuestion = 'When were you born?';
 const _bodyQuestion = 'A few more details about you';
 const _contraceptionQuestion = 'Are you using contraception?';
 const _pregnancyQuestion = 'Have you been pregnant in the last 3 months?';
+const _breastQuestion = 'Breast development (B stage)';
+const _pubicQuestion = 'Pubic hair (P stage)';
 const _sexQuestion = 'How often do you have sex?';
 const _shxQuestion = 'Have you ever experienced any of these?';
 const _soloQuestion = 'How often do you masturbate?';
@@ -155,6 +157,15 @@ Future<void> _answerVisiblePage(WidgetTester tester) async {
   if (find.text(_pregnancyQuestion).hitTestable().evaluate().isNotEmpty) {
     // The escape option: proves the page is answerable without disclosing.
     await _tapInGroup(tester, 'pregnancy-status', 'Prefer not to say');
+    return;
+  }
+  if (find.text(_breastQuestion).hitTestable().evaluate().isNotEmpty) {
+    await _tapInGroup(tester, 'breast-stage', 'B1 · Not started');
+    return;
+  }
+  if (find.text(_pubicQuestion).hitTestable().evaluate().isNotEmpty) {
+    await _tapInGroup(tester, 'pubic-stage', 'P1 · Not started');
+    await _tapInGroup(tester, 'puberty-timing', 'Not sure');
     return;
   }
   if (find.text(_sexQuestion).hitTestable().evaluate().isNotEmpty) {

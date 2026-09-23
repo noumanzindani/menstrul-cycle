@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -167,6 +167,20 @@ class AppDatabase extends _$AppDatabase {
             for (final (name, column) in [
               ('pregnancy_status', appSettings.pregnancyStatus),
               ('pregnancy_status_date', appSettings.pregnancyStatusDate),
+            ]) {
+              if (!await _appSettingsHasColumn(name)) {
+                await m.addColumn(appSettings, column);
+              }
+            }
+          }
+          if (from < 15) {
+            // Puberty stages and timing. Backfilled by NOBODY: an upgrading
+            // user was never asked.
+            for (final (name, column) in [
+              ('breast_stage', appSettings.breastStage),
+              ('pubic_hair_stage', appSettings.pubicHairStage),
+              ('puberty_timing', appSettings.pubertyTiming),
+              ('puberty_answered_on', appSettings.pubertyAnsweredOn),
             ]) {
               if (!await _appSettingsHasColumn(name)) {
                 await m.addColumn(appSettings, column);
