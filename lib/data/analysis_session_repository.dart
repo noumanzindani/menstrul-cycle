@@ -1,18 +1,22 @@
 import 'package:drift/drift.dart';
 
 import '../db/database.dart';
+import '../services/media_analysis.dart';
 import '../services/media_paths.dart';
 
-/// Saved photo-analysis conversations, local-only.
+/// Saved assistant conversations.
 ///
 /// Every read is scoped by uid, for the same reason `MediaRepository` scopes
 /// its own: signing out does not wipe the device, so without the filter one
 /// account's conversation about a body photo could render under another
 /// account.
 ///
-/// This class never talks to Firestore or Cloud Storage — sessions and their
-/// messages are deliberately not synced. It also never reaches into Cloud
-/// Storage or Gemini itself; it is a pure store over two drift tables.
+/// This class never talks to Firestore, Cloud Storage or Gemini itself; it is
+/// a pure store over two drift tables. The rows DO sync, though — the old
+/// "deliberately not synced" note here was stale since v12 — through
+/// `SyncService`, which is why a user's delete is a tombstone ([tombstone])
+/// rather than a hard delete: a vanished row cannot tell another device it is
+/// gone. Every read skips tombstones.
 class AnalysisSessionRepository {
   AnalysisSessionRepository(this._db);
   final AppDatabase _db;
@@ -34,7 +38,7 @@ class AnalysisSessionRepository {
   /// insertion order).
   Future<List<AnalysisSession>> allFor(String uid) =>
       (_db.select(_db.analysisSessions)
-            ..where((t) => t.uid.equals(uid))
+            ..where((t) => t.uid.equals(uid) & t.deletedAt.isNull())
             ..orderBy([
               (t) =>
                   OrderingTerm(expression: t.updatedAt, mode: OrderingMode.desc),
@@ -48,19 +52,33 @@ class AnalysisSessionRepository {
   ///
   /// Lets tapping Describe on a photo RESUME the existing conversation
   /// instead of silently starting a second one about the same picture.
+  ///
+  /// Only matches the conversation that STARTED from [mediaId]; a chat that
+  /// attached the photo in a later turn is not "its" conversation. An empty
+  /// [mediaId] — the marker for a chat started in the tab — never matches.
   Future<AnalysisSession?> forMedia({
     required String uid,
     required String mediaId,
-  }) =>
-      (_db.select(_db.analysisSessions)
-            ..where((t) => t.uid.equals(uid) & t.mediaId.equals(mediaId))
-            ..limit(1))
-          .getSingleOrNull();
+  }) async {
+    if (mediaId.isEmpty) return null;
+    return (_db.select(_db.analysisSessions)
+          ..where((t) =>
+              t.uid.equals(uid) &
+              t.mediaId.equals(mediaId) &
+              t.deletedAt.isNull())
+          ..limit(1))
+        .getSingleOrNull();
+  }
 
-  /// Starts a new conversation about [mediaId] and returns the stored row.
+  /// Starts a new conversation and returns the stored row.
+  ///
+  /// [mediaId] is the photo a Describe chat started from; leave it `''` for a
+  /// chat started in the Assistant tab. [title] is the first thing the user
+  /// typed, stored trimmed and cut to [kMaxSessionTitleLength] characters.
   Future<AnalysisSession> create({
     required String uid,
-    required String mediaId,
+    String mediaId = '',
+    String? title,
     required int consentVersion,
   }) =>
       _db.into(_db.analysisSessions).insertReturning(
@@ -71,8 +89,20 @@ class AnalysisSessionRepository {
               uid: uid,
               mediaId: mediaId,
               consentVersion: consentVersion,
+              title: Value(_titleFrom(title)),
             ),
           );
+
+  /// Longest stored title, in characters.
+  static const kMaxSessionTitleLength = 60;
+
+  /// Cut by code point, not UTF-16 unit, so an emoji at the boundary is kept
+  /// or dropped whole rather than split into a lone surrogate.
+  static String? _titleFrom(String? raw) {
+    final trimmed = raw?.trim() ?? '';
+    if (trimmed.isEmpty) return null;
+    return String.fromCharCodes(trimmed.runes.take(kMaxSessionTitleLength));
+  }
 
   /// One session's turns, oldest first — how a transcript is replayed.
   ///
@@ -91,8 +121,11 @@ class AnalysisSessionRepository {
 
   /// Appends one turn to an existing session.
   ///
-  /// The image itself is never stored here — it is attached to the request
-  /// at build time, once, and this table only ever holds text.
+  /// [attachments] are stored as references only (see `encodeAttachments`) —
+  /// the bytes are loaded and attached to the request at build time, and this
+  /// table never holds them. [includeInModel] false stores a turn the chat
+  /// shows but a replay or resume never sends, such as the declined-video
+  /// pair.
   ///
   /// Also bumps the parent session's `updatedAt`, which is what makes that
   /// column mean "last activity" rather than duplicating `createdAt`
@@ -101,6 +134,8 @@ class AnalysisSessionRepository {
     required String sessionId,
     required String role,
     required String text,
+    List<AttachmentRef> attachments = const [],
+    bool includeInModel = true,
   }) async {
     await _db.into(_db.analysisMessages).insert(
           AnalysisMessagesCompanion.insert(
@@ -108,6 +143,8 @@ class AnalysisSessionRepository {
             sessionId: sessionId,
             role: role,
             messageText: text,
+            attachmentsJson: Value(encodeAttachments(attachments)),
+            includeInModel: Value(includeInModel),
           ),
         );
     await (_db.update(_db.analysisSessions)
@@ -115,23 +152,67 @@ class AnalysisSessionRepository {
         .write(AnalysisSessionsCompanion(updatedAt: Value(DateTime.now())));
   }
 
-  /// Removes the conversation about [mediaId], and every turn in it.
+  /// Deletes the conversation [id]: in one transaction, marks the session
+  /// row deleted, bumps its `updatedAt`, and hard-deletes its messages.
+  ///
+  /// The session row stays behind as a tombstone because the rows sync: the
+  /// bumped `updatedAt` is what makes the next push carry the deletion to the
+  /// user's other devices, even when the delete happened offline. Every read
+  /// here already skips it.
+  Future<void> tombstone(String id) => _tombstoneAll([id]);
+
+  /// Tombstones every conversation that includes [mediaId], and every turn in
+  /// them.
   ///
   /// Called when the photo itself is deleted: a conversation about a picture
   /// that no longer exists is an orphan holding commentary about that
-  /// picture, which is exactly what this guards against.
+  /// picture, which is exactly what this guards against. That covers both the
+  /// conversation that STARTED from the photo and any conversation that
+  /// attached it in a later turn.
+  ///
+  /// The later-turn search is a LIKE on the stored JSON, with the pattern
+  /// passed through drift's `.like()` so [mediaId] is a bound parameter,
+  /// never interpolated SQL. LIKE still treats `_` and `%` as wildcards, so
+  /// every candidate is re-checked against its decoded references before
+  /// anything is deleted.
   Future<void> deleteForMedia(String mediaId) async {
-    final sessions = await (_db.select(_db.analysisSessions)
-          ..where((t) => t.mediaId.equals(mediaId)))
+    if (mediaId.isEmpty) return;
+    final started = await (_db.select(_db.analysisSessions)
+          ..where((t) => t.mediaId.equals(mediaId) & t.deletedAt.isNull()))
         .get();
-    if (sessions.isEmpty) return;
 
-    final ids = sessions.map((s) => s.id).toList();
-    await (_db.delete(_db.analysisMessages)
-          ..where((t) => t.sessionId.isIn(ids)))
-        .go();
-    await (_db.delete(_db.analysisSessions)..where((t) => t.id.isIn(ids)))
-        .go();
+    final candidates = await (_db.select(_db.analysisMessages)
+          ..where((t) => t.attachmentsJson.like('%"mediaId":"$mediaId"%')))
+        .get();
+    final attachedIn = {
+      for (final m in candidates)
+        if (decodeAttachments(m.attachmentsJson)
+            .any((a) => a.mediaId == mediaId))
+          m.sessionId,
+    };
+    final attached = attachedIn.isEmpty
+        ? const <AnalysisSession>[]
+        : await (_db.select(_db.analysisSessions)
+              ..where((t) => t.id.isIn(attachedIn) & t.deletedAt.isNull()))
+            .get();
+
+    await _tombstoneAll({for (final s in [...started, ...attached]) s.id}
+        .toList());
+  }
+
+  Future<void> _tombstoneAll(List<String> ids) async {
+    if (ids.isEmpty) return;
+    final now = DateTime.now();
+    await _db.transaction(() async {
+      await (_db.update(_db.analysisSessions)..where((t) => t.id.isIn(ids)))
+          .write(AnalysisSessionsCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+      ));
+      await (_db.delete(_db.analysisMessages)
+            ..where((t) => t.sessionId.isIn(ids)))
+          .go();
+    });
   }
 
   /// Drops every session (and its messages) not belonging to [uid]; pass

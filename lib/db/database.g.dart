@@ -5331,6 +5331,26 @@ class $AnalysisSessionsTable extends AnalysisSessions
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -5339,6 +5359,8 @@ class $AnalysisSessionsTable extends AnalysisSessions
     consentVersion,
     createdAt,
     updatedAt,
+    title,
+    deletedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5396,6 +5418,18 @@ class $AnalysisSessionsTable extends AnalysisSessions
         updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
       );
     }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -5429,6 +5463,14 @@ class $AnalysisSessionsTable extends AnalysisSessions
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -5445,6 +5487,10 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
   /// wipe the device, so without this filter one account's conversation about
   /// their own body could render under another account.
   final String uid;
+
+  /// The photo this conversation started from (Describe), or `''` for one
+  /// started in the Assistant tab. Stays NOT NULL so v15 devices, which read
+  /// it as required, keep accepting synced rows.
   final String mediaId;
 
   /// Which consent disclosure this conversation was created under. Stamped so a
@@ -5452,6 +5498,15 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
   final int consentVersion;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// The first thing the user typed, cut to 60 characters (v16). Null for a
+  /// Describe chat and for every conversation from before v16.
+  final String? title;
+
+  /// When the user deleted this conversation (v16). Non-null rows are
+  /// tombstones: hidden from every read, kept only so the next sync can carry
+  /// the deletion to other devices. Their messages are already gone.
+  final DateTime? deletedAt;
   const AnalysisSession({
     required this.id,
     required this.uid,
@@ -5459,6 +5514,8 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
     required this.consentVersion,
     required this.createdAt,
     required this.updatedAt,
+    this.title,
+    this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5469,6 +5526,12 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
     map['consent_version'] = Variable<int>(consentVersion);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || title != null) {
+      map['title'] = Variable<String>(title);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     return map;
   }
 
@@ -5480,6 +5543,12 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
       consentVersion: Value(consentVersion),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      title: title == null && nullToAbsent
+          ? const Value.absent()
+          : Value(title),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -5495,6 +5564,8 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
       consentVersion: serializer.fromJson<int>(json['consentVersion']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      title: serializer.fromJson<String?>(json['title']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
   @override
@@ -5507,6 +5578,8 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
       'consentVersion': serializer.toJson<int>(consentVersion),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'title': serializer.toJson<String?>(title),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
 
@@ -5517,6 +5590,8 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
     int? consentVersion,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<String?> title = const Value.absent(),
+    Value<DateTime?> deletedAt = const Value.absent(),
   }) => AnalysisSession(
     id: id ?? this.id,
     uid: uid ?? this.uid,
@@ -5524,6 +5599,8 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
     consentVersion: consentVersion ?? this.consentVersion,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    title: title.present ? title.value : this.title,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   AnalysisSession copyWithCompanion(AnalysisSessionsCompanion data) {
     return AnalysisSession(
@@ -5535,6 +5612,8 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
           : this.consentVersion,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      title: data.title.present ? data.title.value : this.title,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -5546,14 +5625,24 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
           ..write('mediaId: $mediaId, ')
           ..write('consentVersion: $consentVersion, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('title: $title, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, uid, mediaId, consentVersion, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    uid,
+    mediaId,
+    consentVersion,
+    createdAt,
+    updatedAt,
+    title,
+    deletedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5563,7 +5652,9 @@ class AnalysisSession extends DataClass implements Insertable<AnalysisSession> {
           other.mediaId == this.mediaId &&
           other.consentVersion == this.consentVersion &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.title == this.title &&
+          other.deletedAt == this.deletedAt);
 }
 
 class AnalysisSessionsCompanion extends UpdateCompanion<AnalysisSession> {
@@ -5573,6 +5664,8 @@ class AnalysisSessionsCompanion extends UpdateCompanion<AnalysisSession> {
   final Value<int> consentVersion;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String?> title;
+  final Value<DateTime?> deletedAt;
   final Value<int> rowid;
   const AnalysisSessionsCompanion({
     this.id = const Value.absent(),
@@ -5581,6 +5674,8 @@ class AnalysisSessionsCompanion extends UpdateCompanion<AnalysisSession> {
     this.consentVersion = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.title = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AnalysisSessionsCompanion.insert({
@@ -5590,6 +5685,8 @@ class AnalysisSessionsCompanion extends UpdateCompanion<AnalysisSession> {
     required int consentVersion,
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.title = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        uid = Value(uid),
@@ -5602,6 +5699,8 @@ class AnalysisSessionsCompanion extends UpdateCompanion<AnalysisSession> {
     Expression<int>? consentVersion,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? title,
+    Expression<DateTime>? deletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5611,6 +5710,8 @@ class AnalysisSessionsCompanion extends UpdateCompanion<AnalysisSession> {
       if (consentVersion != null) 'consent_version': consentVersion,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (title != null) 'title': title,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5622,6 +5723,8 @@ class AnalysisSessionsCompanion extends UpdateCompanion<AnalysisSession> {
     Value<int>? consentVersion,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String?>? title,
+    Value<DateTime?>? deletedAt,
     Value<int>? rowid,
   }) {
     return AnalysisSessionsCompanion(
@@ -5631,6 +5734,8 @@ class AnalysisSessionsCompanion extends UpdateCompanion<AnalysisSession> {
       consentVersion: consentVersion ?? this.consentVersion,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      title: title ?? this.title,
+      deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -5656,6 +5761,12 @@ class AnalysisSessionsCompanion extends UpdateCompanion<AnalysisSession> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -5671,6 +5782,8 @@ class AnalysisSessionsCompanion extends UpdateCompanion<AnalysisSession> {
           ..write('consentVersion: $consentVersion, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('title: $title, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5735,6 +5848,32 @@ class $AnalysisMessagesTable extends AnalysisMessages
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _attachmentsJsonMeta = const VerificationMeta(
+    'attachmentsJson',
+  );
+  @override
+  late final GeneratedColumn<String> attachmentsJson = GeneratedColumn<String>(
+    'attachments_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _includeInModelMeta = const VerificationMeta(
+    'includeInModel',
+  );
+  @override
+  late final GeneratedColumn<bool> includeInModel = GeneratedColumn<bool>(
+    'include_in_model',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("include_in_model" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -5742,6 +5881,8 @@ class $AnalysisMessagesTable extends AnalysisMessages
     role,
     messageText,
     createdAt,
+    attachmentsJson,
+    includeInModel,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5793,6 +5934,24 @@ class $AnalysisMessagesTable extends AnalysisMessages
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('attachments_json')) {
+      context.handle(
+        _attachmentsJsonMeta,
+        attachmentsJson.isAcceptableOrUnknown(
+          data['attachments_json']!,
+          _attachmentsJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('include_in_model')) {
+      context.handle(
+        _includeInModelMeta,
+        includeInModel.isAcceptableOrUnknown(
+          data['include_in_model']!,
+          _includeInModelMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -5822,6 +5981,14 @@ class $AnalysisMessagesTable extends AnalysisMessages
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      attachmentsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}attachments_json'],
+      ),
+      includeInModel: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}include_in_model'],
+      )!,
     );
   }
 
@@ -5837,12 +6004,22 @@ class AnalysisMessage extends DataClass implements Insertable<AnalysisMessage> {
   final String role;
   final String messageText;
   final DateTime createdAt;
+
+  /// What this turn attached (v16), as `[{"mediaId":"<32hex>","kind":"image"}]`
+  /// — see `encodeAttachments` in `media_analysis.dart`. Null when nothing was.
+  final String? attachmentsJson;
+
+  /// False for a turn the model must never see (v16): the declined-video pair
+  /// is stored so the chat shows it, but a replay or resume skips it.
+  final bool includeInModel;
   const AnalysisMessage({
     required this.id,
     required this.sessionId,
     required this.role,
     required this.messageText,
     required this.createdAt,
+    this.attachmentsJson,
+    required this.includeInModel,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5852,6 +6029,10 @@ class AnalysisMessage extends DataClass implements Insertable<AnalysisMessage> {
     map['role'] = Variable<String>(role);
     map['message_text'] = Variable<String>(messageText);
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || attachmentsJson != null) {
+      map['attachments_json'] = Variable<String>(attachmentsJson);
+    }
+    map['include_in_model'] = Variable<bool>(includeInModel);
     return map;
   }
 
@@ -5862,6 +6043,10 @@ class AnalysisMessage extends DataClass implements Insertable<AnalysisMessage> {
       role: Value(role),
       messageText: Value(messageText),
       createdAt: Value(createdAt),
+      attachmentsJson: attachmentsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(attachmentsJson),
+      includeInModel: Value(includeInModel),
     );
   }
 
@@ -5876,6 +6061,8 @@ class AnalysisMessage extends DataClass implements Insertable<AnalysisMessage> {
       role: serializer.fromJson<String>(json['role']),
       messageText: serializer.fromJson<String>(json['messageText']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      attachmentsJson: serializer.fromJson<String?>(json['attachmentsJson']),
+      includeInModel: serializer.fromJson<bool>(json['includeInModel']),
     );
   }
   @override
@@ -5887,6 +6074,8 @@ class AnalysisMessage extends DataClass implements Insertable<AnalysisMessage> {
       'role': serializer.toJson<String>(role),
       'messageText': serializer.toJson<String>(messageText),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'attachmentsJson': serializer.toJson<String?>(attachmentsJson),
+      'includeInModel': serializer.toJson<bool>(includeInModel),
     };
   }
 
@@ -5896,12 +6085,18 @@ class AnalysisMessage extends DataClass implements Insertable<AnalysisMessage> {
     String? role,
     String? messageText,
     DateTime? createdAt,
+    Value<String?> attachmentsJson = const Value.absent(),
+    bool? includeInModel,
   }) => AnalysisMessage(
     id: id ?? this.id,
     sessionId: sessionId ?? this.sessionId,
     role: role ?? this.role,
     messageText: messageText ?? this.messageText,
     createdAt: createdAt ?? this.createdAt,
+    attachmentsJson: attachmentsJson.present
+        ? attachmentsJson.value
+        : this.attachmentsJson,
+    includeInModel: includeInModel ?? this.includeInModel,
   );
   AnalysisMessage copyWithCompanion(AnalysisMessagesCompanion data) {
     return AnalysisMessage(
@@ -5912,6 +6107,12 @@ class AnalysisMessage extends DataClass implements Insertable<AnalysisMessage> {
           ? data.messageText.value
           : this.messageText,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      attachmentsJson: data.attachmentsJson.present
+          ? data.attachmentsJson.value
+          : this.attachmentsJson,
+      includeInModel: data.includeInModel.present
+          ? data.includeInModel.value
+          : this.includeInModel,
     );
   }
 
@@ -5922,13 +6123,23 @@ class AnalysisMessage extends DataClass implements Insertable<AnalysisMessage> {
           ..write('sessionId: $sessionId, ')
           ..write('role: $role, ')
           ..write('messageText: $messageText, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('attachmentsJson: $attachmentsJson, ')
+          ..write('includeInModel: $includeInModel')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, sessionId, role, messageText, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    sessionId,
+    role,
+    messageText,
+    createdAt,
+    attachmentsJson,
+    includeInModel,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5937,7 +6148,9 @@ class AnalysisMessage extends DataClass implements Insertable<AnalysisMessage> {
           other.sessionId == this.sessionId &&
           other.role == this.role &&
           other.messageText == this.messageText &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.attachmentsJson == this.attachmentsJson &&
+          other.includeInModel == this.includeInModel);
 }
 
 class AnalysisMessagesCompanion extends UpdateCompanion<AnalysisMessage> {
@@ -5946,6 +6159,8 @@ class AnalysisMessagesCompanion extends UpdateCompanion<AnalysisMessage> {
   final Value<String> role;
   final Value<String> messageText;
   final Value<DateTime> createdAt;
+  final Value<String?> attachmentsJson;
+  final Value<bool> includeInModel;
   final Value<int> rowid;
   const AnalysisMessagesCompanion({
     this.id = const Value.absent(),
@@ -5953,6 +6168,8 @@ class AnalysisMessagesCompanion extends UpdateCompanion<AnalysisMessage> {
     this.role = const Value.absent(),
     this.messageText = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.attachmentsJson = const Value.absent(),
+    this.includeInModel = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AnalysisMessagesCompanion.insert({
@@ -5961,6 +6178,8 @@ class AnalysisMessagesCompanion extends UpdateCompanion<AnalysisMessage> {
     required String role,
     required String messageText,
     this.createdAt = const Value.absent(),
+    this.attachmentsJson = const Value.absent(),
+    this.includeInModel = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        sessionId = Value(sessionId),
@@ -5972,6 +6191,8 @@ class AnalysisMessagesCompanion extends UpdateCompanion<AnalysisMessage> {
     Expression<String>? role,
     Expression<String>? messageText,
     Expression<DateTime>? createdAt,
+    Expression<String>? attachmentsJson,
+    Expression<bool>? includeInModel,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5980,6 +6201,8 @@ class AnalysisMessagesCompanion extends UpdateCompanion<AnalysisMessage> {
       if (role != null) 'role': role,
       if (messageText != null) 'message_text': messageText,
       if (createdAt != null) 'created_at': createdAt,
+      if (attachmentsJson != null) 'attachments_json': attachmentsJson,
+      if (includeInModel != null) 'include_in_model': includeInModel,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5990,6 +6213,8 @@ class AnalysisMessagesCompanion extends UpdateCompanion<AnalysisMessage> {
     Value<String>? role,
     Value<String>? messageText,
     Value<DateTime>? createdAt,
+    Value<String?>? attachmentsJson,
+    Value<bool>? includeInModel,
     Value<int>? rowid,
   }) {
     return AnalysisMessagesCompanion(
@@ -5998,6 +6223,8 @@ class AnalysisMessagesCompanion extends UpdateCompanion<AnalysisMessage> {
       role: role ?? this.role,
       messageText: messageText ?? this.messageText,
       createdAt: createdAt ?? this.createdAt,
+      attachmentsJson: attachmentsJson ?? this.attachmentsJson,
+      includeInModel: includeInModel ?? this.includeInModel,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -6020,6 +6247,12 @@ class AnalysisMessagesCompanion extends UpdateCompanion<AnalysisMessage> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (attachmentsJson.present) {
+      map['attachments_json'] = Variable<String>(attachmentsJson.value);
+    }
+    if (includeInModel.present) {
+      map['include_in_model'] = Variable<bool>(includeInModel.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -6034,6 +6267,8 @@ class AnalysisMessagesCompanion extends UpdateCompanion<AnalysisMessage> {
           ..write('role: $role, ')
           ..write('messageText: $messageText, ')
           ..write('createdAt: $createdAt, ')
+          ..write('attachmentsJson: $attachmentsJson, ')
+          ..write('includeInModel: $includeInModel, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8474,6 +8709,8 @@ typedef $$AnalysisSessionsTableCreateCompanionBuilder =
       required int consentVersion,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String?> title,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 typedef $$AnalysisSessionsTableUpdateCompanionBuilder =
@@ -8484,6 +8721,8 @@ typedef $$AnalysisSessionsTableUpdateCompanionBuilder =
       Value<int> consentVersion,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String?> title,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 
@@ -8523,6 +8762,16 @@ class $$AnalysisSessionsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -8565,6 +8814,16 @@ class $$AnalysisSessionsTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AnalysisSessionsTableAnnotationComposer
@@ -8595,6 +8854,12 @@ class $$AnalysisSessionsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 }
 
 class $$AnalysisSessionsTableTableManager
@@ -8640,6 +8905,8 @@ class $$AnalysisSessionsTableTableManager
                 Value<int> consentVersion = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String?> title = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AnalysisSessionsCompanion(
                 id: id,
@@ -8648,6 +8915,8 @@ class $$AnalysisSessionsTableTableManager
                 consentVersion: consentVersion,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                title: title,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -8658,6 +8927,8 @@ class $$AnalysisSessionsTableTableManager
                 required int consentVersion,
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String?> title = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AnalysisSessionsCompanion.insert(
                 id: id,
@@ -8666,6 +8937,8 @@ class $$AnalysisSessionsTableTableManager
                 consentVersion: consentVersion,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                title: title,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -8700,6 +8973,8 @@ typedef $$AnalysisMessagesTableCreateCompanionBuilder =
       required String role,
       required String messageText,
       Value<DateTime> createdAt,
+      Value<String?> attachmentsJson,
+      Value<bool> includeInModel,
       Value<int> rowid,
     });
 typedef $$AnalysisMessagesTableUpdateCompanionBuilder =
@@ -8709,6 +8984,8 @@ typedef $$AnalysisMessagesTableUpdateCompanionBuilder =
       Value<String> role,
       Value<String> messageText,
       Value<DateTime> createdAt,
+      Value<String?> attachmentsJson,
+      Value<bool> includeInModel,
       Value<int> rowid,
     });
 
@@ -8743,6 +9020,16 @@ class $$AnalysisMessagesTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get attachmentsJson => $composableBuilder(
+    column: $table.attachmentsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get includeInModel => $composableBuilder(
+    column: $table.includeInModel,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -8780,6 +9067,16 @@ class $$AnalysisMessagesTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get attachmentsJson => $composableBuilder(
+    column: $table.attachmentsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get includeInModel => $composableBuilder(
+    column: $table.includeInModel,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AnalysisMessagesTableAnnotationComposer
@@ -8807,6 +9104,16 @@ class $$AnalysisMessagesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get attachmentsJson => $composableBuilder(
+    column: $table.attachmentsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get includeInModel => $composableBuilder(
+    column: $table.includeInModel,
+    builder: (column) => column,
+  );
 }
 
 class $$AnalysisMessagesTableTableManager
@@ -8851,6 +9158,8 @@ class $$AnalysisMessagesTableTableManager
                 Value<String> role = const Value.absent(),
                 Value<String> messageText = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> attachmentsJson = const Value.absent(),
+                Value<bool> includeInModel = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AnalysisMessagesCompanion(
                 id: id,
@@ -8858,6 +9167,8 @@ class $$AnalysisMessagesTableTableManager
                 role: role,
                 messageText: messageText,
                 createdAt: createdAt,
+                attachmentsJson: attachmentsJson,
+                includeInModel: includeInModel,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -8867,6 +9178,8 @@ class $$AnalysisMessagesTableTableManager
                 required String role,
                 required String messageText,
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> attachmentsJson = const Value.absent(),
+                Value<bool> includeInModel = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AnalysisMessagesCompanion.insert(
                 id: id,
@@ -8874,6 +9187,8 @@ class $$AnalysisMessagesTableTableManager
                 role: role,
                 messageText: messageText,
                 createdAt: createdAt,
+                attachmentsJson: attachmentsJson,
+                includeInModel: includeInModel,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

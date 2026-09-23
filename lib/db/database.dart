@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -62,6 +62,9 @@ class AppDatabase extends _$AppDatabase {
         //   v10 → v11: persisted photo-analysis conversations add the
         //            AnalysisSessions and AnalysisMessages tables plus
         //            AppSettings.analysisConsentVersion.
+        //   v15 → v16: the assistant chat adds AnalysisSessions.title and
+        //            deletedAt, and AnalysisMessages.attachmentsJson and
+        //            includeInModel.
         // Branches are independent `if (from < n)` checks, not else-if, so a
         // user upgrading straight from v1 runs all of them.
         //
@@ -185,6 +188,28 @@ class AppDatabase extends _$AppDatabase {
               if (!await _appSettingsHasColumn(name)) {
                 await m.addColumn(appSettings, column);
               }
+            }
+          }
+          if (from < 16) {
+            // The assistant chat. Backfilled by NOBODY: an old conversation
+            // has no title and is not deleted, and `include_in_model`'s
+            // DEFAULT 1 is correct for every existing turn, because every one
+            // of them was sent to the model. Old Describe chats get their
+            // photo back at READ time (`effectiveAttachments`), not here.
+            for (final step in [
+              ('analysis_sessions', 'title',
+                  () => m.addColumn(analysisSessions, analysisSessions.title)),
+              ('analysis_sessions', 'deleted_at',
+                  () => m.addColumn(
+                      analysisSessions, analysisSessions.deletedAt)),
+              ('analysis_messages', 'attachments_json',
+                  () => m.addColumn(
+                      analysisMessages, analysisMessages.attachmentsJson)),
+              ('analysis_messages', 'include_in_model',
+                  () => m.addColumn(
+                      analysisMessages, analysisMessages.includeInModel)),
+            ]) {
+              if (!await _tableHasColumn(step.$1, step.$2)) await step.$3();
             }
           }
         },

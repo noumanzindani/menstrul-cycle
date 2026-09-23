@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/data/analysis_session_repository.dart';
 import 'package:menstrul_track/db/database.dart';
+import 'package:menstrul_track/services/media_analysis.dart';
 
 void main() {
   late AppDatabase db;
@@ -29,6 +30,34 @@ void main() {
       expect(found!.id, s.id);
       expect(found.consentVersion, 2);
     });
+
+    test('a chat started in the tab has no photo and an empty mediaId',
+        () async {
+      final s = await repo.create(uid: 'u1', consentVersion: 7);
+
+      expect(s.mediaId, '');
+      expect(s.title, isNull);
+      expect(s.deletedAt, isNull);
+      expect((await repo.allFor('u1')).single.id, s.id);
+    });
+
+    test('stores the title trimmed and cut to 60 characters', () async {
+      final s = await repo.create(
+          uid: 'u1', consentVersion: 7, title: '  ${'x' * 80}  ');
+      expect(s.title, 'x' * 60);
+
+      final blank =
+          await repo.create(uid: 'u1', consentVersion: 7, title: '   ');
+      expect(blank.title, isNull, reason: 'a blank title is no title');
+    });
+
+    test('cutting the title never splits a surrogate pair', () async {
+      // 59 ASCII characters then an emoji, which is two UTF-16 code units: a
+      // code-unit cut at 60 would leave half of it behind.
+      final s = await repo.create(
+          uid: 'u1', consentVersion: 7, title: '${'a' * 59}\u{1F338}tail');
+      expect(s.title, '${'a' * 59}\u{1F338}');
+    });
   });
 
   group('forMedia', () {
@@ -49,9 +78,31 @@ void main() {
       await repo.create(uid: 'u1', mediaId: 'shared', consentVersion: 2);
       expect(await repo.forMedia(uid: 'u2', mediaId: 'shared'), isNull);
     });
+
+    test('never matches a chat started without a photo', () async {
+      await repo.create(uid: 'u1', consentVersion: 7);
+      expect(await repo.forMedia(uid: 'u1', mediaId: ''), isNull);
+    });
+
+    test('skips a deleted conversation, so Describe starts a fresh one',
+        () async {
+      final s =
+          await repo.create(uid: 'u1', mediaId: 'm1', consentVersion: 2);
+      await repo.tombstone(s.id);
+      expect(await repo.forMedia(uid: 'u1', mediaId: 'm1'), isNull);
+    });
   });
 
   group('allFor', () {
+    test('leaves out deleted conversations', () async {
+      final kept =
+          await repo.create(uid: 'u1', mediaId: 'm1', consentVersion: 2);
+      final gone = await repo.create(uid: 'u1', consentVersion: 7);
+      await repo.tombstone(gone.id);
+
+      expect((await repo.allFor('u1')).map((s) => s.id), [kept.id]);
+    });
+
     test("returns only the given uid's sessions", () async {
       await repo.create(uid: 'u1', mediaId: 'm1', consentVersion: 2);
       await repo.create(uid: 'u2', mediaId: 'm2', consentVersion: 2);
@@ -167,11 +218,95 @@ void main() {
       expect(msgs.single.role, 'model');
       expect(msgs.single.messageText, 'a full description');
       expect(msgs.single.sessionId, s.id);
+      expect(msgs.single.attachmentsJson, isNull,
+          reason: 'a turn with no attachments stores none');
+      expect(msgs.single.includeInModel, isTrue);
+    });
+
+    test('attachments round-trip as references only', () async {
+      final s = await repo.create(uid: 'u1', consentVersion: 7);
+      final photo = 'a' * 32;
+      final video = 'b' * 32;
+      await repo.append(
+        sessionId: s.id,
+        role: 'user',
+        text: 'what about these?',
+        attachments: [
+          AttachmentRef.image(photo),
+          AttachmentRef.video(video),
+        ],
+      );
+
+      final msg = (await repo.messagesFor(s.id)).single;
+      // The exact stored shape: ids and kinds, never bytes or URLs.
+      expect(msg.attachmentsJson,
+          '[{"mediaId":"$photo","kind":"image"},'
+          '{"mediaId":"$video","kind":"video"}]');
+      expect(decodeAttachments(msg.attachmentsJson),
+          [AttachmentRef.image(photo), AttachmentRef.video(video)]);
+    });
+
+    test('stores includeInModel false for a turn the model must not see',
+        () async {
+      final s = await repo.create(uid: 'u1', consentVersion: 7);
+      await repo.append(
+          sessionId: s.id,
+          role: 'model',
+          text: 'a declined-video notice',
+          includeInModel: false);
+
+      expect((await repo.messagesFor(s.id)).single.includeInModel, isFalse);
+    });
+  });
+
+  group('tombstone', () {
+    test('marks the session deleted, bumps updatedAt and drops its messages',
+        () async {
+      final old = DateTime(2020, 1, 1);
+      await db.into(db.analysisSessions).insert(AnalysisSessionsCompanion.insert(
+            id: 'a',
+            uid: 'u1',
+            mediaId: '',
+            consentVersion: 7,
+            title: const Value('a title'),
+            createdAt: Value(old),
+            updatedAt: Value(old),
+          ));
+      await repo.append(sessionId: 'a', role: 'user', text: 'hi');
+      // append() bumped updatedAt; pin it back so the tombstone's own bump is
+      // what the assertion below observes.
+      await (db.update(db.analysisSessions)..where((t) => t.id.equals('a')))
+          .write(AnalysisSessionsCompanion(updatedAt: Value(old)));
+
+      await repo.tombstone('a');
+
+      // The row stays, so the next sync can push the deletion to other
+      // devices; it is only hidden from every read.
+      final row = await (db.select(db.analysisSessions)
+            ..where((t) => t.id.equals('a')))
+          .getSingle();
+      expect(row.deletedAt, isNotNull);
+      expect(row.updatedAt.isAfter(old), isTrue,
+          reason: 'the push picks up rows by updatedAt');
+      expect(await repo.messagesFor('a'), isEmpty);
+      expect(await repo.allFor('u1'), isEmpty);
+    });
+
+    test('leaves other sessions and their messages alone', () async {
+      final keep = await repo.create(uid: 'u1', consentVersion: 7);
+      final gone = await repo.create(uid: 'u1', consentVersion: 7);
+      await repo.append(sessionId: keep.id, role: 'user', text: 'kept');
+      await repo.append(sessionId: gone.id, role: 'user', text: 'gone');
+
+      await repo.tombstone(gone.id);
+
+      expect((await repo.messagesFor(keep.id)).single.messageText, 'kept');
+      expect((await repo.allFor('u1')).map((s) => s.id), [keep.id]);
     });
   });
 
   group('deleteForMedia', () {
-    test('removes the session and its messages', () async {
+    test('tombstones the session and removes its messages', () async {
       final s =
           await repo.create(uid: 'u1', mediaId: 'm1', consentVersion: 2);
       await repo.append(sessionId: s.id, role: 'user', text: 'hi');
@@ -195,6 +330,80 @@ void main() {
 
       final remaining = await repo.allFor('u1');
       expect(remaining.map((s) => s.id), [keep.id]);
+    });
+
+    test('keeps the tombstone row so the deletion can sync', () async {
+      final s =
+          await repo.create(uid: 'u1', mediaId: 'm1', consentVersion: 2);
+
+      await repo.deleteForMedia('m1');
+
+      final row = await (db.select(db.analysisSessions)
+            ..where((t) => t.id.equals(s.id)))
+          .getSingle();
+      expect(row.deletedAt, isNotNull);
+    });
+
+    test('also removes a conversation the photo was attached to later on',
+        () async {
+      final photo = 'c' * 32;
+      final other = 'd' * 32;
+      final s = await repo.create(uid: 'u1', consentVersion: 7);
+      await repo.append(sessionId: s.id, role: 'user', text: 'hello');
+      await repo.append(sessionId: s.id, role: 'model', text: 'hi');
+      await repo.append(
+          sessionId: s.id,
+          role: 'user',
+          text: 'and this?',
+          attachments: [AttachmentRef.image(other), AttachmentRef.image(photo)]);
+      final unrelated = await repo.create(uid: 'u1', consentVersion: 7);
+      await repo.append(
+          sessionId: unrelated.id,
+          role: 'user',
+          text: 'a different photo',
+          attachments: [AttachmentRef.image(other)]);
+
+      await repo.deleteForMedia(photo);
+
+      expect((await repo.allFor('u1')).map((x) => x.id), [unrelated.id]);
+      expect(await repo.messagesFor(s.id), isEmpty);
+      expect(await repo.messagesFor(unrelated.id), hasLength(1));
+    });
+
+    test('treats the id literally, not as a LIKE pattern', () async {
+      // `_` and `%` are LIKE wildcards. The id is bound, never interpolated,
+      // and every candidate is re-checked against the decoded references, so
+      // a wildcard-shaped id matches nothing it does not literally equal.
+      final s = await repo.create(uid: 'u1', consentVersion: 7);
+      await repo.append(
+          sessionId: s.id,
+          role: 'user',
+          text: 'x',
+          attachments: [const AttachmentRef.image('abc')]);
+
+      await repo.deleteForMedia('a_c');
+      await repo.deleteForMedia('%');
+
+      expect((await repo.allFor('u1')).map((x) => x.id), [s.id]);
+    });
+
+    test('does not re-stamp a conversation that is already deleted',
+        () async {
+      final s =
+          await repo.create(uid: 'u1', mediaId: 'm1', consentVersion: 2);
+      await repo.tombstone(s.id);
+      final first = DateTime(2020, 1, 1);
+      await (db.update(db.analysisSessions)..where((t) => t.id.equals(s.id)))
+          .write(AnalysisSessionsCompanion(
+              deletedAt: Value(first), updatedAt: Value(first)));
+
+      await repo.deleteForMedia('m1');
+
+      final row = await (db.select(db.analysisSessions)
+            ..where((t) => t.id.equals(s.id)))
+          .getSingle();
+      expect(row.deletedAt, first);
+      expect(row.updatedAt, first);
     });
   });
 

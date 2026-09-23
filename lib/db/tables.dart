@@ -175,38 +175,54 @@ class MediaItems extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// One saved conversation about one photo.
+/// One saved assistant conversation.
 ///
 /// The original design kept transcripts in memory precisely so they would need
 /// no erasure path (media_analysis_service.dart:49-61). Persisting them means
 /// owning all four: deleteAllData, the sign-out wipe, the .lunabak exclusion and
 /// the doctor-PDF exclusion. See D9 in the spec.
 ///
-/// Local-only. NOT synced to Firestore, for the same reason
-/// `analysisConsentUid` is not: it is a per-device record of something the user
-/// agreed to on this device.
+/// Synced to Firestore (`users/{uid}/analysisSessions`) since v12 — the
+/// "local-only" note that used to sit here was stale. A deletion is therefore a
+/// tombstone ([deletedAt]), not a hard delete: a vanished row cannot tell other
+/// devices it is gone.
 class AnalysisSessions extends Table {
   TextColumn get id => text()();
   /// Scopes every read, exactly as `MediaItems.uid` does. Signing out does not
   /// wipe the device, so without this filter one account's conversation about
   /// their own body could render under another account.
   TextColumn get uid => text()();
+  /// The photo this conversation started from (Describe), or `''` for one
+  /// started in the Assistant tab. Stays NOT NULL so v15 devices, which read
+  /// it as required, keep accepting synced rows.
   TextColumn get mediaId => text()();
   /// Which consent disclosure this conversation was created under. Stamped so a
   /// stored transcript records what the user was actually told when it started.
   IntColumn get consentVersion => integer()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  /// The first thing the user typed, cut to 60 characters (v16). Null for a
+  /// Describe chat and for every conversation from before v16.
+  TextColumn get title => text().nullable()();
+  /// When the user deleted this conversation (v16). Non-null rows are
+  /// tombstones: hidden from every read, kept only so the next sync can carry
+  /// the deletion to other devices. Their messages are already gone.
+  DateTimeColumn get deletedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
 }
 
-/// One turn in a saved conversation. Text only — the image is attached at
-/// request-build time, never stored per-turn.
+/// One turn in a saved conversation.
+///
+/// Holds the text plus, since v16, REFERENCES to what was attached
+/// ([attachmentsJson]) — never the bytes, never a URL. The images themselves
+/// are loaded from the media store and attached at request-build time.
 ///
 /// Errors and refusals are rendered in the sheet but never stored: a replayed
-/// transcript must reach the model identically to a live one.
+/// transcript must reach the model identically to a live one. The one stored
+/// exception, the declined-video pair, is stored with [includeInModel] false
+/// for exactly that reason.
 class AnalysisMessages extends Table {
   TextColumn get id => text()();
   TextColumn get sessionId => text()();
@@ -231,6 +247,13 @@ class AnalysisMessages extends Table {
   // getter AND the underlying SQL column are `message_text` here.
   TextColumn get messageText => text()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  /// What this turn attached (v16), as `[{"mediaId":"<32hex>","kind":"image"}]`
+  /// — see `encodeAttachments` in `media_analysis.dart`. Null when nothing was.
+  TextColumn get attachmentsJson => text().nullable()();
+  /// False for a turn the model must never see (v16): the declined-video pair
+  /// is stored so the chat shows it, but a replay or resume skips it.
+  BoolColumn get includeInModel =>
+      boolean().withDefault(const Constant(true))();
 
   @override
   Set<Column> get primaryKey => {id};

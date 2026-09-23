@@ -274,6 +274,95 @@ class AnalysisTurn {
   String toString() => 'AnalysisTurn(${role.name}, $text)';
 }
 
+/// What a stored turn attached.
+enum AttachmentKind { image, video }
+
+/// A reference to one attachment on one turn: which tracked media item, and
+/// what kind it is. References only — never bytes and never a URL, because
+/// this is what lands in `AnalysisMessages.attachmentsJson` and syncs as plain
+/// text.
+class AttachmentRef {
+  const AttachmentRef({required this.mediaId, required this.kind});
+  const AttachmentRef.image(this.mediaId) : kind = AttachmentKind.image;
+  const AttachmentRef.video(this.mediaId) : kind = AttachmentKind.video;
+
+  final String mediaId;
+  final AttachmentKind kind;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AttachmentRef && other.mediaId == mediaId && other.kind == kind;
+
+  @override
+  int get hashCode => Object.hash(mediaId, kind);
+
+  @override
+  String toString() => 'AttachmentRef(${kind.name}, $mediaId)';
+}
+
+/// The stored form of [refs]: `[{"mediaId":"…","kind":"image"}]`, key order
+/// fixed, or null when there is nothing to store.
+///
+/// The exact spelling matters beyond this file: `deleteForMedia` finds the
+/// turns that attached a photo with a LIKE on `"mediaId":"<id>"`.
+String? encodeAttachments(List<AttachmentRef> refs) => refs.isEmpty
+    ? null
+    : jsonEncode([
+        for (final r in refs) {'mediaId': r.mediaId, 'kind': r.kind.name},
+      ]);
+
+/// Reads back [encodeAttachments]' output, tolerantly.
+///
+/// The column syncs, so it may have been written by another client: anything
+/// malformed reads as no attachments rather than a crash, and an entry with a
+/// missing id or an unknown kind is dropped rather than guessed. Only the id
+/// and kind are ever read; any other key is ignored.
+List<AttachmentRef> decodeAttachments(String? json) {
+  if (json == null || json.isEmpty) return const [];
+  final Object? decoded;
+  try {
+    decoded = jsonDecode(json);
+  } on FormatException {
+    return const [];
+  }
+  if (decoded is! List) return const [];
+  return [
+    for (final entry in decoded)
+      if (entry is Map &&
+          entry['mediaId'] is String &&
+          (entry['mediaId'] as String).isNotEmpty)
+        for (final kind in AttachmentKind.values)
+          if (kind.name == entry['kind'])
+            AttachmentRef(mediaId: entry['mediaId'] as String, kind: kind),
+  ];
+}
+
+/// Each stored turn's attachments, one list per message, in order.
+///
+/// A conversation from before v16 stored no attachments: a Describe chat's
+/// photo was implied by `AnalysisSessions.mediaId` and attached to the first
+/// user turn at build time. This shim restores that reading — when the
+/// session has a [sessionMediaId] and NO message stores any attachment, the
+/// first user turn gets that photo. It also covers rows a v15 device keeps
+/// syncing in, which is why it runs at read time rather than as a backfill.
+///
+/// Pure, and takes plain values rather than drift rows, so this file stays
+/// free of any database import.
+List<List<AttachmentRef>> effectiveAttachments(
+  String sessionMediaId,
+  List<({String role, String? attachmentsJson})> messages,
+) {
+  final stored = [
+    for (final m in messages) decodeAttachments(m.attachmentsJson),
+  ];
+  if (sessionMediaId.isEmpty || stored.any((a) => a.isNotEmpty)) return stored;
+  final firstUser = messages.indexWhere(
+    (m) => m.role == AnalysisRole.user.name,
+  );
+  if (firstUser >= 0) stored[firstUser] = [AttachmentRef.image(sessionMediaId)];
+  return stored;
+}
+
 /// User-facing copy for each refusal.
 ///
 /// GUARDRAIL: none of these may claim the photo is safe, private, secure,
