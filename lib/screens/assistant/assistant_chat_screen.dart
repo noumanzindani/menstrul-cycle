@@ -19,7 +19,9 @@ enum _AttachSource { camera, video, gallery, library }
 /// * **Preflight, consent, then the ad, then the send.** Consent first so
 ///   nobody watches an ad and then meets a sheet they decline — a reward
 ///   taken and never delivered — and the backend's preflight before both, for
-///   the same reason: a refusal it can see coming must not cost an ad.
+///   the same reason: a refusal it can see coming must not cost an ad. A
+///   follow-up carrying photos is preflighted as well, so one that would pass
+///   the conversation's photo cap is refused with the composer intact.
 /// * **The ad is for the first billable send of a conversation only.** A
 ///   follow-up, a resumed conversation that already has an answer, and a
 ///   message carrying a video (which is never sent, so never billed) are
@@ -135,7 +137,10 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
     // Held while the gates run, so a second tap cannot start a second send.
     setState(() => _busy = true);
     final gated = !_earned && !hasVideo;
-    if (gated) {
+    // A follow-up that adds photos is preflighted too: the conversation's
+    // photo cap is predictable, and a refusal after the send would already
+    // have cleared the composer and put a message on screen that never went.
+    if (gated || (!hasVideo && attachments.isNotEmpty)) {
       // Before consent and the ad: a refusal the service would give anyway
       // (sync off, the photo caps) must not cost the user an ad first.
       final refusal = await _backend.preflight(

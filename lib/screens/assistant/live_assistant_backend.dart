@@ -50,6 +50,7 @@ class LiveAssistantBackend implements AssistantBackend {
     Future<bool> Function(BuildContext context)? earnConversation,
     AssistantImagePrep? prep,
     VoidCallback? onMediaAdded,
+    Listenable? remoteChanges,
   })  : _available = available,
         _sessions = sessions,
         _currentUid = currentUid,
@@ -62,7 +63,8 @@ class LiveAssistantBackend implements AssistantBackend {
         _requestConsent = requestConsent,
         _earnConversation = earnConversation,
         _prep = prep ?? AssistantImagePrep(),
-        _onMediaAdded = onMediaAdded {
+        _onMediaAdded = onMediaAdded,
+        _remoteChanges = remoteChanges {
     this.service = service(persistTurn);
   }
 
@@ -113,8 +115,19 @@ class LiveAssistantBackend implements AssistantBackend {
   /// Bumped after every save and delete; see [changes].
   final ValueNotifier<int> _revision = ValueNotifier(0);
 
+  /// Fires when conversations may have changed underneath this class — a
+  /// finished sync (`SyncTrigger.syncs`), which writes pulled rows straight
+  /// to the database.
+  final Listenable? _remoteChanges;
+
+  /// Built once: a listener must be removed from the same object it was
+  /// added to.
+  late final Listenable _changes = _remoteChanges == null
+      ? _revision
+      : Listenable.merge([_revision, _remoteChanges]);
+
   @override
-  Listenable get changes => _revision;
+  Listenable get changes => _changes;
 
   @override
   bool get needsConsent => !service.consented;
@@ -252,6 +265,20 @@ class LiveAssistantBackend implements AssistantBackend {
   Future<void> delete(String conversationId) async {
     endConversation(conversationId);
     await _sessions.tombstone(conversationId);
+    _revision.value++;
+  }
+
+  /// A photo was deleted — here or, via a pulled tombstone, elsewhere.
+  ///
+  /// Its stored conversations are already gone (`MediaRepository.deleteById`
+  /// cascades them); this drops its bytes from every live one, so an open chat
+  /// stops resending it and the model is told it is no longer available, and
+  /// tells the list to re-read.
+  void forgetMedia(String mediaId) {
+    service.forgetImage(mediaId);
+    for (final ids in _unseeded.values) {
+      ids.remove(mediaId);
+    }
     _revision.value++;
   }
 

@@ -252,6 +252,41 @@ void main() {
       expect(backend.preflights, 1);
     });
 
+    testWidgets('a follow-up with a photo over the conversation cap is '
+        'refused before it is sent, and the composer is kept', (tester) async {
+      final refusal = messageForAnalysisBlock(AnalysisBlock.tooManyPhotos);
+      final backend = FakeAssistantBackend(
+        saved: {
+          'c1': const [
+            ChatEntry.user('look'),
+            ChatEntry.reply('I see.'),
+          ],
+        },
+        libraryItems: [fakeMedia('m1')],
+      )..preflightBlock = refusal;
+      await pump(tester, backend, conversationId: 'c1');
+
+      await tester.tap(find.byKey(const Key('analysis-attach-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('From Photos & videos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('media-select-m1')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('media-select-attach')));
+      await tester.pumpAndSettle();
+      await type(tester, 'and this one?');
+      await tapSend(tester);
+      await tester.pumpAndSettle();
+
+      expect(backend.preflights, 1);
+      expect(backend.calls, ['open'], reason: 'no ad and no send');
+      expect(find.text(refusal), findsOneWidget);
+      expect(find.byKey(const Key('analysis-chip-m1')), findsOneWidget);
+      final field = tester.widget<TextField>(
+          find.byKey(const Key('analysis-question-field')));
+      expect(field.controller!.text, 'and this one?');
+    });
+
     testWidgets('only the first send of a new conversation asks for the ad',
         (tester) async {
       final backend = FakeAssistantBackend();

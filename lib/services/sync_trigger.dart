@@ -493,16 +493,35 @@ class SyncTrigger extends ChangeNotifier {
   }
 
   Future<void> _syncNow() async {
+    final service = _service;
+    if (service == null) return;
     // Network failures must never surface as a crash in the UI; the next
     // trigger retries the same window because lastSyncedAt did not advance.
     try {
-      await _service?.syncNow();
-    } catch (_) {}
+      await service.syncNow();
+    } catch (_) {
+    } finally {
+      // Even after a failure: a pull that failed midway may still have
+      // written some rows.
+      _syncs.value++;
+    }
   }
+
+  /// Bumped each time a sync run with a service finishes, successful or not.
+  ///
+  /// `SyncService` writes straight to drift and tells no one, so a screen that
+  /// holds rows in memory listens here to re-read after a pull (the Assistant's
+  /// conversation list does, through `LiveAssistantBackend.changes`). A
+  /// separate notifier rather than this class's own `notifyListeners()` —
+  /// see [isPendingClaim] for why that is unsafe — and it only ever fires
+  /// after an `await`, never during a build.
+  Listenable get syncs => _syncs;
+  final ValueNotifier<int> _syncs = ValueNotifier(0);
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _syncs.dispose();
     super.dispose();
   }
 }

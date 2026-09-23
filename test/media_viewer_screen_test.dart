@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -29,10 +30,10 @@ void main() {
     if (await tempDir.exists()) await tempDir.delete(recursive: true);
   });
 
-  MediaItem item() => MediaItem(
+  MediaItem item({String kind = 'image'}) => MediaItem(
         id: 'm1',
         uid: 'u1',
-        kind: 'image',
+        kind: kind,
         storagePath: 'users/u1/media/m1/original.jpg',
         bytes: _tinyPng.length,
         capturedAt: DateTime(2026, 9, 1),
@@ -185,6 +186,29 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('media-describe')), findsNothing);
+  });
+
+  testWidgets('a video offers no Describe: it could only be declined',
+      (tester) async {
+    // Held mid-download, where a photo already shows the control (so this
+    // fails on the kind check, not on a load error).
+    Future<void> pumpKind(String kind) => tester.pumpWidget(MaterialApp(
+          key: ValueKey(kind),
+          home: MediaViewerScreen(
+            item: item(kind: kind),
+            load: (_) => Completer<File>().future,
+            openConversation: openRecorder,
+          ),
+        ));
+
+    await pumpKind('image');
+    await tester.pump();
+    expect(find.byKey(const Key('media-describe')), findsOneWidget);
+
+    await pumpKind('video');
+    await tester.pump();
+    expect(find.byKey(const Key('media-describe')), findsNothing);
+    expect(calls, isEmpty);
   });
 
   testWidgets('the chat it opens sends the default question with the photo',

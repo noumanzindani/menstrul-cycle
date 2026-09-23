@@ -3,11 +3,13 @@ import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/data/analysis_session_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/screens/assistant/analysis_chat_view.dart';
 import 'package:menstrul_track/screens/assistant/assistant_backend.dart';
+import 'package:menstrul_track/screens/assistant/assistant_screen.dart';
 import 'package:menstrul_track/screens/assistant/live_assistant_backend.dart';
 import 'package:menstrul_track/services/assistant_image_prep.dart';
 import 'package:menstrul_track/services/claim_preference.dart';
@@ -79,7 +81,8 @@ void main() {
         updatedAt: DateTime(2026, 9, 1),
       );
 
-  LiveAssistantBackend build() => LiveAssistantBackend(
+  LiveAssistantBackend build({Listenable? remoteChanges}) =>
+      LiveAssistantBackend(
         available: true,
         service: (persistTurn) => MediaAnalysisService(
           analyzer: analyzer,
@@ -115,6 +118,7 @@ void main() {
           encoder: (s, {required maxEdge, required quality}) async =>
               Uint8List(8),
         ),
+        remoteChanges: remoteChanges,
       );
 
   setUp(() async {
@@ -181,6 +185,55 @@ void main() {
       expect(session.title, isNull);
       expect(analyzer.lastNext!.text, kDefaultAnalysisQuestion);
       expect(await backend.conversationForMedia('p1'), 'chat-1');
+    });
+
+    test('a Describe opener sends exactly its one photo, and a follow-up '
+        'resends it without attaching it again', () async {
+      final backend = build();
+      await backend.send(
+        conversationId: 'chat-1',
+        originMediaId: 'p1',
+        text: '',
+        attachments: [media['p1']!],
+      );
+      expect(analyzer.lastNext!.attachments, [const AttachmentRef.image('p1')]);
+      expect(analyzer.lastImages.keys, ['p1']);
+
+      await backend.send(
+        conversationId: 'chat-1',
+        originMediaId: 'p1',
+        text: 'is that normal?',
+      );
+      expect(analyzer.lastNext!.attachments, isEmpty);
+      expect(analyzer.lastImages.keys, ['p1']);
+      expect(analyzer.lastHistory.first.attachments,
+          [const AttachmentRef.image('p1')]);
+      final stored = await sessions.messagesFor('chat-1');
+      expect(decodeAttachments(stored[2].attachmentsJson), isEmpty);
+      expect(originalLoads, ['p1'], reason: 'the photo is read once');
+    });
+
+    test('a photo deleted mid-conversation is no longer resent, and the list '
+        'is told to reload', () async {
+      final backend = build();
+      await backend.send(
+        conversationId: 'chat-1',
+        originMediaId: 'p1',
+        text: '',
+        attachments: [media['p1']!],
+      );
+      var changes = 0;
+      backend.changes.addListener(() => changes++);
+
+      media.remove('p1');
+      backend.forgetMedia('p1');
+      expect(changes, 1);
+
+      await backend.send(conversationId: 'chat-1', text: 'and now?');
+      expect(analyzer.lastImages, isEmpty);
+      expect(analyzer.lastHistory.first.attachments,
+          [const AttachmentRef.image('p1')],
+          reason: 'the builder turns this into the deleted-photo placeholder');
     });
 
     test('photos are prepared before they are sent', () async {
@@ -397,6 +450,22 @@ void main() {
       final entries = await build().open('chat-1');
       expect(entries.first.attachments.single.mediaId, 'p1');
     });
+
+    test('a v15 Describe session resends its photo on a follow-up', () async {
+      final s = await sessions.create(
+          uid: uid, mediaId: 'p1', consentVersion: 6, id: 'chat-1');
+      await sessions.append(sessionId: s.id, role: 'user', text: 'q');
+      await sessions.append(sessionId: s.id, role: 'model', text: 'a');
+
+      final backend = build();
+      await backend.open('chat-1');
+      await backend.send(conversationId: 'chat-1', text: 'and now?');
+
+      expect(analyzer.lastHistory.first.attachments,
+          [const AttachmentRef.image('p1')]);
+      expect(analyzer.lastImages.keys, ['p1']);
+      expect(analyzer.lastNext!.attachments, isEmpty);
+    });
   });
 
   group('conversations', () {
@@ -449,6 +518,44 @@ void main() {
       usageCount = kMaxAnalysesPerDay;
       await backend.send(conversationId: 'c', text: 'refused');
       expect(changes, 3, reason: 'nothing was saved');
+    });
+
+    test('a finished sync tells listeners the list may have changed',
+        () async {
+      final synced = ValueNotifier(0);
+      final backend = build(remoteChanges: synced);
+      var changes = 0;
+      backend.changes.addListener(() => changes++);
+
+      synced.value++;
+
+      expect(changes, 1);
+    });
+
+    testWidgets('the Assistant list shows a conversation a sync pulled in',
+        (tester) async {
+      final synced = ValueNotifier(0);
+      final backend = build(remoteChanges: synced);
+      await tester.pumpWidget(MaterialApp(home: AssistantScreen(backend: backend)));
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pumpAndSettle();
+      expect(find.text('From another phone'), findsNothing);
+
+      // What a pull does: rows written straight to the database.
+      await tester.runAsync(() async {
+        final s = await sessions.create(
+            uid: uid,
+            consentVersion: kCurrentConsentVersion,
+            id: 'chat-9',
+            title: 'From another phone');
+        await sessions.append(sessionId: s.id, role: 'user', text: 'hi');
+        await sessions.append(sessionId: s.id, role: 'model', text: 'hello');
+      });
+      synced.value++;
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pumpAndSettle();
+
+      expect(find.text('From another phone'), findsOneWidget);
     });
 
     test('delete tombstones the conversation', () async {

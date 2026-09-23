@@ -163,6 +163,9 @@ class MediaWiring {
       ),
       // So a photo taken in the assistant shows up in Photos & videos.
       onMediaAdded: mediaProvider.reload,
+      // A sync writes pulled conversations straight to the database; this is
+      // what tells the Assistant list to re-read them.
+      remoteChanges: trigger.syncs,
     );
 
     return MediaWiring._(
@@ -210,6 +213,8 @@ Route<void> mediaTimelineRoute(BuildContext context) {
           uid: uid,
           deviceId: deviceId,
           evictCache: cache.evict,
+          // A deleted photo must stop riding along in a live conversation.
+          onDeleted: assistant.forgetMedia,
         )
       : null;
 

@@ -67,6 +67,43 @@ void main() {
         .write(AppSettingsCompanion(lastSyncedAt: Value(when)));
   }
 
+  group('syncs', () {
+    test('a finished run tells listeners, so screens can re-read', () async {
+      final t = trigger();
+      await t.setUser('uid-1');
+      var runs = 0;
+      t.syncs.addListener(() => runs++);
+
+      await t.syncNow();
+
+      expect(runs, 1);
+    });
+
+    test('a run refused by the claim gate tells no one', () async {
+      await seedLog(DateTime(2026, 1, 5));
+      final t = trigger();
+      await t.setUser('uid-1');
+      var runs = 0;
+      t.syncs.addListener(() => runs++);
+
+      await t.syncNow();
+
+      expect(t.isPendingClaim, isTrue);
+      expect(runs, 0);
+    });
+
+    test('signed out, with no service, tells no one', () async {
+      final t = trigger();
+      await t.setUser(null);
+      var runs = 0;
+      t.syncs.addListener(() => runs++);
+
+      await t.syncNow();
+
+      expect(runs, 0);
+    });
+  });
+
   group('unclaimed local data (fresh account/device pairing)', () {
     test('setUser does NOT push pre-existing local logs before consent',
         () async {
