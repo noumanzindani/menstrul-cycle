@@ -205,6 +205,22 @@ bool isConsentedFor({
 /// `test/media_analysis_test.dart` pins only that this clause is included,
 /// never its wording, so it can be rewritten freely. Re-run the off-topic
 /// turn of the safety probe (`README.md`) after changing it.
+/// The greeting at the top of every assistant conversation.
+///
+/// App copy, not model output: shown by the chat screen, never stored, never
+/// synced and never sent to Gemini, so it reads the same every time and costs
+/// nothing. The system instruction tells the model the person was already
+/// greeted, so it does not introduce itself a second time.
+///
+/// `test/media_analysis_test.dart` pins only its shape: it names LunarFlow AI,
+/// stays under 280 characters and uses none of the banned claim words (safe,
+/// private, secure, encrypted, protected).
+// TODO(owner): write the welcome in LunarFlow's voice.
+const String kAssistantWelcome =
+    "Hi, I'm LunarFlow AI. Ask me about your period, your cycle or your "
+    "symptoms, or attach a photo. I'm not a doctor, so for anything that "
+    'worries you, please talk to one.';
+
 // TODO(owner): refine the scope clause — what should the assistant decline?
 const String kAssistantScopeClause =
     'Only help with periods, cycles, symptoms and how they can change, with '
@@ -259,7 +275,9 @@ const String kAssistantScopeClause =
 /// and a scope-only reply to it would be a decline. That precedence wording is
 /// pinned by test, so it holds however the owner narrows the scope.
 const String kAnalysisSystemInstruction =
-    'You are the LunarFlow assistant, inside a period-tracking app. '
+    'You are LunarFlow AI, the assistant inside a period-tracking app. '
+    'The person has already been greeted by the app, so do not introduce '
+    'yourself unless they ask who you are. '
     'You answer questions about periods, cycles and symptoms in general '
     'terms, about using LunarFlow, and about what is visibly present in '
     'photos the person attaches. When describing a photo, describe only what '

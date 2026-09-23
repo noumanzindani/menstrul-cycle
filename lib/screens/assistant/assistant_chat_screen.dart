@@ -342,6 +342,7 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
                     setState(() => _chips.removeWhere((c) => c.key == chip.key)),
                 hintText:
                     _entries.isEmpty ? 'Ask a question' : 'Ask a follow-up',
+                welcome: kAssistantWelcome,
               ),
       ),
     );

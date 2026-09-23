@@ -96,6 +96,7 @@ class AnalysisChatView extends StatefulWidget {
     this.onRemoveAttachment,
     this.hintText = 'Ask a follow-up',
     this.expand = true,
+    this.welcome,
   });
 
   final List<ChatEntry> entries;
@@ -126,6 +127,11 @@ class AnalysisChatView extends StatefulWidget {
   final void Function(PendingAttachment attachment)? onRemoveAttachment;
 
   final String hintText;
+
+  /// A greeting drawn above the transcript. Display only: it is not an entry,
+  /// so nothing that reads [entries] (what was sent, whether a reply exists)
+  /// ever sees it. Null shows none.
+  final String? welcome;
 
   /// True fills the available height, which is what a full screen wants. False
   /// sizes to the transcript, for a bottom sheet.
@@ -172,14 +178,23 @@ class _AnalysisChatViewState extends State<AnalysisChatView> {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
     final entries = widget.entries;
+    final lead = widget.welcome == null ? 0 : 1;
     final transcript = ListView.builder(
       key: const Key('analysis-transcript'),
       controller: _scroll,
       shrinkWrap: !widget.expand,
       padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: entries.length + (widget.pending ? 1 : 0),
-      itemBuilder: (context, i) =>
-          i == entries.length ? const _Pending() : _Bubble(entries[i]),
+      itemCount: lead + entries.length + (widget.pending ? 1 : 0),
+      itemBuilder: (context, i) {
+        if (i < lead) {
+          return KeyedSubtree(
+            key: const Key('assistant-welcome'),
+            child: _Bubble(ChatEntry.reply(widget.welcome!)),
+          );
+        }
+        final at = i - lead;
+        return at == entries.length ? const _Pending() : _Bubble(entries[at]);
+      },
     );
 
     return Padding(

@@ -464,9 +464,9 @@ void main() {
       expect(text, contains('suggest they speak to a healthcare professional'));
     });
 
-    test('frames the model as the LunarFlow assistant', () {
-      expect(kAnalysisSystemInstruction,
-          startsWith('You are the LunarFlow assistant'));
+    test('frames the model as LunarFlow AI', () {
+      expect(kAnalysisSystemInstruction, startsWith('You are LunarFlow AI'));
+      expect(text, contains('lunarflow ai'));
       expect(text, contains('periods, cycles'));
       expect(text, contains('using lunarflow'));
       expect(text, contains('visibly present'));
@@ -477,6 +477,29 @@ void main() {
       // clause freely. Losing it means the key answers anything it is asked.
       expect(kAssistantScopeClause.trim(), isNotEmpty);
       expect(kAnalysisSystemInstruction, contains(kAssistantScopeClause));
+    });
+
+    test('knows the app already greeted the person', () {
+      // The welcome is on screen but never sent, so without this the model
+      // opens every conversation by introducing itself a second time.
+      expect(text, contains('already been greeted'));
+      expect(text, contains('do not introduce yourself'));
+    });
+
+    test('the welcome is owner copy the model never sees', () {
+      // Only its shape is pinned, never its wording: the owner writes it.
+      expect(kAssistantWelcome.trim(), isNotEmpty);
+      expect(kAssistantWelcome, contains('LunarFlow AI'));
+      expect(kAssistantWelcome.length, lessThanOrEqualTo(280),
+          reason: 'a greeting, not a paragraph');
+      expect(kAnalysisSystemInstruction, isNot(contains(kAssistantWelcome)));
+      for (final banned in [
+        'safe', 'private', 'secure', 'encrypted', 'protected'
+      ]) {
+        expect(kAssistantWelcome.toLowerCase(),
+            isNot(matches(RegExp('\\b$banned\\b'))),
+            reason: '"$banned" is a claim this app does not make');
+      }
     });
 
     test('holds against injection from messages, images and notes', () {

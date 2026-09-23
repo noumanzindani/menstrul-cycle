@@ -543,6 +543,48 @@ void main() {
     expect(backend.ended, ['new-chat']);
   });
 
+  group('welcome', () {
+    Finder welcome() => find.byKey(const Key('assistant-welcome'));
+
+    testWidgets('a new conversation opens with the welcome', (tester) async {
+      await pump(tester, FakeAssistantBackend());
+      expect(welcome(), findsOneWidget);
+      expect(find.text(kAssistantWelcome), findsOneWidget);
+    });
+
+    testWidgets('is shown, never sent, and never stands in for an earned ad',
+        (tester) async {
+      // A reply already in the transcript is how the screen knows the ad was
+      // earned. The welcome looks like a reply and must not count as one.
+      final backend = FakeAssistantBackend();
+      await pump(tester, backend);
+
+      await type(tester, 'hi');
+      await tapSend(tester);
+      await tester.pumpAndSettle();
+
+      expect(backend.calls, ['ad', 'send']);
+      expect(backend.sends.single.text, 'hi');
+      expect(welcome(), findsOneWidget, reason: 'stays at the top');
+    });
+
+    testWidgets('stays first above a resumed transcript', (tester) async {
+      final backend = FakeAssistantBackend(saved: {
+        'c1': const [
+          ChatEntry.user('what colour is it'),
+          ChatEntry.reply('It is pink.'),
+        ],
+      });
+      await pump(tester, backend, conversationId: 'c1');
+
+      expect(welcome(), findsOneWidget);
+      expect(
+        tester.getTopLeft(welcome()).dy,
+        lessThan(tester.getTopLeft(find.text('what colour is it')).dy),
+      );
+    });
+  });
+
   testWidgets('fits a 360dp phone', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 3.0;
