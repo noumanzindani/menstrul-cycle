@@ -34,31 +34,174 @@ import '../../services/media_sync_service.dart';
 import '../../services/media_thumbnailer.dart';
 import '../../services/media_upload_service.dart';
 import '../../services/sync_trigger.dart';
+import '../assistant/assistant_screen.dart';
+import '../assistant/live_assistant_backend.dart';
 import 'analysis_consent_sheet.dart';
-import 'analysis_sessions_screen.dart';
 import 'media_timeline_screen.dart';
 import 'media_viewer_screen.dart';
 
-/// Builds the media timeline with its real dependencies wired up.
+/// The media and assistant plumbing, built ONCE for the app's life and
+/// provided from `main.dart`.
 ///
-/// All the Firebase-touching construction lives HERE rather than in the screen,
-/// so the screen itself stays a plain widget over `MediaProvider` that widget
-/// tests can pump with no Firebase app. Everything below is only ever reached
-/// from a live app.
+/// All the Firebase-touching construction lives HERE rather than in the
+/// screens, so the screens themselves stay plain widgets that widget tests can
+/// pump with no Firebase app. Everything below is only ever reached from a
+/// live app — the provider is lazy, so a test that never opens media or the
+/// assistant never builds it.
+///
+/// One instance, not one per route, for two reasons. The analysis service's
+/// memo, caps and in-memory conversations must be shared by the Assistant and
+/// Describe. And there must be ONE uploader: `MediaSyncService.sweepOrphans`
+/// skips only the uploads [uploader] knows are in flight, so a photo the
+/// assistant is still uploading through a second uploader could be swept as
+/// an orphan by a refresh of the timeline.
+class MediaWiring {
+  MediaWiring._({
+    required this.available,
+    required this.repo,
+    required this.cache,
+    required this.blobs,
+    required this.uploader,
+    required this.sessions,
+    required this.assistant,
+  });
+
+  /// Reads every dependency from [context], which must sit below the
+  /// providers `main.dart` declares before this one. [context] is kept for
+  /// the health context, which is gathered at SEND time so it is current.
+  factory MediaWiring.fromContext(BuildContext context) {
+    final available = context.read<FirebaseAvailability>().available;
+    final db = context.read<AppDatabase>();
+    final trigger = context.read<SyncTrigger>();
+    final settings = context.read<SettingsProvider>();
+    final premium = context.read<PremiumProvider>();
+    final mediaProvider = context.read<MediaProvider>();
+    final logProvider = context.read<LogProvider>();
+    final medicationProvider = context.read<MedicationProvider>();
+
+    final repo = MediaRepository(db);
+    final cache = MediaCache();
+    final MediaBlobStore blobs =
+        available ? FirebaseMediaBlobStore() : const UnavailableMediaBlobStore();
+    final uploader = MediaUploadService(
+      repo: repo,
+      blobStore: blobs,
+      thumbnailer: MediaThumbnailer(),
+      firestore: lunaFirestore,
+      trigger: trigger,
+      deviceId: DeviceId.get,
+    );
+    final sessions = AnalysisSessionRepository(db);
+    // Gated on a compiled-in key as well as on Firebase: with no key there is
+    // no backend, so the assistant shows its unavailable state rather than a
+    // chat that could only fail.
+    final canAnalyze = available && analysisAvailable;
+
+    final assistant = LiveAssistantBackend(
+      available: canAnalyze,
+      service: (persistTurn) => MediaAnalysisService(
+        analyzer:
+            canAnalyze ? GeminiMediaAnalyzer() : const UnavailableMediaAnalyzer(),
+        trigger: trigger,
+        // `settings` is captured once and its fields read lazily, so a consent
+        // granted in Settings mid-session is seen without listening to
+        // anything.
+        consentUid: () => settings.analysisConsentUid,
+        consentVersion: () => settings.analysisConsentVersion,
+        readUsage: () => (
+          day: settings.analysisCountDay,
+          count: settings.analysisCountToday,
+        ),
+        writeUsage: settings.recordAnalysisUsage,
+        persistTurn: persistTurn,
+        available: canAnalyze,
+      ),
+      sessions: sessions,
+      currentUid: () => trigger.currentUid,
+      loadMedia: repo.byId,
+      libraryFor: repo.allFor,
+      loadOriginal: (item) async {
+        final file = await _loadFile(item, cache, blobs);
+        return (await file.readAsBytes(), _guessContentType(item.storagePath));
+      },
+      // Assembled HERE, from providers, and handed over as an opaque string:
+      // the analysis service may not read these providers (or the database
+      // behind them) at all — see `buildHealthContext`'s doc comment.
+      healthContext: () {
+        final appSettings = settings.settings;
+        if (appSettings == null) return null;
+        return buildHealthContext(
+          logs: logProvider.logs,
+          cycles: logProvider.cycles,
+          prediction: context.read<PredictionResult?>(),
+          medications: medicationProvider.items,
+          settings: appSettings,
+          asOf: DateTime.now(),
+        );
+      },
+      syncOn: trigger.isSyncEnabledFor,
+      pickAndUpload: !available
+          ? null
+          : (source, {limit}) =>
+              pickAndUploadMedia(uploader, source, limit: limit),
+      requestConsent: (context) async {
+        final allowed = await showAnalysisConsentSheet(context);
+        if (allowed != true) return false;
+        final uid = trigger.currentUid;
+        if (uid == null) return false;
+        // Recorded against the UID that is signed in RIGHT NOW, read after
+        // the sheet rather than before it: the account can change while a
+        // modal is open, and consent belongs to whoever gave it.
+        await settings.setAnalysisConsent(uid);
+        return true;
+      },
+      // Premium is read at TAP time, not captured: a purchase completing
+      // mid-session must stop the ads immediately.
+      earnConversation: (context) => earnOneConversation(
+        premium: premium.isPremium,
+        confirm: () => showRewardedDescribePrompt(context),
+        showAd: () => AdService.instance.showRewarded(premium: premium.isPremium),
+      ),
+      // So a photo taken in the assistant shows up in Photos & videos.
+      onMediaAdded: mediaProvider.reload,
+    );
+
+    return MediaWiring._(
+      available: available,
+      repo: repo,
+      cache: cache,
+      blobs: blobs,
+      uploader: uploader,
+      sessions: sessions,
+      assistant: assistant,
+    );
+  }
+
+  /// Whether Firebase is up. See [FirebaseAvailability].
+  final bool available;
+  final MediaRepository repo;
+  final MediaCache cache;
+  final MediaBlobStore blobs;
+  final MediaUploadService uploader;
+  final AnalysisSessionRepository sessions;
+  final LiveAssistantBackend assistant;
+}
+
+/// Builds the media timeline over the app-wide [MediaWiring].
 ///
 /// Whether media is reachable at all is [FirebaseAvailability]: the entry point
 /// is hidden when there is no Firebase, because a cloud-only feature with no
 /// cloud is a dead end, not a degraded one.
 Route<void> mediaTimelineRoute(BuildContext context) {
-  final available = context.read<FirebaseAvailability>().available;
-  final db = context.read<AppDatabase>();
+  final wiring = context.read<MediaWiring>();
+  final available = wiring.available;
   final trigger = context.read<SyncTrigger>();
   final provider = context.read<MediaProvider>();
-  final repo = MediaRepository(db);
-  final cache = MediaCache();
-
-  final blobs =
-      available ? FirebaseMediaBlobStore() : const UnavailableMediaBlobStore();
+  final repo = wiring.repo;
+  final cache = wiring.cache;
+  final blobs = wiring.blobs;
+  final uploader = wiring.uploader;
+  final assistant = wiring.assistant;
 
   MediaSyncService? syncFor(String uid, String deviceId) => available
       ? MediaSyncService(
@@ -71,15 +214,6 @@ Route<void> mediaTimelineRoute(BuildContext context) {
         )
       : null;
 
-  final uploader = MediaUploadService(
-    repo: repo,
-    blobStore: blobs,
-    thumbnailer: MediaThumbnailer(),
-    firestore: lunaFirestore,
-    trigger: trigger,
-    deviceId: DeviceId.get,
-  );
-
   // Photo descriptions. Gated on a compiled-in key as well as on Firebase:
   // with no key there is no backend, so the action is hidden rather than shown
   // and failing. `settings` is captured once and its fields read lazily, so a
@@ -91,9 +225,7 @@ Route<void> mediaTimelineRoute(BuildContext context) {
   final premium = context.read<PremiumProvider>();
   final canAnalyze = available && analysisAvailable;
 
-  // Saved conversations. Local-only (see AnalysisSessionRepository's own
-  // doc comment) — this repository never touches Firestore or Cloud Storage.
-  final sessionRepo = AnalysisSessionRepository(db);
+  final sessionRepo = wiring.sessions;
 
   // Persists one errorless exchange, resuming the existing session for this
   // mediaId when there is one rather than starting a second conversation
@@ -162,12 +294,7 @@ Route<void> mediaTimelineRoute(BuildContext context) {
     available: canAnalyze,
   );
 
-  // Opens one item full-screen. Factored out of `onOpen` below so the same
-  // viewer construction is reachable from a saved conversation's row in
-  // `AnalysisSessionsScreen`, not only from a grid tile — a row there has a
-  // `mediaId`, not a `MediaItem`, so its own onOpen resolves the item first
-  // (see below) and then calls this exact function, rather than duplicating
-  // the ~80 lines of `analyze`/`needsConsent`/`requestConsent` wiring.
+  // Opens one item full-screen, from a grid tile.
   void openViewer(BuildContext context, MediaItem item) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -354,34 +481,14 @@ Route<void> mediaTimelineRoute(BuildContext context) {
             ? null
             : (source) => pickAndUploadMedia(uploader, source),
         onOpen: openViewer,
-        // Local-only and independent of `available` (Firestore/cloud): the
-        // sessions list reads nothing but this device's own database. Gated
-        // on `canAnalyze` instead, matching the Describe action itself — a
-        // build with no analysis feature has nothing here to browse.
+        // The assistant's conversation list, which now holds every saved
+        // photo description as well. Gated on the same thing the assistant
+        // itself is, so a build with no key offers nothing here to browse.
         onOpenSessions: !canAnalyze
             ? null
             : (context) => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => AnalysisSessionsScreen(
-                      load: () async {
-                        final uid = trigger.currentUid;
-                        if (uid == null) return const <AnalysisSession>[];
-                        return sessionRepo.allFor(uid);
-                      },
-                      loadMessages: sessionRepo.messagesFor,
-                      loadMedia: repo.byId,
-                      // Reopens the PHOTO rather than the transcript
-                      // directly: `openViewer` already owns every consent,
-                      // cap and resume rule Describe needs, and tapping
-                      // Describe there immediately resumes this same session
-                      // via `loadExistingTurns` above — one code path for
-                      // "show me this conversation" instead of two.
-                      onOpen: (context, session) async {
-                        final media = await repo.byId(session.mediaId);
-                        if (media == null || !context.mounted) return;
-                        openViewer(context, media);
-                      },
-                    ),
+                    builder: (_) => AssistantScreen(backend: assistant),
                   ),
                 ),
       ),

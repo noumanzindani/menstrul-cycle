@@ -35,7 +35,7 @@ typedef PersistTurn = Future<void> Function({
 /// itself may never reach the database (`test/media_guardrails_test.dart`).
 class LiveAssistantBackend implements AssistantBackend {
   LiveAssistantBackend({
-    required this.available,
+    required bool available,
     required MediaAnalysisService Function(PersistTurn persistTurn) service,
     required AnalysisSessionRepository sessions,
     required String? Function() currentUid,
@@ -50,7 +50,8 @@ class LiveAssistantBackend implements AssistantBackend {
     Future<bool> Function(BuildContext context)? earnConversation,
     AssistantImagePrep? prep,
     VoidCallback? onMediaAdded,
-  })  : _sessions = sessions,
+  })  : _available = available,
+        _sessions = sessions,
         _currentUid = currentUid,
         _loadMedia = loadMedia,
         _libraryFor = libraryFor,
@@ -65,8 +66,13 @@ class LiveAssistantBackend implements AssistantBackend {
     this.service = service(persistTurn);
   }
 
+  /// A key is compiled in and Firebase is up — fixed for the app's life.
+  final bool _available;
+
+  /// [_available] AND someone is signed in, read fresh: the local-only hatch
+  /// and a sign-out both leave no account for a conversation to belong to.
   @override
-  final bool available;
+  bool get available => _available && _currentUid() != null;
 
   /// The one analysis service, app-wide: its memo, caps and in-memory
   /// conversations are shared by the Assistant tab and Describe.

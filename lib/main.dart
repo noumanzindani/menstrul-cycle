@@ -24,7 +24,9 @@ import 'providers/product_session_provider.dart';
 import 'providers/reminder_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/app_gate.dart';
+import 'screens/assistant/assistant_backend.dart';
 import 'screens/lock/app_lock.dart';
+import 'screens/media/media_route.dart';
 import 'services/ad_service.dart';
 import 'services/auth_service.dart';
 import 'services/bbt_service.dart';
@@ -264,6 +266,16 @@ class LunarFlowApp extends StatelessWidget {
             prediction: prediction,
             today: DateTime.now(),
           ),
+        ),
+        // Media and the assistant, built once for the app's life: one
+        // uploader, one analysis service (its memo, caps and in-memory
+        // conversations shared by the Assistant and Describe). Declared AFTER
+        // the providers above because it reads them, PredictionResult
+        // included. Lazy, so nothing Firebase-shaped is built until media or
+        // the assistant is first opened — see `MediaWiring`.
+        Provider<MediaWiring>(create: MediaWiring.fromContext),
+        Provider<AssistantBackend>(
+          create: (context) => context.read<MediaWiring>().assistant,
         ),
         // Local writes schedule a debounced sync. Returns void because nothing
         // consumes it; it exists purely for the side effect of reacting to a

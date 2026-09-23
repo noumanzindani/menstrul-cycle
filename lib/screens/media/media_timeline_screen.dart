@@ -52,9 +52,10 @@ class MediaTimelineScreen extends StatefulWidget {
   /// viewer (and its video controller) in widget tests.
   final void Function(BuildContext context, MediaItem item)? onOpen;
 
-  /// Opens the saved-conversations list. Null hides the action — same
-  /// "hidden, not disabled" rule the media entry point itself follows, and
-  /// what keeps this off a build with no photo-description feature at all.
+  /// Opens the assistant's conversation list, where saved photo descriptions
+  /// now live. Null hides the action — same "hidden, not disabled" rule the
+  /// media entry point itself follows, and what keeps this off a build with no
+  /// assistant at all.
   ///
   /// An app-bar action rather than a sixth bottom-nav destination or a second
   /// FAB: the `NavigationBar` is fixed at Material's five, and a second FAB on
@@ -233,7 +234,7 @@ class _MediaTimelineScreenState extends State<MediaTimelineScreen> {
         actions: [
           if (widget.onOpenSessions != null)
             IconButton(
-              tooltip: 'Saved descriptions',
+              tooltip: 'Assistant conversations',
               icon: const Icon(Icons.forum_outlined),
               onPressed: () => widget.onOpenSessions!(context),
             ),

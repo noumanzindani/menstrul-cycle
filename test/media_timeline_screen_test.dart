@@ -316,10 +316,10 @@ void main() {
       await tester.pumpWidget(wrap(const MediaTimelineScreen()));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Saved descriptions'), findsNothing);
+      expect(find.byTooltip('Assistant conversations'), findsNothing);
     });
 
-    testWidgets('opens the sessions list when tapped', (tester) async {
+    testWidgets('opens the assistant conversations when tapped', (tester) async {
       await provider.setUid(uid);
       var tapped = false;
 
@@ -328,8 +328,8 @@ void main() {
       )));
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Saved descriptions'), findsOneWidget);
-      await tester.tap(find.byTooltip('Saved descriptions'));
+      expect(find.byTooltip('Assistant conversations'), findsOneWidget);
+      await tester.tap(find.byTooltip('Assistant conversations'));
       await tester.pumpAndSettle();
 
       expect(tapped, isTrue);

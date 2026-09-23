@@ -360,9 +360,12 @@ void main() {
       expect(await backend.conversations(), isEmpty);
     });
 
-    test('signed out lists nothing', () async {
+    test('signed out lists nothing, and reads as unavailable', () async {
+      final backend = build();
+      expect(backend.available, isTrue);
       await trigger.setUser(null);
-      expect(await build().conversations(), isEmpty);
+      expect(await backend.conversations(), isEmpty);
+      expect(backend.available, isFalse);
     });
   });
 
