@@ -103,16 +103,30 @@ class AdService {
     _rewarded = null;
 
     var earned = false;
+    // `show` completes as soon as the ad is ON SCREEN, not when it closes, so
+    // the outcome is settled by the dismiss callback. Reading `earned` right
+    // after `show` reported every watched ad as declined.
+    final outcome = Completer<RewardedOutcome>();
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
-        preloadRewarded(premium: premium);
+        unawaited(preloadRewarded(premium: premium));
+        if (!outcome.isCompleted) {
+          outcome.complete(
+              earned ? RewardedOutcome.earned : RewardedOutcome.declined);
+        }
       },
-      onAdFailedToShowFullScreenContent: (ad, _) => ad.dispose(),
+      // Could not be shown -- not the user's doing, so it lets them through.
+      onAdFailedToShowFullScreenContent: (ad, _) {
+        ad.dispose();
+        unawaited(preloadRewarded(premium: premium));
+        if (!outcome.isCompleted) {
+          outcome.complete(RewardedOutcome.unavailable);
+        }
+      },
     );
     await ad.show(onUserEarnedReward: (_, _) => earned = true);
-    // `show` completes once the ad is dismissed, so `earned` is settled here.
-    return earned ? RewardedOutcome.earned : RewardedOutcome.declined;
+    return outcome.future;
   }
 
   /// Preloads an interstitial so it can be shown instantly later. No-op for
