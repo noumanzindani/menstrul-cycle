@@ -23,34 +23,36 @@ class _FakeAnalyzer implements MediaAnalyzer {
   /// recover, which is the case that proves a failure leaves no dangling turn.
   Object? throws;
   int calls = 0;
-  String? lastQuestion;
+
+  /// The turn being asked, exactly as the service built it.
+  AnalysisTurn? lastNext;
+
+  String? get lastQuestion => lastNext?.text;
 
   /// The conversation the service handed over on the most recent call. This is
   /// the whole point of the fake for multi-turn: the transcript is private
   /// state, and this is where it becomes observable.
   List<AnalysisTurn> lastHistory = const [];
 
+  /// Every prepared image the request could inline, by media id.
+  Map<String, InlineImage> lastImages = const {};
+
   /// The health context the service handed over on the most recent call —
   /// observable proof the service forwards it verbatim rather than parsing,
   /// logging or dropping it.
   String? lastHealthContext;
 
-  /// The session photo's id the service handed over on the most recent call.
-  String? lastPhotoId;
-
   @override
   Future<AnalysisResult> analyze({
-    required Uint8List bytes,
-    required String mimeType,
-    required String question,
     List<AnalysisTurn> history = const [],
+    required AnalysisTurn next,
+    Map<String, InlineImage> images = const {},
     String? healthContext,
-    String? photoId,
   }) async {
     calls++;
-    lastPhotoId = photoId;
-    lastQuestion = question;
+    lastNext = next;
     lastHistory = history;
+    lastImages = images;
     lastHealthContext = healthContext;
     if (throws != null) throw throws!;
     return AnalysisResult(prose: answer);
@@ -66,34 +68,58 @@ class _FakeAnalyzer implements MediaAnalyzer {
 /// than being silently absorbed. Lets tests observe persistence — including
 /// session resumption and the memo-hit skip — without a database.
 class _FakeSessionStore {
-  final Map<String, String> sessionIdByMedia = {};
+  final Map<String, String> sessionIdByConversation = {};
   int createCount = 0;
-  final List<({String sessionId, String role, String text})> messages = [];
+  final List<
+      ({
+        String sessionId,
+        String role,
+        String text,
+        List<AttachmentRef> attachments,
+      })> messages = [];
 
   Future<void> persistTurn({
-    required String mediaId,
+    required String conversationId,
     required String question,
+    required List<AttachmentRef> attachments,
     required String answer,
     required bool isMemoHit,
   }) async {
-    final existingId = sessionIdByMedia[mediaId];
+    final existingId = sessionIdByConversation[conversationId];
     // Mirrors persistAnalysisTurn's own early return: a memo hit re-serves an
     // exchange already shown once before, and when a session already exists
     // it already holds that opening exchange — appending it again would be a
     // duplicate. See the doc comment on that function in media_route.dart.
     if (isMemoHit && existingId != null) return;
-    final sessionId = existingId ?? _createSession(mediaId);
-    messages.add((sessionId: sessionId, role: 'user', text: question));
-    messages.add((sessionId: sessionId, role: 'model', text: answer));
+    final sessionId = existingId ?? _createSession(conversationId);
+    messages.add((
+      sessionId: sessionId,
+      role: 'user',
+      text: question,
+      attachments: attachments,
+    ));
+    messages.add((
+      sessionId: sessionId,
+      role: 'model',
+      text: answer,
+      attachments: const <AttachmentRef>[],
+    ));
   }
 
-  String _createSession(String mediaId) {
+  String _createSession(String conversationId) {
     createCount++;
     final id = 'session-$createCount';
-    sessionIdByMedia[mediaId] = id;
+    sessionIdByConversation[conversationId] = id;
     return id;
   }
 }
+
+AnalysisAttachment _photo(String id, {int bytes = 1024, String? mime}) =>
+    AnalysisAttachment.image(
+      mediaId: id,
+      mimeType: mime ?? 'image/jpeg',
+      bytes: Uint8List(bytes),
+    );
 
 void main() {
   late AppDatabase db;
@@ -123,34 +149,42 @@ void main() {
     return t;
   }
 
-  MediaAnalysisService buildService({DateTime? now}) => MediaAnalysisService(
-        analyzer: analyzer,
-        trigger: trigger,
-        consentUid: () => consentUid,
-        consentVersion: () => consentVersion,
-        readUsage: () => (day: usageDay, count: usageCount),
-        writeUsage: (d, c) async {
-          usageDay = d;
-          usageCount = c;
-        },
-        persistTurn: sessionStore.persistTurn,
-        now: () => now ?? DateTime(2026, 8, 12, 10),
-        available: true,
-      );
+  // Mutable so a test can roll the clock over midnight mid-service.
+  DateTime clock = DateTime(2026, 8, 12, 10);
 
+  MediaAnalysisService buildService({DateTime? now}) {
+    if (now != null) clock = now;
+    return MediaAnalysisService(
+      analyzer: analyzer,
+      trigger: trigger,
+      consentUid: () => consentUid,
+      consentVersion: () => consentVersion,
+      readUsage: () => (day: usageDay, count: usageCount),
+      writeUsage: (d, c) async {
+        usageDay = d;
+        usageCount = c;
+      },
+      persistTurn: sessionStore.persistTurn,
+      now: () => clock,
+      available: true,
+    );
+  }
+
+  /// One send, Describe-shaped by default: [id] is both the conversation and
+  /// its photo, and the photo rides the opening turn only — which is what
+  /// `media_route.dart` does. Pass [attachments] to send something else.
   Future<AnalysisOutcome> run(
     MediaAnalysisService service, {
     String id = 'media-1',
-    bool isImage = true,
     int bytes = 1024,
+    List<AnalysisAttachment>? attachments,
     String? question,
     String? healthContext,
   }) =>
       service.analyze(
-        mediaId: id,
-        bytes: Uint8List(bytes),
-        mimeType: 'image/jpeg',
-        isImage: isImage,
+        conversationId: id,
+        attachments: attachments ??
+            (service.turnsUsed(id) == 0 ? [_photo(id, bytes: bytes)] : const []),
         question: question,
         healthContext: healthContext,
       );
@@ -165,6 +199,7 @@ void main() {
     consentVersion = kCurrentConsentVersion;
     usageDay = null;
     usageCount = null;
+    clock = DateTime(2026, 8, 12, 10);
     trigger = await buildTrigger(uid);
   });
 
@@ -234,8 +269,11 @@ void main() {
       expect(analyzer.calls, 0);
     });
 
-    test('videos are never sent', () async {
-      final outcome = await run(buildService(), isImage: false);
+    test('an attachment the model cannot read is notAnImage', () async {
+      final outcome = await run(
+        buildService(),
+        attachments: [_photo('m1', mime: 'application/octet-stream')],
+      );
       expect(outcome.blocked, AnalysisBlock.notAnImage);
       expect(analyzer.calls, 0);
     });
@@ -538,7 +576,7 @@ void main() {
       expect(buildService().consented, isFalse);
     });
 
-    test('a v2 (current) consenter is consented', () {
+    test('a current-version consenter is consented', () {
       consentVersion = kCurrentConsentVersion;
       expect(buildService().consented, isTrue);
     });
@@ -567,11 +605,15 @@ void main() {
       expect(analyzer.lastHealthContext, contains('Age: 30'));
     });
 
-    test('forwards the session photo id to the analyzer', () async {
-      // The request builder sends the photo only in place of this id; any
-      // other id a transcript names is sent as the deleted-photo placeholder.
-      await run(buildService(), id: 'media-7');
-      expect(analyzer.lastPhotoId, 'media-7');
+    test('forwards the photo as a reference plus its prepared bytes',
+        () async {
+      await run(buildService(), id: 'media-7', bytes: 3);
+      expect(analyzer.lastNext?.attachments, [
+        const AttachmentRef.image('media-7'),
+      ]);
+      expect(analyzer.lastImages.keys, ['media-7']);
+      expect(analyzer.lastImages['media-7']?.base64, 'AAAA');
+      expect(analyzer.lastImages['media-7']?.mimeType, 'image/jpeg');
     });
 
     test('a null health context still works and forwards null', () async {
@@ -666,7 +708,7 @@ void main() {
       expect(sessionStore.messages.length, 2);
 
       // Simulate the session having been deleted out from under the memo.
-      sessionStore.sessionIdByMedia.remove('media-1');
+      sessionStore.sessionIdByConversation.remove('media-1');
 
       service.endConversation('media-1');
       await run(service, question: 'what is this'); // a memo hit, no session
@@ -674,6 +716,264 @@ void main() {
       expect(sessionStore.createCount, 2);
       expect(sessionStore.messages.length, 4);
       expect(sessionStore.messages.last.sessionId, 'session-2');
+    });
+  });
+
+  group('video is declined on the device', () {
+    test('after consent: nothing is sent and nothing is counted', () async {
+      final service = buildService();
+      final outcome = await run(
+        service,
+        attachments: const [AnalysisAttachment.video('v1')],
+        question: 'what is in this video',
+      );
+      expect(outcome.videoDeclined, isTrue);
+      expect(outcome.blocked, isNull);
+      expect(outcome.error, isNull);
+      expect(analyzer.calls, 0);
+      expect(usageCount, isNull);
+      // The caller persists the declined pair; the service does not.
+      expect(sessionStore.messages, isEmpty);
+      expect(service.turnsUsed('media-1'), 0);
+    });
+
+    test('a photo sent alongside a video is not sent either', () async {
+      final outcome = await run(
+        buildService(),
+        attachments: [_photo('p1'), const AnalysisAttachment.video('v1')],
+      );
+      expect(outcome.videoDeclined, isTrue);
+      expect(analyzer.calls, 0);
+    });
+
+    test('a user without consent gets the consent block, not a declined pair',
+        () async {
+      consentUid = null;
+      final outcome = await run(
+        buildService(),
+        attachments: const [AnalysisAttachment.video('v1')],
+      );
+      expect(outcome.blocked, AnalysisBlock.notConsented);
+      expect(outcome.videoDeclined, isFalse);
+    });
+
+    test('the declined pair does not count toward the turn cap', () async {
+      final service = buildService();
+      service.seedConversation('c1', [
+        for (var i = 0; i < kMaxChatTurns - 1; i++) ...[
+          AnalysisTurn.user('question $i'),
+          AnalysisTurn.model('answer $i'),
+        ],
+        const AnalysisTurn.user(
+          'this video',
+          attachments: [AttachmentRef.video('v1')],
+          includeInModel: false,
+        ),
+        const AnalysisTurn.model('declined', includeInModel: false),
+      ]);
+      expect(service.turnsUsed('c1'), kMaxChatTurns - 1);
+
+      final last = await run(service, id: 'c1', attachments: const []);
+      expect(last.blocked, isNull);
+      final over = await run(service, id: 'c1', attachments: const []);
+      expect(over.blocked, AnalysisBlock.turnCap);
+    });
+  });
+
+  group('conversations keyed by id, not by photo', () {
+    test('a text-only conversation reaches the analyzer with no images',
+        () async {
+      final outcome = await run(
+        buildService(),
+        id: 'c1',
+        attachments: const [],
+        question: 'is a 35 day cycle normal',
+      );
+      expect(outcome.result?.prose, 'a description');
+      expect(analyzer.lastNext?.attachments, isEmpty);
+      expect(analyzer.lastImages, isEmpty);
+    });
+
+    test('earlier photos stay available to every later turn', () async {
+      final service = buildService();
+      await run(service, id: 'c1', attachments: [_photo('p1')]);
+      await run(service, id: 'c1', attachments: [_photo('p2')]);
+      await run(service, id: 'c1', attachments: const [], question: 'compare');
+
+      expect(analyzer.lastNext?.attachments, isEmpty);
+      expect(analyzer.lastImages.keys, unorderedEquals(['p1', 'p2']));
+      expect(analyzer.lastHistory[0].attachments, [
+        const AttachmentRef.image('p1'),
+      ]);
+      expect(analyzer.lastHistory[2].attachments, [
+        const AttachmentRef.image('p2'),
+      ]);
+    });
+
+    test('a resumed conversation gets its images from the caller', () async {
+      final service = buildService();
+      service.seedConversation(
+        'c1',
+        const [
+          AnalysisTurn.user('this', attachments: [AttachmentRef.image('p1')]),
+          AnalysisTurn.model('A rash.'),
+        ],
+        images: const {
+          'p1': InlineImage(mimeType: 'image/jpeg', base64: 'QUJD'),
+        },
+      );
+      await run(service, id: 'c1', attachments: const []);
+      expect(analyzer.lastImages['p1']?.base64, 'QUJD');
+    });
+
+    test('a photo the caller no longer has is simply absent', () async {
+      // The builder turns a missing id into the deleted-photo placeholder.
+      final service = buildService();
+      service.seedConversation('c1', const [
+        AnalysisTurn.user('this', attachments: [AttachmentRef.image('gone')]),
+        AnalysisTurn.model('A rash.'),
+      ]);
+      await run(service, id: 'c1', attachments: const []);
+      expect(analyzer.lastImages.containsKey('gone'), isFalse);
+      expect(analyzer.calls, 1);
+    });
+
+    test('a successful turn persists its attachment references', () async {
+      await run(
+        buildService(),
+        id: 'c1',
+        attachments: [_photo('p1'), _photo('p2')],
+      );
+      expect(sessionStore.messages.first.attachments, const [
+        AttachmentRef.image('p1'),
+        AttachmentRef.image('p2'),
+      ]);
+      expect(sessionStore.sessionIdByConversation.keys, ['c1']);
+    });
+
+    test('a failed turn leaves no photo behind for the next one', () async {
+      final service = buildService();
+      analyzer.throws = const AnalysisException('boom');
+      await run(service, id: 'c1', attachments: [_photo('p1')]);
+      analyzer.throws = null;
+      await run(service, id: 'c1', attachments: const []);
+      expect(analyzer.lastHistory, isEmpty);
+      expect(analyzer.lastImages, isEmpty);
+    });
+  });
+
+  group('photo caps', () {
+    test('more than $kMaxImagesPerMessage photos in one message', () async {
+      final outcome = await run(
+        buildService(),
+        id: 'c1',
+        attachments: [
+          for (var i = 0; i <= kMaxImagesPerMessage; i++) _photo('p$i'),
+        ],
+      );
+      expect(outcome.blocked, AnalysisBlock.tooManyPhotos);
+      expect(analyzer.calls, 0);
+    });
+
+    test('more than $kMaxImagesPerConversation photos in one conversation',
+        () async {
+      final service = buildService();
+      await run(service, id: 'c1', attachments: [
+        for (var i = 0; i < kMaxImagesPerMessage; i++) _photo('p$i'),
+      ]);
+      final outcome = await run(service, id: 'c1', attachments: [
+        _photo('q1'),
+        _photo('q2'),
+      ]);
+      expect(outcome.blocked, AnalysisBlock.tooManyPhotos);
+      expect(analyzer.calls, 1);
+      expect(usageCount, 1);
+    });
+
+    test('re-attaching a photo already in the conversation is not a new one',
+        () async {
+      final service = buildService();
+      await run(service, id: 'c1', attachments: [
+        for (var i = 0; i < kMaxImagesPerMessage; i++) _photo('p$i'),
+      ]);
+      final outcome = await run(service, id: 'c1', attachments: [
+        _photo('p0'),
+        _photo('q1'),
+      ]);
+      expect(outcome.blocked, isNull);
+    });
+
+    test('photos that would overflow the inline budget are refused',
+        () async {
+      // Two 4 MB photos are ~10.7 MB of base64; a third pushes the resent
+      // conversation past kMaxInlineRequestBytes.
+      final service = buildService();
+      const mb = 1024 * 1024;
+      await run(service, id: 'c1', attachments: [
+        _photo('p1', bytes: 4 * mb),
+        _photo('p2', bytes: 4 * mb),
+      ]);
+      final outcome = await run(service, id: 'c1', attachments: [
+        _photo('p3', bytes: 2 * mb),
+      ]);
+      expect(outcome.blocked, AnalysisBlock.tooLarge);
+      expect(analyzer.calls, 1);
+      expect(usageCount, 1);
+    });
+  });
+
+  group('memo (v16)', () {
+    test('keyed by the sorted photo ids, not by the conversation', () async {
+      final service = buildService();
+      await run(service, id: 'c1', attachments: [_photo('a'), _photo('b')]);
+      final outcome =
+          await run(service, id: 'c2', attachments: [_photo('b'), _photo('a')]);
+      expect(analyzer.calls, 1);
+      expect(outcome.result?.prose, 'a description');
+      expect(service.turnsUsed('c2'), 1);
+    });
+
+    test('a text-only opener is never memoized', () async {
+      final service = buildService();
+      await run(service, id: 'c1', attachments: const [], question: 'hi');
+      await run(service, id: 'c2', attachments: const [], question: 'hi');
+      expect(analyzer.calls, 2);
+    });
+
+    test('holds at most $kAnalysisMemoSize openers, least recent out first',
+        () async {
+      final service = buildService();
+      for (var i = 0; i <= kAnalysisMemoSize; i++) {
+        usageCount = null; // one more opener than the daily cap allows
+        await run(service, id: 'c$i', attachments: [_photo('p$i')]);
+      }
+      expect(analyzer.calls, kAnalysisMemoSize + 1);
+      // p0 was evicted by the last opener; p1 is still held.
+      await run(service, id: 'again-1', attachments: [_photo('p1')]);
+      expect(analyzer.calls, kAnalysisMemoSize + 1);
+      usageCount = null;
+      await run(service, id: 'again-0', attachments: [_photo('p0')]);
+      expect(analyzer.calls, kAnalysisMemoSize + 2);
+    });
+
+    test('is cleared when the signed-in account changes', () async {
+      final service = buildService();
+      await run(service, id: 'c1', attachments: [_photo('p1')]);
+
+      claim = const ClaimRecord(uid: 'uid-2', declined: false);
+      consentUid = 'uid-2';
+      await trigger.setUser('uid-2');
+
+      await run(service, id: 'c2', attachments: [_photo('p1')]);
+      expect(analyzer.calls, 2);
+    });
+
+    test('is cleared when the day rolls over', () async {
+      final service = buildService();
+      await run(service, id: 'c1', attachments: [_photo('p1')]);
+      clock = DateTime(2026, 8, 13, 9);
+      await run(service, id: 'c2', attachments: [_photo('p1')]);
+      expect(analyzer.calls, 2);
     });
   });
 }

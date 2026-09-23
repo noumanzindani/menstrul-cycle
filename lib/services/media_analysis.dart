@@ -102,6 +102,21 @@ const int kMaxChatTurns = 10;
 /// anchored to the image rather than to a wall of instructions.
 const int kMaxQuestionLength = 200;
 
+/// Most photos one message may attach.
+const int kMaxImagesPerMessage = 3;
+
+/// Most distinct photos one conversation may hold.
+///
+/// The binding cap of the two. `generateContent` keeps no state, so every
+/// earlier photo is resent on every call: a fourth photo is paid for again on
+/// each follow-up, and [kMaxInlineRequestBytes] still bounds the bytes.
+const int kMaxImagesPerConversation = 4;
+
+/// How many opening answers `MediaAnalysisService` keeps before dropping the
+/// least recently used. The service lives as long as the app, so an unbounded
+/// memo would hold every answer of the day in memory.
+const int kAnalysisMemoSize = 20;
+
 /// The disclosure the current consent sheet makes.
 ///
 /// Bumped from 1 when the request stopped carrying only a photo and started
@@ -288,8 +303,13 @@ enum AnalysisBlock {
   /// Videos are not analysed. Only images are sent.
   notAnImage,
 
-  /// Over [kMaxAnalysisBytes].
+  /// A photo over [kMaxAnalysisBytes], or a conversation whose photos would
+  /// push the request past [kMaxInlineRequestBytes].
   tooLarge,
+
+  /// More than [kMaxImagesPerMessage] photos in one message, or more than
+  /// [kMaxImagesPerConversation] in one conversation.
+  tooManyPhotos,
 
   /// [kMaxAnalysesPerDay] reached for today.
   dailyCap,
@@ -453,6 +473,10 @@ String messageForAnalysisBlock(AnalysisBlock block) {
       return 'Only photos can be described, not videos.';
     case AnalysisBlock.tooLarge:
       return "That photo is too big to describe.";
+    case AnalysisBlock.tooManyPhotos:
+      return 'You can attach up to $kMaxImagesPerMessage photos to a message '
+          'and $kMaxImagesPerConversation to a conversation. Start a new '
+          'conversation to ask about more.';
     case AnalysisBlock.dailyCap:
       // "messages", not "photos": since every turn of a conversation bills, the
       // counter counts turns. Saying "photos" would have been true when this
@@ -536,10 +560,9 @@ const String kDeletedPhotoPlaceholder = '[photo no longer available]';
 /// the conversation is resent on every call (see [buildAnalysisRequest]), so a
 /// conversation grows towards that limit turn by turn; 12 MB of image data
 /// leaves room for the JSON envelope, the transcript and the health context.
-/// [withinInlineBudget] measures a request against it. Not yet enforced: the
-/// service will refuse a request over it as [AnalysisBlock.tooLarge] before it
-/// is sent once it builds per-turn requests (plan task 4). Until then the
-/// one-photo Describe path cannot approach it.
+/// [withinInlineBudget] measures a request against it, and
+/// `MediaAnalysisService` refuses one over it as [AnalysisBlock.tooLarge]
+/// before anything is sent or counted.
 const int kMaxInlineRequestBytes = 12 * 1024 * 1024;
 
 /// One part of a user turn, before it becomes JSON: an image, or the
@@ -684,65 +707,6 @@ Map<String, Object?> buildAnalysisRequest({
   };
 }
 
-/// A one-photo Describe conversation in the per-turn request shape.
-///
-/// The bridge for a caller that still holds a single photo per conversation
-/// (`GeminiMediaAnalyzer`, until it takes several attachments). [photoId] is
-/// the media id of the conversation's photo, and it is the ONLY id mapped to
-/// [photo]: a resumed v16 conversation may name it on a stored turn, and any
-/// other image id the transcript names is sent as [kDeletedPhotoPlaceholder],
-/// so a photo that really is gone is never replaced by this one. A transcript
-/// that does not name [photoId] (a v15 session, an opening turn, or a caller
-/// with no id) gets [photo] on its first user turn sent, ahead of whatever
-/// that turn already names, which is where the one-photo builder put it.
-Map<String, Object?> buildDescribeRequest({
-  required InlineImage photo,
-  required String question,
-  String? photoId,
-  List<AnalysisTurn> history = const [],
-  String? healthContext,
-}) {
-  final named = photoId != null &&
-      history.any(
-        (t) =>
-            t.includeInModel &&
-            t.role == AnalysisRole.user &&
-            t.attachments.any(
-              (a) => a.kind == AttachmentKind.image && a.mediaId == photoId,
-            ),
-      );
-  if (named) {
-    return buildAnalysisRequest(
-      history: history,
-      next: AnalysisTurn.user(question),
-      images: {photoId: photo},
-      healthContext: healthContext,
-    );
-  }
-  final key = photoId ?? 'describe-photo';
-  final ref = AttachmentRef.image(key);
-  final firstUser = history.indexWhere(
-    (t) => t.includeInModel && t.role == AnalysisRole.user,
-  );
-  return buildAnalysisRequest(
-    history: [
-      for (var i = 0; i < history.length; i++)
-        i == firstUser
-            ? AnalysisTurn.user(
-                history[i].text,
-                attachments: [ref, ...history[i].attachments],
-              )
-            : history[i],
-    ],
-    next: AnalysisTurn.user(
-      question,
-      attachments: firstUser < 0 ? [ref] : const [],
-    ),
-    images: {key: photo},
-    healthContext: healthContext,
-  );
-}
-
 /// Parses a `generateContent` response into a result, or throws.
 ///
 /// Handles every shape the API actually returns rather than the happy one:
@@ -822,6 +786,19 @@ Map<String, Object?> decodeAnalysisBody(String body) {
   } on FormatException {
     throw const AnalysisException('The service returned an unreadable reply.');
   }
+}
+
+/// What the request cost in input tokens, from the reply's `usageMetadata`,
+/// or null when the reply does not say.
+///
+/// The one figure `GeminiMediaAnalyzer` logs, and only in debug builds: every
+/// earlier photo and the health context are resent each turn, so this is how
+/// the real per-turn cost gets measured. Never the content.
+int? promptTokenCountOf(Map<String, Object?> json) {
+  final usage = json['usageMetadata'];
+  if (usage is! Map) return null;
+  final count = usage['promptTokenCount'];
+  return count is int ? count : null;
 }
 
 /// Trims and bounds a user-typed question, falling back to the default.

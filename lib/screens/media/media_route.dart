@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -112,14 +113,19 @@ Route<void> mediaTimelineRoute(BuildContext context) {
   // deleted independently of the in-memory memo, e.g. by `deleteForMedia`):
   // skipping there would leave a later follow-up with no opening turn to
   // attach to, which is a worse transcript than a duplicated one.
+  //
+  // A Describe conversation's id IS its photo's media id, which is what
+  // `forMedia` looks the session up by.
   Future<void> persistAnalysisTurn({
-    required String mediaId,
+    required String conversationId,
     required String question,
+    required List<AttachmentRef> attachments,
     required String answer,
     required bool isMemoHit,
   }) async {
     final uid = trigger.currentUid;
     if (uid == null) return;
+    final mediaId = conversationId;
     final existing =
         await sessionRepo.forMedia(uid: uid, mediaId: mediaId);
     if (isMemoHit && existing != null) return;
@@ -133,6 +139,7 @@ Route<void> mediaTimelineRoute(BuildContext context) {
       sessionId: session.id,
       role: 'user',
       text: question,
+      attachments: attachments,
     );
     await sessionRepo.append(
       sessionId: session.id,
@@ -191,11 +198,47 @@ Route<void> mediaTimelineRoute(BuildContext context) {
                           settings: appSettings,
                           asOf: DateTime.now(),
                         );
+                  if (item.kind != 'image') {
+                    return analysisService.analyze(
+                      conversationId: item.id,
+                      attachments: [AnalysisAttachment.video(item.id)],
+                      question: question,
+                      healthContext: healthContext,
+                    );
+                  }
+                  final bytes = await file.readAsBytes();
+                  final mimeType = _guessContentType(item.storagePath);
+                  // The photo rides the opening turn only; after that it is
+                  // resent from the service's own copy. A resumed
+                  // conversation already names it on its first turn (see
+                  // `loadExistingTurns` below), so only its bytes are handed
+                  // over, never a second attachment.
+                  if (analysisService.turnsUsed(item.id) == 0) {
+                    return analysisService.analyze(
+                      conversationId: item.id,
+                      attachments: [
+                        AnalysisAttachment.image(
+                          mediaId: item.id,
+                          mimeType: mimeType,
+                          bytes: bytes,
+                        ),
+                      ],
+                      question: question,
+                      healthContext: healthContext,
+                    );
+                  }
+                  analysisService.seedConversation(
+                    item.id,
+                    const [],
+                    images: {
+                      item.id: InlineImage(
+                        mimeType: mimeType,
+                        base64: base64Encode(bytes),
+                      ),
+                    },
+                  );
                   return analysisService.analyze(
-                    mediaId: item.id,
-                    bytes: await file.readAsBytes(),
-                    mimeType: _guessContentType(item.storagePath),
-                    isImage: item.kind == 'image',
+                    conversationId: item.id,
                     question: question,
                     healthContext: healthContext,
                   );
@@ -241,19 +284,26 @@ Route<void> mediaTimelineRoute(BuildContext context) {
                       await sessionRepo.forMedia(uid: uid, mediaId: item.id);
                   if (session == null) return const <AnalysisTurn>[];
                   final messages = await sessionRepo.messagesFor(session.id);
+                  // A v15 session stored no attachments; its photo is the
+                  // session's, on the first user turn — `effectiveAttachments`
+                  // restores that reading.
+                  final refs = effectiveAttachments(session.mediaId, [
+                    for (final m in messages)
+                      (role: m.role, attachmentsJson: m.attachmentsJson),
+                  ]);
                   // includeInModel is carried over, not filtered here: the
                   // sheet still shows such a turn, and the request builder
                   // is what leaves it out of what the model sees.
-                  final turns = messages.map((m) {
-                    final attachments = decodeAttachments(m.attachmentsJson);
-                    return m.role == 'user'
-                        ? AnalysisTurn.user(m.messageText,
-                            attachments: attachments,
-                            includeInModel: m.includeInModel)
-                        : AnalysisTurn.model(m.messageText,
-                            attachments: attachments,
-                            includeInModel: m.includeInModel);
-                  }).toList();
+                  final turns = [
+                    for (var i = 0; i < messages.length; i++)
+                      messages[i].role == 'user'
+                          ? AnalysisTurn.user(messages[i].messageText,
+                              attachments: refs[i],
+                              includeInModel: messages[i].includeInModel)
+                          : AnalysisTurn.model(messages[i].messageText,
+                              attachments: refs[i],
+                              includeInModel: messages[i].includeInModel),
+                  ];
                   // Seeds the SERVICE's in-memory history, not just the UI:
                   // the sheet renders these turns from the return value below,
                   // but the next follow-up goes through `analysisService`

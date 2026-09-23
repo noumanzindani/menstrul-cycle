@@ -218,6 +218,29 @@ void main() {
       expect(readers, ['lib/services/media_analyzer.dart']);
     });
 
+    test('the analyzer logs a token count in debug builds, never content', () {
+      // The request carries photos, the tracked health record and everything
+      // the user typed; the reply is prose about all of it. The one number
+      // worth logging is what a turn cost, and only where a developer sees it.
+      final code = _code('lib/services/media_analyzer.dart');
+      final logs = RegExp(r'\b(debugPrint|print|log)\(').allMatches(code);
+      expect(logs.length, 1, reason: 'exactly one log call');
+      final start = logs.single.start;
+      final call = code.substring(start, code.indexOf(';', start));
+      expect(call, contains('promptTokenCount'));
+      for (final leak in [
+        'body',
+        'text',
+        'question',
+        'history',
+        'decoded',
+        'next',
+      ]) {
+        expect(call, isNot(contains(leak)), reason: leak);
+      }
+      expect(code, contains('if (kDebugMode)'));
+    });
+
     test('no service API key is hardcoded anywhere in lib/', () {
       // Google API keys start `AIza`. One pasted in here as a "temporary"
       // default would be compiled into every build and published to Play, and

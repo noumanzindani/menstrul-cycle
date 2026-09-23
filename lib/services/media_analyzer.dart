@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import 'media_analysis.dart';
 
@@ -32,7 +33,7 @@ const String kGeminiApiKey = String.fromEnvironment('LUNA_GEMINI_KEY');
 /// Whether this build can analyse at all.
 bool get analysisAvailable => kGeminiApiKey.isNotEmpty;
 
-/// Describing an image. **This is the only file in `lib/` that makes an
+/// Asking the model. **This is the only file in `lib/` that makes an
 /// outbound HTTP request** — a structural test enforces it.
 ///
 /// The seam exists for the same reason `MediaBlobStore` does, plus a sharper
@@ -44,22 +45,20 @@ bool get analysisAvailable => kGeminiApiKey.isNotEmpty;
 /// against that passes while proving nothing. Everything above this interface is
 /// driven in tests by a fake.
 abstract class MediaAnalyzer {
-  /// Sends [bytes] with [question] and returns the model's answer.
+  /// Sends the conversation so far plus [next], and returns the model's answer.
   ///
-  /// [history] is the conversation about this same photo so far, oldest first.
-  /// Empty for an opening description. [healthContext], when supplied, rides
-  /// the first user turn alongside the image — see `buildAnalysisRequest` in
-  /// `media_analysis.dart` for exactly where and why. [photoId] is the media
-  /// id of this photo; only that id in [history] is sent as [bytes] (see
-  /// `buildDescribeRequest`). Throws [AnalysisException] for anything the user
-  /// needs told about.
+  /// [history] is the conversation before [next], oldest first; empty for an
+  /// opening message. [images] holds the prepared bytes for every photo any
+  /// sent turn attaches, keyed by media id — a photo it does not hold is sent
+  /// as the deleted-photo placeholder. [healthContext], when supplied, rides
+  /// the first user turn. See `buildAnalysisRequest` in `media_analysis.dart`
+  /// for exactly where each part goes and why. Throws [AnalysisException] for
+  /// anything the user needs told about.
   Future<AnalysisResult> analyze({
-    required Uint8List bytes,
-    required String mimeType,
-    required String question,
     List<AnalysisTurn> history = const [],
+    required AnalysisTurn next,
+    Map<String, InlineImage> images = const {},
     String? healthContext,
-    String? photoId,
   });
 }
 
@@ -87,29 +86,28 @@ class GeminiMediaAnalyzer implements MediaAnalyzer {
 
   @override
   Future<AnalysisResult> analyze({
-    required Uint8List bytes,
-    required String mimeType,
-    required String question,
     List<AnalysisTurn> history = const [],
+    required AnalysisTurn next,
+    Map<String, InlineImage> images = const {},
     String? healthContext,
-    String? photoId,
   }) async {
     if (_apiKey.isEmpty) {
       throw const AnalysisException(
         'Photo descriptions are not available in this build.',
       );
     }
-    if (bytes.length > kMaxAnalysisBytes) {
+    // The service refuses an oversized conversation before it counts it; this
+    // is the backstop for a caller that skipped the service.
+    if (!withinInlineBudget(history: history, next: next, images: images)) {
       throw const AnalysisException('That photo is too big to describe.');
     }
 
     final body = utf8.encode(
       jsonEncode(
-        buildDescribeRequest(
-          photo: InlineImage(mimeType: mimeType, base64: base64Encode(bytes)),
-          photoId: photoId,
-          question: question,
+        buildAnalysisRequest(
           history: history,
+          next: next,
+          images: images,
           healthContext: healthContext,
         ),
       ),
@@ -155,6 +153,12 @@ class GeminiMediaAnalyzer implements MediaAnalyzer {
     // Parsed even on a 4xx: the body carries the `error` envelope with the real
     // reason, and parseAnalysisResponse turns that into copy.
     final decoded = decodeAnalysisBody(text);
+    // Debug builds only, and the count only: the request and the reply both
+    // carry health data, and neither is ever written to a log.
+    if (kDebugMode) {
+      final tokens = promptTokenCountOf(decoded);
+      if (tokens != null) debugPrint('[analysis] promptTokenCount=$tokens');
+    }
     return parseAnalysisResponse(decoded);
   }
 
@@ -181,12 +185,10 @@ class UnavailableMediaAnalyzer implements MediaAnalyzer {
 
   @override
   Future<AnalysisResult> analyze({
-    required Uint8List bytes,
-    required String mimeType,
-    required String question,
     List<AnalysisTurn> history = const [],
+    required AnalysisTurn next,
+    Map<String, InlineImage> images = const {},
     String? healthContext,
-    String? photoId,
   }) async =>
       throw StateError('Photo analysis is unavailable in this build.');
 }

@@ -318,134 +318,6 @@ void main() {
     });
   });
 
-  group('buildDescribeRequest (one photo per conversation)', () {
-    test('an opener is exactly the per-turn Describe shape', () {
-      expect(
-        buildDescribeRequest(photo: _photo, question: 'what is this'),
-        _describe('what is this'),
-      );
-    });
-
-    test('a v15 transcript gets the photo on its first user turn only', () {
-      // v15 stored no attachments: the photo was implied by the session.
-      final req = buildDescribeRequest(
-        photo: _photo,
-        question: 'and now',
-        history: const [
-          AnalysisTurn.user('what colour is it'),
-          AnalysisTurn.model('It is pink.'),
-        ],
-        healthContext: 'ctx',
-      );
-      expect(_partsAt(req, 0), [
-        {
-          'inline_data': {'mime_type': 'image/jpeg', 'data': 'QUJD'},
-        },
-        {'text': 'ctx'},
-        {'text': 'what colour is it'},
-      ]);
-      expect(
-        _allParts(req).where((p) => p.containsKey('inline_data')).length,
-        1,
-      );
-    });
-
-    test(
-      'a resumed v16 transcript that names the photo is not a placeholder',
-      () {
-        final req = buildDescribeRequest(
-          photo: _photo,
-          photoId: 'm1',
-          question: 'and now',
-          history: const [
-            AnalysisTurn.user(
-              'what colour is it',
-              attachments: [AttachmentRef.image('m1')],
-            ),
-            AnalysisTurn.model('It is pink.'),
-          ],
-        );
-        expect(
-          (_partsAt(req, 0).first as Map).containsKey('inline_data'),
-          isTrue,
-        );
-        expect(
-          _allParts(req).any((p) => p['text'] == kDeletedPhotoPlaceholder),
-          isFalse,
-        );
-      },
-    );
-
-    test('only the session photo is sent; another named id is a placeholder',
-        () {
-      // A transcript naming a second photo (added, then deleted) must not get
-      // the Describe photo in its place.
-      final req = buildDescribeRequest(
-        photo: _photo,
-        photoId: 'm1',
-        question: 'and now',
-        history: const [
-          AnalysisTurn.user(
-            'what colour is it',
-            attachments: [AttachmentRef.image('m1')],
-          ),
-          AnalysisTurn.model('It is pink.'),
-          AnalysisTurn.user(
-            'and this one',
-            attachments: [AttachmentRef.image('m2')],
-          ),
-          AnalysisTurn.model('It is blue.'),
-        ],
-      );
-      expect(
-        (_partsAt(req, 0).first as Map).containsKey('inline_data'),
-        isTrue,
-      );
-      expect(_partsAt(req, 2).first, {'text': kDeletedPhotoPlaceholder});
-      expect(
-        _allParts(req).where((p) => p.containsKey('inline_data')).length,
-        1,
-      );
-    });
-
-    test('a transcript naming only another id still gets the session photo',
-        () {
-      final req = buildDescribeRequest(
-        photo: _photo,
-        photoId: 'm1',
-        question: 'and now',
-        history: const [
-          AnalysisTurn.user(
-            'what colour is it',
-            attachments: [AttachmentRef.image('m2')],
-          ),
-          AnalysisTurn.model('It is pink.'),
-        ],
-      );
-      expect(
-        (_partsAt(req, 0).first as Map).containsKey('inline_data'),
-        isTrue,
-      );
-      expect(_partsAt(req, 0)[1], {'text': kDeletedPhotoPlaceholder});
-    });
-
-    test('the photo skips a turn the model never sees', () {
-      final req = buildDescribeRequest(
-        photo: _photo,
-        question: 'and now',
-        history: const [
-          AnalysisTurn.user('a video', includeInModel: false),
-          AnalysisTurn.model('Declined.', includeInModel: false),
-        ],
-      );
-      expect((req['contents']! as List).length, 1);
-      expect(
-        (_partsAt(req, 0).first as Map).containsKey('inline_data'),
-        isTrue,
-      );
-    });
-  });
-
   group('inline request budget', () {
     const big = InlineImage(mimeType: 'image/jpeg', base64: 'xxxxxxxxxx');
 
@@ -760,6 +632,41 @@ void main() {
     });
   });
 
+  group('photo caps', () {
+    test('three photos per message, four per conversation', () {
+      // Every earlier photo is resent on every call, so the per-conversation
+      // cap is what bounds the request, not the per-message one.
+      expect(kMaxImagesPerMessage, 3);
+      expect(kMaxImagesPerConversation, 4);
+    });
+
+    test('the memo holds twenty openers', () {
+      expect(kAnalysisMemoSize, 20);
+    });
+  });
+
+  group('promptTokenCountOf', () {
+    test('reads usageMetadata.promptTokenCount', () {
+      expect(
+        promptTokenCountOf({
+          'usageMetadata': {'promptTokenCount': 1834, 'totalTokenCount': 1900},
+        }),
+        1834,
+      );
+    });
+
+    test('is null when the reply carries no usage block', () {
+      expect(promptTokenCountOf(const {}), isNull);
+      expect(promptTokenCountOf({'usageMetadata': 'nope'}), isNull);
+      expect(
+        promptTokenCountOf({
+          'usageMetadata': {'promptTokenCount': '12'},
+        }),
+        isNull,
+      );
+    });
+  });
+
   group('decodeAnalysisBody', () {
     test('decodes JSON', () {
       expect(decodeAnalysisBody('{"a":1}'), {'a': 1});
@@ -861,6 +768,12 @@ void main() {
       final text = messageForAnalysisBlock(AnalysisBlock.turnCap);
       expect(text, contains('$kMaxChatTurns'));
       expect(text.toLowerCase(), contains('again'));
+    });
+
+    test('the photo cap names both limits', () {
+      final text = messageForAnalysisBlock(AnalysisBlock.tooManyPhotos);
+      expect(text, contains('$kMaxImagesPerMessage'));
+      expect(text, contains('$kMaxImagesPerConversation'));
     });
 
     test('no reason claims the photo is safe, private or encrypted', () {
