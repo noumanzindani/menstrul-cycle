@@ -43,7 +43,7 @@ class AdConfig {
   /// interstitial, this one is EARNED: the user is asked first and gets
   /// something concrete for watching, so it is the only unit here whose
   /// absence has to be handled gracefully rather than silently skipped -- see
-  /// `earnOneDescribe`.
+  /// `earnOneConversation`.
   static String get rewardedUnitId {
     if (useTestAds) return _android ? _testRewardedAndroid : _testRewardedIos;
     return _android ? _prodRewardedAndroid : _prodRewardedIos;

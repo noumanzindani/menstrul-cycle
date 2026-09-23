@@ -3,10 +3,16 @@
 /// [declined] and [unavailable] are kept apart deliberately: one is the user
 /// choosing not to watch, the other is AdMob having nothing to serve. They
 /// look identical at the call site and must not be treated alike -- see
-/// [earnOneDescribe].
+/// [earnOneConversation].
 enum RewardedOutcome { earned, declined, unavailable }
 
-/// Whether one fresh Describe request may proceed.
+/// Whether a new assistant conversation may start.
+///
+/// Asked once, at the first billable send of a NEW conversation, after
+/// consent. Never asked for a resumed conversation, a follow-up, a send that
+/// carries only video (nothing is sent, so nothing is billed) or a Premium
+/// user -- the caller decides which sends are "first", this decides whether
+/// the ad was earned.
 ///
 /// The decision half of the rewarded-ad gate, deliberately free of any AdMob
 /// type so it can be tested: `google_mobile_ads` talks over platform channels
@@ -24,7 +30,7 @@ enum RewardedOutcome { earned, declined, unavailable }
 ///
 /// Erring toward the user costs an impression. Erring the other way makes the
 /// feature look broken, which costs the install.
-Future<bool> earnOneDescribe({
+Future<bool> earnOneConversation({
   required bool premium,
   required Future<bool> Function() confirm,
   required Future<RewardedOutcome> Function() showAd,

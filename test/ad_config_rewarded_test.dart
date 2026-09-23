@@ -5,7 +5,8 @@ import 'package:menstrul_track/services/ad_config.dart';
 /// The rewarded unit has to be a REAL id, not the `0000...` placeholder the
 /// prod constants ship with. A placeholder id does not fail loudly -- it just
 /// never fills, which looks exactly like "no ad available" and would silently
-/// hand every user a free Describe forever (see `earnOneDescribe`'s fail-open).
+/// hand every user a free conversation forever (see `earnOneConversation`'s
+/// fail-open).
 void main() {
   const googleTestRewarded = {
     'ca-app-pub-3940256099942544/5224354917', // Android

@@ -249,7 +249,7 @@ Route<void> mediaTimelineRoute(BuildContext context) {
           // rather than snapshotting it.
           earnDescribe: !canAnalyze
               ? null
-              : (context) => earnOneDescribe(
+              : (context) => earnOneConversation(
                     premium: premium.isPremium,
                     confirm: () => showRewardedDescribePrompt(context),
                     showAd: () =>

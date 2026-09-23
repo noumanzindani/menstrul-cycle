@@ -85,11 +85,11 @@ class AdService {
   /// Returns [RewardedOutcome.unavailable] when there was nothing to show --
   /// no fill, a failed load, an outage. The caller MUST distinguish that from
   /// [RewardedOutcome.declined] (the user walked away mid-ad); see
-  /// `earnOneDescribe`, which lets the first through and refuses the second.
+  /// `earnOneConversation`, which lets the first through and refuses the second.
   /// Collapsing them is how an AdMob outage turns into a feature that looks
   /// broken.
   ///
-  /// Deliberately thin: everything decidable lives in `earnOneDescribe`,
+  /// Deliberately thin: everything decidable lives in `earnOneConversation`,
   /// because nothing in this file can be exercised under `flutter_tester` --
   /// `google_mobile_ads` talks over platform channels with no test handler.
   Future<RewardedOutcome> showRewarded({required bool premium}) async {

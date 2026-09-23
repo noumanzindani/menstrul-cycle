@@ -12,7 +12,7 @@ void main() {
     RewardedOutcome outcome = RewardedOutcome.earned,
     List<String>? calls,
   }) =>
-      earnOneDescribe(
+      earnOneConversation(
         premium: premium,
         confirm: () async {
           calls?.add('confirm');
