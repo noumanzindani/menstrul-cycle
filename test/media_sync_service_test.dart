@@ -18,6 +18,7 @@ void main() {
   late FakeFirebaseFirestore firestore;
   late MediaSyncService sync;
   final evicted = <String>[];
+  final forgotten = <String>[];
 
   const uid = 'uid-1';
   String idOf(String c) => c * 32;
@@ -29,6 +30,7 @@ void main() {
         uid: uid,
         deviceId: 'device-1',
         evictCache: (id) async => evicted.add(id),
+        onDeleted: forgotten.add,
       );
 
   setUp(() {
@@ -37,6 +39,7 @@ void main() {
     blobs = FakeMediaBlobStore();
     firestore = FakeFirebaseFirestore();
     evicted.clear();
+    forgotten.clear();
     sync = build();
   });
   tearDown(() => db.close());
@@ -101,6 +104,8 @@ void main() {
 
       expect(await repo.byId(idOf('a')), isNull);
       expect(evicted, [idOf('a')]);
+      expect(forgotten, [idOf('a')],
+          reason: 'a live conversation must stop resending the photo');
     });
 
     test('a tombstone for something never seen locally is harmless', () async {
@@ -181,6 +186,7 @@ void main() {
       expect(blobs.deleted, hasLength(2));
       expect(await repo.byId(idOf('a')), isNull);
       expect(evicted, [idOf('a')]);
+      expect(forgotten, [idOf('a')]);
     });
 
     test('a missing object does not abort the delete', () async {

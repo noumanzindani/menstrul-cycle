@@ -104,7 +104,8 @@ typedef AnalysisUsage = ({String? day, int? count});
 /// for `history` on every call, because `generateContent` keeps no session of
 /// its own. [_images] holds the prepared bytes of every photo those turns
 /// attach, because every earlier photo is resent on every call. Both are
-/// cleared by [endConversation], and seeded back from a STORED transcript by
+/// cleared by [endConversation] (and a deleted photo's bytes by
+/// [forgetImage]), and seeded back from a STORED transcript by
 /// [seedConversation] when the caller resumes a saved conversation: restoring
 /// only what the user sees, without restoring what the model was told, gets a
 /// conversation that displays history but has none.
@@ -219,13 +220,49 @@ class MediaAnalysisService {
   /// none) when it returns.
   final Map<String, Object> _openings = {};
 
+  /// Photos a seed handed over that are over [kMaxAnalysisBytes], by
+  /// conversation. Held back from [_images] and refused at the next [analyze]
+  /// as [AnalysisBlock.tooLarge] — the same answer an oversized attachment
+  /// gets — rather than silently dropped, which would send the deleted-photo
+  /// placeholder for a photo the user still has.
+  final Map<String, Set<String>> _oversized = {};
+
+  /// Media ids deleted while this instance was alive; see [forgetImage].
+  ///
+  /// Kept, not just applied once, so a turn already in flight when its photo
+  /// was deleted, or a resume that loaded the photo just before, cannot write
+  /// the bytes back. Ids are never reused, and this only grows by deletions.
+  final Set<String> _forgotten = {};
+
   /// Forgets [conversationId]'s transcript and photos. Called when the chat
   /// closes, so reopening it resumes from storage rather than silently from
   /// memory.
   void endConversation(String conversationId) {
     _transcripts.remove(conversationId);
     _images.remove(conversationId);
+    _oversized.remove(conversationId);
     _openings.remove(conversationId);
+  }
+
+  /// Drops [mediaId]'s bytes from every live conversation, because the photo
+  /// was deleted.
+  ///
+  /// Every earlier photo is resent on every call, so without this a photo
+  /// deleted mid-conversation would keep reaching the model until the chat
+  /// closed. Afterwards the request builder sends [kDeletedPhotoPlaceholder]
+  /// in its place — exactly what a resumed conversation gets for it.
+  ///
+  /// Called by the caller's media-deletion path (`media_route.dart` wires it
+  /// to `MediaSyncService`'s `onDeleted`): this class cannot see deletions
+  /// itself, since it may not reach the database.
+  void forgetImage(String mediaId) {
+    _forgotten.add(mediaId);
+    for (final images in _images.values) {
+      images.remove(mediaId);
+    }
+    for (final ids in _oversized.values) {
+      ids.remove(mediaId);
+    }
   }
 
   /// Seeds [conversationId]'s in-memory conversation from a STORED transcript,
@@ -247,14 +284,22 @@ class MediaAnalysisService {
   /// A no-op for the turns on an empty list, so callers can pass through
   /// whatever a loader returned, and a no-op for the turns if
   /// [conversationId] already has an in-memory conversation — seeding over
-  /// live turns would silently discard them. [images] are merged either way.
+  /// live turns would silently discard them. [images] are merged either way,
+  /// except a photo [forgetImage] has dropped, and a photo over
+  /// [kMaxAnalysisBytes]: that one is held back and makes the next [analyze]
+  /// refuse as [AnalysisBlock.tooLarge], as an oversized attachment does.
   void seedConversation(
     String conversationId,
     List<AnalysisTurn> turns, {
     Map<String, InlineImage> images = const {},
   }) {
-    if (images.isNotEmpty) {
-      _images.putIfAbsent(conversationId, () => {}).addAll(images);
+    for (final MapEntry(key: id, value: image) in images.entries) {
+      if (_forgotten.contains(id)) continue;
+      if (_decodedLength(image.base64) > kMaxAnalysisBytes) {
+        _oversized.putIfAbsent(conversationId, () => {}).add(id);
+      } else {
+        _images.putIfAbsent(conversationId, () => {})[id] = image;
+      }
     }
     if (turns.isEmpty) return;
     if (_transcripts.containsKey(conversationId)) return;
@@ -339,6 +384,10 @@ class MediaAnalysisService {
       if (photo.bytes!.length > kMaxAnalysisBytes) {
         return const AnalysisOutcome(blocked: AnalysisBlock.tooLarge);
       }
+    }
+    // The same per-photo limit, for photos a resume seeded.
+    if (_oversized[conversationId]?.isNotEmpty ?? false) {
+      return const AnalysisOutcome(blocked: AnalysisBlock.tooLarge);
     }
 
     final opening = _openings.putIfAbsent(conversationId, Object.new);
@@ -495,6 +544,16 @@ class MediaAnalysisService {
     return conversationIds.length > kMaxImagesPerConversation;
   }
 
+  /// How many bytes [base64] decodes to, without decoding it.
+  static int _decodedLength(String base64) {
+    final padding = base64.endsWith('==')
+        ? 2
+        : base64.endsWith('=')
+            ? 1
+            : 0;
+    return base64.length * 3 ~/ 4 - padding;
+  }
+
   /// `'<sorted photo ids>|<question>'`. Sorted so the same photos attached in
   /// a different order are the same request.
   static String _memoKey(Set<String> ids, String asked) =>
@@ -548,6 +607,7 @@ class MediaAnalysisService {
         next,
         AnalysisTurn.model(prose),
       ];
+      images.removeWhere((id, _) => _forgotten.contains(id));
       if (images.isNotEmpty) _images[conversationId] = images;
     }
     await _persistTurn(

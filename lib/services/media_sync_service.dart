@@ -33,12 +33,14 @@ class MediaSyncService {
     required String uid,
     required String deviceId,
     Future<void> Function(String mediaId)? evictCache,
+    void Function(String mediaId)? onDeleted,
   })  : _repo = repo,
         _blobs = blobStore,
         _firestore = firestore,
         _uid = uid,
         _deviceId = deviceId,
-        _evictCache = evictCache;
+        _evictCache = evictCache,
+        _onDeleted = onDeleted;
 
   final MediaRepository _repo;
   final MediaBlobStore _blobs;
@@ -50,6 +52,12 @@ class MediaSyncService {
   /// because the cache is file I/O, which does not belong in a class whose
   /// tests run against an in-memory database.
   final Future<void> Function(String mediaId)? _evictCache;
+
+  /// Told each id this class removed, after its row is gone — by a pulled
+  /// tombstone or by [delete]. `media_route.dart` points it at the assistant,
+  /// so a live conversation stops resending a deleted photo's bytes (the
+  /// stored conversations are already cascaded by `MediaRepository.deleteById`).
+  final void Function(String mediaId)? _onDeleted;
 
   /// How long a deletion marker is kept before it is pruned.
   ///
@@ -95,6 +103,7 @@ class MediaSyncService {
         // its cached bytes. Deleting the row is safe even if it was never here.
         await _repo.deleteById(doc.id);
         await _evictCache?.call(doc.id);
+        _onDeleted?.call(doc.id);
         continue;
       }
 
@@ -186,6 +195,7 @@ class MediaSyncService {
 
     await _repo.deleteById(mediaId);
     await _evictCache?.call(mediaId);
+    _onDeleted?.call(mediaId);
   }
 
   Future<void> _deleteObjectsFor(String storagePath, String? thumbPath) async {

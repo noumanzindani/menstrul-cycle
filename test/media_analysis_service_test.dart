@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -42,6 +44,9 @@ class _FakeAnalyzer implements MediaAnalyzer {
   /// logging or dropping it.
   String? lastHealthContext;
 
+  /// Holds the reply in flight until completed, for a race mid-call.
+  Completer<void>? gate;
+
   @override
   Future<AnalysisResult> analyze({
     List<AnalysisTurn> history = const [],
@@ -54,6 +59,7 @@ class _FakeAnalyzer implements MediaAnalyzer {
     lastHistory = history;
     lastImages = images;
     lastHealthContext = healthContext;
+    await gate?.future;
     if (throws != null) throw throws!;
     return AnalysisResult(prose: answer);
   }
@@ -846,6 +852,123 @@ void main() {
       expect(analyzer.calls, 1);
     });
 
+    test('a photo deleted mid-conversation is sent as the placeholder',
+        () async {
+      final service = buildService();
+      await run(service, id: 'c1', attachments: [_photo('p1'), _photo('p2')]);
+      await run(service, id: 'c2', attachments: [_photo('p1')], question: 'b');
+
+      service.forgetImage('p1');
+
+      for (final id in ['c1', 'c2']) {
+        await run(service, id: id, attachments: const [], question: 'and?');
+        expect(analyzer.lastImages.containsKey('p1'), isFalse, reason: id);
+        final request = jsonEncode(buildAnalysisRequest(
+          history: analyzer.lastHistory,
+          next: analyzer.lastNext!,
+          images: analyzer.lastImages,
+        ));
+        expect(request, contains(kDeletedPhotoPlaceholder), reason: id);
+      }
+      expect(analyzer.lastImages.keys, isEmpty);
+    });
+
+    test('a photo deleted while a turn is in flight is not written back',
+        () async {
+      final service = buildService();
+      analyzer.gate = Completer();
+      final first = run(service, id: 'c1', attachments: [_photo('p1')]);
+      await Future<void>.delayed(Duration.zero);
+      service.forgetImage('p1');
+      analyzer.gate!.complete();
+      analyzer.gate = null;
+      await first;
+
+      await run(service, id: 'c1', attachments: const [], question: 'and?');
+      expect(analyzer.lastImages.containsKey('p1'), isFalse);
+    });
+
+    test('a forgotten photo is not seeded back by a resume', () async {
+      final service = buildService();
+      service.forgetImage('p1');
+      service.seedConversation(
+        'c1',
+        const [
+          AnalysisTurn.user('this', attachments: [AttachmentRef.image('p1')]),
+          AnalysisTurn.model('A rash.'),
+        ],
+        images: const {
+          'p1': InlineImage(mimeType: 'image/jpeg', base64: 'QUJD'),
+        },
+      );
+      await run(service, id: 'c1', attachments: const []);
+      expect(analyzer.lastImages.containsKey('p1'), isFalse);
+    });
+
+    test('a seeded photo over the per-photo limit is refused, as an '
+        'attachment would be', () async {
+      final service = buildService();
+      service.seedConversation(
+        'c1',
+        const [
+          AnalysisTurn.user('this', attachments: [AttachmentRef.image('big')]),
+          AnalysisTurn.model('A rash.'),
+        ],
+        images: {
+          'big': InlineImage(
+            mimeType: 'image/jpeg',
+            base64: base64Encode(Uint8List(kMaxAnalysisBytes + 1)),
+          ),
+        },
+      );
+      final outcome = await run(service, id: 'c1', attachments: const []);
+      expect(outcome.blocked, AnalysisBlock.tooLarge);
+      expect(analyzer.calls, 0);
+      expect(usageCount, isNull);
+    });
+
+    test('a seeded photo exactly at the per-photo limit is sent', () async {
+      final service = buildService();
+      service.seedConversation(
+        'c1',
+        const [
+          AnalysisTurn.user('this', attachments: [AttachmentRef.image('p1')]),
+          AnalysisTurn.model('A rash.'),
+        ],
+        images: {
+          'p1': InlineImage(
+            mimeType: 'image/jpeg',
+            base64: base64Encode(Uint8List(kMaxAnalysisBytes)),
+          ),
+        },
+      );
+      final outcome = await run(service, id: 'c1', attachments: const []);
+      expect(outcome.blocked, isNull);
+      expect(analyzer.lastImages.containsKey('p1'), isTrue);
+    });
+
+    test('deleting an oversized seeded photo lets the conversation go on',
+        () async {
+      final service = buildService();
+      service.seedConversation(
+        'c1',
+        const [
+          AnalysisTurn.user('this', attachments: [AttachmentRef.image('big')]),
+          AnalysisTurn.model('A rash.'),
+        ],
+        images: {
+          'big': InlineImage(
+            mimeType: 'image/jpeg',
+            base64: base64Encode(Uint8List(kMaxAnalysisBytes + 1)),
+          ),
+        },
+      );
+      service.forgetImage('big');
+      final outcome = await run(service, id: 'c1', attachments: const []);
+      expect(outcome.blocked, isNull);
+      expect(analyzer.lastImages, isEmpty);
+    });
+
     test('a successful turn persists its attachment references', () async {
       await run(
         buildService(),
@@ -948,20 +1071,30 @@ void main() {
       expect(analyzer.calls, 2);
     });
 
-    test('holds at most $kAnalysisMemoSize openers, least recent out first',
-        () async {
+    test('holds at most $kAnalysisMemoSize openers, least recently USED out '
+        'first', () async {
       final service = buildService();
-      for (var i = 0; i <= kAnalysisMemoSize; i++) {
-        usageCount = null; // one more opener than the daily cap allows
+      for (var i = 0; i < kAnalysisMemoSize; i++) {
+        usageCount = null; // as many openers as the memo holds
         await run(service, id: 'c$i', attachments: [_photo('p$i')]);
       }
-      expect(analyzer.calls, kAnalysisMemoSize + 1);
-      // p0 was evicted by the last opener; p1 is still held.
-      await run(service, id: 'again-1', attachments: [_photo('p1')]);
-      expect(analyzer.calls, kAnalysisMemoSize + 1);
-      usageCount = null;
+      expect(analyzer.calls, kAnalysisMemoSize);
+
+      // A hit on the OLDEST entry makes it the most recently used.
       await run(service, id: 'again-0', attachments: [_photo('p0')]);
-      expect(analyzer.calls, kAnalysisMemoSize + 2);
+      expect(analyzer.calls, kAnalysisMemoSize);
+
+      // One more opener evicts the least recently used: p1, not p0. A plain
+      // insertion-order FIFO would have dropped p0 here.
+      usageCount = null;
+      await run(service, id: 'new', attachments: [_photo('pNew')]);
+      expect(analyzer.calls, kAnalysisMemoSize + 1);
+
+      await run(service, id: 'again-0b', attachments: [_photo('p0')]);
+      expect(analyzer.calls, kAnalysisMemoSize + 1, reason: 'p0 was kept');
+      usageCount = null;
+      await run(service, id: 'again-1', attachments: [_photo('p1')]);
+      expect(analyzer.calls, kAnalysisMemoSize + 2, reason: 'p1 was evicted');
     });
 
     test('is cleared when the signed-in account changes', () async {
