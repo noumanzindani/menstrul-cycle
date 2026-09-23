@@ -1,24 +1,29 @@
 import 'package:flutter/material.dart';
 
-/// Asks once, before any photo — and the tracked health record that now rides
-/// alongside it — is sent out for description.
+/// Asks once, before the assistant sends anything — a typed message, the
+/// photos in a conversation, and the tracked health record that rides along
+/// with every message.
 ///
 /// ## The copy is the disclosure
 ///
-/// This sheet is the only place a user is told that a photo, together with
-/// what they have tracked, leaves both their device AND their own account, to
-/// a company that is not the app. Everything here is what the code does
-/// today: it names Google, says the photo and the listed data are sent rather
-/// than "processed", names the categories that travel (see
-/// `buildHealthContext` in `health_context.dart` for the exact set), says
-/// LunarFlow does not keep the answer, and does not promise anything about
-/// what Google does with it — because the app has no authority over that and
+/// This sheet is the only place a user is told that what they type, every
+/// photo in the conversation and what they have tracked leave both their
+/// device AND their own account, to a company that is not the app.
+/// Everything here is what the code does as of consent v7: it names Google,
+/// says the listed data is sent rather than "processed", says photos are
+/// resent with every message (the model keeps no memory between calls, see
+/// `buildAnalysisRequest`), names the tracked categories and their 90-day
+/// window (see `buildHealthContext` in `health_context.dart` for the exact
+/// set), says videos are never sent, says conversations are stored as plain
+/// text and how they are deleted, and does not promise anything about what
+/// Google does with it — because the app has no authority over that and
 /// cannot honestly speak for it.
 ///
 /// ## Why this sheet has a version (`kCurrentConsentVersion`)
 ///
-/// The request used to carry only the photo. It now carries the whole tracked
-/// health record too — a materially different disclosure. Widening what an
+/// The request used to carry only the photo. It then carried the whole
+/// tracked health record, and since v7 it carries free text and every photo in
+/// a conversation — each a materially different disclosure. Widening what an
 /// existing "Allow" covers, without asking again, would not be consent to the
 /// new thing at all. `MediaAnalysisService.consented` therefore checks the
 /// stored consent version as well as the uid, so an account that agreed to the
@@ -77,40 +82,49 @@ class _AnalysisConsentSheet extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Describe photos?',
+                    Text('Use the assistant?',
                         style: theme.textTheme.headlineSmall),
                     const SizedBox(height: 16),
                     Text(
-                      'To describe a photo, LunarFlow sends it to Google, an '
-                      'automatic image-recognition service outside '
-                      'LunarFlow, together with what you have tracked: your '
-                      'cycle and period history, symptoms and mood, your age, '
-                      'height and weight, discharge, sexual activity and '
-                      'masturbation, libido, any pain or bleeding during or '
-                      'after sex, contraception, breastfeeding, a recent '
-                      'pregnancy, birth or pregnancy loss, your puberty '
-                      'stage (breast and pubic hair development) and its '
-                      'timing, any diagnoses '
-                      'a clinician has given you, your goal (such as trying '
-                      'to conceive), and your diary notes. This '
-                      'happens only when you tap Describe on a photo — '
-                      'never on its own, and never to your other photos.',
+                      'The assistant runs only when you send a message in '
+                      'the Assistant or tap Describe on a photo — never on '
+                      'its own. Each message sends to Google, an automatic '
+                      'service outside LunarFlow: the messages you type, the '
+                      'photos in the conversation (every one is sent again '
+                      'with every message), and what you have tracked over '
+                      'about the last 90 days: your cycle and period history, '
+                      'symptoms and mood, your age, height and weight, '
+                      'discharge, sexual activity and masturbation, libido, '
+                      'any pain or bleeding during or after sex, '
+                      'contraception, breastfeeding, a recent pregnancy, '
+                      'birth or pregnancy loss, your puberty stage (breast '
+                      'and pubic hair development) and its timing, any '
+                      'diagnoses a clinician has given you, your goal (such '
+                      'as trying to conceive), and your diary notes.',
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'LunarFlow saves the conversation to your account, so '
+                      'Videos stay in the conversation but are never sent. '
+                      'Photos you take from the assistant are saved to '
+                      'Photos & videos.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'LunarFlow saves each conversation to your account, so '
                       'it is backed up and reaches your other devices. It is '
                       'stored as plain text that the people who run LunarFlow '
-                      'can read. Deleting the photo deletes the conversation with '
-                      'it.',
+                      'can read. You can delete a conversation at any time, '
+                      'and deleting a photo deletes the conversations that '
+                      'include it.',
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'It describes what is in a picture. It is not a '
-                      'medical opinion and cannot tell you what something '
-                      'is or what to do about it.',
+                      'It answers in general terms. It is not a medical '
+                      'opinion and cannot tell you what something is or what '
+                      'to do about it.',
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 12),

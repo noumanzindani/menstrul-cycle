@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/db/database.dart';
+import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/providers/auth_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
 import 'package:menstrul_track/screens/settings/settings_screen.dart';
@@ -99,7 +100,7 @@ void main() {
     await tester.tap(find.text('toggle'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Describe photos?'), findsOneWidget);
+    expect(find.text('Use the assistant?'), findsOneWidget);
     expect(find.byKey(const Key('analysis-consent-allow')), findsOneWidget);
   });
 
@@ -146,7 +147,7 @@ void main() {
 
     // The sheet — today's disclosure — is shown rather than the switch
     // silently flipping to consented under the OLD version.
-    expect(find.text('Describe photos?'), findsOneWidget);
+    expect(find.text('Use the assistant?'), findsOneWidget);
     expect(settings.analysisConsentVersion, 1,
         reason: 'must not be upgraded before Allow is tapped');
 
@@ -165,8 +166,19 @@ void main() {
     await tester.tap(find.text('toggle'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Describe photos?'), findsNothing);
+    expect(find.text('Use the assistant?'), findsNothing);
     expect(settings.analysisConsentUid, isNull);
     expect(settings.analysisConsentVersion, isNull);
+  });
+
+  test('the switch is labelled "AI assistant" (its key stays imageAnalysis)',
+      () {
+    // The switch itself cannot be pumped here (see the file comment), so the
+    // label is read from the same localization getter its `title:` uses.
+    final l10n = lookupAppLocalizations(const Locale('en'));
+    expect(l10n.settingsPhotoDescriptionsTitle, 'AI assistant');
+    expect(l10n.settingsPhotoDescriptionsSubtitle, isNot(contains('tap Describe')),
+        reason: 'the assistant also runs from its own screen, not only '
+            'from Describe');
   });
 }

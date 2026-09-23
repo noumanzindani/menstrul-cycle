@@ -262,6 +262,14 @@ void main() {
       expect(analyzer.calls, 0);
     });
 
+    test('a v6 consenter is asked again — v7 sends typed messages and every '
+        'photo in the conversation, not one photo per Describe', () async {
+      consentVersion = 6;
+      final outcome = await run(buildService());
+      expect(outcome.blocked, AnalysisBlock.notConsented);
+      expect(analyzer.calls, 0);
+    });
+
     test('a null version (never consented) reports notConsented', () async {
       consentVersion = null;
       final outcome = await run(buildService());

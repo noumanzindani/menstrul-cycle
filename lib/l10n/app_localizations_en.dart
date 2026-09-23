@@ -335,11 +335,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAppLockSubtitle => 'Require a PIN or biometrics to open';
 
   @override
-  String get settingsPhotoDescriptionsTitle => 'Describe photos';
+  String get settingsPhotoDescriptionsTitle => 'AI assistant';
 
   @override
   String get settingsPhotoDescriptionsSubtitle =>
-      'Sends a photo, and what you have tracked — cycle history, symptoms, height and weight, discharge, sexual activity, contraception, diagnoses and diary notes — to Google when you tap Describe';
+      'Sends your messages, the photos in the conversation and what you have tracked — cycle history, symptoms, height and weight, discharge, sexual activity, contraception, diagnoses and diary notes — to Google each time you send';
 
   @override
   String get settingsDeleteTitle => 'Delete all my data';

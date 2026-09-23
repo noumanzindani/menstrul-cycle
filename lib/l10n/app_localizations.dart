@@ -661,13 +661,13 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPhotoDescriptionsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Describe photos'**
+  /// **'AI assistant'**
   String get settingsPhotoDescriptionsTitle;
 
   /// No description provided for @settingsPhotoDescriptionsSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Sends a photo, and what you have tracked — cycle history, symptoms, height and weight, discharge, sexual activity, contraception, diagnoses and diary notes — to Google when you tap Describe'**
+  /// **'Sends your messages, the photos in the conversation and what you have tracked — cycle history, symptoms, height and weight, discharge, sexual activity, contraception, diagnoses and diary notes — to Google each time you send'**
   String get settingsPhotoDescriptionsSubtitle;
 
   /// No description provided for @settingsDeleteTitle.

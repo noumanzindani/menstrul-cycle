@@ -160,7 +160,14 @@ const int kAnalysisMemoSize = 20;
 /// puberty stages (Tanner B and P), the user's own puberty-timing answer and
 /// the app's early / delayed / discordant reading of them (schema v15).
 /// Everyone who agreed under 5 is asked again.
-const int kCurrentConsentVersion = 6;
+///
+/// Bumped to 7 on 2026-09-24: Describe became the assistant. A request now
+/// carries messages the user types, not only a question about one photo, and
+/// every photo in the conversation (up to four), resent with each message.
+/// The sheet also says videos stay behind, that photos taken from the
+/// assistant are saved to Photos & videos, and that conversations can be
+/// deleted. Everyone who agreed under 6 is asked again.
+const int kCurrentConsentVersion = 7;
 
 /// Whether [uid] is consented, given the STORED [consentUid] / [consentVersion].
 ///

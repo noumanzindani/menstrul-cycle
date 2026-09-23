@@ -204,8 +204,49 @@ void main() {
       'trying to conceive',
       'a recent pregnancy, birth or pregnancy loss',
       'your puberty stage (breast and pubic hair development)',
+      // v7: the assistant sends free text and every photo in a conversation,
+      // not one photo per Describe tap.
+      'messages you type',
+      'photos in the conversation',
     ]) {
       expect(texts, contains(mustName), reason: 'sheet must name: $mustName');
+    }
+  });
+
+  testWidgets('v7: asks about the assistant, not about describing one photo',
+      (tester) async {
+    await setPhoneSize(tester);
+    await openSheet(tester);
+
+    expect(find.text('Use the assistant?'), findsOneWidget);
+    expect(find.text('Describe photos?'), findsNothing);
+  });
+
+  testWidgets(
+      'v7: says when it runs, that photos are resent, that videos stay behind, '
+      'and how conversations are kept and deleted', (tester) async {
+    // Each line is a behaviour the code has as of consent v7; a sheet that
+    // drops one is again asking for agreement to something it did not
+    // describe.
+    await setPhoneSize(tester);
+    await openSheet(tester);
+
+    final texts = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((t) => (t.data ?? '').toLowerCase())
+        .join(' ');
+
+    for (final mustSay in [
+      'only when you send a message in the assistant or tap describe',
+      'sent again with every message',
+      'about the last 90 days',
+      'videos stay in the conversation but are never sent',
+      'saved to photos & videos',
+      'plain text',
+      'you can delete a conversation',
+      'deleting a photo deletes the conversations that include it',
+    ]) {
+      expect(texts, contains(mustSay), reason: 'sheet must say: $mustSay');
     }
   });
 }
