@@ -23,6 +23,7 @@ import '../../widgets/month_ring.dart';
 import '../../widgets/product_timer_card.dart';
 import '../../widgets/product_timer_start_card.dart';
 import '../../widgets/track_art.dart';
+import '../forecast/forecast_screen.dart';
 import '../log/day_log_screen.dart';
 import '../pregnancy/pregnancy_screen.dart';
 
@@ -45,7 +46,7 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       // Named for the tab, like every other destination ("Calendar",
-      // "Forecast", …), rather than for the app.
+      // "Assistant", …), rather than for the app.
       appBar: AppBar(title: const Text('Today')),
       floatingActionButton: FloatingActionButton.extended(
         // Explicit tag because `AppShell` keeps every tab alive in an
@@ -535,6 +536,10 @@ class _PerimenopauseNote extends StatelessWidget {
 /// (period / predicted / fertile / ovulation), today's date in the centre. A
 /// fertility surface — but the builder confidence-gates all fertility colouring,
 /// and the DisclaimerBanner trailing this list already covers it.
+///
+/// Also the way into [ForecastScreen] since the Assistant took Forecast's tab:
+/// this month here, the next twelve one tap away. A `TextButton` in a
+/// `Column`, so the theme's infinite-width `FilledButton` rule never applies.
 class _CycleRingCard extends StatelessWidget {
   const _CycleRingCard();
 
@@ -543,8 +548,23 @@ class _CycleRingCard extends StatelessWidget {
     final data = context.watch<MonthRingData>();
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
-        child: Center(child: MonthRing(data: data)),
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+        child: Column(
+          children: [
+            Center(child: MonthRing(data: data)),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              key: const Key('home-see-forecast'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ForecastScreen(),
+                ),
+              ),
+              icon: const Icon(Icons.date_range_outlined),
+              label: const Text('See forecast'),
+            ),
+          ],
+        ),
       ),
     );
   }

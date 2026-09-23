@@ -66,6 +66,14 @@ void main() {
   tearDown(() => db.close());
 
   Future<void> pumpHome(WidgetTester tester, PredictionResult prediction) async {
+    // Tall enough that the whole dashboard is BUILT: a ListView lays out
+    // only what is on screen, and the cycle card's "See forecast" button (the
+    // way into Forecast since the Assistant took its tab) pushed these cards
+    // past the default 800x600 surface. A negative assertion below the fold
+    // would otherwise pass without looking at anything.
+    tester.view.physicalSize = const Size(1080, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(MultiProvider(
       providers: [
         ChangeNotifierProvider<SettingsProvider>.value(value: settings),

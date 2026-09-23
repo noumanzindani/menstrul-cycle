@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:menstrul_track/services/media_blob_store.dart';
+
 import 'support/fake_media_blob_store.dart';
 
 /// The blob-store contract, exercised through the fake every other media suite
@@ -26,6 +28,14 @@ void main() {
     await f.writeAsBytes(List.filled(bytes, 3), flush: true);
     return f;
   }
+
+  test('the real store touches Firebase on first use, not when built', () {
+    // The Assistant is a tab, so the shell builds `MediaWiring` (and this
+    // store) at launch. Building it must not call `Firebase.app()`: every
+    // test harness that pumps the whole app has no Firebase app, and nothing
+    // is uploaded until the user attaches something.
+    expect(FirebaseMediaBlobStore.new, returnsNormally);
+  });
 
   test('putBytes and getBytes round-trip', () async {
     await store.putBytes('p/thumb.jpg', Uint8List(64), 'image/jpeg');

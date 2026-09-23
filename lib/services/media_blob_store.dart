@@ -44,8 +44,17 @@ abstract class MediaBlobStore {
 
 /// The production implementation, against the dedicated LunarFlow bucket.
 class FirebaseMediaBlobStore implements MediaBlobStore {
-  FirebaseMediaBlobStore({FirebaseStorage? storage})
-      : _storage = storage ?? lunaStorage() {
+  FirebaseMediaBlobStore({FirebaseStorage? storage}) : _injected = storage;
+
+  final FirebaseStorage? _injected;
+
+  /// Resolved on first use, not in the constructor. The Assistant is a tab, so
+  /// `MediaWiring` builds this store when the shell mounts, long before
+  /// anything is uploaded -- and `lunaStorage()` throws with no Firebase app,
+  /// the state of every harness that pumps the whole app.
+  late final FirebaseStorage _storage = _configure(_injected ?? lunaStorage());
+
+  static FirebaseStorage _configure(FirebaseStorage storage) {
     // ────────────────────────────────────────────────────────────────────────
     // THIS LINE IS LOAD-BEARING. Do not remove it as a "default anyway".
     //
@@ -66,11 +75,10 @@ class FirebaseMediaBlobStore implements MediaBlobStore {
     // this feature: a pre-flight ping can succeed while the upload still
     // fails, so the bounded attempt IS the check.
     // ────────────────────────────────────────────────────────────────────────
-    _storage.setMaxUploadRetryTime(const Duration(seconds: 20));
-    _storage.setMaxOperationRetryTime(const Duration(seconds: 20));
+    storage.setMaxUploadRetryTime(const Duration(seconds: 20));
+    storage.setMaxOperationRetryTime(const Duration(seconds: 20));
+    return storage;
   }
-
-  final FirebaseStorage _storage;
 
   /// Content type is the ONLY metadata sent.
   ///

@@ -3,37 +3,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
-import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/data/daily_log_repository.dart';
-import 'package:menstrul_track/providers/log_provider.dart';
 import 'package:menstrul_track/data/product_session_repository.dart';
 import 'package:menstrul_track/data/reminder_repository.dart';
+import 'package:menstrul_track/data/settings_repository.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/l10n/app_localizations.dart';
 import 'package:menstrul_track/models/cycle.dart';
 import 'package:menstrul_track/models/insights.dart';
 import 'package:menstrul_track/models/month_ring.dart';
 import 'package:menstrul_track/models/prediction.dart';
+import 'package:menstrul_track/providers/log_provider.dart';
 import 'package:menstrul_track/providers/premium_provider.dart';
 import 'package:menstrul_track/providers/product_session_provider.dart';
 import 'package:menstrul_track/providers/settings_provider.dart';
+import 'package:menstrul_track/screens/calendar/calendar_screen.dart';
+import 'package:menstrul_track/screens/forecast/forecast_screen.dart';
 import 'package:menstrul_track/screens/home/home_screen.dart';
 import 'package:menstrul_track/services/cycle_check_in.dart';
+import 'package:menstrul_track/services/month_ring_builder.dart';
 import 'package:menstrul_track/services/prediction_service.dart';
 import 'package:menstrul_track/theme/app_theme.dart';
 
-/// The Home dashboard surfaces the single most-notable "Your patterns"
-/// narrative as a highlight — but never the 'phase' one (the phase card already
-/// says where the user is now), and nothing at all when data is thin.
+/// Forecast left the bottom bar when the Assistant took index 2, so these two
+/// entry points are now the ONLY way to reach it. A regression here would not
+/// fail anything else: the screen still exists, it just becomes unreachable.
 void main() {
   late AppDatabase db;
   late SettingsProvider settings;
+  late LogProvider log;
 
   final cycles = [
-    Cycle(
-        start: DateTime(2026, 1, 1),
-        end: DateTime(2026, 1, 5),
-        lengthDays: 28),
+    Cycle(start: DateTime(2026, 1, 1), end: DateTime(2026, 1, 5), lengthDays: 28),
     Cycle(start: DateTime(2026, 1, 29), end: DateTime(2026, 2, 2)),
   ];
   final prediction =
@@ -43,71 +44,72 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     settings = SettingsProvider(SettingsRepository(db));
     await settings.load();
+    log = LogProvider(DailyLogRepository(db));
+    await log.load();
   });
   tearDown(() => db.close());
 
-  Future<void> pump(WidgetTester tester, List<CycleNarrative> narratives) async {
-    // Tall enough that the whole dashboard is BUILT: a ListView lays out
-    // only what is on screen, and the cycle card's "See forecast" button (the
-    // way into Forecast since the Assistant took its tab) pushed these cards
-    // past the default 800x600 surface. A negative assertion below the fold
-    // would otherwise pass without looking at anything.
-    tester.view.physicalSize = const Size(1080, 3200);
+  Future<void> pump(WidgetTester tester, Widget screen) async {
+    // Phone width, the real theme: a button that only fits at the 800px test
+    // default is the failure CLAUDE.md's first design note describes.
+    tester.view.physicalSize = const Size(360, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
+    final ring = MonthRingBuilder.build(
+        logs: log.logs, prediction: prediction, today: DateTime.now());
     await tester.pumpWidget(MultiProvider(
       providers: [
+        Provider<AppDatabase>.value(value: db),
         ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+        ChangeNotifierProvider<LogProvider>.value(value: log),
         ChangeNotifierProvider<PremiumProvider>(
             create: (_) => PremiumProvider(SettingsRepository(db))),
-        // Home reads the in-progress product-change session. No fixture here
-        // starts one, which is what keeps the card's Timer — and therefore
-        // pumpAndSettle — out of this test.
-        // Home reads today's flow to decide whether to offer the change
-        // timer, so LogProvider must be present even where the test does
-        // not care about logs.
-        ChangeNotifierProvider<LogProvider>(
-          create: (_) => LogProvider(DailyLogRepository(db)),
-        ),
         ChangeNotifierProvider<ProductSessionProvider>(
           create: (_) => ProductSessionProvider(
               ProductSessionRepository(ReminderRepository(db))),
         ),
         Provider<PredictionResult>.value(value: prediction),
-        Provider<List<CycleNarrative>>.value(value: narratives),
+        Provider<List<PredictedPeriod>>.value(value: const []),
+        Provider<List<CycleNarrative>>.value(value: const []),
         Provider<OvulationConfirmation>.value(
             value: const OvulationConfirmation(null)),
         Provider<CheckInPrompt>.value(value: CheckInPrompt.none),
-        Provider<MonthRingData>.value(value: MonthRingData.empty(DateTime.now())),
+        Provider<MonthRingData>.value(value: ring),
       ],
       child: MaterialApp(
         theme: AppTheme.light(),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: const HomeScreen(),
+        home: screen,
       ),
     ));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('shows the top pattern as a highlight', (tester) async {
-    await pump(tester, const [
-      CycleNarrative('cycle_trend',
-          'Your last 3 cycles have run about 2 days shorter than the cycles before.'),
-    ]);
-    expect(find.textContaining('2 days shorter'), findsOneWidget);
+  testWidgets('Home cycle card opens Forecast', (tester) async {
+    await pump(tester, const HomeScreen());
+    final button = find.byKey(const Key('home-see-forecast'));
+    expect(button, findsOneWidget);
+    expect(find.text('See forecast'), findsOneWidget);
+
+    // Inside the viewport, not clipped off the right edge at 360dp.
+    final rect = tester.getRect(button);
+    expect(rect.left, greaterThanOrEqualTo(0));
+    expect(rect.right, lessThanOrEqualTo(360));
+
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(find.byType(ForecastScreen), findsOneWidget);
   });
 
-  testWidgets('does NOT highlight the phase narrative (the phase card covers it)',
-      (tester) async {
-    await pump(tester, const [
-      CycleNarrative('phase', 'Day 18 of your cycle — your luteal phase, after ovulation.'),
-    ]);
-    expect(find.textContaining('after ovulation'), findsNothing);
-  });
+  testWidgets('Calendar app bar opens Forecast', (tester) async {
+    await pump(tester, const CalendarScreen());
+    final action = find.byKey(const Key('calendar-forecast-action'));
+    expect(action, findsOneWidget);
+    expect(find.byTooltip('Forecast'), findsOneWidget);
 
-  testWidgets('shows no highlight when there are no patterns', (tester) async {
-    await pump(tester, const []);
-    expect(find.byIcon(Icons.insights_outlined), findsNothing);
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    expect(find.byType(ForecastScreen), findsOneWidget);
   });
 }

@@ -52,11 +52,18 @@ Iterable<File> _libSources() sync* {
   }
 }
 
+/// Every source that handles a user's photos or what was said about them.
+///
+/// The assistant is included by path rather than by name: its screens carry
+/// the same body photos and health conversations as `screens/media/`, and
+/// `assistant_image_prep.dart` holds their bytes, but neither says "media".
 Iterable<File> _mediaSources() => _libSources().where(
       (f) =>
           f.path.contains('media') ||
           f.path.contains('storage_ref') ||
-          f.path.contains('screens/media'),
+          f.path.contains('screens/media') ||
+          f.path.contains('screens/assistant/') ||
+          f.path.endsWith('assistant_image_prep.dart'),
     );
 
 void main() {
@@ -350,6 +357,45 @@ void main() {
           reason: 'five destinations means five screens');
 
       expect(src, isNot(contains('screens/media/')));
+    });
+
+    test('the Assistant holds index 2 and Forecast moved off the bar', () {
+      // Owner decision (2026-09-23): the Assistant replaces the Forecast TAB,
+      // not Forecast. Index 0 stays Today because `_onSelect` fires the
+      // interstitial there. Forecast is still one tap away from both surfaces
+      // that show a prediction, so removing the tab removed no feature.
+      final src = _code('lib/screens/app_shell.dart');
+
+      final labels = RegExp(r'_labels\s*=\s*\[(.*?)\];', dotAll: true)
+          .firstMatch(src)!
+          .group(1)!;
+      expect(
+        RegExp(r"'([^']+)'").allMatches(labels).map((m) => m.group(1)),
+        ['Today', 'Calendar', 'Assistant', 'Insights', 'Settings'],
+      );
+
+      final screens = RegExp(r'_screens\s*=\s*\[(.*?)\];', dotAll: true)
+          .firstMatch(src)!
+          .group(1)!;
+      expect(
+        RegExp(r'(\w+)\(\)').allMatches(screens).map((m) => m.group(1)),
+        [
+          'HomeScreen',
+          'CalendarScreen',
+          'AssistantScreen',
+          'InsightsScreen',
+          'SettingsScreen',
+        ],
+      );
+      expect(src, isNot(contains('ForecastScreen')));
+
+      for (final path in [
+        'lib/screens/home/home_screen.dart',
+        'lib/screens/calendar/calendar_screen.dart',
+      ]) {
+        expect(_code(path), contains('ForecastScreen()'),
+            reason: '$path must keep a way into Forecast');
+      }
     });
   });
 

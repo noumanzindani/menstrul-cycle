@@ -5,13 +5,18 @@ import '../common/option_art.dart';
 import '../providers/premium_provider.dart';
 import '../services/ad_service.dart';
 import '../widgets/track_art.dart';
+import 'assistant/assistant_screen.dart';
 import 'calendar/calendar_screen.dart';
-import 'forecast/forecast_screen.dart';
 import 'home/home_screen.dart';
 import 'insights/insights_screen.dart';
 import 'settings/settings_screen.dart';
 
-/// Root navigation shell: Home, Calendar, Forecast, Insights, Settings.
+/// Root navigation shell: Home, Calendar, Assistant, Insights, Settings.
+///
+/// The Assistant took Forecast's slot at index 2 (owner decision, 2026-09-23).
+/// Forecast is still a screen, pushed from Home's cycle card and from the
+/// Calendar app bar. Index 0 is unchanged, which keeps the interstitial where
+/// it was.
 ///
 /// Also hosts the RARE interstitial. Council rule: never during a logging flow.
 /// Calendar now hosts inline logging, so the ONLY eligible ad moment is a switch
@@ -48,7 +53,7 @@ class _AppShellState extends State<AppShell>
   static const _screens = [
     HomeScreen(),
     CalendarScreen(),
-    ForecastScreen(),
+    AssistantScreen(),
     InsightsScreen(),
     SettingsScreen(),
   ];
@@ -117,7 +122,7 @@ class _AppShellState extends State<AppShell>
   static const _labels = [
     'Today',
     'Calendar',
-    'Forecast',
+    'Assistant',
     'Insights',
     'Settings',
   ];

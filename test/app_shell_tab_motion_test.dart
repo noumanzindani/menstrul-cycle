@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/main.dart';
+import 'package:menstrul_track/screens/assistant/assistant_screen.dart';
 import 'package:menstrul_track/services/auth_service.dart';
 import 'package:menstrul_track/services/sync_trigger.dart';
 
@@ -119,6 +120,29 @@ void main() {
     await _tapTab(tester, 'Calendar');
     await tester.pump();
     expect(_bodyOpacity(tester), 1.0);
+  });
+
+  testWidgets('the Assistant arrives at index 2, where Forecast used to be',
+      (tester) async {
+    await _pumpToShell(tester);
+
+    final labels = tester
+        .widgetList<NavigationDestination>(find.byType(NavigationDestination))
+        .map((d) => d.label)
+        .toList();
+    expect(labels, ['Today', 'Calendar', 'Assistant', 'Insights', 'Settings']);
+
+    // Mounted from launch like every other tab, and it arrives with the same
+    // fade: the swap changed the destination, not the motion.
+    final stack = tester.widget<IndexedStack>(find.byType(IndexedStack));
+    expect(stack.children[2], isA<AssistantScreen>());
+
+    await _tapTab(tester, 'Assistant');
+    await tester.pump();
+    expect(_bodyOpacity(tester), 0.0);
+    await tester.pumpAndSettle();
+    expect(_bodyOpacity(tester), 1.0);
+    expect(tester.widget<IndexedStack>(find.byType(IndexedStack)).index, 2);
   });
 
   testWidgets('all five tabs stay mounted, so switching preserves their state',

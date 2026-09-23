@@ -392,7 +392,8 @@ const String kSignOutArt = 'assets/track/set_signout.png';
 /// made with the comparison in hand rather than by eye. Rendered at the real
 /// 24px against the live bar, the illustrations lose contrast badly where the
 /// Material glyphs are near-black, and the Forecast and Insights marks turn to
-/// mush at that size.
+/// mush at that size. (Index 2 is now the Assistant; Forecast left the bar on
+/// 2026-09-23.)
 ///
 /// Worse, `NavigationDestination` carries an `icon`/`selectedIcon` pair that one
 /// raster cannot express: the same file serves both states, so the selection
@@ -407,6 +408,10 @@ const String kSignOutArt = 'assets/track/set_signout.png';
 const List<String> kNavArt = [
   'assets/track/nav_today.png',
   'assets/track/nav_calendar.png',
+  // TODO(owner): supply assets/track/nav_assistant.png and point index 2 at
+  // it (then list it in option_art_test's raster set). Until it exists the
+  // Assistant tab borrows the old Forecast tab's mark, which is also why
+  // that file is still bundled.
   'assets/track/nav_forecast.png',
   'assets/track/nav_insights.png',
   'assets/track/nav_settings.png',

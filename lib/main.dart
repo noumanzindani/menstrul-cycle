@@ -271,8 +271,10 @@ class LunarFlowApp extends StatelessWidget {
         // uploader, one analysis service (its memo, caps and in-memory
         // conversations shared by the Assistant and Describe). Declared AFTER
         // the providers above because it reads them, PredictionResult
-        // included. Lazy, so nothing Firebase-shaped is built until media or
-        // the assistant is first opened — see `MediaWiring`.
+        // included. The Assistant tab reads it when the shell mounts, so this
+        // is built at launch; nothing in it touches Firebase until first use
+        // (`FirebaseMediaBlobStore` resolves its bucket lazily) — see
+        // `MediaWiring`.
         Provider<MediaWiring>(create: MediaWiring.fromContext),
         Provider<AssistantBackend>(
           create: (context) => context.read<MediaWiring>().assistant,

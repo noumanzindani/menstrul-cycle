@@ -14,6 +14,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/ad_banner.dart';
 import '../../widgets/day_entry_sheet.dart';
 import '../diary/diary_screen.dart';
+import '../forecast/forecast_screen.dart';
 import '../media/media_route.dart';
 import '../../widgets/disclaimer_banner.dart';
 
@@ -84,6 +85,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
             icon: const Icon(Icons.menu_book_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const DiaryScreen()),
+            ),
+          ),
+          // Forecast left the bottom nav when the Assistant took its tab; the
+          // calendar is the other surface showing predicted periods, so the
+          // next twelve are reachable from here as well as from Home.
+          IconButton(
+            key: const Key('calendar-forecast-action'),
+            tooltip: 'Forecast',
+            icon: const Icon(Icons.date_range_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ForecastScreen()),
             ),
           ),
           // Same reasoning as the Diary action above. Hides itself when there
