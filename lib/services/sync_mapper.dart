@@ -5,6 +5,8 @@ import 'package:drift/drift.dart';
 
 import '../db/database.dart';
 import '../models/enums.dart';
+import 'media_analysis.dart'
+    show attachmentRefsFrom, decodeAttachments, encodeAttachments;
 
 /// Firestore document id for a day: the local ISO-8601 date, e.g. `2026-08-04`.
 ///
@@ -169,6 +171,13 @@ MedicationsCompanion medicationFromMap(
       updatedAt: Value(updatedAtFromMap(map)),
     );
 
+/// A tombstone ([AnalysisSession.deletedAt] set) is sent as the FULL session
+/// shape plus `deletedAt`, never as a bare marker. v15 clients rebuild the
+/// whole row from this document with no idea what `deletedAt` means, so a
+/// document missing `mediaId`, `consentVersion` or `createdAt` would land on
+/// them as an empty ghost conversation. The title is the one field dropped:
+/// it is the user's own first words, and the row only survives to carry the
+/// deletion.
 Map<String, dynamic> analysisSessionToMap(AnalysisSession row) => {
       'uid': row.uid,
       'mediaId': row.mediaId,
@@ -177,8 +186,18 @@ Map<String, dynamic> analysisSessionToMap(AnalysisSession row) => {
       'consentVersion': row.consentVersion,
       'createdAt': row.createdAt.millisecondsSinceEpoch,
       'updatedAt': row.updatedAt.millisecondsSinceEpoch,
+      if (row.deletedAt == null && row.title != null) 'title': row.title,
+      if (row.deletedAt != null)
+        'deletedAt': row.deletedAt!.millisecondsSinceEpoch,
     };
 
+/// Decodes a session document from any client version.
+///
+/// A v15 document has no `title` and no `deletedAt`. `deletedAt` then reads as
+/// null (live), but `title` is left ABSENT rather than null: a v15 device that
+/// re-pushes a conversation it only knows in the old shape must not erase the
+/// title this device holds. On insert an absent column takes its default,
+/// which is null, so a brand-new row comes out the same either way.
 AnalysisSessionsCompanion analysisSessionFromMap(
         String id, Map<String, dynamic> map) =>
     AnalysisSessionsCompanion(
@@ -188,19 +207,38 @@ AnalysisSessionsCompanion analysisSessionFromMap(
       consentVersion: Value((map['consentVersion'] as num?)?.toInt() ?? 0),
       createdAt: Value(createdAtFromMap(map) ?? DateTime.now()),
       updatedAt: Value(updatedAtFromMap(map) ?? DateTime.now()),
+      title: map.containsKey('title')
+          ? Value(map['title'] as String?)
+          : const Value.absent(),
+      deletedAt: Value(_millisOrNull(map['deletedAt'])),
     );
 
-Map<String, dynamic> analysisMessageToMap(AnalysisMessage row) => {
-      'sessionId': row.sessionId,
-      'role': row.role,
-      'messageText': row.messageText,
-      'createdAt': row.createdAt.millisecondsSinceEpoch,
-      // Messages are append-only and never edited, so `createdAt` doubles as
-      // the merge field. Sent under both names so the shared
-      // `updatedAtFromMap` reader works without a special case.
-      'updatedAt': row.createdAt.millisecondsSinceEpoch,
-    };
+/// Attachments travel as a real list of `{mediaId, kind}` maps rather than
+/// the local JSON string, so `firestore.rules` can check each entry's keys —
+/// references only, never bytes and never a URL. `includeInModel` is always
+/// sent; a v15 client ignores it and replays the turn, which is the known,
+/// accepted cost of the declined-video pair.
+Map<String, dynamic> analysisMessageToMap(AnalysisMessage row) {
+  final refs = decodeAttachments(row.attachmentsJson);
+  return {
+    'sessionId': row.sessionId,
+    'role': row.role,
+    'messageText': row.messageText,
+    'createdAt': row.createdAt.millisecondsSinceEpoch,
+    // Messages are append-only and never edited, so `createdAt` doubles as
+    // the merge field. Sent under both names so the shared
+    // `updatedAtFromMap` reader works without a special case.
+    'updatedAt': row.createdAt.millisecondsSinceEpoch,
+    if (refs.isNotEmpty)
+      'attachments': [
+        for (final r in refs) {'mediaId': r.mediaId, 'kind': r.kind.name},
+      ],
+    'includeInModel': row.includeInModel,
+  };
+}
 
+/// Decodes a message document from any client version. A v15 document has
+/// neither field: no attachments, and sent to the model like every v15 turn.
 AnalysisMessagesCompanion analysisMessageFromMap(
         String id, Map<String, dynamic> map) =>
     AnalysisMessagesCompanion(
@@ -209,4 +247,10 @@ AnalysisMessagesCompanion analysisMessageFromMap(
       role: Value(map['role'] as String? ?? 'user'),
       messageText: Value(map['messageText'] as String? ?? ''),
       createdAt: Value(createdAtFromMap(map) ?? DateTime.now()),
+      attachmentsJson:
+          Value(encodeAttachments(attachmentRefsFrom(map['attachments']))),
+      includeInModel: Value(map['includeInModel'] as bool? ?? true),
     );
+
+DateTime? _millisOrNull(Object? v) =>
+    v is int ? DateTime.fromMillisecondsSinceEpoch(v) : null;

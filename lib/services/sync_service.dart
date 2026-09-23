@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../data/daily_log_repository.dart';
 import '../data/settings_repository.dart';
@@ -233,7 +234,7 @@ class SyncService {
       );
       await _pushReminders(since);
       await _pushMedications(since);
-      await _pushAnalysis(since);
+      await _pushAnalysis(uid, since);
       await _writeExtraCursors(nextExtras, extras);
       // `updateSyncState`, NOT `update`: advancing the high-water mark is not a
       // user edit, and stamping `settingsUpdatedAt` here would make every sync
@@ -840,26 +841,86 @@ class SyncService {
     }
   }
 
-  /// Pushes saved photo-description conversations.
+  /// Pushes saved assistant conversations belonging to [uid], and carries
+  /// their deletions.
   ///
   /// Local-only until 2026-09-18, when the owner asked for every table to be
-  /// backed up. The cost is stated plainly in the consent sheet: this is AI
-  /// prose about a body photo, and Firestore is plaintext and readable by
-  /// whoever operates the service.
-  Future<void> _pushAnalysis(DateTime? since) async {
-    for (final row in await _db.select(_db.analysisSessions).get()) {
+  /// backed up. The cost is stated plainly in the consent sheet: this is the
+  /// user's own words and AI prose about their body, and Firestore is
+  /// plaintext and readable by whoever operates the service.
+  ///
+  /// Filtered by [uid], which the v12 version was not: signing out does not
+  /// wipe the device, so another account's rows can sit in the same tables,
+  /// and pushing them here would copy one person's conversation into another
+  /// person's cloud. Message documents carry no uid, so they are filtered
+  /// through the session they belong to.
+  ///
+  /// A tombstoned session is pushed as its full shape plus `deletedAt` (see
+  /// `analysisSessionToMap`), then its remote messages are deleted. A delete
+  /// made offline still arrives: `tombstone()` bumps `updatedAt`, so the next
+  /// push picks it up, and a failed remote delete throws before
+  /// `lastSyncedAt` advances, so the window is retried.
+  Future<void> _pushAnalysis(String uid, DateTime? since) async {
+    final sessions = await (_db.select(_db.analysisSessions)
+          ..where((t) => t.uid.equals(uid)))
+        .get();
+    for (final row in sessions) {
       if (since != null && row.updatedAt.isBefore(since)) continue;
       final map = analysisSessionToMap(row);
       map['syncedAt'] = FieldValue.serverTimestamp();
-      await _remoteSessions.doc(row.id).set(map);
+      await _unlessDenied(row.id, () => _remoteSessions.doc(row.id).set(map));
+      if (row.deletedAt != null) {
+        await _unlessDenied(row.id, () => _deleteRemoteMessages(row.id));
+      }
     }
-    for (final row in await _db.select(_db.analysisMessages).get()) {
+
+    final live = _db.selectOnly(_db.analysisSessions)
+      ..addColumns([_db.analysisSessions.id])
+      ..where(_db.analysisSessions.uid.equals(uid) &
+          _db.analysisSessions.deletedAt.isNull());
+    final messages = await (_db.select(_db.analysisMessages)
+          ..where((t) => t.sessionId.isInQuery(live)))
+        .get();
+    for (final row in messages) {
       // Messages are append-only and never edited, so `createdAt` IS the
       // changed-at time.
       if (since != null && row.createdAt.isBefore(since)) continue;
       final map = analysisMessageToMap(row);
       map['syncedAt'] = FieldValue.serverTimestamp();
-      await _remoteMessages.doc(row.id).set(map);
+      await _unlessDenied(row.id, () => _remoteMessages.doc(row.id).set(map));
+    }
+  }
+
+  /// Deletes every remote message of [sessionId], in batches under
+  /// Firestore's 500-writes-per-batch limit.
+  Future<void> _deleteRemoteMessages(String sessionId) async {
+    final docs = (await _remoteMessages
+            .where('sessionId', isEqualTo: sessionId)
+            .get())
+        .docs;
+    for (var i = 0; i < docs.length; i += 500) {
+      final batch = _firestore.batch();
+      for (final doc in docs.skip(i).take(500)) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+  }
+
+  /// Runs one document's write, tolerating a `permission-denied` on it.
+  ///
+  /// A denial never heals on retry (see the 2026-09-19 note in [syncNow]), so
+  /// letting one denied conversation abort the pass would stall every
+  /// conversation after it, forever. Only the document id is logged, never
+  /// its content. Every other error still throws, so a dropped connection
+  /// keeps `lastSyncedAt` where it was and the window is retried.
+  Future<void> _unlessDenied(
+      String docId, Future<void> Function() write) async {
+    try {
+      await write();
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') rethrow;
+      debugPrint('sync: permission denied for $docId, skipped');
     }
   }
 
@@ -907,17 +968,56 @@ class SyncService {
   }
 
   /// Both analysis tables key on a TEXT primary key that is already stable
-  /// across devices, so these are plain idempotent upserts. Messages are
-  /// append-only and never edited, which is why neither needs a merge decision.
-  Future<void> _applyRemoteSession(String id, Map<String, dynamic> data) =>
-      _db.into(_db.analysisSessions).insertOnConflictUpdate(
-            analysisSessionFromMap(id, data),
-          );
+  /// across devices, so a live session is a plain idempotent upsert. Messages
+  /// are append-only and never edited, which is why neither needs a merge
+  /// decision.
+  ///
+  /// Deletion is the exception, and it only ever goes one way:
+  ///
+  /// - A remote `deletedAt` wins: the row becomes a tombstone here and its
+  ///   messages are deleted. There is no undelete.
+  /// - A remote copy WITHOUT `deletedAt` over a local tombstone is a stale
+  ///   `set()` from a v15 device, which cannot know the field exists. The
+  ///   local tombstone stays, and its `updatedAt` is bumped so this run's push
+  ///   writes the tombstone back over the stale copy.
+  Future<void> _applyRemoteSession(String id, Map<String, dynamic> data) async {
+    final remote = analysisSessionFromMap(id, data);
+    final local = await (_db.select(_db.analysisSessions)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    final remoteDeleted = remote.deletedAt.value != null;
 
-  Future<void> _applyRemoteMessage(String id, Map<String, dynamic> data) =>
-      _db.into(_db.analysisMessages).insertOnConflictUpdate(
-            analysisMessageFromMap(id, data),
+    if (local?.deletedAt != null) {
+      if (!remoteDeleted) {
+        await (_db.update(_db.analysisSessions)..where((t) => t.id.equals(id)))
+            .write(AnalysisSessionsCompanion(updatedAt: Value(DateTime.now())));
+      }
+      return;
+    }
+    if (!remoteDeleted) {
+      await _db.into(_db.analysisSessions).insertOnConflictUpdate(remote);
+      return;
+    }
+    await _db.transaction(() async {
+      await _db.into(_db.analysisSessions).insertOnConflictUpdate(
+            remote.copyWith(title: const Value(null)),
           );
+      await (_db.delete(_db.analysisMessages)
+            ..where((t) => t.sessionId.equals(id)))
+          .go();
+    });
+  }
+
+  /// Drops a message whose session is a tombstone here: it can only be a
+  /// late copy of a turn the user already deleted.
+  Future<void> _applyRemoteMessage(String id, Map<String, dynamic> data) async {
+    final message = analysisMessageFromMap(id, data);
+    final session = await (_db.select(_db.analysisSessions)
+          ..where((t) => t.id.equals(message.sessionId.value)))
+        .getSingleOrNull();
+    if (session?.deletedAt != null) return;
+    await _db.into(_db.analysisMessages).insertOnConflictUpdate(message);
+  }
 
   /// Pulls one of the v12 collections, applying [apply] to each document whose
   /// remote copy is newer than the local one.

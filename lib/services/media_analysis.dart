@@ -411,6 +411,17 @@ List<AttachmentRef> decodeAttachments(String? json) {
   } on FormatException {
     return const [];
   }
+  return attachmentRefsFrom(decoded);
+}
+
+/// The decoded-value half of [decodeAttachments], shared with the sync mapper,
+/// which receives the same list as a Firestore array rather than a string.
+///
+/// Anything that is not a list of `{mediaId, kind}` maps, with a non-empty
+/// string id and a kind of `image` or `video`, is dropped entry by entry, and
+/// only those two keys are ever read, so a smuggled field (a URL) never
+/// reaches a stored row.
+List<AttachmentRef> attachmentRefsFrom(Object? decoded) {
   if (decoded is! List) return const [];
   return [
     for (final entry in decoded)
