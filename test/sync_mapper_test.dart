@@ -208,6 +208,29 @@ void main() {
       expect(c.title.present, isFalse);
     });
 
+    test('a session field of the wrong type reads as its default', () {
+      // Neither ruleset checks these types. A throw here would abort the
+      // whole extras pull, and every later sync would die on the same
+      // document.
+      final c = analysisSessionFromMap('s-1', {
+        'uid': 42,
+        'mediaId': true,
+        'consentVersion': 'seven',
+        'createdAt': 'yesterday',
+        'updatedAt': <String, dynamic>{},
+        'title': 42,
+        'deletedAt': 'soon',
+      });
+
+      expect(c.uid.value, '');
+      expect(c.mediaId.value, '');
+      expect(c.consentVersion.value, 0);
+      expect(c.deletedAt.value, isNull);
+      // Absent, like a v15 document: a bad value must not erase the title
+      // this device holds.
+      expect(c.title.present, isFalse);
+    });
+
     test('a message sends its attachments as references and includeInModel',
         () async {
       final row = await storedMessage(AnalysisMessagesCompanion.insert(
@@ -270,6 +293,21 @@ void main() {
       });
 
       expect(c.attachmentsJson.value, isNull);
+      expect(c.includeInModel.value, isTrue);
+    });
+
+    test('a message field of the wrong type reads as its default', () {
+      final c = analysisMessageFromMap('m-1', {
+        'sessionId': 7,
+        'role': ['user'],
+        'messageText': 3.5,
+        'createdAt': 'today',
+        'includeInModel': 'yes',
+      });
+
+      expect(c.sessionId.value, '');
+      expect(c.role.value, 'user');
+      expect(c.messageText.value, '');
       expect(c.includeInModel.value, isTrue);
     });
 

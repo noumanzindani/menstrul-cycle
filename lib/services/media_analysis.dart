@@ -105,6 +105,15 @@ const int kMaxQuestionLength = 200;
 /// Most photos one message may attach.
 const int kMaxImagesPerMessage = 3;
 
+/// Most attachment references of any kind one message may carry.
+///
+/// Above [kMaxImagesPerMessage] to leave room for videos, which the assistant
+/// declines but still stores. It is the cap `firestore.rules` enforces on
+/// `analysisMessages`, and a refused write is skipped by the sync, not
+/// retried, so a message over it would silently be missing from the backup.
+/// The composer and `AnalysisSessionRepository.append` both hold to it.
+const int kMaxAttachmentsPerMessage = 6;
+
 /// Most distinct photos one conversation may hold.
 ///
 /// The binding cap of the two. `generateContent` keeps no state, so every

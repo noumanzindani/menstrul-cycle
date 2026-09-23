@@ -257,6 +257,28 @@ void main() {
 
       expect((await repo.messagesFor(s.id)).single.includeInModel, isFalse);
     });
+
+    test('refuses more attachments than the cloud backup accepts', () async {
+      // `firestore.rules` refuses such a message, and the sync skips a
+      // refused write rather than retrying it: stored here, it would vanish
+      // from the backup without a trace.
+      final s = await repo.create(uid: 'u1', consentVersion: 7);
+      final tooMany = [
+        for (var i = 0; i <= kMaxAttachmentsPerMessage; i++)
+          AttachmentRef.image(i.toRadixString(16).padLeft(32, '0')),
+      ];
+
+      await expectLater(
+        repo.append(
+          sessionId: s.id,
+          role: 'user',
+          text: 'x',
+          attachments: tooMany,
+        ),
+        throwsArgumentError,
+      );
+      expect(await repo.messagesFor(s.id), isEmpty);
+    });
   });
 
   group('tombstone', () {

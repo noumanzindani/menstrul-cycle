@@ -197,21 +197,31 @@ Map<String, dynamic> analysisSessionToMap(AnalysisSession row) => {
 /// null (live), but `title` is left ABSENT rather than null: a v15 device that
 /// re-pushes a conversation it only knows in the old shape must not erase the
 /// title this device holds. On insert an absent column takes its default,
-/// which is null, so a brand-new row comes out the same either way.
+/// which is null, so a brand-new row comes out the same either way. A title
+/// that is not a string is treated the same way.
+///
+/// Every field is read by type test, never by cast: no ruleset checks these
+/// types, and a throw here aborts the whole extras pull, after which every
+/// later sync dies on the same document (the 2026-09-19 failure again).
 AnalysisSessionsCompanion analysisSessionFromMap(
-        String id, Map<String, dynamic> map) =>
-    AnalysisSessionsCompanion(
-      id: Value(id),
-      uid: Value(map['uid'] as String? ?? ''),
-      mediaId: Value(map['mediaId'] as String? ?? ''),
-      consentVersion: Value((map['consentVersion'] as num?)?.toInt() ?? 0),
-      createdAt: Value(createdAtFromMap(map) ?? DateTime.now()),
-      updatedAt: Value(updatedAtFromMap(map) ?? DateTime.now()),
-      title: map.containsKey('title')
-          ? Value(map['title'] as String?)
-          : const Value.absent(),
-      deletedAt: Value(_millisOrNull(map['deletedAt'])),
-    );
+    String id, Map<String, dynamic> map) {
+  final title = map['title'];
+  return AnalysisSessionsCompanion(
+    id: Value(id),
+    uid: Value(_stringOr(map['uid'], '')),
+    mediaId: Value(_stringOr(map['mediaId'], '')),
+    consentVersion: Value(switch (map['consentVersion']) {
+      final num v => v.toInt(),
+      _ => 0,
+    }),
+    createdAt: Value(_millisOrNull(map['createdAt']) ?? DateTime.now()),
+    updatedAt: Value(_millisOrNull(map['updatedAt']) ?? DateTime.now()),
+    title: title is String || (title == null && map.containsKey('title'))
+        ? Value(title as String?)
+        : const Value.absent(),
+    deletedAt: Value(_millisOrNull(map['deletedAt'])),
+  );
+}
 
 /// Attachments travel as a real list of `{mediaId, kind}` maps rather than
 /// the local JSON string, so `firestore.rules` can check each entry's keys —
@@ -239,18 +249,27 @@ Map<String, dynamic> analysisMessageToMap(AnalysisMessage row) {
 
 /// Decodes a message document from any client version. A v15 document has
 /// neither field: no attachments, and sent to the model like every v15 turn.
+///
+/// Read by type test, never by cast, for the reason given on
+/// [analysisSessionFromMap]: `validMessage` in `firestore.rules` restricts
+/// which keys a message may carry, not their types.
 AnalysisMessagesCompanion analysisMessageFromMap(
         String id, Map<String, dynamic> map) =>
     AnalysisMessagesCompanion(
       id: Value(id),
-      sessionId: Value(map['sessionId'] as String? ?? ''),
-      role: Value(map['role'] as String? ?? 'user'),
-      messageText: Value(map['messageText'] as String? ?? ''),
-      createdAt: Value(createdAtFromMap(map) ?? DateTime.now()),
+      sessionId: Value(_stringOr(map['sessionId'], '')),
+      role: Value(_stringOr(map['role'], 'user')),
+      messageText: Value(_stringOr(map['messageText'], '')),
+      createdAt: Value(_millisOrNull(map['createdAt']) ?? DateTime.now()),
       attachmentsJson:
           Value(encodeAttachments(attachmentRefsFrom(map['attachments']))),
-      includeInModel: Value(map['includeInModel'] as bool? ?? true),
+      includeInModel: Value(switch (map['includeInModel']) {
+        final bool v => v,
+        _ => true,
+      }),
     );
 
 DateTime? _millisOrNull(Object? v) =>
     v is int ? DateTime.fromMillisecondsSinceEpoch(v) : null;
+
+String _stringOr(Object? v, String fallback) => v is String ? v : fallback;

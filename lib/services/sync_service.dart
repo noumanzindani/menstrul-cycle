@@ -44,6 +44,12 @@ class SyncService {
 
   bool _running = false;
 
+  /// Tombstones this run must write back over a stale v15 copy, whatever
+  /// their `updatedAt`. Filled by [_applyRemoteSession] during the pull and
+  /// drained by [_pushAnalysis]; see the note on [_applyRemoteSession] for why
+  /// this is a set and not a bumped `updatedAt`.
+  final Set<String> _tombstonesToReassert = {};
+
   CollectionReference<Map<String, dynamic>> get _remoteLogs =>
       _firestore.collection('users/$uid/dailyLogs');
 
@@ -138,6 +144,7 @@ class SyncService {
   Future<void> syncNow() async {
     if (_running) return; // overlapping runs would fight over the same window
     _running = true;
+    _tombstonesToReassert.clear();
     try {
       // An account with a deletion request on record is invisible to sync in
       // BOTH directions, for the whole grace window.
@@ -859,13 +866,19 @@ class SyncService {
   /// `analysisSessionToMap`), then its remote messages are deleted. A delete
   /// made offline still arrives: `tombstone()` bumps `updatedAt`, so the next
   /// push picks it up, and a failed remote delete throws before
-  /// `lastSyncedAt` advances, so the window is retried.
+  /// `lastSyncedAt` advances, so the window is retried. A tombstone that
+  /// [_applyRemoteSession] found overwritten this run is pushed outside the
+  /// window, with its `updatedAt` as it was.
   Future<void> _pushAnalysis(String uid, DateTime? since) async {
     final sessions = await (_db.select(_db.analysisSessions)
           ..where((t) => t.uid.equals(uid)))
         .get();
     for (final row in sessions) {
-      if (since != null && row.updatedAt.isBefore(since)) continue;
+      if (since != null &&
+          row.updatedAt.isBefore(since) &&
+          !_tombstonesToReassert.contains(row.id)) {
+        continue;
+      }
       final map = analysisSessionToMap(row);
       map['syncedAt'] = FieldValue.serverTimestamp();
       await _unlessDenied(row.id, () => _remoteSessions.doc(row.id).set(map));
@@ -978,8 +991,15 @@ class SyncService {
   ///   messages are deleted. There is no undelete.
   /// - A remote copy WITHOUT `deletedAt` over a local tombstone is a stale
   ///   `set()` from a v15 device, which cannot know the field exists. The
-  ///   local tombstone stays, and its `updatedAt` is bumped so this run's push
-  ///   writes the tombstone back over the stale copy.
+  ///   local tombstone stays, and this run's push writes it back over the
+  ///   stale copy ([_tombstonesToReassert]).
+  ///
+  /// The write-back keeps the tombstone's ORIGINAL `updatedAt`. Moving it to
+  /// now would never settle while a v15 device shares the account: v15 stores
+  /// the pulled `updatedAt` and re-sends every row not before the start of its
+  /// previous run, which a fresh `now` always is, so the two devices would
+  /// overwrite each other on every sync of either, forever. An old
+  /// `updatedAt` lands below v15's own window, and it stops.
   Future<void> _applyRemoteSession(String id, Map<String, dynamic> data) async {
     final remote = analysisSessionFromMap(id, data);
     final local = await (_db.select(_db.analysisSessions)
@@ -988,10 +1008,7 @@ class SyncService {
     final remoteDeleted = remote.deletedAt.value != null;
 
     if (local?.deletedAt != null) {
-      if (!remoteDeleted) {
-        await (_db.update(_db.analysisSessions)..where((t) => t.id.equals(id)))
-            .write(AnalysisSessionsCompanion(updatedAt: Value(DateTime.now())));
-      }
+      if (!remoteDeleted) _tombstonesToReassert.add(id);
       return;
     }
     if (!remoteDeleted) {
@@ -1009,13 +1026,22 @@ class SyncService {
   }
 
   /// Drops a message whose session is a tombstone here: it can only be a
-  /// late copy of a turn the user already deleted.
+  /// late copy of a turn the user already deleted, typically from a v15
+  /// device that never learned of the delete.
+  ///
+  /// The remote copy is deleted too. The tombstone's own push already cleared
+  /// the conversation's messages, possibly long ago, and nothing else would
+  /// ever remove this one: it would sit in the cloud as the user's plaintext
+  /// words after they deleted them.
   Future<void> _applyRemoteMessage(String id, Map<String, dynamic> data) async {
     final message = analysisMessageFromMap(id, data);
     final session = await (_db.select(_db.analysisSessions)
           ..where((t) => t.id.equals(message.sessionId.value)))
         .getSingleOrNull();
-    if (session?.deletedAt != null) return;
+    if (session?.deletedAt != null) {
+      await _unlessDenied(id, () => _remoteMessages.doc(id).delete());
+      return;
+    }
     await _db.into(_db.analysisMessages).insertOnConflictUpdate(message);
   }
 

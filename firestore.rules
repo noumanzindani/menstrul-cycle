@@ -131,10 +131,13 @@ service cloud.firestore {
       // Every field a v15 or v16 client writes, and nothing else. `attachments`
       // and `includeInModel` are v16; a v15 message has neither, and passes.
       //
-      // The cap of 6 references sits above `kMaxImagesPerMessage` (3) to
-      // leave room for videos, which the assistant declines but still stores.
-      // The composer must never allow more than this in one message: a
-      // refused write is skipped by the sync, not retried.
+      // The cap of 6 references is `kMaxAttachmentsPerMessage` in
+      // lib/services/media_analysis.dart, which sits above
+      // `kMaxImagesPerMessage` (3) to leave room for videos, which the
+      // assistant declines but still stores. The composer and
+      // `AnalysisSessionRepository.append` hold to it: a refused write is
+      // skipped by the sync, not retried. test/media_analysis_test.dart fails
+      // if the two drift apart.
       function validMessage() {
         let d = request.resource.data;
         return d.keys().hasOnly([

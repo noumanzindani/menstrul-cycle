@@ -127,6 +127,10 @@ class AnalysisSessionRepository {
   /// shows but a replay or resume never sends, such as the declined-video
   /// pair.
   ///
+  /// More than [kMaxAttachmentsPerMessage] attachments throws
+  /// [ArgumentError] and stores nothing: the cloud backup would refuse the
+  /// message, and the composer must never offer it.
+  ///
   /// Also bumps the parent session's `updatedAt`, which is what makes that
   /// column mean "last activity" rather than duplicating `createdAt`
   /// forever — [allFor] sorts on it for exactly this reason.
@@ -137,6 +141,13 @@ class AnalysisSessionRepository {
     List<AttachmentRef> attachments = const [],
     bool includeInModel = true,
   }) async {
+    if (attachments.length > kMaxAttachmentsPerMessage) {
+      throw ArgumentError.value(
+        attachments.length,
+        'attachments',
+        'at most $kMaxAttachmentsPerMessage per message',
+      );
+    }
     await _db.into(_db.analysisMessages).insert(
           AnalysisMessagesCompanion.insert(
             id: newMediaId(),

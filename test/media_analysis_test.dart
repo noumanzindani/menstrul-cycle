@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/services/media_analysis.dart';
 
@@ -638,6 +640,31 @@ void main() {
       // cap is what bounds the request, not the per-message one.
       expect(kMaxImagesPerMessage, 3);
       expect(kMaxImagesPerConversation, 4);
+    });
+
+    test('the attachment cap is the one firestore.rules enforces', () {
+      // A message over the rules' cap is refused, and the sync skips a
+      // refused write without retrying: it would be missing from the backup
+      // with no sign. The two numbers must move together.
+      final rules = File('firestore.rules').readAsStringSync();
+      expect(
+        rules,
+        contains('d.attachments.size() <= $kMaxAttachmentsPerMessage'),
+      );
+      // Rules cannot loop, so each index up to the cap is checked by hand.
+      for (var i = 0; i < kMaxAttachmentsPerMessage; i++) {
+        expect(rules, contains('validAttachmentAt(d.attachments, $i)'));
+      }
+      expect(
+        rules,
+        isNot(contains(
+          'validAttachmentAt(d.attachments, $kMaxAttachmentsPerMessage)',
+        )),
+      );
+      expect(
+        kMaxAttachmentsPerMessage,
+        greaterThanOrEqualTo(kMaxImagesPerMessage),
+      );
     });
 
     test('the memo holds twenty openers', () {
