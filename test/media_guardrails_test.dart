@@ -245,7 +245,23 @@ void main() {
       ]) {
         expect(call, isNot(contains(leak)), reason: leak);
       }
-      expect(code, contains('if (kDebugMode)'));
+      // Lexically INSIDE the guard, not merely somewhere in the same file: a
+      // log moved to just after the block would still pass a `contains`.
+      final guard = code.indexOf('if (kDebugMode) {');
+      expect(guard, isNonNegative, reason: 'the log is guarded by a block');
+      final open = code.indexOf('{', guard);
+      var depth = 0;
+      var close = -1;
+      for (var i = open; i < code.length; i++) {
+        if (code[i] == '{') depth++;
+        if (code[i] == '}' && --depth == 0) {
+          close = i;
+          break;
+        }
+      }
+      expect(start, greaterThan(open));
+      expect(start, lessThan(close),
+          reason: 'the log call sits inside `if (kDebugMode) { ... }`');
     });
 
     test('no service API key is hardcoded anywhere in lib/', () {
