@@ -228,6 +228,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     // showing the reason rather than advancing and storing a null.
     if (!_pageAnswered(_page)) return;
     setState(() => _pageError = null);
+    // The PageView keeps the page being left mounted, so a text field on it
+    // (height, weight) keeps focus and the keyboard would ride over the next
+    // question. Only after validation passes: a refused Continue leaves the
+    // keyboard up so the person can fix the field it flagged.
+    FocusScope.of(context).unfocus();
     if (_page < _pageCount - 1) {
       if (_reducedMotion) {
         _controller.jumpToPage(_page + 1);

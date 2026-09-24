@@ -221,6 +221,36 @@ void main() {
         reason: 'the corrected value must be what lands, not a re-entered one');
   });
 
+  testWidgets('the keyboard closes when the details page is left, and stays '
+      'up when Continue is refused', (tester) async {
+    await _pumpOnboarding(tester);
+    await walkTo(tester, bodyQuestion);
+
+    await tester.enterText(
+        find.byKey(const Key('onboarding-height-field')), '165');
+    // Weight left blank: Continue is refused, and the person is still typing.
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(find.text(bodyQuestion), findsOneWidget);
+    expect(tester.testTextInput.isVisible, isTrue,
+        reason: 'a refused Continue must not hide the field it flagged');
+
+    await tester.enterText(
+        find.byKey(const Key('onboarding-weight-field')), '61.5');
+    await tester.tap(find.descendant(
+      of: find.byKey(const Key('menarche-stepper')),
+      matching: find.byIcon(Icons.add),
+    ));
+    await tester.pumpAndSettle();
+    await tapContinue(tester);
+
+    expect(find.text(bodyQuestion).hitTestable(), findsNothing,
+        reason: 'the wizard advanced');
+    expect(tester.testTextInput.isVisible, isFalse,
+        reason: 'the weight field stays mounted in the PageView; its focus '
+            'must not carry the keyboard onto the next question');
+  });
+
   testWidgets('SWIPING does not move the wizard at all — Continue is the only '
       'exit', (tester) async {
     // This used to swipe to the LAST page and assert that "Get started"
