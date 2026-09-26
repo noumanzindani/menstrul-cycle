@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 /// This sheet is the only place a user is told that what they type, every
 /// photo in the conversation and what they have tracked leave both their
 /// device AND their own account, to a company that is not the app.
-/// Everything here is what the code does as of consent v7: it names Google,
+/// Everything here is what the code does as of consent v8: it names Google,
 /// says the listed data is sent rather than "processed", says photos are
 /// resent with every message (the model keeps no memory between calls, see
 /// `buildAnalysisRequest`), names the tracked categories and their 90-day
@@ -108,6 +108,13 @@ class _AnalysisConsentSheet extends StatelessWidget {
                       'Videos stay in the conversation but are never sent. '
                       'Photos you take from the assistant are saved to '
                       'Photos & videos.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'A short topic phrase from each reply is sent to Pexels, '
+                      'a stock-photo service outside LunarFlow, to find a '
+                      'photo to show with it.',
                       style: theme.textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 12),

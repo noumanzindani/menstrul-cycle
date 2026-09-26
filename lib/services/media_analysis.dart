@@ -170,7 +170,10 @@ const int kAnalysisMemoSize = 20;
 /// The sheet also says videos stay behind, that photos taken from the
 /// assistant are saved to Photos & videos, and that conversations can be
 /// deleted. Everyone who agreed under 6 is asked again.
-const int kCurrentConsentVersion = 7;
+/// Bumped to 8 on 2026-09-26: every reply now carries a Pexels stock photo,
+/// found by sending a short topic phrase from the reply to Pexels, a second
+/// outside service. Everyone who agreed under 7 is asked again.
+const int kCurrentConsentVersion = 8;
 
 /// Whether [uid] is consented, given the STORED [consentUid] / [consentVersion].
 ///

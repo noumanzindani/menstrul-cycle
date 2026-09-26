@@ -149,6 +149,13 @@ photo opens the same assistant with that photo attached. This feature is
   own handling of what it receives.** LunarFlow cannot speak for what happens
   to a photo, a message, or the tracked information sent with them, after
   they are sent, and does not claim to.
+- **Each assistant reply shows a stock photo from Pexels.** To find it, a
+  short topic phrase taken from the reply (for example "menstrual cramps
+  relief") is sent to Pexels, a separate stock-photo company with its own
+  terms. The phrase can describe what you were asking about. Nothing else is
+  sent to Pexels: not your messages, your photos, your tracked data or your
+  account. The photo's address and photographer's name are saved with the
+  reply in your conversation.
 - **If you agreed to an earlier version of this feature, you will be asked to
   agree again** before it sends anything. LunarFlow tracks which version of
   this disclosure you agreed to, and widening what is sent asks again rather

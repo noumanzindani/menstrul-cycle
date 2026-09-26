@@ -468,7 +468,7 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
   Saved conversations **were** local-only; the owner reversed that on 2026-09-18 and
   they now sync (`users/{uid}/analysisSessions` + `analysisMessages`), so they DO need
   `firestore.rules` and `functions/purge.js` coverage and have it. That reversal is why
-  `kCurrentConsentVersion` became **3** (it is **7** since the assistant — see "The AI
+  `kCurrentConsentVersion` became **3** (it is **8** since reply images, 7 since the assistant — see "The AI
   assistant" below): version 2's sheet promised the conversation stayed
   on the device, so uploading under an unchanged "Allow" would have been no consent to
   the new disclosure — the same reasoning that created version 2.
@@ -509,6 +509,13 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
     are the cost control: 3 photos per message, 4 distinct per conversation, each
     downscaled to 1024 px JPEG q80, a 12 MB inline budget per request, 20 messages a day,
     `kMaxQuestionLength` still **200** (500 awaits the owner).
+  - **Reply images (2026-09-26, consent v8).** The model ends each reply with
+    `[image: topic]`; `ReplyImageResolver` swaps it for a stored
+    `[[pexels {json}]]` marker via `pexels_client.dart` (the second and last
+    allowed HTTP caller; key `LUNA_PEXELS_KEY`, off when empty). The topic is
+    the real subject, not sanitised, and the app is 8+ — an owner decision,
+    disclosed in the sheet and `PRIVACY_POLICY.md`. Markers are reduced to the
+    tag before replay (`forModel`), so the model never sees a URL.
   - **Consent is v7** because the disclosure widened (typed messages, several photos,
     cloud-saved conversations); earlier versions are asked again.
   - **Owner items still open:** `kAssistantScopeClause` and `kAssistantWelcome` (the display-only greeting, never sent to the model) are `TODO(owner)` placeholders;

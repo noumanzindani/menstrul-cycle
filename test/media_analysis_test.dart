@@ -1051,4 +1051,7 @@ void main() {
       expect(text, contains('no bullet points'));
     });
   });
+  test('consent is version 8 since reply images', () {
+    expect(kCurrentConsentVersion, 8);
+  });
 }

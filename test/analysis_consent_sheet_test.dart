@@ -249,4 +249,16 @@ void main() {
       expect(texts, contains(mustSay), reason: 'sheet must say: $mustSay');
     }
   });
+  testWidgets('v8: says a topic phrase from each reply goes to Pexels',
+      (tester) async {
+    await setPhoneSize(tester);
+    await openSheet(tester);
+
+    expect(
+      find.text('A short topic phrase from each reply is sent to Pexels, a '
+          'stock-photo service outside LunarFlow, to find a photo to show '
+          'with it.'),
+      findsOneWidget,
+    );
+  });
 }
