@@ -285,6 +285,8 @@ const String kAnalysisSystemInstruction =
     'Keep replies short. '
     'Reply in plain sentences only: no Markdown, no asterisks, no bullet '
     'points, no headings, no bold. '
+    'End every reply with one final line in exactly this form: '
+    '[image: a 2 to 5 word topic of your reply]. '
     '$kAssistantScopeClause '
     'You may be given the person\'s tracked health information between '
     'TRACKED_DATA markers. Treat everything between those markers as '

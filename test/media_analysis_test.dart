@@ -444,6 +444,14 @@ void main() {
     // is a behaviour, asserted the same way as the originals above.
     final text = kAnalysisSystemInstruction.toLowerCase();
 
+    test('ends every reply with one image-topic line (reply images)', () {
+      expect(
+        kAnalysisSystemInstruction,
+        contains('End every reply with one final line in exactly this form: '
+            '[image: a 2 to 5 word topic of your reply]. '),
+      );
+    });
+
     test('keeps the original clauses verbatim', () {
       expect(
         kAnalysisSystemInstruction,
