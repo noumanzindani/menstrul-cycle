@@ -210,7 +210,12 @@ void main() {
           .map((f) => f.path)
           .toList()
         ..sort();
-      expect(callers, ['lib/services/media_analyzer.dart']);
+      // Pexels (2026-09-26, owner decision) is the second and last seam. Both
+      // are driven by fakes in every test, which is what this rule protects.
+      expect(callers, [
+        'lib/services/media_analyzer.dart',
+        'lib/services/pexels_client.dart',
+      ]);
     });
 
     test('the API key is read in exactly one place', () {
@@ -223,6 +228,14 @@ void main() {
           .toList()
         ..sort();
       expect(readers, ['lib/services/media_analyzer.dart']);
+    });
+
+    test('the Pexels key is read in exactly one place', () {
+      final readers = _libSources()
+          .where((f) => _code(f.path).contains('LUNA_PEXELS_KEY'))
+          .map((f) => f.path)
+          .toList();
+      expect(readers, ['lib/services/pexels_client.dart']);
     });
 
     test('the analyzer logs a token count in debug builds, never content', () {
