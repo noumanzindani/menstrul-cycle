@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:menstrul_track/db/database.dart';
 import 'package:menstrul_track/screens/assistant/analysis_chat_view.dart';
 import 'package:menstrul_track/services/media_analysis.dart';
+import 'package:menstrul_track/services/reply_image.dart';
 import 'package:menstrul_track/theme/app_theme.dart';
 
 /// The conversation surface, pumped with plain values: it owns no
@@ -249,6 +250,43 @@ void main() {
     final send = tester.getRect(find.byKey(const Key('analysis-ask-button')));
     expect(send.right, lessThanOrEqualTo(360));
     expect(send.bottom, lessThanOrEqualTo(800));
+  });
+  testWidgets('a reply with a photo shows the prose, the photo and a credit '
+      'once loaded, and never the marker', (tester) async {
+    final text = attachImage(
+        'Heat can help.',
+        const ReplyImage(
+            query: 'heat pad', id: 9, src: 'https://i/9.jpg',
+            photographer: 'Sam', photographerUrl: 'https://p/@sam',
+            pageUrl: 'https://p/9'));
+    await pump(tester, entries: [ChatEntry.reply(text)]);
+
+    expect(find.text('Heat can help.'), findsOneWidget);
+    expect(find.textContaining('[[pexels'), findsNothing);
+    expect(find.byKey(const Key('reply-image')), findsOneWidget);
+  });
+
+  testWidgets('a photo that fails to load hides itself and its credit',
+      (tester) async {
+    // flutter_test answers every real network request with a 400, so this
+    // is the failure path.
+    final text = attachImage(
+        'Heat can help.',
+        const ReplyImage(
+            query: 'heat pad', id: 9, src: 'https://i/9.jpg',
+            photographer: 'Sam', photographerUrl: 'https://p/@sam',
+            pageUrl: 'https://p/9'));
+    await pump(tester, entries: [ChatEntry.reply(text)]);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Photo by Sam'), findsNothing);
+    expect(find.text('Heat can help.'), findsOneWidget);
+  });
+
+  testWidgets('a bare tag is never shown as text', (tester) async {
+    await pump(tester, entries: const [ChatEntry.reply('Rest.\n[image: sleep]')]);
+    expect(find.text('Rest.'), findsOneWidget);
+    expect(find.textContaining('[image:'), findsNothing);
   });
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../db/database.dart';
 import '../../services/media_analysis.dart';
+import '../../services/reply_image.dart';
 
 /// What one line of the on-screen transcript is.
 ///
@@ -353,6 +354,7 @@ class _Bubble extends StatelessWidget {
     // rather than a paragraph the user is meant to read and weigh.
     if (!entry.fromUser) {
       final muted = entry.kind != ChatEntryKind.reply;
+      final split = splitReply(entry.text);
       return Padding(
         key: entry.kind == ChatEntryKind.notice
             ? const Key('analysis-notice')
@@ -375,13 +377,20 @@ class _Bubble extends StatelessWidget {
               const SizedBox(width: 8),
             ],
             Expanded(
-              // Selectable so an answer can be copied out.
-              child: SelectableText(
-                entry.text,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  height: 1.45,
-                  color: muted ? scheme.onSurfaceVariant : null,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (split.prose.isNotEmpty)
+                    // Selectable so an answer can be copied out.
+                    SelectableText(
+                      split.prose,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        height: 1.45,
+                        color: muted ? scheme.onSurfaceVariant : null,
+                      ),
+                    ),
+                  if (split.image != null) _ReplyPhoto(split.image!),
+                ],
               ),
             ),
           ],
@@ -643,6 +652,51 @@ class _Pending extends StatelessWidget {
           height: 18,
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
+      ),
+    );
+  }
+}
+
+/// A Pexels stock photo under a reply. The credit appears only once the image
+/// has actually loaded; a failure hides both, so a missing photo never leaves
+/// a dangling "Photo by".
+class _ReplyPhoto extends StatelessWidget {
+  const _ReplyPhoto(this.image);
+
+  final ReplyImage image;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      key: const Key('reply-image'),
+      padding: const EdgeInsets.only(top: 10),
+      child: Image.network(
+        image.src,
+        semanticLabel: image.query,
+        loadingBuilder: (context, child, progress) => progress == null
+            ? child
+            : const SizedBox(height: 160),
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        frameBuilder: (context, child, frame, _) {
+          if (frame == null) return child;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: child,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Photo by ${image.photographer} on Pexels',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
