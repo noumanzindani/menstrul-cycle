@@ -1293,7 +1293,7 @@ only checked that the ad hid, not that the entry form actually rendered.
 
 Two suites, and `flutter test` does not cover the second:
 
-- `flutter test` — **1733** passing, **2 failing** (2026-09-24; the merged-manifest guardrails
+- `flutter test` — **1773** passing, **2 failing** (2026-09-26; the merged-manifest guardrails
   skip instead of running when there is no `build/` output). (Keep this number current; a
   stale one makes a real regression look like a miscount.) The two failures are
   PRE-EXISTING and not in this lane: `firebase_unavailable_test.dart` taps
