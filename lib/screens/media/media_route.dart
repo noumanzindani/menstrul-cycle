@@ -31,10 +31,12 @@ import '../../services/picker_temp_cache.dart';
 import '../../services/media_sync_service.dart';
 import '../../services/media_thumbnailer.dart';
 import '../../services/media_upload_service.dart';
+import '../../services/pexels_client.dart';
 import '../../services/sync_trigger.dart';
 import '../assistant/assistant_chat_screen.dart';
 import '../assistant/assistant_screen.dart';
 import '../assistant/live_assistant_backend.dart';
+import '../assistant/reply_image_resolver.dart';
 import 'analysis_consent_sheet.dart';
 import 'media_timeline_screen.dart';
 import 'media_viewer_screen.dart';
@@ -96,8 +98,13 @@ class MediaWiring {
     // chat that could only fail.
     final canAnalyze = available && analysisAvailable;
 
+    final pexels = PexelsClient();
     final assistant = LiveAssistantBackend(
       available: canAnalyze,
+      replyImages: ReplyImageResolver(
+        search: pexels.searchTop,
+        enabled: canAnalyze && pexels.available,
+      ),
       service: (persistTurn) => MediaAnalysisService(
         analyzer:
             canAnalyze ? GeminiMediaAnalyzer() : const UnavailableMediaAnalyzer(),

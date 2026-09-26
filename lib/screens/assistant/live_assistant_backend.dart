@@ -11,8 +11,10 @@ import '../../services/media_analysis_service.dart';
 import '../../services/media_paths.dart';
 import '../../services/media_picker_config.dart';
 import '../../services/media_upload_service.dart';
+import '../../services/reply_image.dart';
 import 'analysis_chat_view.dart';
 import 'assistant_backend.dart';
+import 'reply_image_resolver.dart';
 
 /// Saves one errorless exchange; the shape `MediaAnalysisService` calls.
 typedef PersistTurn = Future<void> Function({
@@ -51,6 +53,7 @@ class LiveAssistantBackend implements AssistantBackend {
     AssistantImagePrep? prep,
     VoidCallback? onMediaAdded,
     Listenable? remoteChanges,
+    ReplyImageResolver? replyImages,
   })  : _available = available,
         _sessions = sessions,
         _currentUid = currentUid,
@@ -64,7 +67,8 @@ class LiveAssistantBackend implements AssistantBackend {
         _earnConversation = earnConversation,
         _prep = prep ?? AssistantImagePrep(),
         _onMediaAdded = onMediaAdded,
-        _remoteChanges = remoteChanges {
+        _remoteChanges = remoteChanges,
+        _replyImages = replyImages ?? ReplyImageResolver.off() {
     this.service = service(persistTurn);
   }
 
@@ -93,6 +97,10 @@ class LiveAssistantBackend implements AssistantBackend {
   final Future<bool> Function(BuildContext context)? _earnConversation;
   final AssistantImagePrep _prep;
   final VoidCallback? _onMediaAdded;
+
+  /// Swaps each answer's `[image: …]` line for a stored Pexels marker. Off
+  /// (tags stripped) when the build has no Pexels key.
+  final ReplyImageResolver _replyImages;
 
   /// How a conversation that has no row yet should be created: the photo it
   /// started from and its first words. Set by [send] before the service can
@@ -186,7 +194,7 @@ class LiveAssistantBackend implements AssistantBackend {
       String? subtitle;
       for (final m in messages) {
         if (m.role == AnalysisRole.model.name && m.includeInModel) {
-          subtitle = m.messageText;
+          subtitle = splitReply(m.messageText).prose;
           break;
         }
       }
@@ -251,7 +259,7 @@ class LiveAssistantBackend implements AssistantBackend {
       turns.add(isUser
           ? AnalysisTurn.user(m.messageText,
               attachments: refs[i], includeInModel: m.includeInModel)
-          : AnalysisTurn.model(m.messageText,
+          : AnalysisTurn.model(forModel(m.messageText),
               attachments: refs[i], includeInModel: m.includeInModel));
     }
     // Seeds the SERVICE, not just the screen: its transcript is the only
@@ -363,7 +371,9 @@ class LiveAssistantBackend implements AssistantBackend {
       return const AssistantReply(
           AssistantReplyKind.failed, 'No answer came back. Try again.');
     }
-    return AssistantReply(AssistantReplyKind.answer, prose);
+    final shown = await _replyImages.resolve(prose,
+        fallbackQuery: text.trim().isEmpty ? kDefaultAnalysisQuestion : text);
+    return AssistantReply(AssistantReplyKind.answer, shown);
   }
 
   /// Hands the service the photos of a resumed conversation. A photo that has
@@ -463,10 +473,12 @@ class LiveAssistantBackend implements AssistantBackend {
       text: question,
       attachments: attachments,
     );
+    final stored =
+        await _replyImages.resolve(answer, fallbackQuery: question);
     await _sessions.append(
       sessionId: session.id,
       role: AnalysisRole.model.name,
-      text: answer,
+      text: stored,
     );
     _revision.value++;
   }

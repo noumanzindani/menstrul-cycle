@@ -11,6 +11,7 @@ import 'package:menstrul_track/screens/assistant/analysis_chat_view.dart';
 import 'package:menstrul_track/screens/assistant/assistant_backend.dart';
 import 'package:menstrul_track/screens/assistant/assistant_screen.dart';
 import 'package:menstrul_track/screens/assistant/live_assistant_backend.dart';
+import 'package:menstrul_track/screens/assistant/reply_image_resolver.dart';
 import 'package:menstrul_track/services/assistant_image_prep.dart';
 import 'package:menstrul_track/services/claim_preference.dart';
 import 'package:menstrul_track/services/media_analysis.dart';
@@ -19,6 +20,7 @@ import 'package:menstrul_track/services/media_analyzer.dart';
 import 'package:menstrul_track/services/media_limits.dart';
 import 'package:menstrul_track/services/media_picker_config.dart';
 import 'package:menstrul_track/services/media_upload_service.dart';
+import 'package:menstrul_track/services/reply_image.dart';
 import 'package:menstrul_track/services/sync_trigger.dart';
 
 /// Hand-written, like the service test's: records what the model was sent.
@@ -81,7 +83,8 @@ void main() {
         updatedAt: DateTime(2026, 9, 1),
       );
 
-  LiveAssistantBackend build({Listenable? remoteChanges}) =>
+  LiveAssistantBackend build(
+          {Listenable? remoteChanges, ReplyImageResolver? replyImages}) =>
       LiveAssistantBackend(
         available: true,
         service: (persistTurn) => MediaAnalysisService(
@@ -119,6 +122,7 @@ void main() {
               Uint8List(8),
         ),
         remoteChanges: remoteChanges,
+        replyImages: replyImages,
       );
 
   setUp(() async {
@@ -614,6 +618,64 @@ void main() {
       expect(build().canCapture, isFalse);
       upload = () => const MediaUploadOutcome();
       expect(build().canCapture, isTrue);
+    });
+  });
+  group('reply images', () {
+    const img = ReplyImage(
+        query: 'heat pad', id: 9, src: 'https://i/9.jpg', photographer: 'Sam',
+        photographerUrl: 'https://p/@sam', pageUrl: 'https://p/9');
+    late List<String> searches;
+    ReplyImageResolver images() => ReplyImageResolver(
+        enabled: true,
+        search: (q) async {
+          searches.add(q);
+          return img;
+        });
+    setUp(() => searches = []);
+
+    test('the saved reply and the returned reply carry one resolved photo',
+        () async {
+      analyzer.answer = 'Heat can help.\n[image: heat pad]';
+      final reply = await build(replyImages: images())
+          .send(conversationId: 'chat-1', text: 'cramps?');
+
+      expect(splitReply(reply.text).prose, 'Heat can help.');
+      expect(splitReply(reply.text).image, img);
+      final stored = await sessions.messagesFor('chat-1');
+      expect(splitReply(stored.last.messageText).image, img);
+      expect(searches, ['heat pad'], reason: 'persist and send share one');
+    });
+
+    test('a resumed chat replays the tag, never the URL or the name', () async {
+      final backend = build(replyImages: images());
+      analyzer.answer = 'Heat can help.\n[image: heat pad]';
+      await backend.send(conversationId: 'chat-1', text: 'cramps?');
+      backend.endConversation('chat-1');
+
+      await backend.open('chat-1');
+      analyzer.answer = 'ok\n[image: rest]';
+      await backend.send(conversationId: 'chat-1', text: 'more?');
+
+      final replayed = analyzer.lastHistory.last.text;
+      expect(replayed, 'Heat can help.\n[image: heat pad]');
+      expect(replayed, isNot(contains('https://')));
+    });
+
+    test('the conversations list subtitle never shows a marker', () async {
+      analyzer.answer = 'Heat can help.\n[image: heat pad]';
+      final backend = build(replyImages: images());
+      await backend.send(conversationId: 'chat-1', text: 'cramps?');
+
+      final list = await backend.conversations();
+      expect(list.single.subtitle, 'Heat can help.');
+    });
+
+    test('with no resolver the tag is stripped and nothing is searched',
+        () async {
+      analyzer.answer = 'Heat can help.\n[image: heat pad]';
+      final reply =
+          await build().send(conversationId: 'chat-1', text: 'cramps?');
+      expect(reply.text, 'Heat can help.');
     });
   });
 }
