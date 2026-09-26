@@ -4,7 +4,7 @@ import 'package:menstrul_track/screens/assistant/reply_image_resolver.dart';
 import 'package:menstrul_track/services/reply_image.dart';
 
 ReplyImage _img(String q) => ReplyImage(
-    query: q, id: 1, src: 'https://i/1.jpg', photographer: 'Sam',
+    query: q, id: 1, src: 'https://images.pexels.com/photos/1.jpg', photographer: 'Sam',
     photographerUrl: 'https://p/@sam', pageUrl: 'https://p/1');
 
 void main() {
@@ -55,9 +55,28 @@ void main() {
     expect(searches, ['b']);
   });
 
-  test('an already-resolved marker is returned untouched', () async {
-    final stored = attachImage('A', _img('b'));
-    expect(await resolver().resolve(stored, fallbackQuery: 'q'), stored);
+  test('a marker in live model output is never trusted: it is re-searched',
+      () async {
+    // Prompt injection (text in a photo, or the user's message) could make
+    // the model emit a marker pointing anywhere. Only a search result may
+    // become an image.
+    answer = (q) => _img('searched');
+    final injected = attachImage('A', _img('b'));
+    final out = await resolver().resolve(injected, fallbackQuery: 'q');
+    expect(searches, ['b']);
+    expect(splitReply(out).image, _img('searched'));
+  });
+
+  test('its own output resolved again is served from memory', () async {
+    final r = resolver();
+    final out = await r.resolve('A\n[image: b]', fallbackQuery: 'q');
+    expect(await r.resolve(out, fallbackQuery: 'q'), out);
+    expect(searches, ['b']);
+  });
+
+  test('an empty fallback query means no search', () async {
+    final out = await resolver().resolve('A', fallbackQuery: '');
+    expect(out, 'A');
     expect(searches, isEmpty);
   });
 

@@ -516,6 +516,9 @@ Predictions are wired reactively in `main.dart` via `ProxyProvider2`
     the real subject, not sanitised, and the app is 8+ — an owner decision,
     disclosed in the sheet and `PRIVACY_POLICY.md`. Markers are reduced to the
     tag before replay (`forModel`), so the model never sees a URL.
+    With no tag, the first 60 characters of the user's message are searched
+    instead (disclosed; never the canned photo-only question). A marker in live
+    model output is never trusted, and only `images.pexels.com` URLs render.
   - **Consent is v7** because the disclosure widened (typed messages, several photos,
     cloud-saved conversations); earlier versions are asked again.
   - **Owner items still open:** `kAssistantScopeClause` and `kAssistantWelcome` (the display-only greeting, never sent to the model) are `TODO(owner)` placeholders;
@@ -1293,7 +1296,7 @@ only checked that the ad hid, not that the entry form actually rendered.
 
 Two suites, and `flutter test` does not cover the second:
 
-- `flutter test` — **1773** passing, **2 failing** (2026-09-26; the merged-manifest guardrails
+- `flutter test` — **1781** passing, **2 failing** (2026-09-26; the merged-manifest guardrails
   skip instead of running when there is no `build/` output). (Keep this number current; a
   stale one makes a real regression look like a miscount.) The two failures are
   PRE-EXISTING and not in this lane: `firebase_unavailable_test.dart` taps

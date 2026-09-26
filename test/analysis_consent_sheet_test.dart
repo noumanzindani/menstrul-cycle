@@ -257,7 +257,8 @@ void main() {
     expect(
       find.text('A short topic phrase from each reply is sent to Pexels, a '
           'stock-photo service outside LunarFlow, to find a photo to show '
-          'with it.'),
+          'with it. If a reply has no topic phrase, the start of your '
+          'message is sent instead.'),
       findsOneWidget,
     );
   });

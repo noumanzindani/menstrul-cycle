@@ -34,10 +34,38 @@ void main() {
       expect(s.query, isNull);
     });
 
-    test('only the last of two tags counts', () {
+    test('every whole-line tag is hidden; the last one is the query', () {
       final s = splitReply('A\n[image: one]\n[image: two]');
-      expect(s.prose, 'A\n[image: one]');
+      expect(s.prose, 'A');
       expect(s.query, 'two');
+    });
+
+    test('a tag the model put first, with prose after, is still found', () {
+      final s = splitReply('[image: cramps]\nRest helps.\nHope this helps!');
+      expect(s.prose, 'Rest helps.\nHope this helps!');
+      expect(s.query, 'cramps');
+    });
+
+    test('the tag is matched case-insensitively', () {
+      final s = splitReply('A\n[Image: Heat Pad]');
+      expect(s.prose, 'A');
+      expect(s.query, 'Heat Pad');
+    });
+
+    test('a marker line that is not last is hidden from the prose', () {
+      final s = splitReply(
+          'A\n[[pexels {"q":"x"}]]\nMore.');
+      expect(s.prose, 'A\nMore.');
+      expect(s.image, isNull);
+    });
+
+    test('a marker whose image is not on images.pexels.com is refused', () {
+      final bad = attachImage('Hi.', const ReplyImage(
+        query: 'q', id: 1, src: 'https://attacker.example/p.png',
+        photographer: 'a', photographerUrl: 'https://p/a',
+        pageUrl: 'https://p/1'));
+      expect(splitReply(bad).image, isNull);
+      expect(splitReply(bad).prose, 'Hi.');
     });
 
     test('an empty tag is no query', () {

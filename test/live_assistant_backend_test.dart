@@ -622,7 +622,7 @@ void main() {
   });
   group('reply images', () {
     const img = ReplyImage(
-        query: 'heat pad', id: 9, src: 'https://i/9.jpg', photographer: 'Sam',
+        query: 'heat pad', id: 9, src: 'https://images.pexels.com/photos/9.jpg', photographer: 'Sam',
         photographerUrl: 'https://p/@sam', pageUrl: 'https://p/9');
     late List<String> searches;
     ReplyImageResolver images() => ReplyImageResolver(
@@ -668,6 +668,30 @@ void main() {
 
       final list = await backend.conversations();
       expect(list.single.subtitle, 'Heat can help.');
+    });
+
+    test('a tag-only reply with no photo found is no answer, and saves nothing',
+        () async {
+      analyzer.answer = '[image: cramps]';
+      final backend = build(
+          replyImages: ReplyImageResolver(
+              enabled: true, search: (_) async => null));
+      final reply = await backend.send(conversationId: 'chat-1', text: 'hi');
+
+      expect(reply.kind, AssistantReplyKind.failed);
+      expect(await sessions.messagesFor('chat-1'), isEmpty);
+    });
+
+    test('a photo-only Describe with no tag does not search the canned '
+        'question', () async {
+      analyzer.answer = 'A pink pattern.';
+      await build(replyImages: images()).send(
+        conversationId: 'chat-1',
+        originMediaId: 'p1',
+        text: '',
+        attachments: [media['p1']!],
+      );
+      expect(searches, isEmpty);
     });
 
     test('with no resolver the tag is stripped and nothing is searched',

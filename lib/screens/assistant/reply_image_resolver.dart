@@ -37,8 +37,10 @@ class ReplyImageResolver {
   }
 
   Future<String> _resolve(String reply, String fallbackQuery) async {
+    // A marker in LIVE model output is never trusted — prompt injection could
+    // point it anywhere. Only a search result becomes an image; this class's
+    // own output is served from the memo instead of arriving here.
     final split = splitReply(reply);
-    if (split.image != null) return reply;
     if (!_enabled) return split.prose;
     final query = split.query ?? fallbackTopic(fallbackQuery);
     if (query == null) return split.prose;

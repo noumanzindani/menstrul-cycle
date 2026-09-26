@@ -372,7 +372,12 @@ class LiveAssistantBackend implements AssistantBackend {
           AssistantReplyKind.failed, 'No answer came back. Try again.');
     }
     final shown = await _replyImages.resolve(prose,
-        fallbackQuery: text.trim().isEmpty ? kDefaultAnalysisQuestion : text);
+        fallbackQuery: _imageFallbackFor(text));
+    final split = splitReply(shown);
+    if (split.prose.isEmpty && split.image == null) {
+      return const AssistantReply(
+          AssistantReplyKind.failed, 'No answer came back. Try again.');
+    }
     return AssistantReply(AssistantReplyKind.answer, shown);
   }
 
@@ -447,6 +452,12 @@ class LiveAssistantBackend implements AssistantBackend {
     _revision.value++;
   }
 
+  /// What to search when a reply has no image tag: the user's own words, as
+  /// disclosed in consent v8 — but never the canned photo-only question,
+  /// which describes nothing the person asked.
+  static String _imageFallbackFor(String question) =>
+      question.trim() == kDefaultAnalysisQuestion ? '' : question;
+
   /// Saves one errorless exchange; handed to the service at construction.
   ///
   /// [isMemoHit] (see `MediaAnalysisService._persistTurn`'s doc comment): a
@@ -465,6 +476,13 @@ class LiveAssistantBackend implements AssistantBackend {
     if (uid == null) return;
     final existing = await _sessions.byId(conversationId);
     if (isMemoHit && existing != null) return;
+    // Resolved BEFORE the first append, so the user and model rows land
+    // together; and a reply that is only a tag with no photo found is not an
+    // answer at all, so nothing is saved (see `_send`).
+    final stored = await _replyImages.resolve(answer,
+        fallbackQuery: _imageFallbackFor(question));
+    final split = splitReply(stored);
+    if (split.prose.isEmpty && split.image == null) return;
     final session = await _sessionFor(conversationId, uid, existing: existing);
     if (session == null) return;
     await _sessions.append(
@@ -473,8 +491,6 @@ class LiveAssistantBackend implements AssistantBackend {
       text: question,
       attachments: attachments,
     );
-    final stored =
-        await _replyImages.resolve(answer, fallbackQuery: question);
     await _sessions.append(
       sessionId: session.id,
       role: AnalysisRole.model.name,

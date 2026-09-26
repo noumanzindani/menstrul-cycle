@@ -256,7 +256,7 @@ void main() {
     final text = attachImage(
         'Heat can help.',
         const ReplyImage(
-            query: 'heat pad', id: 9, src: 'https://i/9.jpg',
+            query: 'heat pad', id: 9, src: 'https://images.pexels.com/photos/9.jpg',
             photographer: 'Sam', photographerUrl: 'https://p/@sam',
             pageUrl: 'https://p/9'));
     await pump(tester, entries: [ChatEntry.reply(text)]);
@@ -273,7 +273,7 @@ void main() {
     final text = attachImage(
         'Heat can help.',
         const ReplyImage(
-            query: 'heat pad', id: 9, src: 'https://i/9.jpg',
+            query: 'heat pad', id: 9, src: 'https://images.pexels.com/photos/9.jpg',
             photographer: 'Sam', photographerUrl: 'https://p/@sam',
             pageUrl: 'https://p/9'));
     await pump(tester, entries: [ChatEntry.reply(text)]);
